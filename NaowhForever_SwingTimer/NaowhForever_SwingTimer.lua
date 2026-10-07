@@ -11,10 +11,11 @@
 local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local S = UI.ModuleSettings("swingTimer", {
     enabled = false,
-    width = 220, rowHeight = 14, spacing = 2, textSize = 11,
+    width = 220, rowHeight = 14, spacing = 2, textSize = 11, font = "", outline = "OUTLINE",
     texture = "", bgAlpha = 0.6,
     visibility = "combat", hideWhenIdle = false,
     showMH = true, showOH = true, showR = true,
@@ -193,12 +194,6 @@ end
 -------------------------------------------------------------------------------
 --  Rows
 -------------------------------------------------------------------------------
-local function TexturePath()
-    local name = S.Get("texture")
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    return (LSM and name ~= "" and LSM:Fetch("statusbar", name, true)) or FLAT_TEX
-end
-
 local Look = {}
 
 function Look.Row(parent, def)
@@ -246,8 +241,9 @@ function Look.Style(row, tex)
     row.spark:SetPoint("CENTER", row.bar:GetStatusBarTexture(), "RIGHT", 0, 0)
     row.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, S.Get("bgAlpha"))
     row.spark:SetSize(8, h * 2)
-    row.tag:SetFont(ns.UIFontPath(), size, "OUTLINE")
-    row.time:SetFont(ns.UIFontPath(), size, "OUTLINE")
+    local font, outline = S.Get("font"), S.Get("outline")
+    Parts.HudFont(row.tag, font, size, outline)
+    Parts.HudFont(row.time, font, size, outline)
     row.tag:SetShown(S.Get("showLabel"))
     row.time:SetShown(S.Get("showTime"))
 end
@@ -601,7 +597,7 @@ local function RowsChanged()
 end
 
 local function Style()
-    local tex = TexturePath()
+    local tex = UI.TexturePath(S.Get("texture"), FLAT_TEX)
     for i = 1, #rows do
         local row = rows[i]
         Look.Style(row, tex)
@@ -995,7 +991,7 @@ end
 
 local function PaintPreview(preview, state)
     local sample = SAMPLES[state]
-    local tex = TexturePath()
+    local tex = UI.TexturePath(S.Get("texture"), FLAT_TEX)
     local h, sp, w = S.Get("rowHeight"), S.Get("spacing"), S.Get("width")
     local n = 0
     for _, row in ipairs(preview.rows) do
@@ -1086,23 +1082,6 @@ local function BarsSummary(store)
         store.Get("visibility") == "always" and "always shown" or "in combat")
 end
 
-local function TextureChoices()
-    local values, order = { [""] = "Flat" }, { "" }
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    if LSM then
-        for _, name in ipairs(LSM:List("statusbar")) do
-            values[name] = name
-            order[#order + 1] = name
-        end
-    end
-    local cur = S.Get("texture")
-    if cur ~= "" and not values[cur] then
-        values[cur] = cur .. " (unavailable)"
-        order[#order + 1] = cur
-    end
-    return values, order
-end
-
 local SHOW = { { always = "Always", combat = "In Combat" }, { "always", "combat" } }
 
 local page = Settings.Page("Swing Timer/Settings", S)
@@ -1128,14 +1107,12 @@ page:Card({
         { key = "visibility", label = "Show", choice = SHOW, needs = Enabled, why = OFF },
         { key = "hideWhenIdle", label = "Hide When Idle", toggle = true, needs = WhenIdle,
           why = "Only with Show In Combat", help = "Hide the bars while no swing is running." },
-        Group("Layout"),
+        Group("Size"),
         { key = "width", label = "Width", slider = { 80, 600, 1 }, needs = Enabled, why = OFF },
         { key = "rowHeight", label = "Bar Height", slider = { 4, 40, 1 }, needs = Enabled, why = OFF },
         { key = "spacing", label = "Bar Spacing", slider = { 0, 20, 1 }, needs = Enabled, why = OFF },
-        { key = "textSize", label = "Text Size", slider = { 6, 24, 1 }, needs = Enabled, why = OFF },
-        { key = "texture", label = "Bar Texture", choice = TextureChoices, needs = Enabled, why = OFF },
-        { key = "bgAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%", scale = 0.01,
-          needs = Enabled, why = OFF },
+        Settings.Look("", { text = true, size = { 6, 24, 1 }, bar = "Flat", background = "alpha",
+            keys = { FontSize = "textSize" }, needs = Enabled, why = OFF }),
         Group("Shown"),
         { key = "depleteFill", label = "Deplete Fill", toggle = true, needs = Enabled, why = OFF,
           help = "Start each bar full and drain it, instead of filling it up." },

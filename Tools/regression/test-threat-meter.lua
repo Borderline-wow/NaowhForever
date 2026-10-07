@@ -33,7 +33,8 @@ local function fixture(settings, withSettings)
         function f:GetTop() return 600 end
         function f:SetPoint(...) self.point={...} end
         function f:SetText(t) assert(type(t)~='boolean','boolean passed to SetText'); self.text=t end
-        function f:SetFont(path,size) assert(type(path)=='string' and type(size)=='number'); self.fontSize=size end
+        function f:SetFont(path,size,flags) assert(type(path)=='string' and type(size)=='number'); self.fontSize,self.flags=size,flags end
+        function f:SetStatusBarTexture(t) self.barTexture=t end
         function f:SetTexture(t) self.texture=t end
         function f:SetDesaturated(v) self.desaturated=v end
         function f:SetStatusBarColor(...) self.color={...} end
@@ -54,6 +55,7 @@ local function fixture(settings, withSettings)
         Button=function(parent,text,w,h,fn) local b=frame('Button',nil,parent); b.label=frame('FontString'); b.label:SetText(text); b.scripts.OnClick=fn; return b end,
         OpenOptionsWindow=function(name) s.opened=name end,
         UI={STATUS={},FontPath=function() return 'font.ttf' end,AttachMover=function() return frame('Mover') end,
+            TexturePath=function(name,fallback) if name=='Solid' then return 'solid' end return fallback end,
             SoundPathFor=function() return 'sound' end,_PlayLSMSound=function() s.sounds=s.sounds+1 end},
     }
     ns.UI.ModuleSettings=function(_, defaults)
@@ -93,9 +95,10 @@ local function fixture(settings, withSettings)
     env.GameTooltip=frame('Tooltip')
     function env.GameTooltip:SetOwner(o) self.owner=o end
     function env.GameTooltip:GetOwner() return self.owner end
+    ns.Shared={Parts={HudFont=function(fs,font,size,outline) fs:SetFont('font.ttf',size,outline);fs.shadowFor=outline=='' end}}
     if withSettings then
-        ns.Shared={Settings={Group=function(name) return {group=name} end,
-            Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}}
+        ns.Shared.Settings={Group=function(name) return {group=name} end,Look=function(_,opts) s.look=opts;return {} end,
+            Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}
     end
     setmetatable(env,{__index=_G})
     local chunk=assert(loadfile('NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
@@ -318,5 +321,26 @@ do
  check('hiding the preview ends a drag',grip.scripts.OnUpdate==nil)
  s.settings.enabled=false;studio.paint(shot,'tanking')
  check('preview is not editable while off',not shot.edit.shown and shot.note.text:find('Turn on',1,true)==1)
+end
+do
+ local s=fixture({enabled=true})
+ local row=s.bar('You')
+ check('rows draw the Naowh Gradient by default',row.barTexture:find('NaowhGradient',1,true)~=nil)
+ check('rows are outlined by default',row.name.flags=='OUTLINE' and row.value.flags=='OUTLINE' and row.percent.flags=='OUTLINE')
+ s.set('outline','');check('a changed outline relays the rows',s.bar('You').name.flags=='' and s.bar('You').name.shadowFor)
+ s.set('texture','Solid');check('a SharedMedia texture is drawn',s.bar('You').barTexture=='solid')
+end
+do
+ local s=fixture({enabled=true,texture='smooth'})
+ check('the old Naowh Gradient value becomes the default',s.settings.texture==nil)
+ check('it still draws the gradient',s.bar('You').barTexture:find('NaowhGradient',1,true)~=nil)
+ s=fixture({enabled=true,texture='flat'})
+ check('the old Flat value becomes Solid',s.settings.texture=='Solid' and s.bar('You').barTexture=='solid')
+ s=fixture({texture='flat'})
+ check('the texture moves over while the meter is off too',s.settings.texture=='Solid')
+end
+do
+ local s=fixture({enabled=true},true)
+ check('the meter card takes the shared text and bar rows',s.look and s.look.text and s.look.bar=='Naowh Gradient')
 end
 print(checks..' threat-meter checks passed')

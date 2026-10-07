@@ -144,7 +144,9 @@ do
             return b
         end,
         UI = { FontPath = function() return "font" end, AttachMover = function() return New("Mover") end,
+            TexturePath = function(_, fallback) return fallback end,
             SoundPathFor = function() return "sound" end, _PlayLSMSound = function() end },
+        Shared = { Parts = { HudFont = function(fs, _, size, outline) fs:SetFont("font", size, outline) end } },
     }
     ns.UI.ModuleSettings = function(_, defaults) return Settings(values, defaults) end
     local env = BaseEnv(ns, {

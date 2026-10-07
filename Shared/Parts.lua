@@ -68,6 +68,16 @@ function Parts.HudText(fs, shadow)
     return fs
 end
 
+Parts.HUD_OUTLINES = { { NONE = "None", [""] = "Shadow", OUTLINE = "Outline", THICKOUTLINE = "Thick Outline" },
+    { "NONE", "", "OUTLINE", "THICKOUTLINE" } }
+
+-- font is a SharedMedia name ("" for the Addon Font); outline one of HUD_OUTLINES. Shadow ("")
+-- gets the HUD shadow for background (a Parts.HudBackdrop mode, or nil for the card's).
+function Parts.HudFont(fs, font, size, outline, background)
+    fs:SetFont(ns.UI.FontPath(font), size, outline == "NONE" and "" or outline)
+    return Parts.HudText(fs, outline == "" and (background or "card") or false)
+end
+
 Parts.HUD_BACKGROUNDS = { { card = "Card", soft = "Soft", none = "None" }, { "card", "soft", "none" } }
 local BACKGROUND_NAMES, NO_OPTS = Parts.HUD_BACKGROUNDS[1], {}
 local SOFT_CORNERS = {   -- point, its x and y outwards, then the round texture's quarter: left, right, top, bottom

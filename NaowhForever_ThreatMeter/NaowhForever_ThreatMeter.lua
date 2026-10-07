@@ -7,14 +7,15 @@
 local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local S = UI.ModuleSettings("threatMeter", {
     enabled = false,
     width = 280, height = 240, barHeight = 24, maxBars = 40,
     source = "target", focusEnabled = false, visibility = "threat",
-    locked = true, barSpacing = 3, fontSize = 12, font = "",
+    locked = true, barSpacing = 3, fontSize = 12, font = "", outline = "OUTLINE",
     showIcons = true, showRanks = true, highlightPlayer = true,
-    backgroundAlpha = 0.94, barAlpha = 0.72, texture = "smooth", percentMode = "pull",
+    backgroundAlpha = 0.94, barAlpha = 0.72, texture = "", percentMode = "pull",
     growUp = false, showHeader = true, ignorePets = false, statusPos = "bottom",
     showValue = true, showPercent = true,
     playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
@@ -37,6 +38,7 @@ local threatEventsOn = false
 local events
 
 local FALLBACK_COLOR = { r = 0.6, g = 0.6, b = 0.6 }
+local GRADIENT_TEX = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
 -- The window's own blue-tinted dark scheme; ns.ThemeTint swaps in the player's theme colors.
 local WINDOW_BG = { r = 0.025, g = 0.04, b = 0.055 }
 local WINDOW_EDGE = { r = 0.10, g = 0.19, b = 0.24 }
@@ -124,11 +126,6 @@ local function HeaderHeight()
     return S.Get("showHeader") and 48 or 0
 end
 
-local function FontPath()
-    local key = S.Get("font")
-    return UI.FontPath(key)
-end
-
 local function ResizeMetrics()
     local start = frame.resizeStart
     if not start then return S.Get("barHeight"), S.Get("barSpacing"), S.Get("fontSize") end
@@ -180,17 +177,18 @@ function Look.Layout(f, total, first, bh, gap, fontSize)
     local growUp = S.Get("growUp")
     local statusTop = S.Get("statusPos") == "top"
     local above, below = top + (statusTop and FOOTER or 0), statusTop and 0 or FOOTER
-    local texture, font = S.Get("texture"), FontPath()
+    local texture, font, outline = S.Get("texture"), S.Get("font"), S.Get("outline")
     local showRanks, showIcons = S.Get("showRanks"), S.Get("showIcons")
     local showPercent, showValue = S.Get("showPercent"), S.Get("showValue")
     local last = f.laid
     if not last then last = { gen = 0 }; f.laid = last end
     if f.sizing or last.w ~= w or last.h ~= h or last.bh ~= bh or last.gap ~= gap or last.fontSize ~= fontSize
         or last.iconSize ~= iconSize or last.growUp ~= growUp or last.above ~= above or last.below ~= below
-        or last.texture ~= texture or last.font ~= font or last.showRanks ~= showRanks
+        or last.texture ~= texture or last.font ~= font or last.outline ~= outline or last.showRanks ~= showRanks
         or last.showIcons ~= showIcons or last.showPercent ~= showPercent or last.showValue ~= showValue then
         last.w, last.h, last.bh, last.gap, last.fontSize, last.iconSize = w, h, bh, gap, fontSize, iconSize
         last.growUp, last.above, last.below, last.texture, last.font = growUp, above, below, texture, font
+        last.outline = outline
         last.showRanks, last.showIcons, last.showPercent, last.showValue = showRanks, showIcons, showPercent, showValue
         last.gen = last.gen + 1
         f.header:SetSize(w, math.max(top, 1))
@@ -211,8 +209,7 @@ function Look.Layout(f, total, first, bh, gap, fontSize)
             if growUp then row:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", INSET, below + INSET + (i - 1) * (bh + gap))
             else row:SetPoint("TOPLEFT", f, "TOPLEFT", INSET, -above - INSET - (i - 1) * (bh + gap)) end
             row:SetSize(w - 2 * INSET, bh)
-            row:SetStatusBarTexture(texture == "flat" and "Interface\\Buttons\\WHITE8X8"
-                or "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
+            row:SetStatusBarTexture(UI.TexturePath(texture, GRADIENT_TEX))
             local left = TEXT_PAD
             row.rank:ClearAllPoints(); row.rank:SetPoint("LEFT", left, 0); row.rank:SetWidth(16)
             row.rank:SetShown(showRanks)
@@ -226,9 +223,9 @@ function Look.Layout(f, total, first, bh, gap, fontSize)
             row.value:ClearAllPoints(); row.value:SetPoint("RIGHT", -TEXT_PAD - percentWidth, 0); row.value:SetWidth(math.max(1, valueWidth))
             row.name:ClearAllPoints(); row.name:SetPoint("LEFT", left, 0)
             row.name:SetPoint("RIGHT", -TEXT_PAD - percentWidth - valueWidth - 5, 0)
-            row.name:SetFont(font, fontSize, "OUTLINE")
-            row.value:SetFont(font, fontSize, "OUTLINE")
-            row.percent:SetFont(font, fontSize, "OUTLINE")
+            Parts.HudFont(row.name, font, fontSize, outline)
+            Parts.HudFont(row.value, font, fontSize, outline)
+            Parts.HudFont(row.percent, font, fontSize, outline)
         end
         row:Show()
     end
@@ -638,8 +635,18 @@ local function MigrateVisibility()
     end
 end
 
+-- Bar Texture became the SharedMedia list: Naowh Gradient is the meter's own texture, Flat is Solid.
+local OLD_TEXTURES = { smooth = "", flat = "Solid" }
+
+local function MigrateTexture()
+    local db = S.DB()
+    local name = OLD_TEXTURES[db.texture]
+    if name then db.texture = name ~= "" and name or nil end
+end
+
 local function Apply()
     MigrateVisibility()
+    MigrateTexture()
     events:UnregisterAllEvents()
     threatEventsOn = false
     updateGeneration = updateGeneration + 1; pendingUpdate = false
@@ -739,7 +746,6 @@ local SHOW = { VISIBILITY, { "always", "threat", "combat", "group" } }
 local SOURCE = { { target = "Target", focus = "Focus" }, { "target", "focus" } }
 local PERCENT = { { pull = "Pull Aggro", tank = "Tank Threat" }, { "pull", "tank" } }
 local STATUS = { { bottom = "Bottom", top = "Top" }, { "bottom", "top" } }
-local TEXTURE = { { smooth = "Naowh Gradient", flat = "Flat" }, { "smooth", "flat" } }
 local ROW_TOGGLES = {
     { "showValue", "Show Threat" },
     { "showPercent", "Show Percent" },
@@ -753,7 +759,7 @@ local TIPS = {
     { "status", "Click the status line", "Status Line" },
     { "rows", "Wheel on the rows", "Row Height" },
     { "rows", "Shift + wheel", "Row Spacing" },
-    { "rows", "Ctrl + wheel", "Text Size" },
+    { "rows", "Ctrl + wheel", "Font Size" },
     { "rows", "Right-click a row", "What Rows Show" },
 }
 
@@ -1134,12 +1140,9 @@ page:Card({
           help = "Pets use their owner's class icon, desaturated." },
         { key = "showRanks", label = "Rank Numbers", toggle = true, needs = Enabled, why = OFF },
         { key = "highlightPlayer", label = "Highlight Your Row", toggle = true, needs = Enabled, why = OFF },
-        { key = "texture", label = "Bar Texture", choice = TEXTURE, needs = Enabled, why = OFF },
+        Settings.Look("", { text = true, size = TEXT_RANGE, bar = "Naowh Gradient", needs = Enabled, why = OFF }),
         { key = "barAlpha", label = "Bar Opacity", slider = { 10, 100, 5 }, unit = "%", scale = 0.01,
           needs = Enabled, why = OFF },
-        Group("Text"),
-        { key = "font", label = "Font", font = true, needs = Enabled, why = OFF },
-        { key = "fontSize", label = "Text Size", slider = TEXT_RANGE, needs = Enabled, why = OFF },
         Group("Colours"),
         { key = "playerColorOn", label = "Colour Your Bar", toggle = true, needs = Enabled, why = OFF,
           help = "Your own bar in one colour instead of your class colour." },

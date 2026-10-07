@@ -83,6 +83,7 @@ function Controls.choice(row)
     return (ns.UI.BuildDropdownControl(row, CHOICE_W, row:GetFrameLevel() + 2, {}, {}, row.Get, row.Set))
 end
 Controls.font = Controls.choice
+Controls.texture = Controls.choice
 Controls.sound = Controls.choice
 
 function Controls.binding(row)
@@ -169,6 +170,7 @@ end
 local function ChoiceValues(setting)
     local kind = setting.kind
     if kind == "font" then return FontValues(setting) end
+    if kind == "texture" then return ns.UI.TextureChoices(setting.get(), setting.texture) end
     if kind == "sound" then return SoundValues() end
     if type(setting.choice) == "function" then return setting.choice() end
     return setting.choice[1] or setting.choice.values, setting.choice[2] or setting.choice.order
@@ -181,7 +183,7 @@ local function ShownValue(setting, v)
         if setting.scale then v = math.floor(v / setting.scale + 0.5) end
         return tostring(v) .. (setting.unit or "")
     end
-    if kind == "choice" or kind == "font" or kind == "sound" then
+    if kind == "choice" or kind == "font" or kind == "texture" or kind == "sound" then
         local values = ChoiceValues(setting)
         local label = values and values[v]
         return label and tostring(label) or nil
@@ -294,7 +296,7 @@ local function Bind(control, setting)
         local unit = setting.unit
         control._format = unit and UnitFormat(unit) or nil
         control._refreshValue()
-    elseif kind == "choice" or kind == "font" or kind == "sound" then
+    elseif kind == "choice" or kind == "font" or kind == "texture" or kind == "sound" then
         control._values, control._order = ChoiceValues(setting)
         control._refreshLabel()
     elseif kind == "colour" then

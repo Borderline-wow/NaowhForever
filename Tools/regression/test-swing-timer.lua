@@ -54,6 +54,10 @@ local function Session(settings, opts)
             return S
         end,
         AttachMover = function() return Widget("Mover", log) end,
+        TexturePath = function(name, fallback)
+            log.texture = name
+            return name == "" and fallback or name
+        end,
         STATUS = {},
     }
     local ns = { UI = UI, THEME = { bg = { r = 0, g = 0, b = 0 } } }
@@ -67,6 +71,9 @@ local function Session(settings, opts)
     ns.PixelInset = function(region) return region end
     ns.Font = function() return Widget("FontString", log) end
     ns.UIFontPath = function() return "font" end
+    ns.Shared = { Parts = { HudFont = function(fs, font, size, outline)
+        fs.font, fs.size, fs.outline = font, size, outline
+    end } }
     local speeds = opts.speeds or { 2.6, nil, nil }
     local env = setmetatable({
         _G = { NaowhForever = ns },
@@ -445,6 +452,19 @@ end)
 Case("seal colors on a warrior listen to nothing", function()
     local _, log = Session({ enabled = true, sealColors = true }, { names = SEAL_NAMES })
     assert(not log.events.events.UNIT_AURA and not log.events.events.UNIT_SPELLCAST_SUCCEEDED)
+end)
+
+Case("the bar text keeps today's look until a setting changes it", function()
+    local _, log = Session({ enabled = true })
+    local tag = log.bars[1].parent.tag
+    assert(tag.font == "" and tag.size == 11 and tag.outline == "OUTLINE")
+    assert(log.texture == "", "the flat fill by default")
+    log.Set("font", "Naowh")
+    log.Set("outline", "")
+    log.Set("textSize", 14)
+    assert(tag.font == "Naowh" and tag.size == 14 and tag.outline == "")
+    log.Set("texture", "Solid")
+    assert(log.texture == "Solid")
 end)
 
 print(("%d cases passed"):format(count))

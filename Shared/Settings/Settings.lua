@@ -12,7 +12,7 @@ Shared.Settings = Settings
 local pages = {}
 Settings.pages = pages
 
-local KINDS = { "toggle", "slider", "choice", "colour", "font", "sound", "text", "button", "binding" }
+local KINDS = { "toggle", "slider", "choice", "colour", "font", "texture", "sound", "text", "button", "binding" }
 
 local Page = {}
 Page.__index = Page
@@ -29,6 +29,67 @@ end
 
 function Settings.Group(title)
     return { group = title }
+end
+
+local TEXT_SIZE = { 6, 32, 1 }
+local BG_ALPHA = { 0, 100, 5 }
+local NO_KEYS = {}
+
+local function LookKey(prefix, keys, suffix)
+    local key = keys[suffix]
+    if key ~= nil then return key end
+    if prefix == "" then return suffix:sub(1, 1):lower() .. suffix:sub(2) end
+    return prefix .. suffix
+end
+
+-- The standard look rows of a HUD element, as one entry of a card's rows: Text (<prefix>Font,
+-- <prefix>FontSize, <prefix>Outline), Bar (<prefix>Texture) and Background (<prefix>Background
+-- card/soft/none, or <prefix>BgAlpha, which joins the Bar group when there is one). opts: text,
+-- size (the font size slider's range), bar (the name of the element's own texture, shown for ""),
+-- background ("card" or "alpha"), needs and why for every row, and keys: a suffix to the key an
+-- element already saves under, or false to leave that row out.
+function Settings.Look(prefix, opts)
+    local keys, rows, group = opts.keys or NO_KEYS, {}, nil
+    local function Add(title, suffix, row)
+        local key = LookKey(prefix, keys, suffix)
+        if not key then return end
+        if group ~= title then
+            group = title
+            rows[#rows + 1] = Settings.Group(title)
+        end
+        row.key, row.needs, row.why = key, opts.needs, opts.why
+        rows[#rows + 1] = row
+    end
+    if opts.text then
+        Add("Text", "Font", { label = "Font", font = true })
+        Add("Text", "FontSize", { label = "Font Size", slider = opts.size or TEXT_SIZE })
+        Add("Text", "Outline", { label = "Outline", choice = Shared.Parts.HUD_OUTLINES,
+            help = "A black outline round the text, in place of the soft shadow." })
+    end
+    if opts.bar then
+        Add("Bar", "Texture", { label = "Bar Texture", texture = opts.bar })
+    end
+    if opts.background == "card" then
+        Add("Background", "Background", { label = "Background", choice = Shared.Parts.HUD_BACKGROUNDS,
+            help = "A card behind the text, a soft dark fade, or nothing at all." })
+    elseif opts.background == "alpha" then
+        Add(opts.bar and "Bar" or "Background", "BgAlpha", { label = "Background Opacity", slider = BG_ALPHA,
+            unit = "%", scale = 0.01 })
+    end
+    return rows
+end
+
+-- A card's rows may hold a list of rows (Settings.Look), drawn in its place.
+local function Flatten(rows)
+    local out = {}
+    for _, row in ipairs(rows) do
+        if row[1] then
+            for _, inner in ipairs(row) do out[#out + 1] = inner end
+        else
+            out[#out + 1] = row
+        end
+    end
+    return out
 end
 
 local function Normalise(row, card)
@@ -97,7 +158,7 @@ end
 
 function Settings.Rows(card)
     if card.rowsFn then
-        card.rows = card.rowsFn()
+        card.rows = Flatten(card.rowsFn())
         for _, row in ipairs(card.rows) do
             if row.card ~= card then Normalise(row, card) end
         end
@@ -115,7 +176,7 @@ function Page:Card(spec)
     if type(spec.rows) == "function" then
         spec.rowsFn, spec.rows = spec.rows, {}
     end
-    spec.rows = spec.rows or {}
+    spec.rows = Flatten(spec.rows or {})
     Switch(spec)
     for _, row in ipairs(spec.rows) do Normalise(row, spec) end
     self.cards[spec.id] = spec
