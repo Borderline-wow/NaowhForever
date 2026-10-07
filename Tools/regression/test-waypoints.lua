@@ -30,11 +30,17 @@ function Frame:SetShown(v) self.shown = v and true or false end
 function Frame:IsShown() return self.shown end
 function Frame:SetAlpha(a) self.alpha = a end
 function Frame:SetScale(v) self.scale = v end
-function Frame:ClearAllPoints() self.point = nil end
-function Frame:SetPoint(...) self.point = { ... } end
+function Frame:ClearAllPoints() self.point, self.points = nil, {} end
+function Frame:SetPoint(...)
+    self.point = { ... }
+    self.points = self.points or {}
+    self.points[#self.points + 1] = self.point
+end
 function Frame:SetText(t) self.text = t end
 function Frame:GetText() return self.text end
 function Frame:SetRotation(r) self.rotation = r end
+function Frame:SetTexture(t) self.texture = t end
+function Frame:SetHeight(h) self.height = h end
 function Frame:CreateTexture() return NewFrame("Texture", self) end
 function Frame:CreateFontString() return NewFrame("FontString", self) end
 
@@ -76,7 +82,7 @@ local ns = {
         SoundPathFor = function(key) if key ~= "none" then return "sound:" .. key end end,
     },
     Shared = {
-        Style = { ROUND = "round" },
+        Style = { ROUND = "round", PLACE_DOT = " . " },
         Parts = {
             HudBackdrop = NOOP,
             HudText = function(fs) return fs end,
@@ -176,6 +182,22 @@ Check(pin.card.time.text == "about 0:22", "moving, at your own speed")
 Check(navBar:IsShown() and navBar.name.text == "Mage Trainer" and navBar.sub.text == "Thunder Bluff",
     "the navigator names it and its zone")
 Check(navBar.dist.text == "312 yd" and pin.scale < 1 and pin.scale > 0.65, "and shrinks the pin with distance")
+Check(not pin.card.note.shown and not pin.card.icon.shown and navBar.fill.shown, "no note or icon: neither shows")
+local plainH = pin.card.height
+-- A note and an icon from the module that placed it: a line under the name, the icon beside it
+-- and in the navigator in place of the shape.
+ns.placedWaypoint.note, ns.placedWaypoint.icon = " (weapon Master)", 132
+events.scripts.OnEvent(events, "USER_WAYPOINT_UPDATED")
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.note.shown and pin.card.note.text == "Weapon Master" and pin.card.height > plainH,
+    "the note on its own line, the card taller")
+Check(pin.card.icon.shown and pin.card.icon.texture == 132 and pin.card.name.points[1][2] == pin.card.icon, "the icon beside the name")
+Check(navBar.sub.text == "Weapon Master . Thunder Bluff" and navBar.icon.shown and navBar.icon.texture == 132
+    and not navBar.fill.shown, "the navigator: note and zone, the icon in place of the shape")
+ns.placedWaypoint.note, ns.placedWaypoint.icon = nil, nil
+events.scripts.OnEvent(events, "USER_WAYPOINT_UPDATED")
+driver.scripts.OnUpdate(driver, 0)
+Check(not pin.card.note.shown and pin.card.height == plainH, "and back without them")
 nav.distance = 20
 driver.scripts.OnUpdate(driver, 0)
 Check(pin.alpha < 1 and pin.alpha >= 0.25, "it fades up close")

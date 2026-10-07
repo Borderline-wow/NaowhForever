@@ -58,22 +58,25 @@ function ns.WaypointLink(map, x, y)
     return link
 end
 
---- A waypoint on the map, and the arrow on it where the game has one.
+--- A waypoint on the map, and the arrow on it where the game has one. With the Waypoint Pin on,
+--- always the game's, which the pin follows, rather than TomTom's.
 ---@param title string what the pin is for, as the chat line names it
 ---@param map number uiMapID
 ---@param x number percent, as the data files write it
 ---@param y number percent
 ---@param note? string what the pin points at, after the title (" (entrance)")
+---@param icon? number|string a texture for the Waypoint Pin's card and navigator
 ---@return boolean placed false where the map takes no waypoints
-function ns.PlaceWaypoint(title, map, x, y, note)
-    if TomTom and TomTom.AddWaypoint and PlaceTomTom(title, map, x, y, note) then return true end
+function ns.PlaceWaypoint(title, map, x, y, note, icon)
+    local pin = ns.WaypointPinOn and ns.WaypointPinOn()
+    if not pin and TomTom and TomTom.AddWaypoint and PlaceTomTom(title, map, x, y, note) then return true end
     if not C_Map.CanSetUserWaypointOnMap(map) then
         ns.Print("That map does not take waypoints.")
         return false
     end
     C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x / 100, y / 100))
     if C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
-    ns.placedWaypoint = { title = title, map = map, x = x, y = y }
+    ns.placedWaypoint = { title = title, note = note, icon = icon, map = map, x = x, y = y }
     ns.Print("Waypoint for " .. ns.WaypointText(title, map, x, y, note))
     return true
 end

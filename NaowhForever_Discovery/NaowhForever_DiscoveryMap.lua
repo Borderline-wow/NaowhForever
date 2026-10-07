@@ -82,7 +82,8 @@ function NaowhForeverLibraryPinMixin:OnClick(button)
     local entry = self.entry
     if entry.book then
         local spot = entry.spot
-        ns.PlaceWaypoint(entry.book.name, spot[1], spot[2], spot[3], spot[4] and (" (" .. spot[4] .. ")"))
+        ns.PlaceWaypoint(entry.book.name, spot[1], spot[2], spot[3], spot[4] and (" (" .. spot[4] .. ")"),
+            C_Item.GetItemIconByID(entry.book.item))
     else
         ns.PlaceWaypoint(entry.npc.name, entry.npc.map, entry.npc.x, entry.npc.y)
     end

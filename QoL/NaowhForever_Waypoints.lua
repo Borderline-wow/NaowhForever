@@ -21,8 +21,9 @@ local CHEVRON, CHECK, CROSS = MEDIA .. "chevron", MEDIA .. "check", MEDIA .. "cr
 local PIN, MARK, ARROW = 36, 12, 18          -- the pin, the mark in its middle, the edge arrow in it
 local FILL_ALPHA = 0.2                       -- the pin's tint inside its outline
 local CARD_W, CARD_PAD, CARD_GAP, STRIP = 180, 8, 8, 2
-local NAME_SIZE, DIST_SIZE, TIME_SIZE, LINE_GAP, TIME_GAP = 14, 18, 11, 3, 8
+local NAME_SIZE, NOTE_SIZE, DIST_SIZE, TIME_SIZE, LINE_GAP, TIME_GAP = 14, 11, 18, 11, 3, 8
 local CARD_H = 2 * CARD_PAD + STRIP + NAME_SIZE + LINE_GAP + DIST_SIZE
+local CARD_ICON, ICON_GAP, ICON_CROP = NAME_SIZE + LINE_GAP + DIST_SIZE, 8, 0.08   -- a module's icon, beside the name
 local BEAM_W, BEAM_H, BEAM_ALPHA = 2, 80, 0.55
 local GROUND_W, GROUND_H = 44, 12
 local EDGE_INSET = 70                        -- the edge arrow from the screen's edge
@@ -39,6 +40,7 @@ local ARRIVED_HOLD = 4                       -- seconds the arrival shows
 local function On()
     return S.Get("enabled") and S.Get("waypoints")
 end
+ns.WaypointPinOn = On
 
 local function Yards(yards)
     return BreakUpLargeNumbers(math.floor(yards + 0.5)) .. " yd"
@@ -95,21 +97,28 @@ function Look.NewPin(parent)
     pin.ground:SetPoint("CENTER", pin.beam, "BOTTOM")
 
     local card = Card(pin, CARD_W)
+    card.icon = card:CreateTexture(nil, "ARTWORK")
+    card.icon:SetSize(CARD_ICON, CARD_ICON)
+    card.icon:SetPoint("TOPLEFT", CARD_PAD, -(CARD_PAD + STRIP))
+    card.icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
     card.name = Parts.HudText(ns.Font(card, NAME_SIZE))
-    card.name:SetPoint("TOPLEFT", CARD_PAD, -(CARD_PAD + STRIP))
-    card.name:SetPoint("TOPRIGHT", -CARD_PAD, -(CARD_PAD + STRIP))
     card.name:SetJustifyH("LEFT")
     card.name:SetWordWrap(false)
+    card.note = Parts.HudText(ns.Font(card, NOTE_SIZE, nil, T.muted))
+    card.note:SetPoint("TOPLEFT", card.name, "BOTTOMLEFT", 0, -LINE_GAP)
+    card.note:SetPoint("RIGHT", card.name, "RIGHT")
+    card.note:SetJustifyH("LEFT")
+    card.note:SetWordWrap(false)
     card.dist = Parts.HudText(ns.Font(card, DIST_SIZE, nil, T.accent))
-    card.dist:SetPoint("TOPLEFT", card.name, "BOTTOMLEFT", 0, -LINE_GAP)
     card.time = Parts.HudText(ns.Font(card, TIME_SIZE, nil, T.muted))
     card.time:SetPoint("BOTTOMLEFT", card.dist, "BOTTOMRIGHT", TIME_GAP, 0)
     pin.card = card
     return pin
 end
 
--- o: shape, name, yards, seconds (nil hides the walking time), mode ("world", "edge" or
--- "arrived"), angle (edge: radians from the screen's centre, 0 to the right), card, beam.
+-- o: shape, name, note and icon (each optional), yards, seconds (nil hides the walking time),
+-- mode ("world", "edge" or "arrived"), angle (edge: radians from the screen's centre, 0 to the
+-- right), card, beam.
 function Look.PaintPin(pin, o)
     local a = T.accent
     local shape = SHAPES[o.shape] or SHAPES.hex
@@ -128,7 +137,21 @@ function Look.PaintPin(pin, o)
     local card = pin.card
     card:SetShown(o.card)
     if not o.card then return end
+    card.icon:SetShown(o.icon ~= nil)
+    if o.icon then card.icon:SetTexture(o.icon) end
+    card.name:ClearAllPoints()
+    if o.icon then
+        card.name:SetPoint("TOPLEFT", card.icon, "TOPRIGHT", ICON_GAP, 0)
+    else
+        card.name:SetPoint("TOPLEFT", CARD_PAD, -(CARD_PAD + STRIP))
+    end
+    card.name:SetPoint("RIGHT", -CARD_PAD, 0)
     card.name:SetText(o.name)
+    card.note:SetShown(o.note ~= nil)
+    card.note:SetText(o.note or "")
+    card.dist:ClearAllPoints()
+    card.dist:SetPoint("TOPLEFT", o.note and card.note or card.name, "BOTTOMLEFT", 0, -LINE_GAP)
+    card:SetHeight(CARD_H + (o.note and NOTE_SIZE + LINE_GAP or 0))
     card.dist:SetText(arrived and "Arrived" or Yards(o.yards))
     card.time:SetText(o.seconds and not arrived and Walk(o.seconds) or "")
     -- Over the pin in the world; toward the screen's middle at an edge, so it stays on screen.
@@ -158,6 +181,9 @@ function Look.NewNav(parent, onClear)
     nav.fill:SetPoint("LEFT", NAV_PAD, 0)
     nav.ring = nav:CreateTexture(nil, "ARTWORK", nil, 1)
     nav.ring:SetAllPoints(nav.fill)
+    nav.icon = nav:CreateTexture(nil, "ARTWORK")
+    nav.icon:SetAllPoints(nav.fill)
+    nav.icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
     nav.clear = Parts.IconButton(nav, onClear, CROSS, 0, "Clear the waypoint")
     nav.clear:SetPoint("RIGHT", -NAV_PAD / 2, 0)
     nav.dist = Parts.HudText(ns.Font(nav, NAV_DIST, nil, T.accent))
@@ -178,12 +204,17 @@ function Look.NewNav(parent, onClear)
     return nav
 end
 
--- o: shape, name, sub, yards, mode, angle (radians from the screen's centre, 0 to the right).
+-- o: shape, name, sub, icon (optional, in place of the shape), yards, mode, angle (radians from
+-- the screen's centre, 0 to the right).
 function Look.PaintNav(nav, o)
     local a = T.accent
     local shape = SHAPES[o.shape] or SHAPES.hex
     Trilinear(nav.fill, shape.fill):SetVertexColor(a.r, a.g, a.b, FILL_ALPHA)
     Trilinear(nav.ring, shape.ring):SetVertexColor(a.r, a.g, a.b, 1)
+    nav.fill:SetShown(o.icon == nil)
+    nav.ring:SetShown(o.icon == nil)
+    nav.icon:SetShown(o.icon ~= nil)
+    if o.icon then nav.icon:SetTexture(o.icon) end
     nav.name:SetText(o.name)
     nav.sub:SetText(o.sub or "")
     nav.arrow:SetShown(o.mode ~= "arrived" and o.angle ~= nil)
@@ -201,7 +232,16 @@ local shown = {}
 local painted   -- what the texts and look were last drawn for; the place and arrows move every frame
 local NavSample = { name = "Mage Trainer", sub = "Thunder Bluff", yards = 312, mode = "world", angle = math.pi / 2 }
 
--- What the game is guiding you to. A spot ns.PlaceWaypoint set keeps the name it was given.
+-- A placed spot's note as a line of its own: " (entrance)" is "Entrance".
+local function NoteText(note)
+    if not note then return nil end
+    local text = note:match("^%s*%((.-)%)%s*$") or note:match("^%s*(.-)%s*$")
+    if text == "" then return nil end
+    return text:sub(1, 1):upper() .. text:sub(2)
+end
+
+-- What the game is guiding you to: its name, its zone, and the note and icon a spot
+-- ns.PlaceWaypoint set was given.
 local function Target()
     local kind = C_SuperTrack.GetHighestPrioritySuperTrackingType()
     local types = Enum.SuperTrackingType
@@ -212,15 +252,15 @@ local function Target()
         if placed and point and placed.map == point.uiMapID
             and math.abs(placed.x - point.position.x * 100) < 0.05
             and math.abs(placed.y - point.position.y * 100) < 0.05 then
-            return placed.title, where
+            return placed.title, where, NoteText(placed.note), placed.icon
         end
         return "Map Pin", where
     elseif kind == types.Quest then
-        return C_QuestLog.GetTitleForQuestID(C_SuperTrack.GetSuperTrackedQuestID()) or "Quest", nil
+        return C_QuestLog.GetTitleForQuestID(C_SuperTrack.GetSuperTrackedQuestID()) or "Quest"
     elseif kind == types.Corpse then
-        return "Your Corpse", nil
+        return "Your Corpse"
     end
-    return "Waypoint", nil
+    return "Waypoint"
 end
 
 local function Build()
@@ -325,7 +365,9 @@ end
 
 local function Retitle()
     painted = nil
-    shown.name, shown.sub = Target()
+    local where
+    shown.name, where, shown.note, shown.icon = Target()
+    shown.sub = shown.note and where and (shown.note .. St.PLACE_DOT .. where) or shown.note or where
     shown.shape = S.Get("waypointShape")
     shown.card, shown.beam = S.Get("waypointCard"), S.Get("waypointBeam")
 end

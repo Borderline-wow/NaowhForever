@@ -347,7 +347,8 @@ function Training.WaypointToTrainer()
         ns.Print("No trainer for your class is known for your faction.")
         return
     end
-    ns.PlaceWaypoint(npc[4], map, npc[1], npc[2], " (" .. npc[5] .. ")")
+    local icon = "Interface\\Icons\\ClassIcon_" .. npc[6]:lower():gsub("^%l", string.upper)
+    ns.PlaceWaypoint(npc[4], map, npc[1], npc[2], " (" .. npc[5] .. ")", icon)
 end
 
 -------------------------------------------------------------------------------

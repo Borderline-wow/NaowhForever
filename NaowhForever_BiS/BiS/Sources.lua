@@ -103,7 +103,8 @@ function Sources.Go(itemID)
     elseif kind == "quest" then
         if not B.ShowQuest(target) then Parts.CopyWowhead("quest", target, name) end
     elseif kind == "npc" then
-        ns.PlaceWaypoint(target.name, target.map, target.x, target.y, name and " (" .. name .. ")")
+        ns.PlaceWaypoint(target.name, target.map, target.x, target.y, name and " (" .. name .. ")",
+            C_Item.GetItemIconByID(itemID))
         if Places.ShowMap(target.map) then B.StepAside("map") end
     elseif kind == "recipe" then
         if CanOpenRecipe(target) then

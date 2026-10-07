@@ -913,7 +913,8 @@ local function Go(row)
     end
     if spot then
         local name = C_Item.GetItemNameByID(row.spotItem)
-        ns.PlaceWaypoint(spot.name, spot.map, spot.x, spot.y, name and " (" .. name .. ")")
+        ns.PlaceWaypoint(spot.name, spot.map, spot.x, spot.y, name and " (" .. name .. ")",
+            C_Item.GetItemIconByID(row.spotItem))
     end
     if Places.ShowMap(row.map) then B.StepAside("map") end
 end

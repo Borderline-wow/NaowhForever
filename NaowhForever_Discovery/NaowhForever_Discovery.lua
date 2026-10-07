@@ -147,12 +147,13 @@ function Library.ToFind(book)
     return Library.ForMe(book) and State(book) == "find"
 end
 
-function Library.Waypoint(title, map, x, y, note)
-    if ns.PlaceWaypoint(title, map, x, y, note) and S.Get("openMap") then ns.Shared.Places.ShowMap(map) end
+function Library.Waypoint(title, map, x, y, note, icon)
+    if ns.PlaceWaypoint(title, map, x, y, note, icon) and S.Get("openMap") then ns.Shared.Places.ShowMap(map) end
 end
 
 function Library.WaypointBook(book, spot)
-    Library.Waypoint(book.name, spot[1], spot[2], spot[3], spot[4] and (" (" .. spot[4] .. ")"))
+    Library.Waypoint(book.name, spot[1], spot[2], spot[3], spot[4] and (" (" .. spot[4] .. ")"),
+        C_Item.GetItemIconByID(book.item))
 end
 
 function Library.WaypointNpc(npc)
