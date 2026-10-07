@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.0.3
+
+### Fixed
+- Welcome window: on some screens its buttons no longer cover the Recommended setup.
 
 ## 1.0.2
 

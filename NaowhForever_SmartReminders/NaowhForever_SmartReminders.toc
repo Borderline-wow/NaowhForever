@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Smart Reminders
 ## Notes: Calls out what to press when a boss ability is about to land.
 ## Author: Naowh
-## Version: 1.0.2
+## Version: 1.0.3
 ## Dependencies: NaowhForever
 ## OptionalDeps: BigWigs, DBM-Core
 ## Group: NaowhForever
