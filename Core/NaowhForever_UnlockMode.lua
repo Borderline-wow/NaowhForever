@@ -3,6 +3,8 @@
 --  screen centre and saved there. Clicking one selects it; its tag holds its X and Y and what
 --  can be done with it. An element anchored to another follows it from the side picked on the
 --  tag, keeping its gap. A drag lines up with other elements and the screen centre on guides.
+--  The Elements panel lists them all, to find, hide while editing and lock in place, and every
+--  change by hand can be undone.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -94,6 +96,16 @@ local function AnchorOf(label)
     local info = Anchors()[label]
     if type(info) == "table" and type(info.target) == "string" then return info end
 end
+
+-- Elements kept out of the way while editing (hidden) and held in place (locked), by label.
+local function Marks(key)
+    local db = ns.UnlockModeSettings.DB()
+    if type(db[key]) ~= "table" then db[key] = {} end
+    return db[key]
+end
+
+local function IsHidden(item) return Marks("hidden")[item.label] == true end
+local function IsLocked(item) return Marks("locked")[item.label] == true end
 
 -- The target's side the element is furthest out from.
 local function SideOf(item, target)
@@ -306,7 +318,7 @@ local function GuidesOn() return ns.UnlockModeSettings.Get("guides") ~= false en
 
 -- The elements a drag lines up with: shown, and not carried along by it.
 local function Guiding(item, other)
-    return other ~= item and other.handle:IsVisible() and not Follows(other.label, item.label)
+    return other ~= item and other.handle:IsVisible() and not IsHidden(other) and not Follows(other.label, item.label)
 end
 
 -- best, or theirs - ours when that is nearer and within reach.
@@ -421,13 +433,90 @@ local function DrawAnchor(item)
 end
 
 -------------------------------------------------------------------------------
+--  Undo: before each change by hand the editor keeps where every element was and what each one
+--  was anchored to. Undo puts that back, Redo the change again, Revert everything since the
+--  HUD Editor opened. A run of arrow-key nudges to one element is one change.
+-------------------------------------------------------------------------------
+local UNDO_MAX = 50
+local undo, redo = {}, {}
+local lastNudged
+local Refresh, ShowTag, RefreshPanel, PaintHistory, PaintMarks
+
+local function Snapshot()
+    local snap = { spots = {}, anchors = {} }
+    for _, item in ipairs(placement.items) do
+        local point, rel, relPoint, x, y = item.frame:GetPoint(1)
+        if point == "CENTER" and rel == UIParent and relPoint == "CENTER" then snap.spots[item.label] = { x, y } end
+    end
+    for label, info in pairs(Anchors()) do
+        if type(info) == "table" then
+            snap.anchors[label] = { target = info.target, side = info.side, x = info.x, y = info.y }
+        end
+    end
+    return snap
+end
+
+-- snap: the state before the change, taken earlier (a drag's start); else now. nudged: the
+-- element an arrow key moves, so the run counts once.
+local function Checkpoint(snap, nudged)
+    if nudged and nudged == lastNudged then return end
+    lastNudged = nudged
+    undo[#undo + 1] = snap or Snapshot()
+    if #undo > UNDO_MAX then table.remove(undo, 1) end
+    wipe(redo)
+    PaintHistory()
+end
+
+-- Whether item may be changed by hand: not while locked. Keeps the state before the change.
+local function Change(item, nudged)
+    if IsLocked(item) then return false end
+    Checkpoint(nil, nudged)
+    return true
+end
+
+local function Restore(snap)
+    local anchors = Anchors()
+    wipe(anchors)
+    for label, info in pairs(snap.anchors) do
+        anchors[label] = { target = info.target, side = info.side, x = info.x, y = info.y }
+    end
+    for _, item in ipairs(placement.items) do
+        local spot = snap.spots[item.label]
+        local point, rel, relPoint, x, y = item.frame:GetPoint(1)
+        if spot and not (point == "CENTER" and rel == UIParent and relPoint == "CENTER" and x == spot[1] and y == spot[2]) then
+            Place(item, spot[1], spot[2])
+            item.save({ point = "CENTER", relPoint = "CENTER", x = spot[1], y = spot[2] })
+        end
+    end
+    lastNudged = nil
+    if placement.selected then Refresh(placement.selected) end
+end
+
+local function Step(from, to)
+    if InCombatLockdown() or #from == 0 or placement.dragging then return end
+    to[#to + 1] = Snapshot()
+    Restore(table.remove(from))
+    PaintHistory()
+end
+
+function UI.UndoMove() Step(undo, redo) end
+function UI.RedoMove() Step(redo, undo) end
+
+function UI.RevertMoves()
+    if InCombatLockdown() or #undo == 0 or placement.dragging then return end
+    redo[#redo + 1] = Snapshot()
+    Restore(undo[1])
+    wipe(undo)
+    PaintHistory()
+end
+
+-------------------------------------------------------------------------------
 --  Moving: arrow keys, typed numbers, drags and Center, all ending in a saved CENTER spot.
 -------------------------------------------------------------------------------
-local Refresh, ShowTag
 
 -- dx, dy in UIParent units.
 local function Nudge(item, dx, dy)
-    if InCombatLockdown() then return end
+    if InCombatLockdown() or IsLocked(item) then return end
     local l, r, t, b = Box(item)
     if not l then return end
     MoveTo(item, (l + r) / 2 + dx, (t + b) / 2 + dy)
@@ -469,6 +558,7 @@ local function StopDrag(item)
     Clear(dragLayer)
     local l, r, t, b, ratio = Bounds(item.frame)
     if l and (math.abs(l - item.startL) > 0.5 or math.abs(t - item.startT) > 0.5) then
+        Checkpoint(item.before)
         local x, y = Place(item, ((l + r) / 2 - UIParent:GetWidth() / 2) / ratio, ((t + b) / 2 - UIParent:GetHeight() / 2) / ratio)
         item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
     end
@@ -478,13 +568,14 @@ local function StopDrag(item)
         other.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
     end
     wipe(placement.unsaved)
+    item.before = nil
     Refresh(item)
 end
 
 -- Across to the middle of the screen; its height stays.
 local function CenterAcross(item)
     local x = Position(item)
-    if x and x ~= 0 then Nudge(item, -x * Pixel(), 0) end
+    if x and x ~= 0 and Change(item) then Nudge(item, -x * Pixel(), 0) end
 end
 
 -- Out of the HUD Editor and onto the element's settings: the options window draws over the
@@ -527,7 +618,7 @@ local function Typed(box)
     local x, y = Position(item)
     if not x then return end
     local d = math.floor(v + 0.5) - (box.axis == "X" and x or y)
-    if d == 0 then return end
+    if d == 0 or not Change(item) then return end
     if box.axis == "X" then Nudge(item, d * Pixel(), 0) else Nudge(item, 0, d * Pixel()) end
 end
 
@@ -547,7 +638,7 @@ end
 -- A new side keeps the gap, and the offset along the side when it runs the same way.
 local function SetSide(item, side)
     local info = AnchorOf(item.label)
-    if not info or info.side == side then return end
+    if not info or info.side == side or not Change(item) then return end
     local gap = Gap(info)
     if ACROSS[side] ~= ACROSS[info.side] then info.x, info.y = 0, 0 end
     info.side = side
@@ -560,7 +651,7 @@ local function TypedGap(box)
     box:ClearFocus()
     local item = placement.selected
     local info = item and AnchorOf(item.label)
-    if not (info and v) then return end
+    if not (info and v) or not Change(item) then return end
     SetGap(info, math.floor(v + 0.5) * Pixel())
     Reanchor(item)
 end
@@ -583,6 +674,7 @@ local function PickTarget(target)
         end
         local info = { target = target.label, side = SideOf(item, target) }
         Capture(item, info)
+        Checkpoint()
         Anchors()[item.label] = info
     end
     ShowTag()
@@ -592,6 +684,7 @@ local function AnchorClicked(tag)
     local item = tag.item
     if not item then return end
     if AnchorOf(item.label) then
+        Checkpoint()
         Anchors()[item.label] = nil
     else
         placement.picking = placement.picking ~= item and item or nil
@@ -788,6 +881,7 @@ function Refresh(item)
     h._fill:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, lit and MOVER_FILL_LIT or MOVER_FILL)
     h:SetFrameLevel(item.baseLevel + (lit and 100 or 0))
     if item == placement.selected then ShowTag() end
+    RefreshPanel()
 end
 
 function UI.ClearMoverSelection()
@@ -824,6 +918,11 @@ local function PlacementKey(self, key)
         self:SetPropagateKeyboardInput(false)
         return
     end
+    if IsControlKeyDown() and (key == "Z" or key == "Y") then
+        self:SetPropagateKeyboardInput(false)
+        if key == "Y" or IsShiftKeyDown() then UI.RedoMove() else UI.UndoMove() end
+        return
+    end
     local item = placement.selected
     if not item or item.dragging then return end
     local dx = key == "LEFT" and -1 or key == "RIGHT" and 1 or 0
@@ -831,6 +930,7 @@ local function PlacementKey(self, key)
     if dx == 0 and dy == 0 then return end
     if not item.handle:IsVisible() then UI.ClearMoverSelection(); return end
     self:SetPropagateKeyboardInput(false)
+    if not Change(item, item) then return end
     local step = Pixel() * (IsShiftKeyDown() and NUDGE_FAR or 1)
     Nudge(item, dx * step, dy * step)
 end
@@ -864,6 +964,10 @@ function UI.BeginMoverMode()
         placement.keys:SetPropagateKeyboardInput(true)
     end
     UI.ClearMoverSelection()
+    wipe(undo)
+    wipe(redo)
+    lastNudged = nil
+    PaintHistory()
     placement.keys:RegisterEvent("PLAYER_REGEN_DISABLED")
     placement.keys:RegisterEvent("PLAYER_REGEN_ENABLED")
     placement.keys:SetShown(not InCombatLockdown())
@@ -883,7 +987,7 @@ end
 function UI.SelectMover(handle)
     if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
     local item = handle._placement
-    if not item then return end
+    if not item or IsHidden(item) then return end
     if placement.selected ~= item then UI.ClearMoverSelection() end
     placement.selected = item
     item.selected = true
@@ -893,8 +997,10 @@ end
 function UI.StartMoverDrag(handle)
     if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
     local item = handle._placement
-    if not item then return end
+    if not item or IsHidden(item) then return end
     UI.SelectMover(handle)
+    if IsLocked(item) then return end
+    item.before = Snapshot()
     local l, r, t, b = Box(item)
     local fl, fr, ft, fb = Bounds(item.frame)
     if not (l and fl) then return end
@@ -920,6 +1026,24 @@ end
 -------------------------------------------------------------------------------
 --  Movers
 -------------------------------------------------------------------------------
+local LOCK_BADGE, LOCK_INSET = 12, 4     -- the padlock in a locked mover's corner
+
+-- A hidden element's plate goes clear and lets the mouse through; a locked one shows its
+-- padlock.
+function PaintMarks(item)
+    local hidden, h = IsHidden(item), item.handle
+    h:SetAlpha(hidden and 0 or 1)
+    h:EnableMouse(not hidden)
+    if h._lock then
+        if not h._lockSet then
+            h._lock:SetTexture(ns.Shared.Style.LOCK, nil, nil, "TRILINEAR")
+            h._lock:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1)
+            h._lockSet = true
+        end
+        h._lock:SetShown(IsLocked(item))
+    end
+    if hidden and placement.selected == item then UI.ClearMoverSelection() end
+end
 -- page: the options page that sets the element up ("QoL/General"); feature: the section on
 -- it to open, if it has one. ownAnchor: it holds itself to the screen its own way, so it takes
 -- no anchor (others can still anchor to it).
@@ -979,7 +1103,9 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature, ownAnchor)
         StopDrag(item)
         item.hovered = false
         if placement.selected == item then UI.ClearMoverSelection() end
+        RefreshPanel()
     end)
+    handle:HookScript("OnShow", function() RefreshPanel() end)
     Refresh(item)
 end
 
@@ -1000,6 +1126,10 @@ function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     text:SetPoint("CENTER", mover, "CENTER")
     text:SetText(label)
     mover.text = text
+    mover._lock = mover:CreateTexture(nil, "OVERLAY")
+    mover._lock:SetSize(LOCK_BADGE, LOCK_BADGE)
+    mover._lock:SetPoint("TOPRIGHT", -LOCK_INSET, -LOCK_INSET)
+    mover._lock:Hide()
     UI.BindMover(mover, frame, label, onMoved, page, feature, ownAnchor)
     mover:Hide()
     return mover
@@ -1130,6 +1260,206 @@ function ns.SetAnchorGridShown(shown)
     g:Show()
 end
 
+-------------------------------------------------------------------------------
+--  The Elements panel: every element on screen in the HUD Editor, by module, found by name. A
+--  row's eye keeps the element out of the way while editing, its padlock holds it in place, and
+--  a click on the row selects it.
+-------------------------------------------------------------------------------
+local PANEL_W, PANEL_PAD, PANEL_HEAD = 248, 12, 40
+local PANEL_LIST_H = 420               -- the list's height; longer lists scroll
+local ROW_H, GROUP_H = 24, 22
+local ROW_ICON, ROW_ICON_GAP = 14, 8
+local ROW_HIDDEN_ALPHA = 0.45          -- a hidden element's row
+local ROW_FILL = 0.16                  -- the selected row, in the accent
+local panel, panelQueued
+
+local function GroupOf(item)
+    return item.page and item.page:match("^[^/]+") or "Other"
+end
+
+local function PanelList()
+    local filter = panel.search:GetText():lower()
+    local groups, byName = {}, {}
+    for _, item in ipairs(placement.items) do
+        if item.handle:IsShown() and (filter == "" or item.label:lower():find(filter, 1, true)) then
+            local name = GroupOf(item)
+            local group = byName[name]
+            if not group then
+                group = { name = name }
+                byName[name] = group
+                groups[#groups + 1] = group
+            end
+            group[#group + 1] = item
+        end
+    end
+    table.sort(groups, function(a, b) return a.name < b.name end)
+    for _, group in ipairs(groups) do table.sort(group, function(a, b) return a.label < b.label end) end
+    return groups
+end
+
+local function ToggleMark(key, item)
+    local marks = Marks(key)
+    marks[item.label] = not marks[item.label] or nil
+    PaintMarks(item)
+    Refresh(item)
+    RefreshPanel()
+end
+
+local function RowEnter(row)
+    local item = row.item
+    if item and not IsHidden(item) then
+        item.hovered = true
+        Refresh(item)
+    end
+end
+
+local function RowLeave(row)
+    local item = row.item
+    if item then
+        item.hovered = false
+        Refresh(item)
+    end
+end
+
+local function NewRow(child)
+    local Parts = ns.Shared.Parts
+    local St = ns.Shared.Style
+    local row = CreateFrame("Button", nil, child)
+    row:SetHeight(ROW_H)
+    row.fill = ns.Solid(row, "BACKGROUND", T.accent, ROW_FILL)
+    row.fill:SetAllPoints()
+    row.mark = ns.Solid(row, "ARTWORK", T.accent, 1)
+    row.mark:SetPoint("TOPLEFT")
+    row.mark:SetPoint("BOTTOMLEFT")
+    row.mark:SetWidth(MOVER_STRIP)
+    row.lock = Parts.IconButton(row, function() ToggleMark("locked", row.item) end, St.LOCK, nil, "Lock in place")
+    row.lock:SetSize(ROW_ICON, ROW_ICON)
+    row.lock.icon:SetSize(ROW_ICON, ROW_ICON)
+    row.lock:SetPoint("RIGHT", -PANEL_PAD, 0)
+    row.eye = Parts.IconButton(row, function() ToggleMark("hidden", row.item) end, St.EYE, nil, "Hide while editing")
+    row.eye:SetSize(ROW_ICON, ROW_ICON)
+    row.eye.icon:SetSize(ROW_ICON, ROW_ICON)
+    row.eye:SetPoint("RIGHT", row.lock, "LEFT", -ROW_ICON_GAP, 0)
+    row.label = ns.Font(row, 12)
+    row.label:SetPoint("LEFT", PANEL_PAD, 0)
+    row.label:SetPoint("RIGHT", row.eye, "LEFT", -ROW_ICON_GAP, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(false)
+    row:SetScript("OnClick", function(self)
+        if self.item then UI.SelectMover(self.item.handle) end
+    end)
+    row:SetScript("OnEnter", RowEnter)
+    row:SetScript("OnLeave", RowLeave)
+    return row
+end
+
+local function PaintRow(row, item)
+    local St = ns.Shared.Style
+    local hidden, locked, picked = IsHidden(item), IsLocked(item), placement.selected == item
+    row.item = item
+    row.label:SetText(item.label)
+    row.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, hidden and ROW_HIDDEN_ALPHA or 1)
+    row.fill:SetShown(picked)
+    row.mark:SetShown(picked)
+    row.eye.icon:SetTexture(hidden and St.EYE_OFF or St.EYE, nil, nil, "TRILINEAR")
+    row.eye.tip = hidden and "Show while editing" or "Hide while editing"
+    local eye = hidden and T.fg or T.muted
+    row.eye.icon:SetVertexColor(eye.r, eye.g, eye.b, 1)
+    row.lock.tip = locked and "Unlock" or "Lock in place"
+    local lock = locked and T.accent or T.muted
+    row.lock.icon:SetVertexColor(lock.r, lock.g, lock.b, locked and 1 or ROW_HIDDEN_ALPHA)
+end
+
+local function DrawPanel()
+    panelQueued = false
+    if not (panel and panel:IsShown()) then return end
+    local child, rows, titles = panel.child, panel.rows, panel.titles
+    local y, r, g, shown, hidden = 0, 0, 0, 0, 0
+    for _, group in ipairs(PanelList()) do
+        g = g + 1
+        local title = titles[g]
+        if not title then
+            title = ns.Font(child, 10, nil, T.muted)
+            titles[g] = title
+        end
+        title:ClearAllPoints()
+        title:SetPoint("TOPLEFT", PANEL_PAD, -(y + GROUP_H - 6))
+        title:SetText(group.name:upper())
+        title:Show()
+        y = y + GROUP_H
+        for _, item in ipairs(group) do
+            r = r + 1
+            local row = rows[r] or NewRow(child)
+            rows[r] = row
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", 0, -y)
+            row:SetPoint("TOPRIGHT", 0, -y)
+            PaintRow(row, item)
+            row:Show()
+            y = y + ROW_H
+            shown = shown + 1
+            if IsHidden(item) then hidden = hidden + 1 end
+        end
+    end
+    for i = r + 1, #rows do
+        rows[i].item = nil
+        rows[i]:Hide()
+    end
+    for i = g + 1, #titles do titles[i]:Hide() end
+    child:SetHeight(math.max(1, y))
+    panel.count:SetText(hidden > 0 and (shown .. ns.Shared.Style.PLACE_DOT .. hidden .. " hidden") or tostring(shown))
+end
+
+-- One redraw a frame, however many changes ask for it.
+function RefreshPanel()
+    if panelQueued or not (panel and panel:IsShown()) then return end
+    panelQueued = true
+    C_Timer.After(0, DrawPanel)
+end
+
+local function BuildPanel()
+    if panel then return panel end
+    local St = ns.Shared.Style
+    local f = CreateFrame("Frame", "NaowhForeverHudElements", UIParent)
+    f:SetSize(PANEL_W, PANEL_HEAD + St.SEARCH_H + PANEL_PAD + PANEL_LIST_H + PANEL_PAD)
+    f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 16, -140)
+    f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:SetFrameLevel(505)
+    f:SetClampedToScreen(true)
+    ns.AllowOffscreen(f)
+    ns.Shared.Parts.Backdrop(f):Paint(St.BACKDROP_ALPHA)
+    ns.Border(f, St.BORDER_RGB)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    local title = ns.Font(f, 14)
+    title:SetPoint("LEFT", f, "TOPLEFT", PANEL_PAD, -PANEL_HEAD / 2)
+    title:SetText("Elements")
+    f.count = ns.Font(f, 11, nil, T.muted)
+    f.count:SetPoint("RIGHT", f, "TOPRIGHT", -PANEL_PAD, -PANEL_HEAD / 2)
+    f.search = ns.Shared.Parts.SearchBox(f, "Find an element", function() RefreshPanel() end)
+    f.search:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEAD)
+    f.search:SetPoint("TOPRIGHT", -PANEL_PAD, -PANEL_HEAD)
+    f.search:SetHeight(St.SEARCH_H)
+    local scroll = UI.SlimScroll(f)
+    scroll:SetPoint("TOPLEFT", 0, -(PANEL_HEAD + St.SEARCH_H + PANEL_PAD))
+    scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD, PANEL_PAD)
+    local child = CreateFrame("Frame", nil, scroll)
+    child:SetSize(PANEL_W - PANEL_PAD, 1)
+    scroll:SetScrollChild(child)
+    f.child, f.rows, f.titles = child, {}, {}
+    f:SetScript("OnShow", function() RefreshPanel() end)
+    f:Hide()
+    panel = f
+    return f
+end
+
+local function ShowPanel(shown)
+    if shown then BuildPanel():Show() elseif panel then panel:Hide() end
+end
+
 local configActive, reopenWindowOnExit = false, false
 local configToolbar
 -- Switches a module adds under the header, each { label, get, set, enabled }, under a
@@ -1152,7 +1482,8 @@ local SWITCH_ROW = 22
 local SWITCH_COL = (BAR_W - 2 * BAR_PAD) / 2
 local LABEL_GAP = 8                   -- a switch to its label
 local SECTION_H = 18                  -- a section's muted name over its switches
-local OFF_ALPHA = 0.4                 -- a module's switches while it is off
+local OFF_ALPHA = 0.4                 -- a module's switches while it is off; Undo with nothing to undo
+local HISTORY_W, ELEMENTS_W = 64, 84
 
 local function BarRule(f, y)
     local rule = ns.Solid(f, "ARTWORK", ns.Shared.Style.BORDER_RGB, 1)
@@ -1169,6 +1500,24 @@ local function BarSwitch(f, text, col, y, get, set)
     switch.label:SetPoint("LEFT", switch, "RIGHT", LABEL_GAP, 0)
     switch.label:SetText(text)
     return switch
+end
+
+-- Undo, Redo and Revert dim with nothing to do, Elements lights while its panel shows.
+local function Usable(button, on)
+    button:SetAlpha(on and 1 or OFF_ALPHA)
+    button:EnableMouse(on)
+end
+
+function PaintHistory()
+    local f = configToolbar
+    if not f then return end
+    Usable(f._undo, #undo > 0)
+    Usable(f._redo, #redo > 0)
+    Usable(f._revert, #undo > 0)
+    local on = ns.UnlockModeSettings.Get("elementsPanel") ~= false
+    local edge = on and T.accent or BLACK
+    f._elements._rest = edge
+    f._elements._border:SetColor(edge.r, edge.g, edge.b, 1)
 end
 
 local function BuildConfigToolbar()
@@ -1202,6 +1551,24 @@ local function BuildConfigToolbar()
     BarRule(f, BAR_HEAD)
 
     local y = BAR_HEAD + BAR_GAP
+    f._undo = ns.Button(f, "Undo", HISTORY_W, EXIT_H, function() UI.UndoMove() end)
+    f._undo:SetPoint("TOPLEFT", BAR_PAD, -y)
+    ns.Tooltip(f._undo, "Undo", "Puts back the last change. Ctrl + Z.")
+    f._redo = ns.Button(f, "Redo", HISTORY_W, EXIT_H, function() UI.RedoMove() end)
+    f._redo:SetPoint("LEFT", f._undo, "RIGHT", BAR_GAP / 2, 0)
+    ns.Tooltip(f._redo, "Redo", "Makes the change again. Ctrl + Y.")
+    f._revert = ns.Button(f, "Revert", HISTORY_W, EXIT_H, function() UI.RevertMoves() end)
+    f._revert:SetPoint("LEFT", f._redo, "RIGHT", BAR_GAP / 2, 0)
+    ns.Tooltip(f._revert, "Revert", "Puts back everything changed since the HUD Editor opened.")
+    f._elements = ns.Button(f, "Elements", ELEMENTS_W, EXIT_H, function()
+        local on = ns.UnlockModeSettings.Get("elementsPanel") == false
+        ns.UnlockModeSettings.Set("elementsPanel", on)
+        ShowPanel(on)
+        PaintHistory()
+    end)
+    f._elements:SetPoint("TOPRIGHT", -BAR_PAD, -y)
+    ns.Tooltip(f._elements, "Elements", "Shows or hides the list of every element.")
+    y = y + EXIT_H + BAR_GAP
     f._guides = BarSwitch(f, "Guides", 0, y, GuidesOn, function(v) ns.UnlockModeSettings.Set("guides", v) end)
     ns.Tooltip(f._guides, "Guides", "Lines a dragged element up with the others and the screen centre. Hold Alt to drag freely.")
     y = y + SWITCH_ROW
@@ -1233,6 +1600,9 @@ function ns.ShowRaidReminderAnchorConfig()
     reopenWindowOnExit = reopen
     local f = BuildConfigToolbar()
     f._guides._refreshValue()
+    PaintHistory()
+    ShowPanel(ns.UnlockModeSettings.Get("elementsPanel") ~= false)
+    for _, item in ipairs(placement.items) do PaintMarks(item) end
     if f._section then f._section:SetText(toolbarSection()) end
     for i, c in ipairs(toolbarChecks) do
         local switch, on = f._switches[i], c.enabled()
@@ -1251,6 +1621,7 @@ function ns.HideRaidReminderAnchorConfig(windowClosing)
     UI.EndMoverMode()
     ns.SetAnchorGridShown(false)
     if configToolbar then configToolbar:Hide() end
+    ShowPanel(false)
     if reopenWindowOnExit then
         reopenWindowOnExit = false
         if not windowClosing and ns.OpenOptionsWindow then ns.OpenOptionsWindow() end

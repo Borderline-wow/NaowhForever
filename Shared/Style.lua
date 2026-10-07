@@ -109,6 +109,9 @@ Shared.Style = {
     PLAY = MEDIA .. "play",
     PAUSE = MEDIA .. "pause",
     RESET = MEDIA .. "reset",
+    EYE = MEDIA .. "eye",                   -- the HUD Editor: an element shown while editing
+    EYE_OFF = MEDIA .. "eye_off",           -- and kept out of the way
+    LOCK = MEDIA .. "lock",                 -- and held in place
     SOFT_SHADE = MEDIA .. "soft_shade",   -- round, opaque in the middle and clear at its edge: Soft's fade
     -- The game's ready check: done, had.
     CHECK = "Interface\\RaidFrame\\ReadyCheck-Ready",

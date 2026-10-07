@@ -592,6 +592,32 @@ def elbow(x, y, width, height):
 
 os.makedirs(OUT, exist_ok=True)
 # y runs down the image.
+
+def eye(slashed):
+    # An eye, outlined, with its pupil: the HUD Editor's show and hide an element. Hidden, a
+    # stroke crosses it on the diagonal, the eye cut back either side of the stroke.
+    def pixel(x, y, size):
+        c, w = size / 2.0, size * 0.05
+        lid = abs(ellipse_dist(x / size, y / size, 0.5, 0.5, 0.40, 0.22)) * size
+        a = max(smooth(w / 2, lid), smooth(size * 0.11, math.hypot(x - c, y - c)))
+        if slashed:
+            d = seg_dist(x, y, size * 0.18, size * 0.18, size * 0.82, size * 0.82)
+            a = max(a * (1.0 - smooth(w / 2 + size * 0.06, d)), smooth(w / 2, d))
+        return (255, 255, 255, int(round(255 * a)))
+    return pixel
+
+
+def padlock(x, y, size):
+    # A padlock, its body filled and its shackle an arch over it: the HUD Editor's lock an
+    # element in place.
+    c, w = size / 2.0, size * 0.085
+    body = smooth(0.0, rounded_rect_dist(x, y, c, size * 0.66, size * 0.27, size * 0.20, size * 0.05))
+    arch = 0.0
+    if y <= size * 0.47:
+        arch = smooth(w / 2, abs(math.hypot(x - c, y - size * 0.40) - size * 0.17))
+    return (255, 255, 255, int(round(255 * max(body, arch))))
+
+
 write_tga(os.path.join(OUT, "chevron_up.tga"), 64, stroke(64, [(0.22, 0.64), (0.5, 0.36), (0.78, 0.64)], 0.12))
 write_tga(os.path.join(OUT, "cross.tga"), 64, lambda x, y, s: max(
     stroke(64, [(0.26, 0.26), (0.74, 0.74)], 0.11)(x, y, s),
@@ -637,3 +663,6 @@ write_tga(os.path.join(OUT, "play.tga"), 64, play)
 write_tga(os.path.join(OUT, "pause.tga"), 64, pause)
 write_tga(os.path.join(OUT, "reset.tga"), 64, reset)
 write_tga(os.path.join(OUT, "soft_shade.tga"), 64, soft_shade)
+write_tga(os.path.join(OUT, "eye.tga"), 64, eye(False))
+write_tga(os.path.join(OUT, "eye_off.tga"), 64, eye(True))
+write_tga(os.path.join(OUT, "lock.tga"), 64, padlock)

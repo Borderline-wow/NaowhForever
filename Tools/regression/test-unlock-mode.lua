@@ -1,8 +1,9 @@
 -- Run with Lua 5.1 from the repository root: The HUD Editor's movers, run against frame stubs
 -- with real geometry. Drags, arrow keys, typed X and Y and Center save the element CENTER on
 -- the screen centre; a drag lines up on guides; Anchor ties an element to another so it
--- follows from the side picked, keeping a typed gap; and the anchors and snap switch from
--- before are dropped without moving anything.
+-- follows from the side picked, keeping a typed gap; the Elements panel finds, hides and locks
+-- them; every change can be undone; and the anchors and snap switch from before are dropped
+-- without moving anything.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return a and b and math.abs(a - b) < 0.01 end
@@ -129,6 +130,9 @@ function Frame:CreateFontString() return NewFrame("FontString", self) end
 function Frame:GetStringWidth() return #(self.text_ or "") * 6 end
 function Frame:GetStringHeight() return 12 end
 function Frame:SetTextColor(r, g, b, a) self.color = { r, g, b, a } end
+function Frame:SetAlpha(a) self.alpha = a end
+function Frame:EnableMouse(v) self.mouse = v end
+function Frame:SetTexture(t) self.texture = t end
 
 UIParent = NewFrame("Frame")
 UIParent.w, UIParent.h = W, H
@@ -146,7 +150,7 @@ local function Flush()
 end
 
 local cursor = { x = 0, y = 0 }
-local combat, shift, alt = false, false, false
+local combat, shift, alt, ctrl = false, false, false, false
 local settings = {}
 local printed = {}
 local T = { accent = { r = 0, g = 0.5, b = 1 }, accentSoft = { r = 0.3, g = 0.7, b = 1 }, fg = { r = 1, g = 1, b = 1 },
@@ -189,7 +193,31 @@ local ns = {
         return b
     end,
     SetButtonText = function(b, text) b.text_ = text end,
-    Shared = { Parts = { HudText = function(fs) return fs end }, Style = { GUIDE_RGB = { r = 0.95, g = 0.64, b = 0.23 } } },
+    Shared = {
+        Parts = {
+            HudText = function(fs) return fs end,
+            Backdrop = function() return { Paint = NOOP } end,
+            SearchBox = function(parent, _, onChange)
+                local box = NewFrame("EditBox", parent)
+                box.text_ = ""
+                function box:SetText(t) self.text_ = t; onChange(t) end
+                return box
+            end,
+            IconButton = function(parent, onClick, _, _, tip)
+                local b = NewFrame("Button", parent)
+                b.icon = b:CreateTexture()
+                b.tip = tip
+                b:SetScript("OnClick", onClick)
+                return b
+            end,
+        },
+        Style = { GUIDE_RGB = { r = 0.95, g = 0.64, b = 0.23 }, LOCK = "lock", EYE = "eye", EYE_OFF = "eye_off",
+            SEARCH_H = 24, BACKDROP_ALPHA = 1, BORDER_RGB = { r = 0, g = 0, b = 0 }, PLACE_DOT = " . ", LOGO = "logo" },
+    },
+    AllowOffscreen = NOOP,
+    Hairline = NOOP,
+    AccentBorder = function(b) return b end,
+    StashOptionsWindow = function() return false end,
     UIFontPath = function() return "font" end,
     L = function(text) return text end,
     Color = function(_, text) return text end,
@@ -200,6 +228,12 @@ local ns = {
 }
 local UI = {}
 ns.UI = UI
+UI.SlimScroll = function(parent) return NewFrame("ScrollFrame", parent) end
+UI.BuildToggleControl = function(parent)
+    local switch = NewFrame("Button", parent)
+    switch._refreshValue = NOOP
+    return switch
+end
 
 local env = setmetatable({
     NaowhForever = ns,
@@ -213,6 +247,7 @@ local env = setmetatable({
     InCombatLockdown = function() return combat end,
     IsShiftKeyDown = function() return shift end,
     IsAltKeyDown = function() return alt end,
+    IsControlKeyDown = function() return ctrl end,
     GetCurrentKeyBoardFocus = function() return nil end,
     GetCursorPosition = function() return cursor.x, cursor.y end,
     GetTime = function() return 0 end,
@@ -553,5 +588,109 @@ Check(Near(Center(swing), before[1]) and #swingSaved == saves, "without moving o
 settings.anchors = { ["Threat Meter"] = { target = "SCREEN_LEFT", side = "RIGHT" } }
 ns.Apply()
 Check(settings.anchors == nil, "and a switched-to profile's are dropped too")
+
+-- The Elements panel: every element on screen by module, found by name; a row's eye keeps the
+-- element out of the way while editing and its padlock holds it in place.
+local timer, timerMover, timerSaved = Display("Combat Timer", 120, 32, 300, 100)
+timerMover._placement.page = "Threat Meter/Settings"
+ns.ShowRaidReminderAnchorConfig()
+Flush()
+local panel, toolbar
+for _, fr in ipairs(made) do
+    if fr.search and fr.rows then panel = fr end
+    if fr._undo then toolbar = fr end
+end
+local function Rows()
+    local out = {}
+    for _, row in ipairs(panel.rows) do
+        if row:IsShown() then out[#out + 1] = row end
+    end
+    return out
+end
+local function RowOf(label)
+    for _, row in ipairs(Rows()) do
+        if row.item.label == label then return row end
+    end
+end
+local function Titles()
+    local out = {}
+    for _, t in ipairs(panel.titles) do
+        if t:IsShown() then out[#out + 1] = t:GetText() end
+    end
+    return table.concat(out, " ")
+end
+Check(panel and panel:IsShown() and toolbar, "the HUD Editor opens with the Elements panel")
+Check(RowOf("Threat Meter") and RowOf("Swing Timer") and RowOf("Combat Timer") and not RowOf("Durability"),
+    "it lists the elements on screen, not the hidden plates")
+Check(Titles() == "QOL THREAT METER", "grouped by module")
+panel.search:SetText("swing")
+Flush()
+Check(#Rows() == 1 and RowOf("Swing Timer"), "the search finds by name")
+panel.search:SetText("")
+Flush()
+Fire(RowOf("Combat Timer"), "OnClick")
+Flush()
+Check(tag.item == timerMover._placement and RowOf("Combat Timer").fill:IsShown(), "a click on a row selects it, lit")
+
+Fire(RowOf("Swing Timer").eye, "OnClick")
+Flush()
+Check(settings.hidden["Swing Timer"] and swingMover.alpha == 0 and swingMover.mouse == false,
+    "the eye keeps it out of the way: its plate clear, the mouse through it")
+Check(RowOf("Swing Timer").eye.icon.texture == "eye_off" and RowOf("Swing Timer").label.color[4] < 1
+    and panel.count:GetText() == "3 . 1 hidden", "its row dims and the count says so")
+UI.SelectMover(swingMover)
+Check(tag.item ~= swingMover._placement, "a hidden element cannot be selected")
+Fire(RowOf("Swing Timer").eye, "OnClick")
+Flush()
+Check(not settings.hidden["Swing Timer"] and swingMover.alpha == 1 and swingMover.mouse == true, "and back")
+
+Fire(RowOf("Combat Timer").lock, "OnClick")
+Flush()
+Check(settings.locked["Combat Timer"] and timerMover._lock:IsShown() and RowOf("Combat Timer").lock.tip == "Unlock",
+    "the padlock holds it in place, shown on its plate")
+UI.SelectMover(timerMover)
+local tx, ty = Center(timer)
+Fire(keys, "OnKeyDown", "RIGHT")
+Type(tag.x, "0")
+Fire(tag.center, "OnClick")
+DragBy(timerMover, timer, 40, 0)
+Check(Near(Center(timer), tx) and Near(select(2, Center(timer)), ty) and #timerSaved == 0,
+    "a locked element does not move by arrow, typed number, Center or drag")
+Fire(RowOf("Combat Timer").lock, "OnClick")
+Flush()
+Check(not settings.locked["Combat Timer"] and not timerMover._lock:IsShown(), "unlocked again")
+
+-- Undo, Redo and Revert: a run of arrow nudges is one change, a drag another.
+Check(toolbar._undo.alpha < 1 and toolbar._redo.alpha < 1 and toolbar._revert.alpha < 1, "with nothing done, Undo, Redo and Revert dim")
+UI.SelectMover(timerMover)
+for _ = 1, 3 do Fire(keys, "OnKeyDown", "RIGHT") end
+Check(Near(Center(timer), tx + 3) and toolbar._undo.alpha == 1, "nudges move it and light Undo")
+DragBy(timerMover, timer, 40, 20)
+local afterDrag = { Center(timer) }
+ctrl = true
+Fire(keys, "OnKeyDown", "Z")
+ctrl = false
+Check(Near(Center(timer), tx + 3) and Near(select(2, Center(timer)), ty) and Near(Last(timerSaved).x, 303),
+    "Ctrl + Z puts the drag back and saves it")
+Fire(toolbar._undo, "OnClick")
+Check(Near(Center(timer), tx) and toolbar._undo.alpha < 1 and toolbar._redo.alpha == 1, "Undo puts the nudges back as one")
+ctrl = true
+Fire(keys, "OnKeyDown", "Y")
+ctrl = false
+Fire(toolbar._redo, "OnClick")
+Check(Near(Center(timer), afterDrag[1]) and Near(select(2, Center(timer)), afterDrag[2]), "Ctrl + Y and Redo make them again")
+Fire(tag.center, "OnClick")
+Check(Near(Center(timer), 960) and toolbar._redo.alpha < 1, "a new change clears Redo")
+Fire(toolbar._revert, "OnClick")
+Check(Near(Center(timer), tx) and Near(select(2, Center(timer)), ty) and toolbar._undo.alpha < 1,
+    "Revert puts back everything since the HUD Editor opened")
+
+
+Fire(toolbar._elements, "OnClick")
+Check(not panel:IsShown() and settings.elementsPanel == false, "Elements hides the panel, and it stays hidden")
+Fire(toolbar._elements, "OnClick")
+Check(panel:IsShown() and settings.elementsPanel == true, "and shows it again")
+ns.HideRaidReminderAnchorConfig()
+Check(not panel:IsShown(), "leaving the HUD Editor hides the panel")
 
 print(("test-unlock-mode: %d checks passed"):format(checks))
