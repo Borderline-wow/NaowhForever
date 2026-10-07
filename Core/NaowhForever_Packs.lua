@@ -491,14 +491,27 @@ end
 
 -- Public entry point for the NaowhUI installer, so it never calls into ns:
 --   NaowhForever_API:ImportProfile(str, "Naowh")
--- A single-profile pack lands as profileName and becomes the account profile for every
--- character. A whole-file pack keeps its own names and binds them to specs instead.
+-- A Profiles page export (NFPROFILE1:) or a single-profile pack lands as profileName, replacing
+-- it on a rerun, and becomes the account profile for every character. A whole-file pack keeps
+-- its own names and binds them to specs instead.
 local API = {}
 _G.NaowhForever_API = API
 
+-- Settings that act for the player stay off, as the Import dialog leaves them by default.
+local PROFILE_PARTS = { settings = true, macros = true, library = true, smartReminders = true,
+    builds = true, bisLists = true, look = true }
+
 function API:ImportProfile(str, profileName)
     local specKey, specWas = CurrentSpecEntry()
-    local ok, landed = ns.InstallProfilePack(str, { profileName = profileName })
+    local ok, landed
+    local payload, why = ns.DecodeProfile(str)
+    if payload then
+        ok, landed = true, (ns.ImportProfile(payload, PROFILE_PARTS, profileName, true))
+    elseif why == "pack" then
+        ok, landed = ns.InstallProfilePack(str, { profileName = profileName })
+    else
+        ok, landed = false, why or "Nothing to read."
+    end
     -- The installer ignores the return values, so failures are reported here.
     if not ok then
         ns.Print("Naowh Forever import failed: " .. tostring(landed))

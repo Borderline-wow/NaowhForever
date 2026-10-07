@@ -474,13 +474,20 @@ end
 
 --- The parts of a decoded string ticked in wanted ({ [partKey] = true }), as a new profile
 --- named name (made free if taken), then switched to. The look, Library, builds and BiS lists
---- are account-wide.
+--- are account-wide. overwrite (the installer's rerun) empties a profile already named name and
+--- lands there instead; never "Default".
 ---@return string name the profile made
 ---@return table added how many { bisLists, library, builds } joined the account's
-function ns.ImportProfile(payload, wanted, name)
+function ns.ImportProfile(payload, wanted, name, overwrite)
     local parts = payload.parts
-    name = FreeProfileName(name or payload.name)
+    local trimmed = type(name) == "string" and name:match("^%s*(.-)%s*$")
+    local replace = overwrite and trimmed ~= "Default" and ns.ProfileExists(trimmed)
+    name = replace and trimmed or FreeProfileName(name or payload.name)
     local root = ns.ProfileRoot(name)
+    if replace then
+        for key in pairs(root) do root[key] = nil end
+        root.tankReminder = {}
+    end
 
     if wanted.settings and type(parts.settings) == "table" then
         for key, values in pairs(parts.settings) do

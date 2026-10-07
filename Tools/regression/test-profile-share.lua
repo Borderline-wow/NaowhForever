@@ -172,6 +172,25 @@ Case("Macros without Smart Reminders still brings the class macros", function()
     assert(sr.utilityReminders.classMacros.PALADIN[1].body == "/cast BoP" and sr.leadTime == nil)
 end)
 
+Case("overwrite: a rerun empties the named profile and lands there", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    w.db.profiles.Naowh = { stale = { x = 1 }, qol = { fastLoot = false }, tankReminder = { leadTime = 9 } }
+    local name = w.ns.ImportProfile(payload, { settings = true, macros = true }, " Naowh ", true)
+    local p = w.db.profiles.Naowh
+    assert(name == "Naowh" and w.switched == "Naowh" and w.db.profiles["Naowh 2"] == nil, name)
+    assert(p.stale == nil and p.qol.fastLoot == true, "what the old one held is gone")
+    assert(p.tankReminder.leadTime == nil and p.tankReminder.utilityReminders.classMacros.PALADIN[1].name == "BoP")
+end)
+
+Case("overwrite: never Default, and a name not taken is just made", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    assert(w.ns.ImportProfile(payload, ALL, "Default", true) == "Default 2")
+    assert(w.db.profiles.Default.tankReminder.leadTime == 5)
+    assert(w.ns.ImportProfile(payload, ALL, "Naowh", true) == "Naowh")
+end)
+
 Case("BiS lists join yours under a free name, never over them", function()
     local w = World()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))

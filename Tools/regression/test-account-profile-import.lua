@@ -187,14 +187,20 @@ Case("switching already off is reported as such rather than as a change", functi
     assert(sv.autoSpecProfile == nil and sv.specProfile["250"] == "Old")
 end)
 
--- The installer's public entry point, run against the real Core slice. InstallProfilePack is
--- stubbed to do what the real one does to profile state: land the profile and switch to it,
--- which maps the current spec.
-local function WithApi(e, install)
+-- The installer's public entry point, run against the real Core slice. InstallProfilePack and
+-- ImportProfile are stubbed to do what the real ones do to profile state: land the profile and
+-- switch to it, which maps the current spec. DecodeProfile tells the two strings apart.
+local function WithApi(e, install, importProfile)
     e.env._G = e.env
     e.printed = {}
     e.ns.Print = function(msg) e.printed[#e.printed + 1] = msg end
     e.ns.InstallProfilePack = install
+    e.ns.ImportProfile = importProfile
+    e.ns.DecodeProfile = function(str)
+        if str:sub(1, 9) == "NSRPACK2:" then return nil, "pack" end
+        if str:sub(1, 11) == "NFPROFILE1:" then return { parts = {} } end
+        return nil, "This is not a Naowh Forever profile string."
+    end
     local code = Slice(packSrc, "local function CurrentSpecEntry()", "-- opts, all optional:")
         .. Slice(packSrc, "local API = {}", "-- Decode and validate;")
     local chunk = assert(loadstring(code)); setfenv(chunk, e.env); chunk()
@@ -228,7 +234,7 @@ Case("a failed ImportProfile says so and leaves the account alone", function()
     local sv = e.db()
     sv.charActive["Alt-Draenor"] = "Mine"
     local API = WithApi(e, function() return false, "The string is damaged (encoding)." end)
-    local ok, why = API:ImportProfile("garbage", "Naowh")
+    local ok, why = API:ImportProfile("NSRPACK2:x", "Naowh")
     assert(ok == false and why == "The string is damaged (encoding).")
     assert(e.printed[1] and e.printed[1]:find("damaged", 1, true))
     assert(sv.defaultProfile == nil and sv.charActive["Alt-Draenor"] == "Mine")
@@ -240,6 +246,41 @@ Case("a whole-file pack keeps its own profiles instead of becoming the account p
     local sv = e.db()
     local API = WithApi(e, function() return true, 3 end)
     assert(API:ImportProfile("NSRPACK2:x", "Naowh") == true)
+    assert(sv.defaultProfile == nil)
+end)
+
+Case("a Profiles page string replaces the named profile and becomes the account profile", function()
+    local e = Fixture("Main-Ravencrest")
+    e.ns.SettingsRoot()
+    local sv = e.db()
+    sv.profiles.Mine = {}
+    sv.specProfile = { ["250"] = "Mine" }
+    sv.charActive["Alt-Draenor"] = "Mine"
+    e.ns.CurrentSpec = function() return 250 end
+    local args
+    local API = WithApi(e, function() error("a profile string is not a pack") end,
+        function(payload, wanted, name, overwrite)
+            args = { wanted = wanted, name = name, overwrite = overwrite }
+            sv.profiles[name] = {}
+            e.ns.SwitchProfile(name)
+            return name, {}
+        end)
+    local ok, landed = API:ImportProfile("NFPROFILE1:x", "Naowh")
+    assert(ok == true and landed == "Naowh")
+    assert(args.name == "Naowh" and args.overwrite == true)
+    assert(args.wanted.settings and args.wanted.look and args.wanted.smartReminders and not args.wanted.acting)
+    assert(sv.defaultProfile == "Naowh" and sv.charActive["Alt-Draenor"] == "Naowh")
+    assert(sv.specProfile["250"] == "Mine")
+end)
+
+Case("a string that is neither says why and imports nothing", function()
+    local e = Fixture("Main-Ravencrest")
+    e.ns.SettingsRoot()
+    local sv = e.db()
+    local API = WithApi(e, function() error("not a pack") end, function() error("not a profile") end)
+    local ok, why = API:ImportProfile("garbage", "Naowh")
+    assert(ok == false and why == "This is not a Naowh Forever profile string.")
+    assert(e.printed[1] and e.printed[1]:find("not a Naowh Forever", 1, true))
     assert(sv.defaultProfile == nil)
 end)
 
