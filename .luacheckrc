@@ -132,7 +132,7 @@ read_globals = {
     "UnitHealthPercent", "UnitIsAFK", "UnitIsConnected", "UnitIsDead", "UnitIsDeadOrGhost",
     "UnitIsFriend", "UnitIsGroupAssistant", "UnitIsGroupLeader", "UnitIsInMyGuild", "UnitIsPlayer",
     "UnitIsUnit", "UnitIsVisible",
-    "UnitLevel", "UnitName", "UnitNameFromGUID", "UnitOnTaxi", "UnitPosition", "UnitRace", "UnitStat",
+    "UnitLevel", "UnitName", "UnitPower", "UnitPowerMax", "UnitPowerPercent", "UnitNameFromGUID", "UnitOnTaxi", "UnitPosition", "UnitRace", "UnitStat",
     "UnitShouldDisplaySpellTargetName", "UnitSpellTargetClass", "UnitSpellTargetName",
     "UnitThreatSituation", "UnitXP", "UnitXPMax", "UnmuteSoundFile", "UnregisterStateDriver",
     "UpdateAddOnMemoryUsage", "WHITE_FONT_COLOR", "wipe", "WorldFrame", "WorldMapFrame",
