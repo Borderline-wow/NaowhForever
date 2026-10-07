@@ -8,6 +8,7 @@ local T = ns.THEME
 local Settings = ns.Shared and ns.Shared.Settings
 if not Settings then return end
 local Group = Settings.Group
+local Parts = ns.Shared.Parts
 
 local PAGE = "Smart Reminders/Settings"
 local OFF = "Turn on Smart Reminders"
@@ -23,7 +24,8 @@ local SIDES = { TOP = "Above the Icon", BOTTOM = "Below the Icon", LEFT = "Left 
 local SIDE_ORDER = { "TOP", "BOTTOM", "LEFT", "RIGHT" }
 
 local EXTRA_DEFAULTS = { fontName = "", ttsVoiceID = "", hideOnCast = false, castTargetBoss = false, windowAlpha = 1,
-    defensiveTextColorOn = false, defensiveTextColor = { r = 1, g = 1, b = 1, a = 1 } }
+    defensiveTextColorOn = false, defensiveTextColor = { r = 1, g = 1, b = 1, a = 1 },
+    defensiveOutline = "OUTLINE", defensiveTextTheme = false }
 
 local function NilIfEmpty(v) if v ~= "" then return v end end
 local function NilIfOff(v) if v then return true end end
@@ -37,6 +39,9 @@ local RESIZE = {
     raidReminderBarTextSize = "ResizeRaidReminderBar",
     raidReminderCircleSize = "ResizeRaidReminderCircle", raidReminderCircleThickness = "ResizeRaidReminderCircle",
     raidReminderCircleTextSize = "ResizeRaidReminderCircle",
+    fontName = "RestyleRaidReminders", raidReminderOutline = "RestyleRaidReminders",
+    raidReminderBarTexture = "RestyleRaidReminders", raidReminderBarBgAlpha = "RestyleRaidReminders",
+    raidReminderCircleBgAlpha = "RestyleRaidReminders", raidReminderTextTheme = "RestyleRaidReminders",
 }
 
 local listeners = {}
@@ -80,6 +85,7 @@ function Store.OnChange(fn)
 end
 
 local function On() return ns.DB().enabled == true end
+local function NotColoured() return On() and not Store.Get("defensiveTextColorOn") end
 
 local function SourceName()
     return SOURCES[ns.BossSource()] or SOURCES.timeline
@@ -134,7 +140,7 @@ local function PaintAlert(preview)
     local point = Look.PlaceText(preview.text, icon, side, 0)
     label:ClearAllPoints()
     label:SetPoint(point, preview.text, point, 0, 0)
-    label:SetFont(ns.AlertFontPath(), fontSize, "OUTLINE")
+    Parts.HudFont(label, Store.Get("fontName"), fontSize, Store.Get("defensiveOutline"), "none")
     label:SetTextColor(Look.TextColour())
     label:SetText(SAMPLE_CALLOUT)
     label:SetAlpha(showText and 1 or OFF_ALPHA)
@@ -296,13 +302,15 @@ page:Card({
         { key = "cdmGlow", label = "Glow It on the Cooldown Manager", toggle = true, needs = On, why = OFF,
           help = "Also glows the called defensive on Blizzard's Cooldown Manager, when it is placed there. "
               .. "It reaches into Blizzard's own frames, so switch it off first if anything misbehaves." },
-        Group("Look"),
-        { key = "fontName", label = "Reminder Font", font = true, needs = On, why = OFF,
-          help = "The font of the callout and of the reminder displays." },
+        Group("Size"),
+        { key = "iconSize", label = "Icon Size", slider = { 32, 128, 1 }, needs = On, why = OFF },
+        Settings.Look("defensive", { text = true, size = { 10, 40, 1 }, needs = On, why = OFF,
+            keys = { Font = "fontName", FontSize = "textSize" } }),
         { key = "textSide", label = "Text Position", choice = { SIDES, SIDE_ORDER }, needs = On, why = OFF,
           help = "Which side of the icon the callout sits on." },
-        { key = "iconSize", label = "Icon Size", slider = { 32, 128, 1 }, needs = On, why = OFF },
-        { key = "textSize", label = "Text Size", slider = { 10, 40, 1 }, needs = On, why = OFF },
+        Group("Colours"),
+        { key = "defensiveTextTheme", label = "Apply Theme to the Callout", toggle = true, needs = NotColoured,
+          why = "Colour the Callout is on", help = "Writes the callout in your theme's text colour, not white." },
         { key = "defensiveTextColorOn", label = "Colour the Callout", toggle = true, needs = On, why = OFF,
           help = "Your own colour for the callout. Off is white." },
         { key = "defensiveTextColor", label = "Callout Colour", colour = "alpha",
@@ -353,10 +361,19 @@ page:Card({
         { key = "raidReminderBarWidth", label = "Bar Width", slider = { 60, 600, 1 } },
         { key = "raidReminderBarHeight", label = "Bar Height", slider = { 6, 60, 1 } },
         { key = "raidReminderBarTextSize", label = "Bar Text Size", slider = { 8, 48, 1 } },
+        { key = "raidReminderBarTexture", label = "Bar Texture", texture = "Naowh Gradient" },
+        { key = "raidReminderBarBgAlpha", label = "Bar Background Opacity", slider = { 0, 100, 5 }, unit = "%",
+          scale = 0.01 },
         Group("Circle"),
         { key = "raidReminderCircleSize", label = "Circle Size", slider = { 20, 200, 1 } },
         { key = "raidReminderCircleThickness", label = "Circle Thickness", slider = { 2, 40, 1 } },
         { key = "raidReminderCircleTextSize", label = "Circle Text Size", slider = { 8, 48, 1 } },
+        { key = "raidReminderCircleBgAlpha", label = "Circle Background Opacity", slider = { 0, 100, 5 }, unit = "%",
+          scale = 0.01, help = "How dark the ring is behind its sweep." },
+        Settings.Look("raidReminder", { text = true, keys = { Font = "fontName", FontSize = false } }),
+        Group("Colours"),
+        { key = "raidReminderTextTheme", label = "Apply Theme to Text", toggle = true,
+          help = "Writes Message and Circle text in your theme's text colour, not white." },
     },
 })
 

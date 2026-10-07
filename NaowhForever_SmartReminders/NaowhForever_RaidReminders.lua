@@ -7,6 +7,7 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 if not ns then return end
+local Parts = ns.Shared.Parts
 
 -------------------------------------------------------------------------------
 --  Data
@@ -172,8 +173,26 @@ local function ReleaseRegion(a, r)
     RestackRegions(a)
 end
 
-local function AlertFontPath()
-    return ns.AlertFontPath()
+-- Shared by every display type; ns.RaidReminderSizeDefaults carries them to the settings page.
+local LOOK_DEFAULTS = {
+    raidReminderOutline = "OUTLINE", raidReminderTextTheme = false, raidReminderBarTexture = "",
+    raidReminderBarBgAlpha = 0.9, raidReminderCircleBgAlpha = 0.5,
+}
+local function LookSetting(key)
+    local v = ns.DB()[key]
+    if v == nil then return LOOK_DEFAULTS[key] end
+    return v
+end
+
+-- fontName is the defensive alert's font too.
+local function SetDisplayFont(fs, size)
+    Parts.HudFont(fs, ns.DB().fontName, size, LookSetting("raidReminderOutline"), "none")
+end
+
+local WHITE = { r = 1, g = 1, b = 1 }
+local function TextColour()
+    if LookSetting("raidReminderTextTheme") then return ns.THEME.fg end
+    return WHITE
 end
 
 local TEXT_WIDTH_DEFAULT, TEXT_FONTSIZE_DEFAULT = 320, 16
@@ -203,7 +222,7 @@ local function CreateTextRegion(a)
     local r = CreateFrame("Frame", nil, a)
     r:SetSize(w, fs + 10)
     r.text = ns.Font(r, fs, "OUTLINE")
-    r.text:SetFont(AlertFontPath(), fs, "OUTLINE")
+    SetDisplayFont(r.text, fs)
     r.text:SetPoint("CENTER")
     r:Hide()
     return r
@@ -212,7 +231,7 @@ end
 local function SizeText(r)
     local w, fs = TextSize()
     r:SetSize(w, fs + 10)
-    r.text:SetFont(AlertFontPath(), fs, "OUTLINE")
+    SetDisplayFont(r.text, fs)
 end
 
 function ns.ResizeRaidReminderText()
@@ -234,10 +253,10 @@ local function CreateTimerRegion(a)
     local r = CreateFrame("Frame", nil, a)
     r:SetSize(w, h)
     r.label = ns.Font(r, cap, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
+    SetDisplayFont(r.label, cap)
     r.label:SetPoint("TOP", r, "TOP", 0, 0)
     r.number = ns.Font(r, num, "OUTLINE")
-    r.number:SetFont(AlertFontPath(), num, "OUTLINE")
+    SetDisplayFont(r.number, num)
     r.number:SetPoint("TOP", r.label, "BOTTOM", 0, -2)
     r:Hide()
     return r
@@ -246,8 +265,8 @@ end
 local function SizeTimer(r)
     local cap, num, w, h = TimerSize()
     r:SetSize(w, h)
-    r.label:SetFont(AlertFontPath(), cap, "OUTLINE")
-    r.number:SetFont(AlertFontPath(), num, "OUTLINE")
+    SetDisplayFont(r.label, cap)
+    SetDisplayFont(r.number, num)
 end
 
 function ns.ResizeRaidReminderTimer()
@@ -273,7 +292,7 @@ local function CreateIconRegion(a)
     r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     local fs = LabelSize("raidReminderIconTextSize")
     r.label = ns.Font(r, fs, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+    SetDisplayFont(r.label, fs)
     r.label:SetPoint("TOP", r.icon, "BOTTOM", 0, -2)
     r:Hide()
     return r
@@ -284,7 +303,7 @@ local function SizeIcon(r)
     local fs = LabelSize("raidReminderIconTextSize")
     r:SetSize(size, size + fs + 6)
     r.icon:SetSize(size, size)
-    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+    SetDisplayFont(r.label, fs)
 end
 
 function ns.ResizeRaidReminderIcon()
@@ -294,11 +313,11 @@ function ns.ResizeRaidReminderIcon()
     RestackRegions(a)
 end
 
-local function StatusBarTexture()
-    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
-    if not LSM then return nil end
-    local ok, path = pcall(LSM.Fetch, LSM, "statusbar", "NaowhGradient", true)
-    return ok and path or nil
+-- NaowhUI_Media's NaowhGradient when it is installed, else the copy this addon ships.
+local NAOWH_GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
+local function BarTexture()
+    local own = ns.UI.TexturePath("NaowhGradient", NAOWH_GRADIENT)
+    return ns.UI.TexturePath(LookSetting("raidReminderBarTexture"), own)
 end
 
 -- expirationTime is set fresh by ns.DisplayRaidReminder on every acquire, so a pooled
@@ -311,39 +330,33 @@ local function BarSize()
     return w, h
 end
 
-local function CreateBarRegion(a)
-    local w, h = BarSize()
-    local fs = LabelSize("raidReminderBarTextSize")
-    local r = CreateFrame("Frame", nil, a)
-    r:SetSize(w, h + fs + 4)
-
-    r.label = ns.Font(r, fs, "OUTLINE")
-    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
-    r.label:SetPoint("TOP", r, "TOP", 0, 0)
-
-    r.bar = CreateFrame("StatusBar", nil, r)
-    r.bar:SetSize(w, h)
-    r.bar:SetPoint("BOTTOM", r, "BOTTOM", 0, 0)
-    r.bar:SetMinMaxValues(0, 1)
-    r.bar:SetStatusBarTexture(StatusBarTexture() or "Interface\\TargetingFrame\\UI-StatusBar")
-    local T = ns.THEME
-    local bg = r.bar:CreateTexture(nil, "BACKGROUND")
-    ns.PixelInset(bg, -1, r.bar)
-    bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0.9)
-    local fill = r.bar:GetStatusBarTexture()
-    if fill then fill:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1) end
-    ns.Border(r.bar)
-
-    r:Hide()
-    return r
-end
-
 local function SizeBar(r)
     local w, h = BarSize()
     local fs = LabelSize("raidReminderBarTextSize")
+    local T = ns.THEME
     r:SetSize(w, h + fs + 4)
     r.bar:SetSize(w, h)
-    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+    SetDisplayFont(r.label, fs)
+    r.bar:SetStatusBarTexture(BarTexture())
+    r.bar:GetStatusBarTexture():SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    r.bar.bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, LookSetting("raidReminderBarBgAlpha"))
+end
+
+local function CreateBarRegion(a)
+    local r = CreateFrame("Frame", nil, a)
+    r.label = ns.Font(r, LabelSize("raidReminderBarTextSize"), "OUTLINE")
+    r.label:SetPoint("TOP", r, "TOP", 0, 0)
+
+    r.bar = CreateFrame("StatusBar", nil, r)
+    r.bar:SetPoint("BOTTOM", r, "BOTTOM", 0, 0)
+    r.bar:SetMinMaxValues(0, 1)
+    r.bar.bg = r.bar:CreateTexture(nil, "BACKGROUND")
+    ns.PixelInset(r.bar.bg, -1, r.bar)
+    ns.Border(r.bar)
+
+    SizeBar(r)
+    r:Hide()
+    return r
 end
 
 function ns.ResizeRaidReminderBar()
@@ -402,7 +415,8 @@ local function LayoutCircle(r, size, thickness, fs)
     r.fillL:SetSize(size, size)
     r.fillR:SetSize(size, size)
     r.hole:SetSize(size - 2 * thickness, size - 2 * thickness)
-    r.label:SetFont(AlertFontPath(), fs, "OUTLINE")
+    r.bg:SetVertexColor(0, 0, 0, LookSetting("raidReminderCircleBgAlpha"))
+    SetDisplayFont(r.label, fs)
 end
 
 local function CreateCircleRegion(a)
@@ -420,7 +434,6 @@ local function CreateCircleRegion(a)
     r.bg = r.ring:CreateTexture(nil, "BACKGROUND")
     r.bg:SetPoint("CENTER", r.ring, "CENTER")
     r.bg:SetTexture(CIRCLE_MASK_PATH)
-    r.bg:SetVertexColor(0, 0, 0, 0.5)
     r.bg:AddMaskTexture(r.hole)
 
     -- The clip frames are what turn a rotating half-disc into an arc; without
@@ -491,6 +504,15 @@ ns.RaidReminderSizeDefaults = {
     raidReminderCircleThickness = CIRCLE_THICKNESS_DEFAULT,
 }
 for key, size in pairs(LABEL_SIZE_DEFAULTS) do ns.RaidReminderSizeDefaults[key] = size end
+for key, value in pairs(LOOK_DEFAULTS) do ns.RaidReminderSizeDefaults[key] = value end
+
+-- Font, outline, bar and background changes, on every region already built.
+function ns.RestyleRaidReminders()
+    for displayType, a in pairs(anchors) do
+        ForEachRegion(a, REGION_SIZERS[displayType])
+        RestackRegions(a)
+    end
+end
 
 local function AcquireRegion(displayType)
     local a = GetAnchor(displayType)
@@ -719,7 +741,8 @@ function ns.DisplayRaidReminder(entry, preview)
             r.text:SetTextColor(display.color.r or 1, display.color.g or 1,
                 display.color.b or 1, display.color.a or 1)
         else
-            r.text:SetTextColor(1, 1, 1, 1)
+            local c = TextColour()
+            r.text:SetTextColor(c.r, c.g, c.b, 1)
         end
     elseif display.type == "icon" then
         r.icon:SetTexture(ResolveDisplayIconID(display) or 134400)
@@ -762,10 +785,10 @@ function ns.DisplayRaidReminder(entry, preview)
             r.fillR:SetVertexColor(color.r, color.g, color.b)
             r.label:SetTextColor(color.r, color.g, color.b)
         else
-            local T = ns.THEME
+            local T, c = ns.THEME, TextColour()
             r.fillL:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
             r.fillR:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
-            r.label:SetTextColor(1, 1, 1)
+            r.label:SetTextColor(c.r, c.g, c.b)
         end
         r.caption = caption
         r.expirationTime = GetTime() + dur
@@ -860,8 +883,9 @@ local SAMPLE_ICON = "Interface\\Icons\\INV_Misc_PocketWatch_01"
 -- Static placeholder content: no countdown, no hide timer.
 local function PopulateSample(displayType, r)
     if displayType == "text" then
+        local c = TextColour()
         r.text:SetText("Sample Reminder")
-        r.text:SetTextColor(1, 1, 1, 1)
+        r.text:SetTextColor(c.r, c.g, c.b, 1)
     elseif displayType == "icon" then
         r.icon:SetTexture(SAMPLE_ICON)
         r.label:SetText("Sample")
@@ -876,9 +900,9 @@ local function PopulateSample(displayType, r)
         r.bar:SetValue(0.6)
     elseif displayType == "circle" then
         r:SetScript("OnUpdate", nil)
+        local T, c = ns.THEME, TextColour()
         r.label:SetText("|T" .. SAMPLE_ICON .. ":0|t Sample (3.4)")
-        r.label:SetTextColor(1, 1, 1)
-        local T = ns.THEME
+        r.label:SetTextColor(c.r, c.g, c.b)
         r.fillL:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
         r.fillR:SetVertexColor(T.accent.r, T.accent.g, T.accent.b)
         -- Parked 40% through so the sweep's direction is visible while placing it.

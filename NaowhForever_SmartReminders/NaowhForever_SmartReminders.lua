@@ -14,6 +14,7 @@ if not ns then return end
 
 -- The module's settings in the active profile, defaults filled in by the core.
 local TRDB = ns.DB
+local Parts = ns.Shared.Parts
 
 local function IsSpellDisabled(spellID)
     local d = TRDB().disabled
@@ -469,6 +470,10 @@ ns.DefensiveLook = Look
 
 function Look.TextColour()
     if TRDB().defensiveTextColorOn then return DefensiveTextColor() end
+    if TRDB().defensiveTextTheme then
+        local fg = ns.THEME.fg
+        return fg.r, fg.g, fg.b, 1
+    end
     return 1, 1, 1, 1
 end
 
@@ -548,12 +553,11 @@ local function NaowhMedia(kind, name)
     return ok and path or nil
 end
 
-local function AlertFont()
-    local selected = TRDB().fontName
-    local path = type(selected) == "string" and NaowhMedia("font", selected)
-    return path or ns.UIFontPath()
+local function SetAlertFont(fs, size)
+    local outline = TRDB().defensiveOutline
+    if outline == nil then outline = "OUTLINE" end
+    Parts.HudFont(fs, TRDB().fontName, size, outline, "none")
 end
-ns.AlertFontPath = AlertFont
 
 -- Display only, never clickable. Alpha 0 hides the art but NOT hit-testing, so a losing
 -- slot left mouse-enabled would still be a live mouse target sitting over the screen.
@@ -571,7 +575,7 @@ local function CreateSlot(index)
     -- branch, which is why text can name the defensive in combat when speech cannot.
     -- A FontString cannot carry the tank gate (textures only).
     slot.label = slot:CreateFontString(nil, "OVERLAY")
-    slot.label:SetFont(AlertFont(), 16, "OUTLINE")
+    SetAlertFont(slot.label, 16)
     slot.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
     slot.label:Hide()
 
@@ -619,14 +623,14 @@ function Reminder.Create()
     textFrame:Hide()
 
     frame.reminder = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
+    SetAlertFont(frame.reminder, REMINDER_SIZE)
     ApplyDefensiveTextColor()
     frame.reminder:Hide()
 
     -- "Call for external": its alpha is the accumulator left over after the priority walk,
     -- 1 only when nothing on the list is up.
     frame.fallback = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.fallback:SetFont(AlertFont(), 16, "OUTLINE")
+    SetAlertFont(frame.fallback, 16)
     local T = ns.THEME
     frame.fallback:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
     frame.fallback:SetAlpha(0)
@@ -634,7 +638,7 @@ function Reminder.Create()
 
     -- Its own font string: the target name arrives secret and concatenating a secret raises.
     frame.castTarget = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE")
+    SetAlertFont(frame.castTarget, REMINDER_SIZE)
     frame.castTarget:Hide()
 
     -- No "you are targeted" marker: PlayerIsSpellTarget is secret and SetShown is
@@ -643,7 +647,7 @@ function Reminder.Create()
     -- Authoring mode changes every uncovered boss to call-everything; twice a callout that
     -- looked like wrong data was this switch left on, hence the tag and border.
     frame.learnTag = textFrame:CreateFontString(nil, "OVERLAY")
-    frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE")
+    SetAlertFont(frame.learnTag, 12)
     frame.learnTag:SetTextColor(1, 0.65, 0.2, 1)
     frame.learnTag:SetText("AUTHORING MODE -- CALLING EVERY ABILITY")
     frame.learnTag:Hide()
@@ -659,9 +663,9 @@ end
 
 local function ApplySize()
     if not frame then return end
-    if frame.reminder then frame.reminder:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
-    if frame.castTarget then frame.castTarget:SetFont(AlertFont(), REMINDER_SIZE, "OUTLINE") end
-    if frame.learnTag then frame.learnTag:SetFont(AlertFont(), 12, "OUTLINE") end
+    if frame.reminder then SetAlertFont(frame.reminder, REMINDER_SIZE) end
+    if frame.castTarget then SetAlertFont(frame.castTarget, REMINDER_SIZE) end
+    if frame.learnTag then SetAlertFont(frame.learnTag, 12) end
     local t = TRDB()
     local size = t.iconSize or ns.SettingDefault("iconSize")
     local fontSize = t.textSize or ns.SettingDefault("textSize")
@@ -669,12 +673,12 @@ local function ApplySize()
     frame:SetSize(size, size)
     for i = 1, #slots do
         slots[i]:SetSize(size, size)
-        slots[i].label:SetFont(AlertFont(), fontSize, "OUTLINE")
+        SetAlertFont(slots[i].label, fontSize)
         slots[i].label:SetShown(textOn)
         slots[i].icon:SetShown(t.showIcon)
     end
     if frame.fallback then
-        frame.fallback:SetFont(AlertFont(), fontSize, "OUTLINE")
+        SetAlertFont(frame.fallback, fontSize)
         frame.fallback:SetText(t.voiceNone or "")
         frame.fallback:SetShown(textOn and t.fallbackOn ~= false)
     end
@@ -5239,13 +5243,14 @@ local function RelayoutAlert() ApplyTextLayout(); UpdatePreview() end
 
 ns.SmartReminderApply = {
     bossSource = function() ns.Apply() end,
-    showIcon = RefitAlert, showText = RefitAlert, fontName = RefitAlert,
+    showIcon = RefitAlert, showText = RefitAlert, fontName = RefitAlert, defensiveOutline = RefitAlert,
     iconSize = RefitAlert, textSize = RefitAlert, textSide = RelayoutAlert,
     cdmGlow = function(v) if not v then ns.StopCDMGlow() end end,
     soundOn = function() RegisterEventSounds() end,
     soundKey = function() RegisterEventSounds() end,
     defensiveTextColorOn = function() ApplyDefensiveTextColor() end,
     defensiveTextColor = function() ApplyDefensiveTextColor() end,
+    defensiveTextTheme = function() ApplyDefensiveTextColor() end,
     castTargetBoss = function() if ns.RefreshCastWatch then ns.RefreshCastWatch() end end,
 }
 
