@@ -3,8 +3,10 @@
 -- release (snapped and clamped to the sliders, cursor moves converted by the fit scale, nothing
 -- saved by a click, a hide or a repaint); the wheel sets Font Size (Shift: Spacing, Ctrl: Lines
 -- Shown); clicking the value or bag count flips Show Item Value or Count Bank Items; the line menu
--- holds what lines show, Glow, Style and Growth Direction; nothing edits while QoL or the feed is
--- off; and dragging and hovering make no garbage. The preview is plain frames, never the live
+-- holds what lines show, Glow, Style, Outline and Growth Direction; nothing edits while QoL or the
+-- feed is off; and dragging and hovering make no garbage. Then the look: today's outlined Addon Font
+-- by default, Font, Font Size and Outline on every text, Style None without the fill and edge, and
+-- the card's standard groups. The preview is plain frames, never the live
 -- feed. Frames here are stubs: this does not emulate the game's renderer, menus or taint rules.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
@@ -52,7 +54,7 @@ function methods:EnableMouse(on) self.mouse = on end
 function methods:EnableMouseWheel(on) self.wheel = on end
 function methods:SetAlpha(a) self.alpha = a end
 function methods:SetText(t) self.text = t end
-function methods:SetFont(_, size) self.size = size end
+function methods:SetFont(font, size, flags) self.font, self.size, self.flags = font, size, flags end
 function methods:GetStringWidth() return self.text and #tostring(self.text) * 6 or 0 end
 function methods:CreateTexture() return New("Texture", self) end
 function methods:CreateFontString() return New("FontString", self) end
@@ -62,7 +64,7 @@ local defaults = { enabled = true, lootFeed = true, lootFeedMoney = true, lootFe
     lootFeedQuest = true, lootFeedRep = false, lootFeedCount = 6, lootFeedFade = 5, lootFeedStyle = "dark",
     lootFeedGlow = false, lootFeedValue = true, lootFeedBank = true, lootFeedPrice = "vendor", lootFeedGPH = false,
     hideLootWindow = false, fastLoot = false, lootFeedWidth = 340, lootFeedHeight = 36, lootFeedSpacing = -1,
-    lootFeedGrowth = "up", lootFeedFont = "", lootFeedFontSize = 13 }
+    lootFeedGrowth = "up", lootFeedFont = "", lootFeedFontSize = 13, lootFeedOutline = "OUTLINE" }
 local sets = 0
 local S = {}
 function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end return v end
@@ -70,19 +72,28 @@ function S.Set(k, v) settings[k] = v; sets = sets + 1 end
 
 local THEME = { fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
     accent = { r = 0, g = 0.57, b = 0.93 }, bg = { r = 0, g = 0, b = 0 } }
-local cards = {}
 local ns = {
     QoLSettings = S, THEME = THEME,
     Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
-    Border = function(parent) return New("Border", parent) end,
+    Border = function(parent)
+        local border = New("Border", parent)
+        border._frame = New("Frame", parent)
+        return border
+    end,
     Font = function(parent) return New("FontString", parent) end,
     Solid = function(parent, _, color) local t = New("Texture", parent); t.color = color; return t end,
     ThemeTint = function(_, literal) return literal end,
     OnePixel = function() return 1 end,
     UI = { FontPath = function() return "font" end, AttachMover = function(f) return New("Mover", f) end },
-    Shared = { Settings = {
-        Group = function(name) return { group = name } end,
-        Page = function() return { Card = function(_, card) cards[card.id] = card end } end,
+    Shared = { Parts = {
+        HUD_OUTLINES = { { [""] = "Shadow", OUTLINE = "Outline", THICKOUTLINE = "Thick Outline" },
+            { "", "OUTLINE", "THICKOUTLINE" } },
+        HUD_BACKGROUNDS = { { card = "Card", soft = "Soft", none = "None" }, { "card", "soft", "none" } },
+        HudFont = function(fs, font, size, outline, background)
+            fs:SetFont(font, size, outline)
+            fs.shadow = outline == "" and (background or "card") or false
+            return fs
+        end,
     } },
 }
 
@@ -121,9 +132,13 @@ local env = setmetatable({
     COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED = "You gain %d experience.",
 }, { __index = _G })
 env._G = env
+local settingsFile = assert(loadfile("Shared/Settings/Settings.lua"))
+setfenv(settingsFile, env)
+settingsFile()
 local chunk = assert(loadfile("QoL/NaowhForever_LootFeed.lua"))
 setfenv(chunk, env)
 chunk()
+local cards = ns.Shared.Settings.pages["QoL/Loot & Items"].cards
 
 local loaded = #frames
 for i = 1, loaded do
@@ -225,8 +240,9 @@ menu.gen(nil, root)
 local function Item(label) for _, item in ipairs(items) do if item.label == label then return item end end end
 local labels = {}
 for _, item in ipairs(items) do if item.kind ~= "title" then labels[#labels + 1] = item.label end end
-check("the menu lists what lines show, Glow, Style and Growth Direction", table.concat(labels, ",")
-    == "Show Money,Show Quest Rewards,Show Reputation,Show Kill Experience,Glow,Dark,Light,Up,Down")
+check("the menu lists what lines show, Glow, Style, Outline and Growth Direction", table.concat(labels, ",")
+    == "Show Money,Show Quest Rewards,Show Reputation,Show Kill Experience,Glow,Dark,Light,None,"
+    .. "Shadow,Outline,Thick Outline,Up,Down")
 check("the menu passes each setting's key, so it makes no closures",
     Item("Show Reputation").data == "lootFeedRep" and Item("Glow").data == "lootFeedGlow"
     and Item("Show Money").set == Item("Glow").set and Item("Dark").set == Item("Down").set)
@@ -237,6 +253,9 @@ check("a menu checkbox flips its setting", settings.lootFeedRep == true)
 Item("Light").set(Item("Light").data)
 Item("Down").set(Item("Down").data)
 check("the menu picks Style and Growth Direction", settings.lootFeedStyle == "light" and settings.lootFeedGrowth == "down")
+Item("Shadow").set(Item("Shadow").data)
+check("the menu picks the Outline", settings.lootFeedOutline == "" and Item("Shadow").isOn(Item("Shadow").data))
+settings.lootFeedOutline = nil
 local gen = menu.gen
 pants.valueHit.scripts.OnMouseUp(pants.valueHit, "RightButton")
 check("every part opens the same menu", menu.owner == pants.valueHit and menu.gen == gen)
@@ -371,5 +390,67 @@ check("with QoL off the note names QoL", preview.hint.text == "Turn on QoL to ed
 settings.enabled = nil
 studio.paint(preview, "looting")
 check("turned back on it edits again", preview.edit.shown and box.mouse)
+
+-- The look.
+local function Texts(row)
+    local list = { row.name, row.value, row.bags }
+    for _, pair in ipairs(row.coins) do list[#list + 1] = pair.amount end
+    return list
+end
+local function AllTexts(test)
+    for _, row in ipairs({ pants, cloth, coins }) do
+        for _, fs in ipairs(Texts(row)) do
+            if not test(fs) then return false end
+        end
+    end
+    return true
+end
+studio.paint(preview, "looting")
+check("today's look: the Addon Font, outlined, no shadow", AllTexts(function(fs)
+    return fs.font == "" and fs.flags == "OUTLINE" and fs.shadow == false end))
+check("today's look: 13 for the name, 12 for values, 11 for the bag count", pants.name.size == 13
+    and pants.value.size == 12 and coins.coins[1].amount.size == 12 and pants.bags.size == 11)
+check("today's look: the dark fill and its edge", pants.bg.shown and pants.border._frame.shown)
+S.Set("lootFeedFont", "Expressway")
+S.Set("lootFeedFontSize", 16)
+studio.paint(preview, "looting")
+check("Font and Font Size reach every text", AllTexts(function(fs) return fs.font == "Expressway" end)
+    and pants.name.size == 16 and pants.value.size == 15 and pants.bags.size == 14)
+S.Set("lootFeedOutline", "")
+studio.paint(preview, "looting")
+check("Shadow: no outline, the card's shadow", AllTexts(function(fs) return fs.flags == "" and fs.shadow == "card" end))
+S.Set("lootFeedStyle", "none")
+studio.paint(preview, "looting")
+check("Style None: no fill and no edge", not pants.bg.shown and not pants.border._frame.shown
+    and not coins.bg.shown)
+check("Style None: the stronger shadow", AllTexts(function(fs) return fs.shadow == "none" end))
+S.Set("lootFeedGPH", true)
+studio.paint(preview, "looting")
+check("gold per hour follows Font and Outline", preview.gph.font == "Expressway" and preview.gph.flags == ""
+    and preview.gph.shadow == "none")
+S.Set("lootFeedStyle", "dark")
+studio.paint(preview, "looting")
+check("Dark again: the fill and edge are back", pants.bg.shown and pants.border._frame.shown)
+check("the summary names the style", card.summary(S):find("dark", 1, true) ~= nil)
+settings.lootFeedStyle = "none"
+check("the summary names no background", card.summary(S):find("no background", 1, true) ~= nil)
+settings.lootFeedFont, settings.lootFeedFontSize, settings.lootFeedOutline = nil, nil, nil
+settings.lootFeedStyle, settings.lootFeedGPH = nil, nil
+studio.paint(preview, "looting")
+local group, groups, groupOf = nil, {}, {}
+for _, row in ipairs(card.rows) do
+    if row.group then
+        group = row.group
+        groups[#groups + 1] = group
+    elseif row.key then
+        groupOf[row.key] = group
+    end
+end
+check("the standard groups after its own", table.concat(groups, ", ")
+    == "Lines, Value, Loot Window, Size, Text, Background")
+check("Font, Font Size and Outline under Text", groupOf.lootFeedFont == "Text" and groupOf.lootFeedFontSize == "Text"
+    and groupOf.lootFeedOutline == "Text" and Row("lootFeedOutline").choice == ns.Shared.Parts.HUD_OUTLINES)
+check("Style and Glow under Background", groupOf.lootFeedStyle == "Background" and groupOf.lootFeedGlow == "Background")
+check("Width under Size", groupOf.lootFeedWidth == "Size" and groupOf.lootFeedSpacing == "Size")
 
 print(("test-loot-feed-preview: %d checks passed"):format(checks))

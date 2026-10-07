@@ -14,7 +14,7 @@
 -- so failed silently rather than erroring, and no offline test could have caught that -- a
 -- stub does not emulate taint. The name carries the same information anyway: when the cast
 -- is on you, the name printed is yours.
-local f = assert(io.open(arg[1] or "SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true))
@@ -131,7 +131,6 @@ local function LayoutFixture()
     end
     local env = {
         TRDB = function() return { textSide = "RIGHT", textSize = 16 } end,
-        DEFAULTS = { textSide = "RIGHT", textSize = 16 },
         TEXT_GAP = 6, BAR_DROP = 0, BAR_HEIGHT = 0, REMINDER_SIZE = 16,
         slots = {},
         frame = { castTarget = FS("castTarget"), reminder = FS("reminder"),
@@ -143,7 +142,7 @@ local function LayoutFixture()
         .. Slice("local Look = {", "local function NaowhMedia(")
         .. "\nreturn ApplyTextLayout"))
     setfenv(chunk, env)
-    e.ns = {}
+    e.ns = { SettingDefault = function(key) return ({ textSide = "RIGHT", textSize = 16 })[key] end }
     e.apply = chunk(e.ns)
     return e
 end

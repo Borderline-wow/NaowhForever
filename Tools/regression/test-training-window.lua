@@ -138,7 +138,10 @@ local ns = {
     Print = function(m) printed[#printed + 1] = m end,
     TownNPCs = { [1453] = { { 38.4, 79.4, "class", "Elsharin", "Mage Trainer", "MAGE", "A" } } },
     TownCapitals = { [1453] = true },
-    PlaceWaypoint = function(title, map, x, y, note) waypoint = { title, map, x, y, note } end,
+    PlaceWaypointRoute = function(_, stops)
+        local s = stops[1]
+        waypoint = { s[1], s[2], s[3], s[4], s[5], #stops }
+    end,
     Confirm = function(_, yes) yes() end,
     PromptText = function(_, _, _, accept) accept("Mine") end,
     ShowCopyBox = NOTHING,
@@ -163,6 +166,7 @@ local env = setmetatable({
     UnitRace = function() return "Human", "Human", 1 end,
     UnitLevel = function() return 20 end,
     UnitFactionGroup = function() return "Alliance" end,
+    GetProfessions = NOTHING,
     CreateVector2D = function() end,
     C_Map = { GetBestMapForUnit = function() end, GetWorldPosFromMapPos = function() end },
     UnitName = function() return "Me" end,
@@ -200,8 +204,8 @@ Load({
     "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua", "Shared/Places.lua",
     "Shared/Parts.lua", "Shared/Window.lua", "Shared/View.lua", "Shared/Kinds.lua",
     "Shared/Settings/Settings.lua",
-    "Training/NaowhForever_TrainingData.lua", "Training/NaowhForever_TrainingBuilds.lua",
-    "Training/NaowhForever_Training.lua", "Training/NaowhForever_TrainingWindow.lua",
+    "NaowhForever_Training/NaowhForever_TrainingData.lua", "NaowhForever_Training/NaowhForever_TrainingBuilds.lua",
+    "NaowhForever_Training/NaowhForever_Training.lua", "NaowhForever_Training/NaowhForever_TrainingWindow.lua",
 }, env)
 
 -------------------------------------------------------------------------------
@@ -219,7 +223,7 @@ check("the Spells tab shows the next visit and the road", window.hero:IsShown() 
 check("and its own controls", window.search:IsShown() and not window.import:IsShown())
 Click(window.hero.trainer)
 check("its trainer link puts a waypoint on your class's trainer", waypoint and waypoint[1] == "Elsharin"
-    and waypoint[2] == 1453 and waypoint[5] == " (Mage Trainer)")
+    and waypoint[2] == 1453 and waypoint[5] == " (Mage Trainer)" and waypoint[6] == 1)
 
 ns.OpenTrainingWindow(20)
 check("a level opens on Spells with All Levels", window.back:IsShown())
@@ -270,6 +274,23 @@ check("back on Spells", window.hero:IsShown())
 settings.enabled = true
 settings.miniShown = true
 for _, fn in ipairs(listeners) do fn("miniShown") end
+local mini
+for _, f in ipairs(frames) do
+    if rawget(f, "gold") and rawget(f, "fill") and rawget(f, "track") and f.scripts.OnEvent then mini = f end
+end
+check("the mini bar shows, with your gold", mini and mini:IsShown() and mini.gold:GetText():find("|cffffd100g|r", 1, true))
+local plans = 0
+local Plan = ns.Training.Plan
+ns.Training.Plan = function(...) plans = plans + 1 return Plan(...) end
+mini.scripts.OnEvent(mini, "PLAYER_MONEY")
+ns.Training.Plan = Plan
+check("your gold changing repaints the gold, not the plan", plans == 0)
+check("Coins reads as before", ns.Training.Coins(12345) == "1|cffffd100g|r 23|cffc7ccd3s|r 45|cffe0904fc|r"
+    and ns.Training.Coins(0) == "0|cffe0904fc|r" and ns.Training.Coins(10005) == "1|cffffd100g|r 5|cffe0904fc|r"
+    and ns.Training.Coins(200) == "2|cffc7ccd3s|r")
+dofile("Tools/regression/measure.lua")(check)("the mini bar on a change of gold", 0.05, function()
+    mini.scripts.OnEvent(mini, "PLAYER_MONEY")
+end)
 local declared = ns.Shared.Settings.pages["Training Planner/Settings"]
 local windowCard, trainer = declared and declared.items[1], declared and declared.cards.trainer
 check("the settings page is declared, the planner's window card first", windowCard and windowCard.window

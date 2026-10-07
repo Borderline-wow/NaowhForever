@@ -1,13 +1,13 @@
 """What a boss's page in the Dungeon Journal shows of each boss beyond its loot, from its
 Wowhead Forever NPC page:
 
-- its abilities, from the page's Abilities tab, to DungeonJournal/Data/Abilities.lua as spell
+- its abilities, from the page's Abilities tab, to NaowhForever_DungeonJournal/Data/Abilities.lua as spell
   IDs keyed by NPC ID, each name once (the first Wowhead lists). Only the IDs: the game gives
   each one's name, icon and description.
 - its level, classification (Elite, Rare...), creature type and title ("Ragefire
-  Chieftain"), to DungeonJournal/Data/BossInfo.lua, for the page's header.
+  Chieftain"), to NaowhForever_DungeonJournal/Data/BossInfo.lua, for the page's header.
 
-The bosses are read from DungeonJournal/Data/Dungeons (their npc = ...); what each page gives
+The bosses are read from NaowhForever_DungeonJournal/Data/Dungeons (their npc = ...); what each page gives
 is kept in Tools/abilities_cache.json, so a run only fetches bosses not seen yet (or seen
 before the cache kept the header's facts). --refresh fetches all; --offline fetches nothing
 and writes what the cache has (a boss not fetched yet is left out until the next run).
@@ -23,9 +23,9 @@ import urllib.error
 import wowhead
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DUNGEONS = os.path.join(ROOT, "DungeonJournal", "Data", "Dungeons")
-OUT = os.path.join(ROOT, "DungeonJournal", "Data", "Abilities.lua")
-INFO_OUT = os.path.join(ROOT, "DungeonJournal", "Data", "BossInfo.lua")
+DUNGEONS = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "Dungeons")
+OUT = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "Abilities.lua")
+INFO_OUT = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "BossInfo.lua")
 CACHE = os.path.join(ROOT, "Tools", "abilities_cache.json")
 
 # One ability in the listview's data: its ID and name, in the order Wowhead lists them.

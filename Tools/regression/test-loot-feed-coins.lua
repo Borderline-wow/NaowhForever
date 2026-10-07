@@ -47,16 +47,24 @@ local THEME = { fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.6, g = 0.6, b = 0.
 local ns = {
     QoLSettings = S, THEME = THEME,
     Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
-    Border = function(parent) return New("Border", parent) end,
+    Border = function(parent)
+        local border = New("Border", parent)
+        border._frame = New("Frame", parent)
+        return border
+    end,
     Font = function(parent) return New("FontString", parent) end,
     Solid = function(parent) return New("Texture", parent) end,
     ThemeTint = function(_, literal) return literal end,
     OnePixel = function() return 1 end,
     UI = { FontPath = function() return "font" end, AttachMover = function(f) return New("Mover", f) end },
-    Shared = { Settings = {
-        Group = function(name) return { group = name } end,
-        Page = function() return { Card = function() end } end,
-    } },
+    Shared = {
+        Parts = { HUD_OUTLINES = { {}, {} }, HudFont = function(fs) return fs end },
+        Settings = {
+            Group = function(name) return { group = name } end,
+            Look = function() return {} end,
+            Page = function() return { Card = function() end } end,
+        },
+    },
 }
 
 local env = setmetatable({

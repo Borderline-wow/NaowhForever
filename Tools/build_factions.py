@@ -27,9 +27,9 @@ wago.CARRY_FROM, the build before, with its hotfixes (see Tools/wago.py). An ite
 has, the build's own row wins. Once they list it as this faction's reward, theirs win, and the
 build says its hand-written line can go.
 
-Writes one file per faction, DungeonJournal/Data/Factions/<Key>.lua,
-DungeonJournal/Data/FactionItems.lua with what the Journal needs to know about each reward
-before the client has loaded it, and DungeonJournal/Data/Build.lua: the build the data is
+Writes one file per faction, NaowhForever_DungeonJournal/Data/Factions/<Key>.lua,
+NaowhForever_DungeonJournal/Data/FactionItems.lua with what the Journal needs to know about each reward
+before the client has loaded it, and NaowhForever_DungeonJournal/Data/Build.lua: the build the data is
 read from and when it came out, shown by the Journal's title.
 
 Usage: python Tools/build_factions.py [--build 1.60.1.70124] [--carry-from 1.60.1.70094]

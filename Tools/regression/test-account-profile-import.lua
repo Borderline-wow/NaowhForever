@@ -4,7 +4,7 @@
 -- Import button reaches it, with the name the import actually landed under).
 local core = assert(io.open(arg[1] or "Core/NaowhForever_Core.lua", "rb"))
 local coreSrc = core:read("*a"):gsub("\r\n", "\n"); core:close()
-local packs = assert(io.open(arg[2] or "SmartReminders/NaowhForever_Packs.lua", "rb"))
+local packs = assert(io.open(arg[2] or "Core/NaowhForever_Packs.lua", "rb"))
 local packSrc = packs:read("*a"):gsub("\r\n", "\n"); packs:close()
 
 local function Slice(source, a, b)

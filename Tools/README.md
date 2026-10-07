@@ -15,15 +15,15 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 
 | Tool | What it does | Why |
 | --- | --- | --- |
-| `build_journal.py` | Builds every dungeon's bosses and loot into `DungeonJournal/Data/`. `--offline` asks Wowhead nothing (its cache and the game's tables only), for CI. | The heart of the Journal. How it decides what a boss drops is drawn in `DungeonJournal/README.md`. |
+| `build_journal.py` | Builds every dungeon's bosses and loot into `NaowhForever_DungeonJournal/Data/`. `--offline` asks Wowhead nothing (its cache and the game's tables only), for CI. | The heart of the Journal. How it decides what a boss drops is drawn in `NaowhForever_DungeonJournal/README.md`. |
 | `journal_bosses.json` | The bosses per dungeon, in kill order, with rares, optional bosses, chests and hand fixes. | Kept by hand: no source has the right list for Forever. |
 | `wowsrc.py` | Reads wowsrc.com's Forever loot pages into `wowsrc_loot.json`. `--resolve` maps their item names to IDs in `item_names.json` (`--offline`: without Wowhead). `--check` says what changed on their pages since (daily in CI). | Wowhead hasn't tied Forever's new items to bosses yet; wowsrc has. They gave us permission. |
 | `journal_cache.json`, `wowsrc_loot.json`, `item_names.json` | Every Wowhead answer the build used; wowsrc's pages as last read; their item names to IDs. | Committed, so a rebuild (and CI) gives the same data without asking again. |
 | `items_in_game.py` | Writes `items_in_game.json`: the items a Forever client was sent, and refused, from its hotfix cache (`--cache`) and the Journal's `/nf itemprobe` (`--probe`, its SavedVariables). With neither, both are read from a Windows install. | wago.tools lacks some items the server sends; the build lists those as in the game. Run on a machine with the client, then commit the JSON. |
 | `build_factions.py` | Builds the Reputation and PvP tabs from `journal_factions.json` and the game's own item tables. | Rewards, standings and prices are in the client, so we read them from there, not a website. |
 | `build_quest_chains.py` | Builds each dungeon quest's chain and what you need first, from Wowhead Forever. | So the Journal can say "do this first". |
-| `build_abilities.py` | Builds `DungeonJournal/Data/Abilities.lua` (each boss's spell IDs, each name once) and `BossInfo.lua` (its level, classification, creature type and title) from its Wowhead Forever NPC page. Cached in `abilities_cache.json`; `--offline` writes what the cache has. | A boss's page shows its abilities and header. The game gives each spell's name, icon and description. |
-| `build_boss_quests.py` | Builds `DungeonJournal/Data/BossQuests.lua`: the dungeon quests whose objective on Wowhead Forever names or links a boss. Cached in `quest_objectives_cache.json`. | A boss's page lists the quests that need it. |
+| `build_abilities.py` | Builds `NaowhForever_DungeonJournal/Data/Abilities.lua` (each boss's spell IDs, each name once) and `BossInfo.lua` (its level, classification, creature type and title) from its Wowhead Forever NPC page. Cached in `abilities_cache.json`; `--offline` writes what the cache has. | A boss's page shows its abilities and header. The game gives each spell's name, icon and description. |
+| `build_boss_quests.py` | Builds `NaowhForever_DungeonJournal/Data/BossQuests.lua`: the dungeon quests whose objective on Wowhead Forever names or links a boss. Cached in `quest_objectives_cache.json`. | A boss's page lists the quests that need it. |
 | `wago.py` | Reads the game's own tables (DB2) for a Forever build from wago.tools, hotfixes included. `BUILD` is the build our data comes from. | The one source that is the game itself. |
 | `watch_build.py` | Compares a new Forever build with ours: faction rewards, kill-count encounters, new dungeons, new dungeon floor maps, new gear the Journal doesn't list yet. `--update` moves us to it. | Runs daily in CI (`.github/workflows/daily-watch.yml`), so a new build never sneaks past us. |
 
@@ -31,23 +31,23 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 
 | Tool | What it does | Why |
 | --- | --- | --- |
-| `build_bis_data.py` | Builds `BiS/Data/BiS.lua` from wowsrc.com's per-spec BiS pages. Item IDs are cached in `bis_item_ids.json`. `--check` says what changed on their pages, `--offline` builds without Wowhead (both daily in CI). | The BiS List's picks, with permission from wowsrc. |
+| `build_bis_data.py` | Builds `NaowhForever_BiS/BiS/Data/BiS.lua` from wowsrc.com's per-spec BiS pages. Item IDs are cached in `bis_item_ids.json`. `--check` says what changed on their pages, `--offline` builds without Wowhead (both daily in CI). | The BiS List's picks, with permission from wowsrc. |
 | `wowhead.py` | Not a build: reading Wowhead's Forever pages (a polite `fetch`, listviews, a dungeon guide's loot) and writing Lua strings, for the tools that do. | Shared by `build_journal.py`, `build_factions.py`, `watch_build.py` and `wowsrc.py`. |
-| `build_bis_spots.py` | Builds `BiS/Data/Spots.lua`: where the NPC that drops or sells a BiS item stands out in the world, from Wowhead's item and NPC pages. Cached in `bis_spots.json`. | The BiS List's Run Next puts a waypoint on them. |
-| `build_enchants.py` | Builds `BiS/Data/Enchants.lua`: every Enchanting recipe, what it gives and goes on, from the game's tables (wago.tools), and the skill it needs and who teaches it, from Wowhead (cached in `enchant_skills.json`). | The BiS List's best enchant for what you wear. |
-| `build_bis_quests.py` | Builds `DungeonJournal/Data/BiSQuests.lua`: every quest that rewards a ranked BiS item, from Wowhead's item pages ("Reward from") and quest pages (where it starts, who can take it). Cached in `bis_quests.json` and `bis_quest_pages.json`. Run `build_quest_chains.py` after it. | The BiS List's Quests page. |
+| `build_bis_spots.py` | Builds `NaowhForever_BiS/BiS/Data/Spots.lua`: where the NPC that drops or sells a BiS item stands out in the world, from Wowhead's item and NPC pages. Cached in `bis_spots.json`. | The BiS List's Run Next puts a waypoint on them. |
+| `build_enchants.py` | Builds `NaowhForever_BiS/BiS/Data/Enchants.lua`: every Enchanting recipe, what it gives and goes on, from the game's tables (wago.tools), and the skill it needs and who teaches it, from Wowhead (cached in `enchant_skills.json`). | The BiS List's best enchant for what you wear. |
+| `build_bis_quests.py` | Builds `NaowhForever_DungeonJournal/Data/BiSQuests.lua`: every quest that rewards a ranked BiS item, from Wowhead's item pages ("Reward from") and quest pages (where it starts, who can take it). Cached in `bis_quests.json` and `bis_quest_pages.json`. Run `build_quest_chains.py` after it. | The BiS List's Quests page. |
 
 ## Naowh Score
 
 | Tool | What it does | Why |
 | --- | --- | --- |
-| `fit_naowh_score.py` | Fits the Naowh Score's constants (`NaowhScore/Data/Formula.lua`: slot weights, each quality's worth in epic item levels) to a Forever build's own item table through wago.tools: ItemSparse's stats (`StatModifier_bonusStat_N` and `StatPercentEditor_N`, with `ItemLevel`, `OverallQualityID`, `InventoryType`), RandPropPoints' budgets and ItemDamageOneHand's DPS. Prints a report (`--report`); `--write` rewrites `Formula.lua` only when the fit passes its quality gates and a slot moves 0.02 or a quality's worth at item level 60 moves 0.5. `--build`, `--cache DIR`, `--bootstrap N` (the report's intervals, seeded). The method is in its docstring and `NaowhScore/README.md`. | So the score follows the game's own numbers, build after build, with nothing read from Wowhead. |
+| `fit_naowh_score.py` | Fits the Naowh Score's constants (`NaowhForever_BiS/NaowhScore/Data/Formula.lua`: slot weights, each quality's worth in epic item levels) to a Forever build's own item table through wago.tools: ItemSparse's stats (`StatModifier_bonusStat_N` and `StatPercentEditor_N`, with `ItemLevel`, `OverallQualityID`, `InventoryType`), RandPropPoints' budgets and ItemDamageOneHand's DPS. Prints a report (`--report`); `--write` rewrites `Formula.lua` only when the fit passes its quality gates and a slot moves 0.02 or a quality's worth at item level 60 moves 0.5. `--build`, `--cache DIR`, `--bootstrap N` (the report's intervals, seeded). The method is in its docstring and `NaowhForever_BiS/NaowhScore/README.md`. | So the score follows the game's own numbers, build after build, with nothing read from Wowhead. |
 
 ## Training Planner
 
 | Tool | What it does | Why |
 | --- | --- | --- |
-| `build_training.py` | Builds `Training/NaowhForever_TrainingData.lua`: every spell each class learns from a trainer or a quest, with its level, base price, the rank before it, the talent it needs and its races. Spells, levels and prices from Wowhead Forever's class lists (cached in `training_cache.json`), talents from the game's tables (via `wago.py`). | The client has no list of what a trainer will teach you later, nor its prices. The addon updates a price from the trainer window once you open it. |
+| `build_training.py` | Builds `NaowhForever_Training/NaowhForever_TrainingData.lua`: every spell each class learns from a trainer or a quest, with its level, base price, the rank before it, the talent it needs and its races. Spells, levels and prices from Wowhead Forever's class lists (cached in `training_cache.json`), talents from the game's tables (via `wago.py`). | The client has no list of what a trainer will teach you later, nor its prices. The addon updates a price from the trainer window once you open it. |
 
 ## Boss reminders
 
@@ -56,6 +56,12 @@ it again. Be gentle with the sites: the scripts wait between requests on purpose
 | `extract_fingerprints.py` | Pulls tank-hit timings and names out of boss mod files. | To know which casts are tank hits. |
 | `extract_curated_abilities.py` | Pulls the phase-grouped ability lists out of boss mod files. | Same, for the ability lists. |
 | `audit_abilities.py` | Cross-checks our damage sheet against those names. | Finds rows that won't match, to check by hand. |
+
+## World Map
+
+| Tool | What it does | Why |
+| --- | --- | --- |
+| `build_map_overlays.py` | Builds `QoL/NaowhForever_MapOverlays.lua`: every explorable area of each zone map and its tiles, from the game's tables (wago.tools). Run it again when `wago.BUILD` moves on. | The game only tells addons the areas you have explored; Unexplored Areas draws the rest. |
 
 ## Media
 

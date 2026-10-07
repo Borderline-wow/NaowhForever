@@ -1,4 +1,4 @@
-"""Build DungeonJournal/Data/BiSQuests.lua: every quest that rewards an item a BiS ranking lists,
+"""Build NaowhForever_DungeonJournal/Data/BiSQuests.lua: every quest that rewards an item a BiS ranking lists,
 for the BiS List's Quests page, as the Dungeon Journal's quest records.
 
 From Wowhead's Forever pages: each ranked item's "Reward from" quests (its level, the level
@@ -24,7 +24,7 @@ from build_bis_data import WOWHEAD, current_specs, fetch, listview, lua_string
 from build_quest_chains import REDRAWN, ZONE_MAP
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "DungeonJournal" / "Data" / "BiSQuests.lua"
+OUT = ROOT / "NaowhForever_DungeonJournal" / "Data" / "BiSQuests.lua"
 ITEMS = Path(__file__).resolve().parent / "bis_quests.json"
 PAGES = Path(__file__).resolve().parent / "bis_quest_pages.json"
 

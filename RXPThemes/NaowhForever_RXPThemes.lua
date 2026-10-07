@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  NaowhForever_RXPThemes.lua -- NaowhUI, the eight Naowh themes and the player's current theme in
+--  NaowhForever_RXPThemes.lua -- Naowh, the eight Naowh themes and the player's current theme in
 --  RestedXP Guides, and hooks that style its arrow, title bar, quest list and scroll bar. Off unless
 --  Settings > RESTEDXP turns it on.
 -------------------------------------------------------------------------------
@@ -8,7 +8,7 @@ local ns = _G.NaowhForever
 local RXP_ADDON = "RXPGuides"
 local NAME_PREFIX = "NaowhForever:"
 local AUTHOR = "Naowh Forever"
-local DEFAULT_KEY, DEFAULT_NAME = "default", "NaowhUI"
+local DEFAULT_KEY, DEFAULT_NAME = "default", "Naowh"
 local CURRENT_KEY, CURRENT_NAME = "current", "Naowh (current)"
 local RXP_DEFAULT = "Default"   -- RestedXP's name for its own theme
 

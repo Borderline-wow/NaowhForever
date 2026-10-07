@@ -6,7 +6,8 @@
 -- the marks on the game's own panel as it looks; it stands down while
 -- EllesmereUI styles the panel; your supporter badge shows only when you have one, never a grey
 -- one or a pitch; off again, the game's art comes back; and neither a slot's update
--- nor a repaint of the stats makes garbage.
+-- nor a repaint of the stats makes garbage. All with ns.FEATURE_BADGES at 1; at 0, a team
+-- badge shows on its setting's default and the Supporter Badge row is gone from the card.
 local Load = dofile("Tools/regression/load_files.lua")
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 local Measure = dofile("Tools/regression/measure.lua")
@@ -111,6 +112,7 @@ for _, text in ipairs({ title, levelText }) do
     text.SetFont = function(self, path, size) self.size = size; self.object = nil end
 end
 
+local QOL_DEFAULTS = { characterPanelBadge = true }
 local S = {
     Get = function(key) return state.values[key] end,
     Set = function(key, value)
@@ -118,6 +120,7 @@ local S = {
         for _, fn in ipairs(state.listeners) do fn(key, value) end
     end,
     OnChange = function(fn) state.listeners[#state.listeners + 1] = fn end,
+    Default = function(key) return QOL_DEFAULTS[key] end,
 }
 -- The QoL defaults this module adds, and the QoL switch on.
 -- Slot Marks is on by default; off here, to start from nothing (its own checks turn it on).
@@ -150,6 +153,7 @@ local ns = {
     QoLSettings = S,
     Apply = NOTHING,
     IsBisItem = function(id) return RANK[id] end,
+    FEATURE_BADGES = 1,
     BADGE_TIERS = {
         legendary = { title = "Legendary Patron", about = "Supports Naowh.", large = "legendaryArt",
             chat = "legendaryChat", markup = "|TlegendaryChat:0|t",
@@ -285,8 +289,8 @@ env._G = env
 env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 
 local files = TocFiles("^Shared/.*%.lua$")
-for _, path in ipairs(TocFiles("^CharacterPanel/.*%.lua$")) do files[#files + 1] = path end
-check("the TOC loads the module's files", files[#files] == "CharacterPanel/SettingsPage.lua")
+for _, path in ipairs(TocFiles("^NaowhForever_BiS/CharacterPanel/.*%.lua$")) do files[#files + 1] = path end
+check("the TOC loads the module's files", files[#files] == "NaowhForever_BiS/CharacterPanel/SettingsPage.lua")
 Load(files, env)
 local CP = ns.CharacterPanel
 ns.Shared.ForeverNew.items[101] = true   -- the head's item is new in Forever
@@ -367,6 +371,12 @@ S.Set("characterPanelMarks", true)
 S.Set("characterPanelEnchants", false)
 check("Enchant Dots off: no dot", c.wand.shown == false)
 S.Set("characterPanelEnchants", true)
+statsList.shown = false
+CP.ApplyScore()
+check("the game's titles or gear sets in the pane: no score over them", badge.shown == false)
+statsList.shown = nil
+CP.ApplyScore()
+check("its stats back: the score back", badge.shown == true)
 S.Set("characterPanelScore", false)
 check("Naowh Score off: no score in the corner", badge.shown == false)
 
@@ -390,6 +400,14 @@ S.Set("characterPanelBadge", false)
 check("Supporter Badge off: no badge", support.shown == false)
 S.Set("characterPanelBadge", true)
 check("and back on", support.shown == true)
+ns.FEATURE_BADGES = 0
+S.Set("characterPanelBadge", false)
+check("flag 0: a team badge stays on its default, whatever was saved", support.shown == true)
+support.scripts.OnShow(support)
+check("flag 0: still the team's title and line", support.title.text == "Lead Developer"
+    and support.line.text == "Naowh Forever Team")
+ns.FEATURE_BADGES = 1
+S.Set("characterPanelBadge", true)
 state.badges = nil
 character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
 check("once you have none, it goes as the panel opens", support.shown == false)
@@ -402,7 +420,7 @@ state.badges = nil
 character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)
 
 -- No preview setting, grey badge or pitch is left in the panel's files.
-for _, path in ipairs({ "CharacterPanel/Badge.lua", "CharacterPanel/SettingsPage.lua", "QoL/NaowhForever_QoL.lua" }) do
+for _, path in ipairs({ "NaowhForever_BiS/CharacterPanel/Badge.lua", "NaowhForever_BiS/CharacterPanel/SettingsPage.lua", "QoL/NaowhForever_QoL.lua" }) do
     local f = assert(io.open(path, "rb"))
     local source = f:read("*a")
     f:close()
@@ -581,9 +599,80 @@ S.Set("characterPanel", true)
 S.Set("characterPanel", false)
 check("EllesmereUI's turned off by you: ours on and off leaves it off, no reload asked",
     db.themedCharacterSheet == false and state.reloads == 2)
+-- With both on at login: a newcomer gets ours from the next reload, told in chat; anyone else is
+-- asked, once.
+local asked, printed = 0, {}
+env.InCombatLockdown = function() return false end
+ns.Confirm = function() asked = asked + 1 end
+ns.Print = function(text) printed[#printed + 1] = text end
+local function BothOn()
+    db.themedCharacterSheet = true
+    S.Set("characterPanelAsked", false)
+    S.Set("characterPanelTookOver", false)
+    S.Set("characterPanel", true)
+    db.themedCharacterSheet = true
+end
+BothOn()
+local reloads = state.reloads
+CP._AskForTest(true)
+check("a newcomer: ours from the next reload, no question, no reload popup, told in chat",
+    db.themedCharacterSheet == false and asked == 0 and state.reloads == reloads and #printed == 1
+    and printed[1]:find("next reload", 1, true) and S.Get("characterPanelTookOver") and S.Get("characterPanelAsked"))
+CP._AskForTest(true)
+check("and only once", #printed == 1)
+BothOn()
+CP._AskForTest(false)
+check("anyone else: asked, EllesmereUI's left as it is", asked == 1 and db.themedCharacterSheet == true and #printed == 1)
+S.Set("characterPanelAsked", true)
+CP._AskForTest(false)
+check("once", asked == 1)
 env.EllesmereUIDB, env.EllesmereUI = nil, nil
+reloads = state.reloads
 S.Set("characterPanel", true)
 S.Set("characterPanel", false)
-check("without EllesmereUI: nothing to swap, no reload asked", state.reloads == 2)
+check("without EllesmereUI: nothing to swap, no reload asked", state.reloads == reloads)
+
+-------------------------------------------------------------------------------
+--  ns.FEATURE_BADGES = 0: the badge file builds and hooks nothing, and the panel's card has
+--  no Supporter Badge row (and no gap for it), with the flag on it is the first row.
+-------------------------------------------------------------------------------
+local function PanelCard(flag)
+    local cards, listeners, hooked = {}, 0, 0
+    local store = {
+        Get = function(key) return key == "characterPanelBadge" or key == "characterPanelScore" end,
+        Default = function() return true end,
+        OnChange = function() listeners = listeners + 1 end,
+    }
+    local flagNs = {
+        FEATURE_BADGES = flag, THEME = ns.THEME, QoLSettings = store,
+        CharacterPanel = { EllesmereSheet = function() return false end },
+        Shared = { Settings = { Page = function()
+            return { Card = function(_, def) cards[def.id] = def end }
+        end } },
+    }
+    local flagEnv = setmetatable({ _G = { NaowhForever = flagNs },
+        hooksecurefunc = function() hooked = hooked + 1 end }, { __index = _G })
+    local paths = {}
+    for _, path in ipairs(files) do
+        if path:find("CharacterPanel/Badge.lua", 1, true) or path:find("CharacterPanel/SettingsPage.lua", 1, true) then
+            paths[#paths + 1] = path
+        end
+    end
+    Load(paths, flagEnv)
+    return cards.characterPanel, flagNs.CharacterPanel, listeners, hooked, store
+end
+
+local offCard, offCP, offListeners, offHooked, offStore = PanelCard(0)
+check("flag 0: the team's badge still listens and hooks", offHooked == 1 and offListeners == 1
+    and offCP.supportBadge == nil)
+check("flag 0: the BiS link keeps its place", offCP.BADGE_MID == CP.BADGE_MID)
+check("flag 0: no badge row at all, the Naowh Score row first", #offCard.rows == 1
+    and offCard.rows[1].key == "characterPanelScore")
+check("flag 0: the summary leaves the badge out", offCard.summary(offStore) == "With your Naowh Score")
+local onCard, _, onListeners, onHooked, onStore = PanelCard(1)
+check("flag 1: the badge listens and hooks as before", onListeners == 1 and onHooked == 1)
+check("flag 1: the Supporter Badge row first, then Naowh Score", #onCard.rows == 2
+    and onCard.rows[1].label == "Supporter Badge" and onCard.rows[2].key == "characterPanelScore")
+check("flag 1: the summary names the badge", onCard.summary(onStore) == "With your badge and Naowh Score")
 
 print(("test-character-panel: %d checks passed"):format(checks))

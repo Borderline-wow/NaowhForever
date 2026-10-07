@@ -5,7 +5,7 @@
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local f = assert(io.open("Blessings/NaowhForever_Blessings.lua", "rb"))
+local f = assert(io.open("NaowhForever_Blessings/NaowhForever_Blessings.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n")
 f:close()
 local first = assert(source:find("local WANTED = {", 1, true))

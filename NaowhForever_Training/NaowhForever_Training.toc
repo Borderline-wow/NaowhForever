@@ -1,0 +1,16 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Title: |cff0091edNaowh|r Forever: Training Planner
+## Notes: What to train now and on the road to 60, and talent builds.
+## Author: Naowh
+## Version: 0.5.25-beta
+## Dependencies: NaowhForever, NaowhForever_Professions
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+# The data loads first; the module reads it. The trainer window reads Professions' trainer
+# service info, so Professions is a dependency.
+NaowhForever_TrainingData.lua
+NaowhForever_TrainingBuilds.lua
+NaowhForever_Training.lua
+NaowhForever_TrainingWindow.lua
+NaowhForever_TrainingTrainer.lua

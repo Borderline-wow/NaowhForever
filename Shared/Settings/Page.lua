@@ -51,14 +51,10 @@ local function HelpHit(parent, region)
     return hit
 end
 
-local function Searched(label)
-    local words = ns.UI.searchWords
-    if not (words and label) then return false end
-    local name = label:lower()
-    for _, word in ipairs(words) do
-        if not name:find(word, 1, true) then return false end
-    end
-    return true
+-- The typed words of the sidebar's search, lit in a row's own text.
+local function Marked(row, text)
+    local filter = row:GetParent().filter
+    return filter and ns.UI.Search.Mark(filter, text) or text
 end
 
 local function Rule(frame, alpha)
@@ -87,6 +83,7 @@ function Controls.choice(row)
     return (ns.UI.BuildDropdownControl(row, CHOICE_W, row:GetFrameLevel() + 2, {}, {}, row.Get, row.Set))
 end
 Controls.font = Controls.choice
+Controls.texture = Controls.choice
 Controls.sound = Controls.choice
 
 function Controls.binding(row)
@@ -173,6 +170,7 @@ end
 local function ChoiceValues(setting)
     local kind = setting.kind
     if kind == "font" then return FontValues(setting) end
+    if kind == "texture" then return ns.UI.TextureChoices(setting.get(), setting.texture) end
     if kind == "sound" then return SoundValues() end
     if type(setting.choice) == "function" then return setting.choice() end
     return setting.choice[1] or setting.choice.values, setting.choice[2] or setting.choice.order
@@ -185,7 +183,7 @@ local function ShownValue(setting, v)
         if setting.scale then v = math.floor(v / setting.scale + 0.5) end
         return tostring(v) .. (setting.unit or "")
     end
-    if kind == "choice" or kind == "font" or kind == "sound" then
+    if kind == "choice" or kind == "font" or kind == "texture" or kind == "sound" then
         local values = ChoiceValues(setting)
         local label = values and values[v]
         return label and tostring(label) or nil
@@ -222,8 +220,6 @@ local function NewSetting(view)
     row.Get = function() return RowGet(row) end
     row.Set = function(...) RowSet(row, ...) end
     row.controls = {}
-    row.band = ns.Solid(row, "BACKGROUND", T.accent, 0.18)
-    row.band:SetAllPoints()
     row.rule = Rule(row)
     row.split = ns.Solid(row, "ARTWORK", T.line, RULE_ALPHA)
     row.split:SetPoint("TOPRIGHT")
@@ -279,6 +275,17 @@ local function BindingField(control, setting)
     field:Show()
 end
 
+local unitFormats = {}
+
+local function UnitFormat(unit)
+    local format = unitFormats[unit]
+    if not format then
+        format = function(v) return v .. unit end
+        unitFormats[unit] = format
+    end
+    return format
+end
+
 local function Bind(control, setting)
     local kind = setting.kind
     if kind == "toggle" then
@@ -287,9 +294,9 @@ local function Bind(control, setting)
         local range = setting.slider
         ns.UI.SetSliderRange(control, range[1], range[2], range[3])
         local unit = setting.unit
-        control._format = unit and function(v) return v .. unit end or nil
+        control._format = unit and UnitFormat(unit) or nil
         control._refreshValue()
-    elseif kind == "choice" or kind == "font" or kind == "sound" then
+    elseif kind == "choice" or kind == "font" or kind == "texture" or kind == "sound" then
         control._values, control._order = ChoiceValues(setting)
         control._refreshLabel()
     elseif kind == "colour" then
@@ -332,11 +339,10 @@ local function SetSetting(row, setting, split)
         if other._valBox and kind ~= setting.kind then other._valBox:Hide() end
     end
     Bind(control, setting)
-    row.label:SetText(setting.label)
+    row.label:SetText(Marked(row, setting.label))
     row.hit.help = setting.help
     row.dot:SetShown(Settings.Changed(setting))
     row.split:SetShown(split)
-    row.band:SetShown(Searched(setting.label))
     local off, why = Settings.Off(setting)
     Dim(row, control, off)
     local left = control._valBox and control or control
@@ -355,7 +361,7 @@ end
 
 local function HeadClicked(head)
     local card = head.card
-    if not Openable(card) then return end
+    if head.held or not Openable(card) then return end
     Settings.SetOpen(card, not Settings.IsOpen(card))
     head:GetParent():QueueSettingsRedraw()
 end
@@ -372,8 +378,6 @@ local function NewHead(view)
     head:SetHeight(HEAD_H)
     ns.Solid(head, "BACKGROUND", T.panel, 1):SetAllPoints()
     head.rule = Rule(head, 1)
-    head.band = ns.Solid(head, "BORDER", T.accent, 0.18)
-    head.band:SetAllPoints()
     head.chevron = head:CreateTexture(nil, "ARTWORK")
     head.chevron:SetTexture(ns.UI.CHEVRON)
     head.chevron:SetSize(CHEVRON_SIZE, CHEVRON_SIZE)
@@ -398,14 +402,14 @@ local function NewHead(view)
     return head
 end
 
-local function SetHead(head, card, isOpen)
-    head.card = card
-    head.name:SetText(card.name)
+-- held: a search holds the card open, so its head does not fold it.
+local function SetHead(head, card, isOpen, held)
+    head.card, head.held = card, held
+    head.name:SetText(Marked(head, card.name))
     head.nameHit.help = card.help
     head.chevron:SetRotation(isOpen and -math.pi / 2 or 0)
-    head.chevron:SetShown(Openable(card))
+    head.chevron:SetShown(Openable(card) and not held)
     head.rule:SetShown(isOpen)
-    head.band:SetShown(Searched(card.name))
     local anchor = head.name
     if card.switchGet then
         head.switch:Show()
@@ -532,17 +536,30 @@ Settings.kinds = kinds
 
 local Draw = {}
 
-function Draw:Settings(card)
+-- A hidden row is set on the card's preview instead; it is still searched, counted and reset.
+local function Hidden(row)
+    local hidden = row.hidden
+    if type(hidden) == "function" then hidden = hidden() end
+    return hidden
+end
+
+-- only: the labels the search keeps (a group title stays while a setting under it does), or
+-- nil for every row.
+function Draw:Settings(card, only)
     local w = self:GetWidth()
     local columns = w >= TWO_COLUMNS_W and 2 or 1
     local half = math.floor(w / 2)
-    -- A hidden row is set on the card's preview instead; it is still searched, counted and reset.
-    local rows = {}
+    local rows = wipe(self.shownRows)
     for _, row in ipairs(Settings.Rows(card)) do
-        local hidden = row.hidden
-        if type(hidden) == "function" then hidden = hidden() end
-        if not hidden then rows[#rows + 1] = row end
+        local group = row.kind == "group"
+        local keep = not Hidden(row) and (not only or group or only[row.label])
+        if keep and only and group and rows[#rows] and rows[#rows].kind == "group" then
+            rows[#rows] = row
+        elseif keep then
+            rows[#rows + 1] = row
+        end
     end
+    if only and rows[#rows] and rows[#rows].kind == "group" then rows[#rows] = nil end
     local i = 1
     while i <= #rows do
         local row = rows[i]
@@ -572,41 +589,60 @@ function Draw:Settings(card)
     end
 end
 
-function Draw:Card(card)
+-- found: what the search kept of the card, true for all of it or its matching labels; a card
+-- the search kept is drawn open.
+function Draw:Card(card, found)
     local top = self.cursor
     self.left, self.width = 0, self:GetWidth()
     local frame = self:Acquire("card")
     frame:SetFrameLevel(self:GetFrameLevel())
     frame.edge:SetColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, 1)
     frame.note:Hide()
-    local isOpen = Settings.IsOpen(card) and Openable(card)
-    self:Add("cardHead", card, isOpen)
+    local isOpen = (found ~= nil or Settings.IsOpen(card)) and Openable(card)
+    self:Add("cardHead", card, isOpen, found ~= nil)
     if isOpen and card.info then
         for _, line in ipairs(card.rows) do
             if line.group then self:Add("group", line.group) else self:Add("infoLine", line) end
         end
     elseif isOpen then
-        if card.studio and self.kinds.studio then self:Add("studio", card) end
-        self:Settings(card)
+        -- A match set on the preview (a hidden row) can only be changed there, so the card
+        -- shows whole. Part of a card shows no reset, which would reset what is left out too.
+        local only = found ~= true and found or nil
+        for _, row in ipairs(only and Settings.Rows(card) or NO_EVENTS) do
+            if only[row.label] and Hidden(row) then only = nil break end
+        end
+        if card.studio and self.kinds.studio and not only then self:Add("studio", card) end
+        self:Settings(card, only)
         local changed = Settings.ChangedCount(card)
-        if changed > 0 then self:Add("cardFoot", card, changed) end
+        if changed > 0 and not only then self:Add("cardFoot", card, changed) end
     end
     frame:SetHeight(self.cursor - top)
     self:Space(CARD_GAP)
 end
 
+-- With a search (self.filter), only the cards it kept are drawn, unless the page matched by
+-- its own name.
 function Draw:Redraw()
     self:Clear()
     local page = Settings.pages[self.pageKey]
+    local f = self.filter
+    if f and f.all[self.pageKey] then f = nil end
     if page then
+        local drawn = false
         for _, item in ipairs(page.items) do
-            if item.window then
-                self:Add("window", item)
-                self:Space(CARD_GAP)
-            else
-                self:Card(item)
+            if not f then
+                if item.window then
+                    self:Add("window", item)
+                    self:Space(CARD_GAP)
+                else
+                    self:Card(item)
+                end
+            elseif not item.window and f.cards[item.uid] then
+                self:Card(item, f.cards[item.uid])
+                drawn = true
             end
         end
+        if f and not drawn then self:Note("Nothing on this page matches the search.") end
     end
     self:Fit(NO_EVENTS)
 end
@@ -652,10 +688,12 @@ end
 local function NewView(parent)
     local view = View.New(parent, kinds, Draw)
     view.settingsRedrawFn = function() FlushSettings(view) end
+    view.shownRows = {}
     return view
 end
 
-function Settings.Render(parent, pageKey, onResize)
+-- filter: the sidebar search's (Core/NaowhForever_Search.lua), nil for the whole page.
+function Settings.Render(parent, pageKey, onResize, filter)
     local view = parent.settingsView
     if not view then
         view = NewView(parent)
@@ -664,7 +702,7 @@ function Settings.Render(parent, pageKey, onResize)
     view:ClearAllPoints()
     view:SetPoint("TOPLEFT", parent, "TOPLEFT", ns.UI.CONTENT_PAD, -ns.UI.CONTENT_PAD / 2)
     view:SetWidth(math.max(1, parent:GetWidth() - ns.UI.CONTENT_PAD * 2))
-    view.pageKey, view.onResize = pageKey, onResize
+    view.pageKey, view.onResize, view.filter = pageKey, onResize, filter
     local page = Settings.pages[pageKey]
     for _, item in ipairs(page and page.items or NO_EVENTS) do
         if item.store then Watch(item.store, view) end

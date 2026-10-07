@@ -1,88 +1,35 @@
 -------------------------------------------------------------------------------
---  NaowhForever_UnlockMode.lua -- Unlock Mode's movers and EllesmereUI's anchor system.
---  An element is placed CENTER on the screen centre unless it is anchored: to a side of
---  another element, or to a screen edge (Relative to Screen). Anchors are kept per profile in
---  ns.UnlockModeSettings by mover label, and re-applied whenever a target moves or resizes.
+--  NaowhForever_UnlockMode.lua -- The HUD Editor's movers. An element is placed CENTER on the
+--  screen centre and saved there. Clicking one selects it; its tag holds its X and Y and what
+--  can be done with it. An element anchored to another follows it from the side picked on the
+--  tag, keeping its gap. A drag lines up with other elements and the screen centre on guides.
+--  The Elements panel lists them all, to find, hide while editing and lock in place, and every
+--  change by hand can be undone. Shift-click selects several, to move, align and space together.
+--  Layouts keep every position under a name, to go back to.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
 local UI = ns.UI
 
 local BLACK = { r = 0, g = 0, b = 0 }
-local WARNING = { r = 1, g = 0.35, b = 0.35 }
-local CHAIN_TEX = "Interface\\AddOns\\NaowhForever\\Media\\chain.tga"
-local MENU_W, SUB_W, DD_W, ITEM_H = 220, 150, 170, 24
-local HOVER_DELAY, ANIM_DUR = 0.12, 0.15
-local SNAP_THRESH = 6          -- UI units a dragged edge snaps from
-local DIM_ALPHA, DIM_FADE = 0.30, 0.5
+-- A mover: the theme's background as dark glass over the element, an accent strip across its
+-- top, and a black edge, muted grey under the mouse and the accent once selected.
+local MOVER_FILL, MOVER_FILL_LIT = 0.55, 0.75
+local MOVER_STRIP = 2          -- the accent strip's height
+local NUDGE_FAR = 10           -- pixels a Shift + arrow moves
 local MAX_DEPTH = 20           -- anchor chain length followed at most
-local LINE_TEX = "Interface\\AddOns\\NaowhForever\\Media\\soft-line.tga"
-local PULSE_TEX = "Interface\\AnimaChannelingDevice\\AnimaChannelingDeviceLineVerticalMask"
 
-local placement = { active = false, items = {}, byLabel = {}, unsaved = {} }
+-- group: every selected element; selected: the one clicked last; groupKey: changes with the
+-- selection, so a run of arrow nudges to one selection counts once.
+local placement = { active = false, items = {}, byLabel = {}, unsaved = {}, group = {}, groupKey = {} }
 
--------------------------------------------------------------------------------
---  Pixels: one physical pixel in UIParent units, and EllesmereUI's snaps.
--------------------------------------------------------------------------------
-local function Perfect() return PixelUtil.GetPixelToUIUnitFactor() end
-local function Mult() return Perfect() / UIParent:GetEffectiveScale() end
-
-local function ToPixels(v) return math.floor(v / Mult() + 0.5 + 0.001) end
-local function FromPixels(px) return px * Mult() end
-
--- A CENTER offset in a frame's own units, snapped so both its edges land on whole pixels: an
--- odd pixel size puts the centre on a half pixel.
-local function SnapCenter(v, dim, es)
-    local onePx = Perfect() / es
-    local vPx = v / onePx
-    local clean = math.floor(vPx + 0.5)
-    if math.abs(vPx - clean) < 0.001 then vPx = clean end
-    local dimPx = math.floor(dim / onePx + 0.5 + 0.001)
-    if dimPx % 2 == 1 then return (math.floor(vPx) + 0.5) * onePx end
-    return math.floor(vPx + 0.5) * onePx
-end
+local function Grouped() return #placement.group > 1 end
 
 -------------------------------------------------------------------------------
---  Anchor records: anchors[label] = { target, side, offsetX, offsetY, edge }
---  target is a mover label or a SCREEN_ key; side is the side of the target the element sits
---  on. Offsets are UIParent units, from the element's near edge to the target's edge on the
---  anchored axis and centre to centre on the other. edge = { key, side, offset } holds the
---  other axis to a screen edge.
+--  Geometry
 -------------------------------------------------------------------------------
-local SCREEN = { SCREEN_LEFT = "X", SCREEN_RIGHT = "X", SCREEN_TOP = "Y", SCREEN_BOTTOM = "Y" }
-local SCREEN_NAMES = { SCREEN_LEFT = "Left Screen Edge", SCREEN_RIGHT = "Right Screen Edge",
-    SCREEN_TOP = "Top Screen Edge", SCREEN_BOTTOM = "Bottom Screen Edge" }
-local SIDES = { "Left", "Right", "Top", "Bottom" }
-local EDGE_ITEMS = {
-    { key = "SCREEN_LEFT", side = "RIGHT", text = "Left" },
-    { key = "SCREEN_RIGHT", side = "LEFT", text = "Right" },
-    { key = "SCREEN_TOP", side = "BOTTOM", text = "Top" },
-    { key = "SCREEN_BOTTOM", side = "TOP", text = "Bottom" },
-    { text = "Center" },
-}
-
-local function Anchors()
-    local db = ns.UnlockModeSettings.DB()
-    if type(db.anchors) ~= "table" then db.anchors = {} end
-    return db.anchors
-end
-
-local function AnchorOf(label)
-    local info = Anchors()[label]
-    if type(info) == "table" and type(info.target) == "string" then return info end
-end
-
-local function LabelOf(key) return SCREEN_NAMES[key] or key end
-
--- Keeps a screen edge on the other axis; one on the new target's own axis no longer applies.
-local function SetAnchorInfo(label, target, side, offsetX, offsetY)
-    local prev = AnchorOf(label)
-    local edge = prev and type(prev.edge) == "table" and prev.edge or nil
-    if edge and SCREEN[target] and SCREEN[edge.key] == SCREEN[target] then edge = nil end
-    Anchors()[label] = { target = target, side = side, offsetX = offsetX, offsetY = offsetY, edge = edge }
-end
-
-local function ClearAnchorInfo(label) Anchors()[label] = nil end
+-- One physical pixel in UIParent units.
+local function Pixel() return PixelUtil.GetPixelToUIUnitFactor() / UIParent:GetEffectiveScale() end
 
 -- Edges in UIParent units, BOTTOMLEFT origin.
 local function Bounds(frame)
@@ -93,131 +40,156 @@ local function Bounds(frame)
 end
 
 -- The element as the player sees it: its mover's rect, which is the frame's unless a module laid
--- the mover over something else (a reminder's sample hangs below its anchor frame). While the
--- mover is grown on hover, the rect it had before. The ratio is the frame's.
+-- the mover over something else (a reminder's sample hangs below its anchor frame). The ratio is
+-- the frame's.
 local function Box(item)
     local fl, fr, ft, fb, ratio = Bounds(item.frame)
     if not fl then return end
-    local i = item.inset
-    if i then return fl + i[1], fr + i[2], ft + i[3], fb + i[4], ratio end
     local hl, hr, ht, hb = Bounds(item.handle)
     if hl then return hl, hr, ht, hb, ratio end
     return fl, fr, ft, fb, ratio
 end
 
--- A screen edge is a strip one unit thick just outside the screen, so its inner edge is the
--- screen's edge and its centre on the other axis the screen's centre.
-local function Rect(key)
-    local w, h = UIParent:GetWidth(), UIParent:GetHeight()
-    if key == "SCREEN_LEFT" then return -1, 0, h, 0 end
-    if key == "SCREEN_RIGHT" then return w, w + 1, h, 0 end
-    if key == "SCREEN_TOP" then return 0, w, h + 1, h end
-    if key == "SCREEN_BOTTOM" then return 0, w, 0, -1 end
-    local item = placement.byLabel[key]
-    if item then return Box(item) end
+-- The frame CENTER on the screen centre at (x, y) in its own units, on whole pixels.
+local function Place(item, x, y)
+    local es = item.frame:GetEffectiveScale()
+    x, y = PixelUtil.GetNearestPixelSize(x, es), PixelUtil.GetNearestPixelSize(y, es)
+    item.frame:ClearAllPoints()
+    item.frame:SetPoint("CENTER", UIParent, "CENTER", x, y)
+    return x, y
 end
 
--- The element's centre for its record, given the target's rect and its own size.
-local function Place(info, tL, tR, tT, tB, cW, cH)
-    local tCX, tCY = (tL + tR) / 2, (tT + tB) / 2
-    local side, ox, oy = info.side, info.offsetX, info.offsetY
-    local cx, cy
-    if side == "LEFT" then cx, cy = tL + ox - cW / 2, tCY + oy
-    elseif side == "RIGHT" then cx, cy = tR + ox + cW / 2, tCY + oy
-    elseif side == "TOP" then cx, cy = tCX + ox, tT + oy + cH / 2
-    elseif side == "BOTTOM" then cx, cy = tCX + ox, tB + oy - cH / 2
-    else cx, cy = tCX + ox, tCY + oy end
-    local e = info.edge
-    if type(e) == "table" and SCREEN[e.key] and e.offset then
-        local el, er, et, eb = Rect(e.key)
-        if SCREEN[e.key] == "X" then
-            if e.side == "RIGHT" then cx = er + e.offset + cW / 2 else cx = el + e.offset - cW / 2 end
-        else
-            if e.side == "TOP" then cy = et + e.offset + cH / 2 else cy = eb + e.offset - cH / 2 end
-        end
-    end
-    return cx, cy
-end
-
--- Offsets for a side from where the element is now.
-local function CaptureOffsets(item, target, side)
-    local tL, tR, tT, tB = Rect(target)
-    local cL, cR, cT, cB = Box(item)
-    if not (tL and cL) then return end
-    local tCX, tCY, cCX, cCY = (tL + tR) / 2, (tT + tB) / 2, (cL + cR) / 2, (cT + cB) / 2
-    if side == "LEFT" then return cR - tL, cCY - tCY end
-    if side == "RIGHT" then return cL - tR, cCY - tCY end
-    if side == "TOP" then return cCX - tCX, cB - tT end
-    return cCX - tCX, cT - tB
-end
-
-local function CaptureEdgeOffset(item, key, side)
-    local el, er, et, eb = Rect(key)
-    local cL, cR, cT, cB = Box(item)
-    if not cL then return end
-    if SCREEN[key] == "X" then
-        if side == "RIGHT" then return cL - er end
-        return cR - el
-    end
-    if side == "TOP" then return cB - et end
-    return cT - eb
-end
-
--- Puts the element's centre (its Box) at (cx, cy) in UIParent units: its frame CENTER on the
--- screen centre, snapped to whole pixels, and saved there; during a drag the save waits for the
--- drop. False when it is already there.
-local function MoveTo(item, cx, cy, raw)
-    local frame = item.frame
+-- Puts the element's centre (its Box) at (cx, cy) in UIParent units, and saves it; during a
+-- drag the save waits for the drop.
+local function MoveTo(item, cx, cy)
     local bl, br, bt, bb = Box(item)
-    local fl, fr, ft, fb = Bounds(frame)
-    if not (bl and fl) then return false end
-    cx = cx - ((bl + br) - (fl + fr)) / 2
-    cy = cy - ((bt + bb) - (ft + fb)) / 2
-    local es, ratio = frame:GetEffectiveScale(), frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
-    local x = (cx - UIParent:GetWidth() / 2) / ratio
-    local y = (cy - UIParent:GetHeight() / 2) / ratio
-    if not raw then
-        x, y = SnapCenter(x, frame:GetWidth(), es), SnapCenter(y, frame:GetHeight(), es)
-    end
-    local point, rel, relPoint, px, py = frame:GetPoint(1)
-    local half = Perfect() / es * 0.5
-    if point == "CENTER" and rel == UIParent and relPoint == "CENTER"
-        and math.abs(px - x) < half and math.abs(py - y) < half then
-        return false
-    end
-    frame:ClearAllPoints()
-    frame:SetPoint("CENTER", UIParent, "CENTER", x, y)
+    local fl, fr, ft, fb, ratio = Bounds(item.frame)
+    if not (bl and fl) then return end
+    local es = item.frame:GetEffectiveScale()
+    local x = PixelUtil.GetNearestPixelSize((cx - ((bl + br) - (fl + fr)) / 2 - UIParent:GetWidth() / 2) / ratio, es)
+    local y = PixelUtil.GetNearestPixelSize((cy - ((bt + bb) - (ft + fb)) / 2 - UIParent:GetHeight() / 2) / ratio, es)
+    local point, rel, relPoint, px, py = item.frame:GetPoint(1)
+    if point == "CENTER" and rel == UIParent and relPoint == "CENTER" and px == x and py == y then return end
+    Place(item, x, y)
     if placement.dragging then
         placement.unsaved[item] = true
     else
         item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
     end
-    return true
+end
+
+-- The element's centre from the screen's centre, in whole pixels, as the tag shows it.
+local function Position(item)
+    local l, r, t, b = Bounds(item.frame)
+    if not l then return end
+    local px = Pixel()
+    return math.floor((l + r - UIParent:GetWidth()) / 2 / px + 0.5), math.floor((t + b - UIParent:GetHeight()) / 2 / px + 0.5)
+end
+
+-------------------------------------------------------------------------------
+--  Anchors: anchoredTo[label] = { target, side, x, y }. side is the target's side the element
+--  sits off; along it x or y is centre to centre, across it the gap between the facing edges,
+--  so a target that grows pushes the element out.
+-------------------------------------------------------------------------------
+local function Anchors()
+    local db = ns.UnlockModeSettings.DB()
+    if type(db.anchoredTo) ~= "table" then db.anchoredTo = {} end
+    return db.anchoredTo
+end
+
+local function AnchorOf(label)
+    local info = Anchors()[label]
+    if type(info) == "table" and type(info.target) == "string" then return info end
+end
+
+-- Elements kept out of the way while editing (hidden) and held in place (locked), by label.
+local function Marks(key)
+    local db = ns.UnlockModeSettings.DB()
+    if type(db[key]) ~= "table" then db[key] = {} end
+    return db[key]
+end
+
+local function IsHidden(item) return Marks("hidden")[item.label] == true end
+local function IsLocked(item) return Marks("locked")[item.label] == true end
+
+-- The target's side the element is furthest out from.
+local function SideOf(item, target)
+    local cl, cr, ct, cb = Box(item)
+    local tl, tr, tt, tb = Box(target)
+    if not (cl and tl) then return "BOTTOM" end
+    local dx = (cl + cr - tl - tr) / math.max(1, cr - cl + tr - tl)
+    local dy = (ct + cb - tt - tb) / math.max(1, ct - cb + tt - tb)
+    if math.abs(dx) > math.abs(dy) then return dx > 0 and "RIGHT" or "LEFT" end
+    return dy > 0 and "TOP" or "BOTTOM"
+end
+
+-- The gap between the facing edges, in UIParent units: what info keeps across its side.
+local function Gap(info)
+    local side = info.side
+    if side == "LEFT" then return -(info.x or 0) end
+    if side == "RIGHT" then return info.x or 0 end
+    if side == "TOP" then return info.y or 0 end
+    return -(info.y or 0)
+end
+
+local function SetGap(info, gap)
+    local side = info.side
+    if side == "LEFT" then info.x = -gap
+    elseif side == "RIGHT" then info.x = gap
+    elseif side == "TOP" then info.y = gap
+    else info.y = -gap end
+end
+
+-- Whether label's anchors lead, one after another, to root.
+local function Follows(label, root)
+    local info, depth = AnchorOf(label), 0
+    while info and depth < MAX_DEPTH do
+        if info.target == root then return true end
+        info, depth = AnchorOf(info.target), depth + 1
+    end
+    return false
+end
+
+-- info.x and info.y from where the element is now.
+local function Capture(item, info)
+    local target = placement.byLabel[info.target]
+    if not target then return end
+    local tl, tr, tt, tb = Box(target)
+    local cl, cr, ct, cb = Box(item)
+    if not (tl and cl) then return end
+    local side = info.side
+    if side == "LEFT" then info.x, info.y = cr - tl, (ct + cb - tt - tb) / 2
+    elseif side == "RIGHT" then info.x, info.y = cl - tr, (ct + cb - tt - tb) / 2
+    elseif side == "TOP" then info.x, info.y = (cl + cr - tl - tr) / 2, cb - tt
+    else info.x, info.y = (cl + cr - tl - tr) / 2, ct - tb end
 end
 
 -- An anchored element to its place. A protected one waits for the end of combat.
 local function Apply(item)
     local info = not item.ownAnchor and AnchorOf(item.label)
-    if not info then return end
-    local tL, tR, tT, tB = Rect(info.target)
-    local cL, cR, cT, cB = Box(item)
-    if not (tL and cL) then return end
-    if info.offsetX == nil or info.offsetY == nil then info.offsetX, info.offsetY = 0, 0 end
-    local cx, cy = Place(info, tL, tR, tT, tB, cR - cL, cT - cB)
+    local target = info and placement.byLabel[info.target]
+    if not target then return end
+    local tl, tr, tt, tb = Box(target)
+    local cl, cr, ct, cb = Box(item)
+    if not (tl and cl) then return end
     if InCombatLockdown() and item.frame:IsProtected() then
         placement.parked = true
         return
     end
-    MoveTo(item, cx, cy)
+    local w, h, x, y, side = cr - cl, ct - cb, info.x or 0, info.y or 0, info.side
+    if side == "LEFT" then MoveTo(item, tl + x - w / 2, (tt + tb) / 2 + y)
+    elseif side == "RIGHT" then MoveTo(item, tr + x + w / 2, (tt + tb) / 2 + y)
+    elseif side == "TOP" then MoveTo(item, (tl + tr) / 2 + x, tt + y + h / 2)
+    else MoveTo(item, (tl + tr) / 2 + x, tb + y - h / 2) end
 end
 
--- Everything anchored to label (or holding to it as its screen edge), and on down the chain.
+-- Everything anchored to label, and on down the chain.
 local function Propagate(label, visited)
     visited = visited or {}
     if visited[label] then return end
     visited[label] = true
     for child, info in pairs(Anchors()) do
-        if type(info) == "table" and (info.target == label or (type(info.edge) == "table" and info.edge.key == label)) then
+        if type(info) == "table" and info.target == label then
             local item = placement.byLabel[child]
             if item and item ~= placement.dragging then
                 Apply(item)
@@ -228,14 +200,10 @@ local function Propagate(label, visited)
 end
 
 local function Depth(label)
-    local depth, seen = 0, {}
-    local info = AnchorOf(label)
-    while info and not SCREEN[info.target] and depth < MAX_DEPTH do
-        if seen[label] then return 0 end
-        seen[label] = true
+    local depth, info = 0, AnchorOf(label)
+    while info and depth < MAX_DEPTH do
         depth = depth + 1
-        label = info.target
-        info = AnchorOf(label)
+        info = AnchorOf(info.target)
     end
     return depth
 end
@@ -245,16 +213,22 @@ local function ReapplyAll()
     local list = {}
     for label in pairs(Anchors()) do
         local item = placement.byLabel[label]
-        if item and AnchorOf(label) then list[#list + 1] = { item = item, depth = Depth(label) } end
+        if item then list[#list + 1] = { item = item, depth = Depth(label) } end
     end
     table.sort(list, function(a, b) return a.depth < b.depth end)
     for _, e in ipairs(list) do Apply(e.item) end
 end
-UI.ReapplyAnchors = ReapplyAll
 
--- Size and position changes outside a drag: one pass a frame, whatever asked. A size change
--- re-places the element itself (its near edge stays on its target); a move, whoever made it,
--- only takes what is anchored to it along.
+-- After the element itself moved: its own anchor keeps the new gap, and what follows it comes
+-- along.
+local function Moved(item)
+    local info = not item.ownAnchor and AnchorOf(item.label)
+    if info then Capture(item, info) end
+    Propagate(item.label)
+end
+
+-- Size and position changes from anywhere: one pass a frame. A size change re-places the
+-- element itself; a move only takes what is anchored to it along.
 local queued, batchQueued = {}, false
 
 local function RunBatch()
@@ -275,528 +249,413 @@ local function Queue(label, kind)
     C_Timer.After(0, RunBatch)
 end
 
-local function Moved(item)
-    local l, t = item.frame:GetLeft(), item.frame:GetTop()
-    if not (l and t) then return end
-    if item.lastL and math.abs(l - item.lastL) < 0.5 and math.abs(t - item.lastT) < 0.5 then return end
-    item.lastL, item.lastT = l, t
-    Queue(item.label)
-end
-
--- Anchors catch up at login, after every profile switch (ns.Apply), after combat held a
--- protected one back, and when the screen changes size.
-local function WatchAnchors()
-    local events = CreateFrame("Frame")
-    events:RegisterEvent("PLAYER_ENTERING_WORLD")
-    events:RegisterEvent("PLAYER_REGEN_ENABLED")
-    events:SetScript("OnEvent", function()
-        if not placement.followsApply then
-            placement.followsApply = true
-            hooksecurefunc(ns, "Apply", function() C_Timer.After(0, ReapplyAll) end)
-        end
-        placement.parked = nil
-        C_Timer.After(0, ReapplyAll)
-    end)
-    local screen = CreateFrame("Frame", nil, UIParent)
-    screen:SetAllPoints()
-    screen:SetScript("OnSizeChanged", function()
-        for key in pairs(SCREEN) do Queue(key) end
-    end)
-end
-
 -------------------------------------------------------------------------------
---  Unlock Mode visuals shared by every mover: the dimmer, red flash, connector lines.
+--  Guides: lines and numbers drawn over the screen in layers, each a pool its owner clears and
+--  redraws. While an element is dragged its left, middle and right are pulled onto another
+--  element's left, middle or right within GUIDE_SNAP pixels (its top, middle and bottom the
+--  same), and onto the screen's centre lines. Each one it lands on is drawn from it to the
+--  other element, with the gap between the two written on it. It is also pulled onto even
+--  spacing with the elements in line with it, drawn as two equal gaps. Alt holds them off for
+--  a drag, the toolbar's Guides switch for good.
 -------------------------------------------------------------------------------
-local Refresh, CancelPick, CloseMenus
+local GUIDE_SNAP = 6           -- physical pixels an edge is pulled from
+local GUIDE_LEVEL = 220        -- over the movers, under the tag
+local LABEL = { pad = 4, h = 16, size = 11 }
+local OUTLINE_ALPHA = 0.45     -- the outline of where a drag started
+local overlay
 
-local function Dim(on)
-    if not placement.dim then
-        local f = CreateFrame("Frame", nil, UIParent)
-        f:SetFrameStrata("BACKGROUND")
-        f:SetFrameLevel(0)
-        f:SetAllPoints()
-        f.tex = f:CreateTexture(nil, "BACKGROUND")
-        f.tex:SetAllPoints()
-        f.tex:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 0)
-        f.alpha = 0
-        placement.dim = f
+local function NewLayer() return { lines = {}, labels = {}, used = 0, usedLabels = 0 } end
+local dragLayer, anchorLayer, groupLayer = NewLayer(), NewLayer(), NewLayer()
+
+local function Overlay()
+    if not overlay then
+        overlay = CreateFrame("Frame", nil, UIParent)
+        overlay:SetAllPoints(UIParent)
+        overlay:SetFrameStrata("FULLSCREEN_DIALOG")
+        overlay:SetFrameLevel(GUIDE_LEVEL)
     end
-    local f = placement.dim
-    local from, to, elapsed = f.alpha, on and DIM_ALPHA or 0, 0
-    f:Show()
-    f:SetScript("OnUpdate", function(self, dt)
-        elapsed = elapsed + dt
-        local t = math.min(elapsed / DIM_FADE, 1)
-        self.alpha = from + (to - from) * t
-        self.tex:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, self.alpha)
-        if t >= 1 then
-            self:SetScript("OnUpdate", nil)
-            if to == 0 then self:Hide() end
-        end
-    end)
+    return overlay
 end
 
-local function FlashRed(item)
-    local h = item.handle
-    if not h._redBorder then
-        h._redBorder = ns.Border(h, WARNING, 0)
-        h._redBorder._frame:SetFrameLevel(h:GetFrameLevel() + 4)
-        h._redFlash = CreateFrame("Frame", nil, h)
-    end
-    local elapsed = 0
-    h._redFlash:SetScript("OnUpdate", function(self, dt)
-        elapsed = elapsed + dt
-        if elapsed < 0.8 then
-            h._redBorder:SetColor(WARNING.r, WARNING.g, WARNING.b, 0.5 + 0.5 * math.sin(elapsed * 10))
-        elseif elapsed < 1.5 then
-            h._redBorder:SetColor(WARNING.r, WARNING.g, WARNING.b, math.max(0, 1 - (elapsed - 0.8) / 0.7))
-        else
-            h._redBorder:SetColor(WARNING.r, WARNING.g, WARNING.b, 0)
-            self:SetScript("OnUpdate", nil)
-        end
-    end)
+local function Clear(layer)
+    for i = 1, layer.used do layer.lines[i]:Hide() end
+    for i = 1, layer.usedLabels do layer.labels[i]:Hide() end
+    layer.used, layer.usedLabels = 0, 0
 end
 
--- A refusal at the cursor, following it for three seconds.
-local function Reject(item, text)
-    CancelPick()
-    FlashRed(item)
-    if not placement.rejectAnchor then
-        placement.rejectAnchor = CreateFrame("Frame", nil, UIParent)
-        placement.rejectAnchor:SetSize(1, 1)
+-- A level or upright line from (x1, y1) to (x2, y2), in UIParent units.
+local function DrawLine(layer, x1, y1, x2, y2, c, alpha)
+    layer.used = layer.used + 1
+    local tex = layer.lines[layer.used]
+    if not tex then
+        tex = Overlay():CreateTexture(nil, "OVERLAY")
+        layer.lines[layer.used] = tex
     end
-    UI.ShowWidgetTooltip(placement.rejectAnchor, text, { anchor = "cursor", force = true })
-    local elapsed = 0
-    placement.rejectAnchor:SetScript("OnUpdate", function(self, dt)
-        elapsed = elapsed + dt
-        if elapsed >= 3 then
-            UI.HideWidgetTooltip()
-            self:SetScript("OnUpdate", nil)
-            return
-        end
-        UI.ShowWidgetTooltip(self, text, { anchor = "cursor", force = true })
-    end)
-end
-
--- Lines from each anchored mover to its target while either is hovered or dragged: they grow
--- from the child in half a second, then a pulse runs along them every 2.5 seconds.
-local LINE_DUR, PULSE_CYCLE, PULSE_SWEEP = 0.5, 2.5, 0.56
-
-local function UIPoint(handle)
-    local l, r, t, b = Bounds(handle)
-    if l then return (l + r) / 2, (t + b) / 2 end
-end
-
-local function UpdateLines()
-    local lines = placement.lines
-    local idx, now = 0, GetTime()
-    for child, info in pairs(Anchors()) do
-        local cm = type(info) == "table" and placement.byLabel[child]
-        local tm = cm and placement.byLabel[info.target]
-        if cm and tm and cm.handle:IsVisible() and tm.handle:IsVisible() then
-            local key = child .. ":" .. info.target
-            if cm.hoverConfirmed or cm.dragging or tm.hoverConfirmed or tm.dragging then
-                lines.anim[key] = lines.anim[key] or now
-                local t = math.min((now - lines.anim[key]) / LINE_DUR, 1)
-                local ease = 1 - (1 - t) * (1 - t)
-                local x1, y1 = UIPoint(cm.handle)
-                local x2, y2 = UIPoint(tm.handle)
-                if x1 and x2 then
-                    idx = idx + 1
-                    local line, pulse = lines.Get(idx)
-                    line:SetStartPoint("BOTTOMLEFT", UIParent, x1, y1)
-                    line:SetEndPoint("BOTTOMLEFT", UIParent, x1 + (x2 - x1) * ease, y1 + (y2 - y1) * ease)
-                    line:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 0.75 * ease)
-                    line:Show()
-                    pulse:Hide()
-                    if ease >= 1 then
-                        local cycle = ((now - lines.anim[key] - 0.3) % PULSE_CYCLE) / PULSE_CYCLE
-                        if cycle <= PULSE_SWEEP then
-                            local st = cycle / PULSE_SWEEP
-                            local s = st * st * (3 - 2 * st)
-                            local head, tail = math.min(1, s * 2), math.min(1, math.max(0, s * 2 - 1))
-                            local fade = 1
-                            if s < 0.1 then fade = s / 0.1 elseif s > 0.7 then fade = (1 - s) / 0.3 end
-                            if head > tail then
-                                pulse:SetStartPoint("BOTTOMLEFT", UIParent, x1 + (x2 - x1) * tail, y1 + (y2 - y1) * tail)
-                                pulse:SetEndPoint("BOTTOMLEFT", UIParent, x1 + (x2 - x1) * head, y1 + (y2 - y1) * head)
-                                pulse:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 0.5 * math.max(0, fade))
-                                pulse:Show()
-                            end
-                        end
-                    end
-                end
-            else
-                lines.anim[key] = nil
-            end
-        end
-    end
-    for i = idx + 1, #lines.pool do
-        lines.pool[i]:Hide()
-        lines.pulses[i]:Hide()
-    end
-end
-
-local function ShowLines(on)
-    if not placement.lines then
-        local f = CreateFrame("Frame", nil, UIParent)
-        f:SetFrameStrata("BACKGROUND")
-        f:SetFrameLevel(1)
-        f:SetAllPoints()
-        f:EnableMouse(false)
-        local lines = { frame = f, pool = {}, pulses = {}, anim = {} }
-        function lines.Get(i)
-            if not lines.pool[i] then
-                local line = f:CreateLine(nil, "ARTWORK", nil, 1)
-                line:SetThickness(3)
-                line:SetTexture(LINE_TEX)
-                local pulse = f:CreateLine(nil, "ARTWORK", nil, 2)
-                pulse:SetThickness(3)
-                pulse:SetTexture(PULSE_TEX)
-                lines.pool[i], lines.pulses[i] = line, pulse
-            end
-            return lines.pool[i], lines.pulses[i]
-        end
-        placement.lines = lines
-    end
-    local f = placement.lines.frame
-    f:SetShown(on)
-    f:SetScript("OnUpdate", on and UpdateLines or nil)
-    if not on then
-        for i = 1, #placement.lines.pool do
-            placement.lines.pool[i]:Hide()
-            placement.lines.pulses[i]:Hide()
-        end
-        wipe(placement.lines.anim)
-    end
-end
-
--- A screen edge drawn while its Relative to Screen row is hovered, or flashed once it is picked.
-local function EdgeMarker(key, flash)
-    if not placement.marker then
-        local f = CreateFrame("Frame", nil, UIParent)
-        f:SetFrameStrata("TOOLTIP")
-        f:SetFrameLevel(400)
-        f:SetAllPoints()
-        f.tex = f:CreateTexture(nil, "OVERLAY")
-        f.tex:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 0.9)
-        placement.marker = f
-    end
-    local f, tex = placement.marker, placement.marker.tex
-    if not key then
-        if not f.flashing then f:Hide() end
-        return
-    end
-    local px = 5 * Mult()
+    local px = Pixel()
+    tex:SetColorTexture(c.r, c.g, c.b, alpha or 1)
     tex:ClearAllPoints()
-    if key == "SCREEN_LEFT" then tex:SetPoint("TOPLEFT"); tex:SetPoint("BOTTOMLEFT"); tex:SetWidth(px)
-    elseif key == "SCREEN_RIGHT" then tex:SetPoint("TOPRIGHT"); tex:SetPoint("BOTTOMRIGHT"); tex:SetWidth(px)
-    elseif key == "SCREEN_TOP" then tex:SetPoint("TOPLEFT"); tex:SetPoint("TOPRIGHT"); tex:SetHeight(px)
-    else tex:SetPoint("BOTTOMLEFT"); tex:SetPoint("BOTTOMRIGHT"); tex:SetHeight(px) end
-    f:Show()
-    if flash then
-        f.flashing = true
-        C_Timer.After(0.8, function()
-            f.flashing = nil
-            f:Hide()
-        end)
+    tex:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", math.min(x1, x2), math.min(y1, y2))
+    tex:SetSize(math.max(px, math.abs(x2 - x1)), math.max(px, math.abs(y2 - y1)))
+    tex:Show()
+end
+
+-- A length in UIParent units, written in whole pixels on a c plate centred at (x, y).
+local function DrawLabel(layer, x, y, length, c, textColor)
+    layer.usedLabels = layer.usedLabels + 1
+    local label = layer.labels[layer.usedLabels]
+    if not label then
+        label = CreateFrame("Frame", nil, Overlay())
+        label.fill = ns.Solid(label, "BACKGROUND", c, 1)
+        label.fill:SetAllPoints()
+        label.text = ns.Font(label, LABEL.size)
+        label.text:SetPoint("CENTER")
+        layer.labels[layer.usedLabels] = label
+    end
+    label.fill:SetColorTexture(c.r, c.g, c.b, 1)
+    label.text:SetTextColor(textColor.r, textColor.g, textColor.b, 1)
+    label.text:SetText(tostring(math.floor(length / Pixel() + 0.5)))
+    label:SetSize(label.text:GetStringWidth() + 2 * LABEL.pad, LABEL.h)
+    label:ClearAllPoints()
+    label:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+    label:Show()
+end
+
+local function GuidesOn() return ns.UnlockModeSettings.Get("guides") ~= false end
+
+-- The elements a drag lines up with: shown, and not carried along by it.
+local function Guiding(item, other)
+    return other ~= item and other.handle:IsVisible() and not IsHidden(other) and not Follows(other.label, item.label)
+        and not (other.selected and Grouped())
+end
+
+-- The middle of where two spans overlap, else of the first.
+local function Middle(a1, a2, b1, b2)
+    local lo, hi = math.max(a1, b1), math.min(a2, b2)
+    if lo <= hi then return (lo + hi) / 2 end
+    return (a1 + a2) / 2
+end
+
+-- best, or theirs - ours when that is nearer and within reach.
+local function Nearer(best, ours, theirs, reach)
+    local d = theirs - ours
+    if math.abs(d) <= reach and (not best or math.abs(d) < math.abs(best)) then return d end
+    return best
+end
+
+-- The nearest pull of three edges (a1..a3) onto three others (b1..b3).
+local function Pull(best, reach, a1, a2, a3, b1, b2, b3)
+    best = Nearer(Nearer(Nearer(best, a1, b1, reach), a1, b2, reach), a1, b3, reach)
+    best = Nearer(Nearer(Nearer(best, a2, b1, reach), a2, b2, reach), a2, b3, reach)
+    return Nearer(Nearer(Nearer(best, a3, b1, reach), a3, b2, reach), a3, b3, reach)
+end
+
+-- Where the box lo..hi on one axis (a1..a2 across it) sits evenly with the elements in line
+-- with it: midway between two, a pair's gap past either end of the pair, or mirrored about the
+-- screen's centre line. Each spot is { at = where lo goes, then two gaps, each from, to and
+-- where across to draw it }.
+local function EvenSpots(item, lo, hi, a1, a2, horizontal)
+    local size = hi - lo
+    local mid = (horizontal and UIParent:GetWidth() or UIParent:GetHeight()) / 2
+    local line, spots = {}, {}
+    for _, other in ipairs(placement.items) do
+        if Guiding(item, other) then
+            local l, r, t, b = Box(other)
+            if l then
+                local o = horizontal and { l, r, b, t } or { b, t, l, r }
+                if o[3] < a2 and o[4] > a1 then line[#line + 1] = o end
+            end
+        end
+    end
+    for _, p in ipairs(line) do
+        local across = Middle(a1, a2, p[3], p[4])
+        if p[2] < mid then
+            local at = 2 * mid - p[2]
+            spots[#spots + 1] = { at = at, p[2], mid, across, mid, at, across }
+        elseif p[1] > mid then
+            local at = 2 * mid - p[1] - size
+            spots[#spots + 1] = { at = at, at + size, mid, across, mid, p[1], across }
+        end
+        for _, q in ipairs(line) do
+            local gap = q[1] - p[2]
+            if gap > 0 then
+                local pair = Middle(p[3], p[4], q[3], q[4])
+                local qAcross = Middle(a1, a2, q[3], q[4])
+                if gap > size then
+                    local at = (p[2] + q[1] - size) / 2
+                    spots[#spots + 1] = { at = at, p[2], at, across, at + size, q[1], qAcross }
+                end
+                spots[#spots + 1] = { at = q[2] + gap, p[2], q[1], pair, q[2], q[2] + gap, qAcross }
+                spots[#spots + 1] = { at = p[1] - gap - size, p[2], q[1], pair, p[1] - gap, p[1], across }
+            end
+        end
+    end
+    return spots
+end
+
+-- How far the box l, r, t, b moves to land on the nearest guide, nil on an axis with none.
+local function SnapBy(item, l, r, t, b)
+    local reach = GUIDE_SNAP * Pixel()
+    local cx, cy = (l + r) / 2, (t + b) / 2
+    local dx = Nearer(nil, cx, UIParent:GetWidth() / 2, reach)
+    local dy = Nearer(nil, cy, UIParent:GetHeight() / 2, reach)
+    for _, other in ipairs(placement.items) do
+        if Guiding(item, other) then
+            local ol, oright, ot, ob = Box(other)
+            if ol then
+                dx = Pull(dx, reach, l, cx, r, ol, (ol + oright) / 2, oright)
+                dy = Pull(dy, reach, b, cy, t, ob, (ot + ob) / 2, ot)
+            end
+        end
+    end
+    for _, spot in ipairs(EvenSpots(item, l, r, b, t, true)) do dx = Nearer(dx, l, spot.at, reach) end
+    for _, spot in ipairs(EvenSpots(item, b, t, l, r, false)) do dy = Nearer(dy, b, spot.at, reach) end
+    return dx, dy
+end
+
+-- The first of a1..a3 on one of b1..b3, half a pixel either way.
+local function OnOne(near, a1, a2, a3, b1, b2, b3)
+    for i = 1, 3 do
+        local a = i == 1 and a1 or i == 2 and a2 or a3
+        if math.abs(a - b1) <= near or math.abs(a - b2) <= near or math.abs(a - b3) <= near then return a end
     end
 end
 
--------------------------------------------------------------------------------
---  Menus: the cog menu, its Relative to Screen flyout, and the anchor side dropdown. One of
---  each, rebuilt on every open, over a full-screen click catcher that closes them.
--------------------------------------------------------------------------------
-local function MenuFrame(level)
-    local f = CreateFrame("Frame", nil, UIParent)
-    f:SetFrameStrata("FULLSCREEN_DIALOG")
-    f:SetFrameLevel(level)
-    f:SetClampedToScreen(true)
-    f:EnableMouse(true)
-    f.rows = {}
-    f.bg = ns.Solid(f, "BACKGROUND", T.panel, 0.98)
-    f.bg:SetAllPoints()
-    ns.Border(f, BLACK)
-    f:Hide()
-    return f
-end
-
-local function Catcher()
-    if not placement.catcher then
-        local c = CreateFrame("Button", nil, UIParent)
-        c:SetFrameStrata("FULLSCREEN_DIALOG")
-        c:SetFrameLevel(240)
-        c:SetAllPoints()
-        c:RegisterForClicks("AnyUp")
-        c:SetScript("OnClick", function() CloseMenus() end)
-        placement.catcher = c
-    end
-    placement.catcher:Show()
-end
-
--- Rows are pooled per menu; every open hides them all and takes them back in order.
-local function ClearMenu(menu, width)
-    for _, row in ipairs(menu.rows) do row:Hide() end
-    menu.used, menu.y = 0, -4
-    menu:SetWidth(width)
-end
-
-local function Row(menu)
-    menu.used = menu.used + 1
-    local row = menu.rows[menu.used]
-    if not row then
-        row = CreateFrame("Button", nil, menu)
-        row:RegisterForClicks("AnyUp")
-        row.hl = row:CreateTexture(nil, "ARTWORK")
-        row.hl:SetAllPoints()
-        row.label = ns.Font(row, 12, nil)
-        row.label:SetJustifyH("LEFT")
-        row.label:SetWordWrap(false)
-        row.divider = row:CreateTexture(nil, "ARTWORK")
-        menu.rows[menu.used] = row
-    end
-    row:SetFrameLevel(menu:GetFrameLevel() + 2)
-    row:SetScript("OnEnter", nil)
-    row:SetScript("OnLeave", nil)
-    row:SetScript("OnClick", nil)
-    row:EnableMouse(true)
-    row.hl:SetColorTexture(T.grey.r, T.grey.g, T.grey.b, 0)
-    row.label:ClearAllPoints()
-    row.label:SetPoint("LEFT", row, "LEFT", 10, 0)
-    row.label:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-    row.label:SetJustifyH("LEFT")
-    row.label:SetWordWrap(false)
-    row.label:SetFont(ns.UIFontPath(), 12, "")
-    row.label:SetText("")
-    row.label:Show()
-    row.divider:Hide()
-    if row.box then row.box:Hide() end
-    if row.arrow then row.arrow:Hide() end
-    row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, menu.y)
-    row:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -1, menu.y)
-    row:SetHeight(ITEM_H)
-    row:Show()
-    menu.y = menu.y - ITEM_H
-    return row
-end
-
-local function Divider(menu)
-    local row = Row(menu)
-    row:EnableMouse(false)
-    row:SetHeight(9)
-    row.label:Hide()
-    row.divider:ClearAllPoints()
-    row.divider:SetPoint("LEFT")
-    row.divider:SetPoint("RIGHT")
-    row.divider:SetHeight(Mult())
-    row.divider:SetColorTexture(T.line.r, T.line.g, T.line.b, 1)
-    row.divider:Show()
-    menu.y = menu.y + ITEM_H - 9
-end
-
-local function Paint(row, c) row.label:SetTextColor(c.r, c.g, c.b, 1) end
-
--- A clickable row, filled grey on hover. color: its text colour, when not the theme's.
-local function Action(menu, text, onClick, color)
-    local row = Row(menu)
-    local rest = color or T.fg
-    row.label:SetText(ns.L(text))
-    Paint(row, rest)
-    row:SetScript("OnEnter", function() row.hl:SetColorTexture(T.grey.r, T.grey.g, T.grey.b, 1) end)
-    row:SetScript("OnLeave", function() row.hl:SetColorTexture(T.grey.r, T.grey.g, T.grey.b, 0) end)
-    row:SetScript("OnClick", onClick)
-    return row
-end
-
-local function Finish(menu)
-    menu:SetHeight(-menu.y + 4)
-    menu:Show()
-end
-
-function CloseMenus()
-    for _, menu in ipairs({ placement.cogMenu, placement.edgeMenu, placement.sideMenu }) do
-        if menu then menu:Hide() end
-    end
-    if placement.catcher then placement.catcher:Hide() end
-    local item = placement.menuItem
-    placement.menuItem = nil
-    if not item then return end
-    item.menuOpen = false
-    if not item.handle:IsMouseOver() then
-        item.hovered = false
-        item.Collapse()
-        Refresh(item)
-    end
-end
-
-local function AtCursor(menu)
-    local scale = UIParent:GetEffectiveScale()
-    local x, y = GetCursorPosition()
-    menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
-end
-
--------------------------------------------------------------------------------
---  Moving: nudges, drags and Center on Screen, all ending in a saved CENTER spot or, for an
---  anchored element, new offsets on the same anchor.
--------------------------------------------------------------------------------
-local function SaveWhereItIs(item)
-    local l, r, t, b, ratio = Bounds(item.frame)
+-- The guides the dragged element sits on, and the gap to each element it lines up with.
+local function DrawGuides(item)
+    local l, r, t, b = Box(item)
     if not l then return end
-    local x = ((l + r) / 2 - UIParent:GetWidth() / 2) / ratio
-    local y = ((t + b) / 2 - UIParent:GetHeight() / 2) / ratio
-    item.frame:ClearAllPoints()
-    item.frame:SetPoint("CENTER", UIParent, "CENTER", x, y)
-    item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
+    local St, px = ns.Shared.Style, Pixel()
+    local c, near = St.GUIDE_RGB, px / 2
+    local w, h = UIParent:GetWidth(), UIParent:GetHeight()
+    local cx, cy = (l + r) / 2, (t + b) / 2
+    if math.abs(cx - w / 2) <= near then DrawLine(dragLayer, w / 2, 0, w / 2, h, c) end
+    if math.abs(cy - h / 2) <= near then DrawLine(dragLayer, 0, h / 2, w, h / 2, c) end
+    for _, other in ipairs(placement.items) do
+        if Guiding(item, other) then
+            local ol, oright, ot, ob = Box(other)
+            if ol then
+                local x = OnOne(near, l, cx, r, ol, (ol + oright) / 2, oright)
+                if x then
+                    DrawLine(dragLayer, x, math.min(b, ob), x, math.max(t, ot), c)
+                    if ob - t > near then DrawLabel(dragLayer, x, (t + ob) / 2, ob - t, c, T.bg)
+                    elseif b - ot > near then DrawLabel(dragLayer, x, (ot + b) / 2, b - ot, c, T.bg) end
+                end
+                local y = OnOne(near, b, cy, t, ob, (ot + ob) / 2, ot)
+                if y then
+                    DrawLine(dragLayer, math.min(l, ol), y, math.max(r, oright), y, c)
+                    if ol - r > near then DrawLabel(dragLayer, (r + ol) / 2, y, ol - r, c, T.bg)
+                    elseif l - oright > near then DrawLabel(dragLayer, (oright + l) / 2, y, l - oright, c, T.bg) end
+                end
+            end
+        end
+    end
+    for _, spot in ipairs(EvenSpots(item, l, r, b, t, true)) do
+        if math.abs(spot.at - l) <= near then
+            for i = 1, 4, 3 do
+                local from, to, y = spot[i], spot[i + 1], spot[i + 2]
+                DrawLine(dragLayer, from, y, to, y, c)
+                DrawLabel(dragLayer, (from + to) / 2, y, to - from, c, T.bg)
+            end
+            break
+        end
+    end
+    for _, spot in ipairs(EvenSpots(item, b, t, l, r, false)) do
+        if math.abs(spot.at - b) <= near then
+            for i = 1, 4, 3 do
+                local from, to, x = spot[i], spot[i + 1], spot[i + 2]
+                DrawLine(dragLayer, x, from, x, to, c)
+                DrawLabel(dragLayer, x, (from + to) / 2, to - from, c, T.bg)
+            end
+            break
+        end
+    end
 end
 
--- dx, dy in UIParent units. An anchored element moves by its offsets, so nothing is read back
--- from the screen and nudges never drift.
-local function Nudge(item, dx, dy)
-    if InCombatLockdown() then return end
-    if not item.menuOpen then item.Collapse(true) end
-    local info = not item.ownAnchor and AnchorOf(item.label)
-    if info and not Rect(info.target) then return end
-    if info then
-        info.offsetX, info.offsetY = (info.offsetX or 0) + dx, (info.offsetY or 0) + dy
-        local e = info.edge
-        if type(e) == "table" and SCREEN[e.key] and e.offset then
-            e.offset = e.offset + (SCREEN[e.key] == "X" and dx or dy)
+-- Where the drag started, a faint outline the element can be put back on.
+local function DrawOutline(item)
+    local l, r, t, b = item.startBox.l, item.startBox.r, item.startBox.t, item.startBox.b
+    local c = T.fg
+    DrawLine(dragLayer, l, t, r, t, c, OUTLINE_ALPHA)
+    DrawLine(dragLayer, l, b, r, b, c, OUTLINE_ALPHA)
+    DrawLine(dragLayer, l, b, l, t, c, OUTLINE_ALPHA)
+    DrawLine(dragLayer, r, b, r, t, c, OUTLINE_ALPHA)
+end
+
+local SetSide, PlaceSideTabs
+
+-- A tab on each side of the anchor's target, the one the element sits off filled in the accent;
+-- a click on another moves the element to that side. No side hides them. A do block: this chunk
+-- is at Lua's 200-local ceiling.
+do
+    local TAB_W, TAB_H, TAB_HIT = 10, 7, 4   -- physical pixels; the hit area reaches past the tab
+    local tabs
+
+    local function Build()
+        tabs = {}
+        for _, side in ipairs({ "TOP", "LEFT", "RIGHT", "BOTTOM" }) do
+            local tab = CreateFrame("Button", nil, Overlay())
+            tab.fill = ns.Solid(tab, "ARTWORK", T.bg, 1)
+            tab.fill:SetAllPoints()
+            tab.border = ns.Border(tab, T.accentSoft)
+            tab:SetScript("OnClick", function() SetSide(placement.selected, side) end)
+            ns.Tooltip(tab, side:sub(1, 1) .. side:sub(2):lower(), "Anchors to this side.")
+            tabs[side] = tab
         end
-        Apply(item)
+    end
+
+    function PlaceSideTabs(used, tl, tr, tt, tb)
+        if not tabs then
+            if not used then return end
+            Build()
+        end
+        local px = Pixel()
+        local hit = -TAB_HIT * px
+        for side, tab in pairs(tabs) do
+            if used then
+                local across = side == "TOP" or side == "BOTTOM"
+                tab:SetSize((across and TAB_W or TAB_H) * px, (across and TAB_H or TAB_W) * px)
+                tab:SetHitRectInsets(hit, hit, hit, hit)
+                tab:ClearAllPoints()
+                if side == "TOP" then tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", (tl + tr) / 2, tt)
+                elseif side == "BOTTOM" then tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", (tl + tr) / 2, tb)
+                elseif side == "LEFT" then tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", tl, (tt + tb) / 2)
+                else tab:SetPoint("CENTER", UIParent, "BOTTOMLEFT", tr, (tt + tb) / 2) end
+                local fill = side == used and T.accent or T.bg
+                local edge = side == used and T.accent or T.accentSoft
+                tab.fill:SetColorTexture(fill.r, fill.g, fill.b, 1)
+                tab.border:SetColor(edge.r, edge.g, edge.b, 1)
+            end
+            tab:SetShown(used ~= nil)
+        end
+    end
+end
+
+-- The selected element's anchor: a line from its target's side to it, with the gap on it, and
+-- the target's side tabs.
+local function DrawAnchor(item)
+    Clear(anchorLayer)
+    PlaceSideTabs(nil)
+    local info = item and not item.ownAnchor and AnchorOf(item.label)
+    local target = info and placement.byLabel[info.target]
+    if not target then return end
+    local tl, tr, tt, tb = Box(target)
+    local cl, cr, ct, cb = Box(item)
+    if not (tl and cl) then return end
+    PlaceSideTabs(info.side, tl, tr, tt, tb)
+    local side, x1, y1, x2, y2 = info.side
+    if side == "TOP" or side == "BOTTOM" then
+        x1 = Middle(tl, tr, cl, cr)
+        x2 = x1
+        if side == "TOP" then y1, y2 = tt, cb else y1, y2 = tb, ct end
     else
-        local l, r, t, b = Box(item)
-        if not l then return end
-        MoveTo(item, (l + r) / 2 + dx, (t + b) / 2 + dy, true)
+        y1 = Middle(tb, tt, cb, ct)
+        y2 = y1
+        if side == "RIGHT" then x1, x2 = tr, cl else x1, x2 = tl, cr end
     end
-    Propagate(item.label)
+    DrawLine(anchorLayer, x1, y1, x2, y2, T.accent)
+    DrawLabel(anchorLayer, (x1 + x2) / 2, (y1 + y2) / 2, Gap(info), T.accent, T.fg)
+end
+
+-------------------------------------------------------------------------------
+--  Undo: before each change by hand the editor keeps where every element was and what each one
+--  was anchored to. Undo puts that back, Redo the change again, Revert everything since the
+--  HUD Editor opened. A run of arrow-key nudges to one element is one change.
+-------------------------------------------------------------------------------
+local UNDO_MAX = 50
+local undo, redo = {}, {}
+local lastNudged
+local Refresh, ShowTag, RefreshPanel, PaintHistory, PaintMarks, ShowSelection
+
+-- A selected element the selection's moves take: not locked, and not one that follows another
+-- selected element (it comes along with that one).
+local function Moves(item)
+    if IsLocked(item) then return false end
+    for _, other in ipairs(placement.group) do
+        if other ~= item and Follows(item.label, other.label) then return false end
+    end
+    return true
+end
+
+local function Snapshot()
+    local snap = { spots = {}, anchors = {} }
+    for _, item in ipairs(placement.items) do
+        local point, rel, relPoint, x, y = item.frame:GetPoint(1)
+        if point == "CENTER" and rel == UIParent and relPoint == "CENTER" then snap.spots[item.label] = { x, y } end
+    end
+    for label, info in pairs(Anchors()) do
+        if type(info) == "table" then
+            snap.anchors[label] = { target = info.target, side = info.side, x = info.x, y = info.y }
+        end
+    end
+    return snap
+end
+
+-- snap: the state before the change, taken earlier (a drag's start); else now. nudged: the
+-- element an arrow key moves, so the run counts once.
+local function Checkpoint(snap, nudged)
+    if nudged and nudged == lastNudged then return end
+    lastNudged = nudged
+    undo[#undo + 1] = snap or Snapshot()
+    if #undo > UNDO_MAX then table.remove(undo, 1) end
+    wipe(redo)
+    PaintHistory()
+end
+
+-- Whether item may be changed by hand: not while locked. Keeps the state before the change.
+local function Change(item, nudged)
+    if IsLocked(item) then return false end
+    Checkpoint(nil, nudged)
+    return true
+end
+
+local function Restore(snap)
+    local anchors = Anchors()
+    wipe(anchors)
+    for label, info in pairs(snap.anchors) do
+        anchors[label] = { target = info.target, side = info.side, x = info.x, y = info.y }
+    end
+    for _, item in ipairs(placement.items) do
+        local spot = snap.spots[item.label]
+        local point, rel, relPoint, x, y = item.frame:GetPoint(1)
+        if spot and not (point == "CENTER" and rel == UIParent and relPoint == "CENTER" and x == spot[1] and y == spot[2]) then
+            Place(item, spot[1], spot[2])
+            item.save({ point = "CENTER", relPoint = "CENTER", x = spot[1], y = spot[2] })
+        end
+    end
+    lastNudged = nil
+    if placement.selected then Refresh(placement.selected) end
+end
+
+local function Step(from, to)
+    if InCombatLockdown() or #from == 0 or placement.dragging then return end
+    to[#to + 1] = Snapshot()
+    Restore(table.remove(from))
+    PaintHistory()
+end
+
+function UI.UndoMove() Step(undo, redo) end
+function UI.RedoMove() Step(redo, undo) end
+
+function UI.RevertMoves()
+    if InCombatLockdown() or #undo == 0 or placement.dragging then return end
+    redo[#redo + 1] = Snapshot()
+    Restore(undo[1])
+    wipe(undo)
+    PaintHistory()
+end
+
+-------------------------------------------------------------------------------
+--  Moving: arrow keys, typed numbers, drags and Center, all ending in a saved CENTER spot.
+-------------------------------------------------------------------------------
+
+-- dx, dy in UIParent units.
+local function Nudge(item, dx, dy)
+    if InCombatLockdown() or IsLocked(item) then return end
+    local l, r, t, b = Box(item)
+    if not l then return end
+    MoveTo(item, (l + r) / 2 + dx, (t + b) / 2 + dy)
+    Moved(item)
     Refresh(item)
-    if item.syncOffsets then item.syncOffsets() end
-end
-
--- After a drop: the same anchor, offsets from where it landed.
-local function Recapture(item)
-    local info = not item.ownAnchor and AnchorOf(item.label)
-    if not info then return end
-    local ox, oy = CaptureOffsets(item, info.target, info.side)
-    if ox then info.offsetX, info.offsetY = ox, oy end
-    local e = info.edge
-    if type(e) == "table" and SCREEN[e.key] then e.offset = CaptureEdgeOffset(item, e.key, e.side) end
-end
-
--- Snapping while dragging: the closest other mover shown, or the one picked as its snap target,
--- lines up an edge or centre within SNAP_THRESH on each axis. Elements anchored below the
--- dragged one and its siblings are left out; its own target is not.
-local function SnapPosition(item, cx, cy, halfW, halfH)
-    local snap = placement.snapInfo
-    wipe(snap)
-    if ns.UnlockModeSettings.Get("snap") == false then return cx, cy end
-    local dL, dR, dT, dB = cx - halfW, cx + halfW, cy + halfH, cy - halfH
-    local target = item.snapTarget and placement.byLabel[item.snapTarget]
-    if not (target and target.handle:IsVisible()) then
-        target = nil
-        local excluded = {}
-        local function Exclude(label)
-            for child, info in pairs(Anchors()) do
-                if type(info) == "table" and info.target == label and not excluded[child] then
-                    excluded[child] = true
-                    Exclude(child)
-                end
-            end
-        end
-        Exclude(item.label)
-        local mine = AnchorOf(item.label)
-        if mine then
-            for sib, info in pairs(Anchors()) do
-                if type(info) == "table" and sib ~= item.label and info.target == mine.target then excluded[sib] = true end
-            end
-        end
-        local best = math.huge
-        for _, other in ipairs(placement.items) do
-            if other ~= item and not excluded[other.label] and other.handle:IsVisible() then
-                local oL, oR, oT, oB = Bounds(other.handle)
-                if oL then
-                    local gapX = dR < oL and oL - dR or dL > oR and dL - oR or 0
-                    local gapY = dB > oT and dB - oT or dT < oB and oB - dT or 0
-                    local d = math.sqrt(gapX * gapX + gapY * gapY)
-                    if d < best then best, target = d, other end
-                end
-            end
-        end
-    end
-    snap.target = target
-    if not target then return cx, cy end
-    local oL, oR, oT, oB = Bounds(target.handle)
-    if not oL then return cx, cy end
-    local bestX, bestY = SNAP_THRESH, SNAP_THRESH
-    local moveX, moveY = 0, 0
-    for _, de in ipairs({ dL, cx, dR }) do
-        for _, te in ipairs({ oL, (oL + oR) / 2, oR }) do
-            if math.abs(de - te) < bestX then bestX, moveX, snap.x = math.abs(de - te), de - te, te end
-        end
-    end
-    for _, de in ipairs({ dT, cy, dB }) do
-        for _, te in ipairs({ oT, (oT + oB) / 2, oB }) do
-            if math.abs(de - te) < bestY then bestY, moveY, snap.y = math.abs(de - te), de - te, te end
-        end
-    end
-    return cx - moveX, cy - moveY
-end
-
--- Full-screen guides on a snapped axis, and a pulse on the mover snapped to.
-local function ShowGuides()
-    local g, snap = placement.guides, placement.snapInfo
-    if not g then
-        local f = CreateFrame("Frame", nil, UIParent)
-        f:SetFrameStrata("BACKGROUND")
-        f:SetFrameLevel(2)
-        f:SetAllPoints()
-        g = { frame = f, x = ns.Solid(f, "OVERLAY", T.accent, 0.5), y = ns.Solid(f, "OVERLAY", T.accent, 0.5),
-            pulse = CreateFrame("Frame", nil, f) }
-        placement.guides = g
-    end
-    g.frame:Show()
-    g.x:SetShown(snap.x ~= nil)
-    g.y:SetShown(snap.y ~= nil)
-    if snap.x then
-        g.x:ClearAllPoints()
-        g.x:SetSize(Mult(), UIParent:GetHeight())
-        g.x:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", snap.x, 0)
-    end
-    if snap.y then
-        g.y:ClearAllPoints()
-        g.y:SetSize(UIParent:GetWidth(), Mult())
-        g.y:SetPoint("LEFT", UIParent, "BOTTOMLEFT", 0, snap.y)
-    end
-    local target = snap.target
-    if target ~= g.target then
-        if g.target and g.target.handle._snapBorder then g.target.handle._snapBorder:SetColor(1, 1, 1, 0) end
-        g.target = target
-        if target then
-            local h = target.handle
-            if not h._snapBorder then
-                h._snapBorder = ns.Border(h, T.fg, 0)
-                h._snapBorder._frame:SetFrameLevel(h:GetFrameLevel() + 3)
-            end
-            local elapsed = 0
-            g.pulse:SetScript("OnUpdate", function(_, dt)
-                elapsed = elapsed + dt
-                h._snapBorder:SetColor(T.fg.r, T.fg.g, T.fg.b, (0.45 + 0.45 * math.sin(elapsed * 9.42)) * 0.9)
-            end)
-        else
-            g.pulse:SetScript("OnUpdate", nil)
-        end
-    end
-end
-
-local function HideGuides()
-    local g = placement.guides
-    if not g then return end
-    g.frame:Hide()
-    if g.target and g.target.handle._snapBorder then g.target.handle._snapBorder:SetColor(1, 1, 1, 0) end
-    g.target = nil
-    g.pulse:SetScript("OnUpdate", nil)
 end
 
 local function DragUpdate()
@@ -804,430 +663,391 @@ local function DragUpdate()
     if not item or InCombatLockdown() then return end
     local scale = UIParent:GetEffectiveScale()
     local mx, my = GetCursorPosition()
-    mx, my = mx / scale, my / scale
-    local cx, cy = mx + item.dragX, my + item.dragY
-    -- Shift holds the drag to the axis it first moved 3 units along.
-    if IsShiftKeyDown() then
-        if not item.dragAxis then
-            local ddx, ddy = math.abs(mx - item.dragStartX), math.abs(my - item.dragStartY)
-            if ddx > 3 or ddy > 3 then item.dragAxis = ddx >= ddy and "X" or "Y" end
-        end
-        if item.dragAxis == "X" then cy = item.dragStartCY elseif item.dragAxis == "Y" then cx = item.dragStartCX end
-    else
-        item.dragAxis = nil
-    end
     local w, h = UIParent:GetWidth(), UIParent:GetHeight()
-    cx, cy = math.max(0, math.min(w, cx)), math.max(0, math.min(h, cy))
+    local cx = math.max(0, math.min(w, mx / scale + item.grabX))
+    local cy = math.max(0, math.min(h, my / scale + item.grabY))
     local _, _, _, _, ratio = Bounds(item.frame)
     if not ratio then return end
-    cx, cy = SnapPosition(item, cx, cy, item.dragHalfW, item.dragHalfH)
-    ShowGuides()
-    local snap = placement.snapInfo
-    local es = item.frame:GetEffectiveScale()
-    local x, y = (cx - item.dragBoxX - w / 2) / ratio, (cy - item.dragBoxY - h / 2) / ratio
-    if not snap.x then x = SnapCenter(x, item.frame:GetWidth(), es) end
-    if not snap.y then y = SnapCenter(y, item.frame:GetHeight(), es) end
-    item.frame:ClearAllPoints()
-    item.frame:SetPoint("CENTER", UIParent, "CENTER", x, y)
-    local visited = { [item.label] = true }
-    for child, info in pairs(Anchors()) do
-        if type(info) == "table" and info.target == item.label and placement.byLabel[child] then
-            Apply(placement.byLabel[child])
-            Propagate(child, visited)
-        end
+    Clear(dragLayer)
+    local guided = GuidesOn() and not IsAltKeyDown()
+    if guided then
+        local hw, hh = item.boxW / 2, item.boxH / 2
+        local dx, dy = SnapBy(item, cx - hw, cx + hw, cy + hh, cy - hh)
+        cx, cy = cx + (dx or 0), cy + (dy or 0)
     end
+    Place(item, (cx - item.boxX - w / 2) / ratio, (cy - item.boxY - h / 2) / ratio)
+    Propagate(item.label)
+    if Grouped() then
+        local l, r, t, b = Box(item)
+        local dx = (l + r - item.startBox.l - item.startBox.r) / 2
+        local dy = (t + b - item.startBox.t - item.startBox.b) / 2
+        for _, other in ipairs(placement.group) do
+            if other.fromX then
+                MoveTo(other, other.fromX + dx, other.fromY + dy)
+                Propagate(other.label)
+            end
+        end
+        ShowSelection()
+    end
+    DrawOutline(item)
+    if guided then DrawGuides(item) end
+    ShowTag()
 end
 
-local function StopPlacementDrag(item)
+local function StopDrag(item)
     if not item or not item.dragging then return end
     if InCombatLockdown() and item.frame:IsProtected() then placement.pendingDrag = item; return end
     item.dragging = false
     item.dragged = true
     placement.dragging = nil
     placement.driver:SetScript("OnUpdate", nil)
-    HideGuides()
-    local l, _, t = Bounds(item.frame)
-    if l and (math.abs(l - item.dragStartL) > 0.5 or math.abs(t - item.dragStartT) > 0.5) then
-        SaveWhereItIs(item)
-        Recapture(item)
-        Propagate(item.label)
+    Clear(dragLayer)
+    local l, r, t, b, ratio = Bounds(item.frame)
+    if l and (math.abs(l - item.startL) > 0.5 or math.abs(t - item.startT) > 0.5) then
+        Checkpoint(item.before)
+        local x, y = Place(item, ((l + r) / 2 - UIParent:GetWidth() / 2) / ratio, ((t + b) / 2 - UIParent:GetHeight() / 2) / ratio)
+        item.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
     end
-    for other in pairs(placement.unsaved) do SaveWhereItIs(other) end
+    Moved(item)
+    for other in pairs(placement.unsaved) do
+        local _, _, _, x, y = other.frame:GetPoint(1)
+        other.save({ point = "CENTER", relPoint = "CENTER", x = x, y = y })
+    end
     wipe(placement.unsaved)
-    Refresh(item)
-end
-
-local function CenterOnScreen(item)
-    if InCombatLockdown() then return end
-    local l, r = Box(item)
-    if not l then return end
-    local px = ToPixels((l + r) / 2 - UIParent:GetWidth() / 2)
-    if px ~= 0 then Nudge(item, FromPixels(-px), 0) end
-end
-
--------------------------------------------------------------------------------
---  Anchoring from a mover: pick mode, the side dropdown and Relative to Screen.
--------------------------------------------------------------------------------
-local function StartPick(item)
-    CancelPick()
-    CloseMenus()
-    placement.picking = item
-    item.ShowPickText("Click any element\nto anchor to it")
-    Dim(true)
-end
-
-function CancelPick()
-    local item = placement.picking
-    if item then
-        placement.picking = nil
-        item.HidePickText()
-        if item.handle:IsMouseOver() then item.Expand() else item.Collapse() end
-        Dim(false)
-    end
-    local picker = placement.snapPicker
-    if picker then
-        placement.snapPicker = nil
-        picker.snapTarget = picker.preSnapTarget
-        picker.preSnapTarget = nil
-        Dim(false)
-    end
-    if placement.sideMenu then placement.sideMenu:Hide() end
-end
-
-local function Unanchor(item)
-    ClearAnchorInfo(item.label)
-    SaveWhereItIs(item)
-    Refresh(item)
-end
-
-local function ShowSideMenu(child, target)
-    local menu = placement.sideMenu or MenuFrame(260)
-    placement.sideMenu = menu
-    ClearMenu(menu, DD_W)
-    for _, name in ipairs(SIDES) do
-        local side = name:upper()
-        Action(menu, ("Anchor to %s"):format(name), function()
-            CloseMenus()
-            SetAnchorInfo(child.label, target.label, side)
-            Apply(child)
-            C_Timer.After(0, function() Propagate(child.label) end)
-            Refresh(child)
-        end)
-    end
-    if AnchorOf(child.label) then
-        Divider(menu)
-        Action(menu, "Remove Anchor", function()
-            CloseMenus()
-            ClearAnchorInfo(child.label)
-            Refresh(child)
-        end, WARNING)
-    end
-    AtCursor(menu)
-    Catcher()
-    Finish(menu)
-end
-
--- The target picked: refused when it already follows the element, or sits two or more links
--- above it; otherwise the side dropdown opens at the cursor.
-local function PickTarget(target)
-    local child = placement.picking
-    if target == child then
-        CancelPick()
-        return
-    end
-    local visited, walk = { [child.label] = true }, target.label
-    while walk do
-        if visited[walk] then return Reject(target, "This would create a circular anchor") end
-        visited[walk] = true
-        local info = AnchorOf(walk)
-        walk = info and info.target
-    end
-    local depth, up = 0, AnchorOf(child.label)
-    while up and depth < MAX_DEPTH do
-        depth = depth + 1
-        if up.target == target.label and depth >= 2 then
-            return Reject(target, "This would create a circular anchor")
+    item.before = nil
+    for _, other in ipairs(placement.group) do
+        if other.fromX then
+            other.fromX, other.fromY = nil, nil
+            Moved(other)
         end
-        up = AnchorOf(up.target)
-    end
-    CancelPick()
-    ShowSideMenu(child, target)
-end
-
--- With nothing anchored the edge becomes the anchor, as does one replacing an edge on its own
--- axis; under an element anchor it holds the other axis. The element stays where it is.
-local function SetScreenAnchor(item, key, side)
-    if InCombatLockdown() then return end
-    local info = AnchorOf(item.label)
-    local axis = SCREEN[key]
-    local crossEdge = info and type(info.edge) == "table" and SCREEN[info.edge.key] and SCREEN[info.edge.key] ~= axis
-    if not info or SCREEN[info.target] == axis or crossEdge then
-        local ox, oy = CaptureOffsets(item, key, side)
-        if not ox then return end
-        SetAnchorInfo(item.label, key, side, ox, oy)
-    else
-        local off = CaptureEdgeOffset(item, key, side)
-        if not off then return end
-        if info.offsetX == nil or info.offsetY == nil then
-            info.offsetX, info.offsetY = CaptureOffsets(item, info.target, info.side)
-        end
-        info.edge = { key = key, side = side, offset = off }
     end
     Refresh(item)
+    ShowSelection()
 end
 
--- Center: the screen edges let go. An anchor to another element stays; the Anchor link owns it.
-local function ClearScreenAnchor(item)
-    if InCombatLockdown() then return end
-    local info = AnchorOf(item.label)
-    if not info then return end
-    if SCREEN[info.target] then
-        Unanchor(item)
-    elseif type(info.edge) == "table" then
-        info.edge = nil
-        local ox, oy = CaptureOffsets(item, info.target, info.side)
-        if ox then info.offsetX, info.offsetY = ox, oy end
-        Refresh(item)
-    end
+-- Across to the middle of the screen; its height stays.
+local function CenterAcross(item)
+    local x = Position(item)
+    if x and x ~= 0 and Change(item) then Nudge(item, -x * Pixel(), 0) end
 end
 
-local function ShowEdgeMenu(item, row)
-    local menu = placement.edgeMenu or MenuFrame(256)
-    placement.edgeMenu = menu
-    ClearMenu(menu, SUB_W)
-    local info = AnchorOf(item.label)
-    local primary = info and SCREEN[info.target] and info.target
-    local edge = info and type(info.edge) == "table" and info.edge.key
-    for _, e in ipairs(EDGE_ITEMS) do
-        local current = (e.key and (e.key == primary or e.key == edge)) or (not e.key and not info)
-        local r = Row(menu)
-        local rest = current and 0.5 or 0
-        r.label:SetText(ns.L(e.text))
-        Paint(r, current and T.accent or T.fg)
-        r.hl:SetColorTexture(T.grey.r, T.grey.g, T.grey.b, rest)
-        r:SetScript("OnEnter", function()
-            r.hl:SetColorTexture(T.grey.r, T.grey.g, T.grey.b, 1)
-            if e.key then EdgeMarker(e.key) end
-        end)
-        r:SetScript("OnLeave", function()
-            r.hl:SetColorTexture(T.grey.r, T.grey.g, T.grey.b, rest)
-            EdgeMarker(nil)
-        end)
-        r:SetScript("OnClick", function()
-            CloseMenus()
-            if e.key then
-                SetScreenAnchor(item, e.key, e.side)
-                EdgeMarker(e.key, true)
-            else
-                ClearScreenAnchor(item)
-            end
-        end)
-    end
-    menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", row, "TOPRIGHT", 2, 0)
-    menu:SetScript("OnLeave", function(self)
-        C_Timer.After(0.05, function()
-            if self:IsShown() and not self:IsMouseOver() and not row:IsMouseOver() then self:Hide() end
-        end)
-    end)
-    Finish(menu)
-end
-
--- Out of Unlock Mode and onto the element's options: the options window draws over the
+-- Out of the HUD Editor and onto the element's settings: the options window draws over the
 -- movers, so the two cannot share the screen.
-local function OpenElementOptions(item)
+local function OpenSettings(item)
     ns.HideRaidReminderAnchorConfig()
     ns.OpenOptionsWindow(item.page)
     if item.feature then UI.GoToSetting(item.page, nil, item.feature) end
 end
 
--- An Offset X / Offset Y box: whole pixels; Enter nudges by the difference, Escape reverts.
-local function OffsetBox(row, item, key)
-    if not row.box then
-        local box = CreateFrame("EditBox", nil, row)
-        box:SetSize(54, 20)
-        box:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-        box:SetFont(ns.UIFontPath(), 12, "")
-        box:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
-        box:SetTextInsets(4, 4, 0, 0)
-        box:SetJustifyH("CENTER")
-        box:SetAutoFocus(false)
-        box:SetMaxLetters(6)
-        ns.Solid(box, "BACKGROUND", T.bg, 1):SetAllPoints()
-        local border = ns.Border(box, BLACK)
-        box:SetScript("OnEnter", function() border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
-        box:SetScript("OnLeave", function() border:SetColor(0, 0, 0, 1) end)
-        row.box = box
-    end
-    local box = row.box
-    box:SetFrameLevel(row:GetFrameLevel() + 1)
-    local function Px()
-        local info = AnchorOf(item.label)
-        return math.floor(ToPixels(info and info[key] or 0) + 0.5)
-    end
-    box:SetText(tostring(Px()))
-    box:SetScript("OnEnterPressed", function(self)
-        self:ClearFocus()
-        local val = tonumber(self:GetText())
-        if val then
-            local delta = math.floor(val + 0.5) - Px()
-            if delta ~= 0 then
-                if key == "offsetX" then Nudge(item, FromPixels(delta), 0) else Nudge(item, 0, FromPixels(delta)) end
-            end
-        end
-        self:SetText(tostring(Px()))
-    end)
-    box:SetScript("OnEscapePressed", function(self)
-        self:SetText(tostring(Px()))
-        self:ClearFocus()
-    end)
-    box:Show()
-    return box, Px
+-------------------------------------------------------------------------------
+--  The tag: just outside the selected mover, its X and Y in whole pixels (live while it moves,
+--  typed to move it), Center, Anchor, and Settings when the element has a page.
+-------------------------------------------------------------------------------
+local BOX_W, BOX_H = 46, 18
+local TAG_PAD, TAG_GAP = 3, 4                    -- inside the tag's edge, from it to the mover
+local LETTER_W, AXIS_GAP, PAIR_GAP = 8, 3, 8     -- an axis letter, from it to its box, between the parts
+local CENTER_W, ANCHOR_W, SETTINGS_W = 52, 66, 62
+local SIDE_W, SIDE_LABEL_W, GAP_LABEL_W = 50, 28, 26
+local ROW_GAP = 4                                -- between the tag's rows
+local TAG_H = BOX_H + 2 * TAG_PAD
+local TAG_H_ANCHORED = 2 * BOX_H + ROW_GAP + 2 * TAG_PAD
+local TAG_LEVEL = 230                            -- over the movers
+local SIDES = { "TOP", "LEFT", "RIGHT", "BOTTOM" }
+local SIDE_NAMES = { TOP = "Top", LEFT = "Left", RIGHT = "Right", BOTTOM = "Bottom" }
+local ACROSS = { TOP = "y", BOTTOM = "y", LEFT = "x", RIGHT = "x" }
+
+local function SetBox(box, v)
+    if box:HasFocus() or box.value == v then return end
+    box.value = v
+    box:SetText(tostring(v))
 end
 
-local function OpenCogMenu(item)
-    CloseMenus()
-    CancelPick()
-    local menu = placement.cogMenu or MenuFrame(250)
-    placement.cogMenu = menu
-    placement.menuItem = item
-    item.menuOpen = true
-    ClearMenu(menu, MENU_W)
-    menu:Show()
+-- Enter moves the element by what the typed number differs from where it is.
+local function Typed(box)
+    local v = tonumber(box:GetText())
+    box:ClearFocus()
+    local item = placement.selected
+    if not (item and v) then return end
+    local x, y = Position(item)
+    if not x then return end
+    local d = math.floor(v + 0.5) - (box.axis == "X" and x or y)
+    if d == 0 or not Change(item) then return end
+    if box.axis == "X" then Nudge(item, d * Pixel(), 0) else Nudge(item, 0, d * Pixel()) end
+end
 
-    local hint = Row(menu)
-    hint:EnableMouse(false)
-    hint.label:ClearAllPoints()
-    hint.label:SetPoint("TOPLEFT", hint, "TOPLEFT", 7, -4)
-    hint.label:SetPoint("TOPRIGHT", hint, "TOPRIGHT", -7, -4)
-    hint.label:SetFont(ns.UIFontPath(), 11, "")
-    hint.label:SetJustifyH("CENTER")
-    hint.label:SetWordWrap(true)
-    hint.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
-    hint.label:SetText(ns.L("Use arrow keys to move selected element 1px any direction") .. ". "
-        .. ns.L("Shift+Right Click to temporarily hide overlay"))
-    local hintH = hint.label:GetStringHeight()
-    if not hintH or hintH < 1 then hintH = 28 end
-    hint:SetHeight(hintH + 10)
-    menu.y = menu.y + ITEM_H - (hintH + 10)
-    Divider(menu)
+local function Revert(box)
+    box.border:SetColor(0, 0, 0, 1)
+    box.value = nil
+    ShowTag()
+end
 
-    if item.page then
-        Action(menu, "Element Options", function()
-            CloseMenus()
-            OpenElementOptions(item)
-        end)
-    end
+-- The anchored element back on its target after its side or gap changed, and saved there.
+local function Reanchor(item)
+    Apply(item)
+    Propagate(item.label)
+    Refresh(item)
+end
 
-    local info = not item.ownAnchor and AnchorOf(item.label)
-    item.syncOffsets = nil
-    if info and not InCombatLockdown() then
-        local to = Row(menu)
-        to:EnableMouse(false)
-        to:SetHeight(22)
-        menu.y = menu.y + 2
-        to.label:SetText(ns.L("Anchored to: %s"):format(LabelOf(info.target)))
-        to.label:SetTextColor(T.muted.r, T.muted.g, T.muted.b, 1)
-        local boxes = {}
-        for _, key in ipairs({ "offsetX", "offsetY" }) do
-            local row = Row(menu)
-            row:EnableMouse(false)
-            row:SetHeight(22)
-            menu.y = menu.y + 2
-            row.label:SetText(ns.L(key == "offsetX" and "Offset X" or "Offset Y"))
-            Paint(row, T.fg)
-            local box, Px = OffsetBox(row, item, key)
-            boxes[#boxes + 1] = { box = box, px = Px }
-        end
-        item.syncOffsets = function()
-            for _, b in ipairs(boxes) do
-                if not b.box:HasFocus() then b.box:SetText(tostring(b.px())) end
+-- A new side keeps the gap, and the offset along the side when it runs the same way.
+function SetSide(item, side)
+    local info = item and AnchorOf(item.label)
+    if not info or info.side == side or not Change(item) then return end
+    local gap = Gap(info)
+    if ACROSS[side] ~= ACROSS[info.side] then info.x, info.y = 0, 0 end
+    info.side = side
+    SetGap(info, gap)
+    Reanchor(item)
+end
+
+local function TypedGap(box)
+    local v = tonumber(box:GetText())
+    box:ClearFocus()
+    local item = placement.selected
+    local info = item and AnchorOf(item.label)
+    if not (info and v) or not Change(item) then return end
+    SetGap(info, math.floor(v + 0.5) * Pixel())
+    Reanchor(item)
+end
+
+-- Anchor arms a pick: the next element clicked becomes the target, the element itself or Escape
+-- calls it off. A target that already follows the element is refused.
+local function PickTarget(target)
+    local item = placement.picking
+    placement.picking = nil
+    if target ~= item then
+        local walk, depth = target.label, 0
+        while walk and depth < MAX_DEPTH do
+            if walk == item.label then
+                ns.Print(("%s already moves with %s."):format(target.label, item.label))
+                ShowTag()
+                return
             end
+            local info = AnchorOf(walk)
+            walk, depth = info and info.target, depth + 1
         end
-        Divider(menu)
+        local info = { target = target.label, side = SideOf(item, target) }
+        Capture(item, info)
+        Checkpoint()
+        Anchors()[item.label] = info
     end
+    ShowTag()
+end
 
-    local picked = item.snapTarget and placement.byLabel[item.snapTarget]
-    Action(menu, picked and ns.L("Snap Target: %s"):format(ns.Color("accent", item.snapTarget))
-        or "Select Snap Target", function()
-        CloseMenus()
-        if picked then
-            item.snapTarget = nil
+local function AnchorClicked(tag)
+    local item = tag.item
+    if not item then return end
+    if AnchorOf(item.label) then
+        Checkpoint()
+        Anchors()[item.label] = nil
+    else
+        placement.picking = placement.picking ~= item and item or nil
+    end
+    ShowTag()
+end
+
+-- Unanchor while anchored; lit in the accent while a pick is armed.
+local function PaintAnchor(button, item)
+    local info = AnchorOf(item.label)
+    local picking = placement.picking == item
+    ns.SetButtonText(button, info and "Unanchor" or "Anchor")
+    if info then
+        ns.Tooltip(button, "Unanchor", ("Anchored to %s. Lets go of it; it stays where it is."):format(info.target))
+    else
+        ns.Tooltip(button, "Anchor", "Click another element to anchor to. It then moves with that element.")
+    end
+    local edge, text = picking and T.accent or BLACK, picking and T.accent or T.fg
+    button._rest = edge
+    button._border:SetColor(edge.r, edge.g, edge.b, 1)
+    button.label:SetTextColor(text.r, text.g, text.b, 1)
+end
+
+local function BuildTag()
+    local tag = CreateFrame("Frame", nil, UIParent)
+    tag:SetHeight(TAG_H)
+    tag:SetFrameStrata("FULLSCREEN_DIALOG")
+    tag:SetFrameLevel(TAG_LEVEL)
+    tag:SetClampedToScreen(true)
+    tag:EnableMouse(true)
+    ns.Solid(tag, "BACKGROUND", T.panel, 0.98):SetAllPoints()
+    ns.Border(tag, BLACK)
+    local left
+    for _, axis in ipairs({ "X", "Y" }) do
+        local letter = ns.Font(tag, 11, nil, T.muted)
+        letter:SetText(axis)
+        letter:SetSize(LETTER_W, BOX_H)
+        if left then
+            letter:SetPoint("LEFT", left, "RIGHT", PAIR_GAP, 0)
         else
-            CancelPick()
-            item.preSnapTarget = item.snapTarget
-            placement.snapPicker = item
-            Dim(true)
+            letter:SetPoint("TOPLEFT", tag, "TOPLEFT", TAG_PAD, -TAG_PAD)
         end
-    end)
-
-    Action(menu, "Center on Screen", function()
-        CloseMenus()
-        CenterOnScreen(item)
-    end)
-
-    if not item.ownAnchor then
-        Divider(menu)
-        local linked = info and (SCREEN[info.target] or (type(info.edge) == "table" and SCREEN[info.edge.key]))
-        local row = Action(menu, "Relative to Screen", function() end, linked and T.accent or nil)
-        if not row.arrow then
-            row.arrow = row:CreateTexture(nil, "ARTWORK")
-            row.arrow:SetSize(10, 10)
-            row.arrow:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-            row.arrow:SetTexture(UI.CHEVRON)
-        end
-        row.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
-        row.arrow:Show()
-        row:SetScript("OnClick", function() ShowEdgeMenu(item, row) end)
-        row:HookScript("OnEnter", function()
-            row.arrow:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1)
-            ShowEdgeMenu(item, row)
+        local box = ns.NewEditBox(tag)
+        box.axis = axis
+        box:SetSize(BOX_W, BOX_H)
+        box:SetPoint("LEFT", letter, "RIGHT", AXIS_GAP, 0)
+        box:SetFont(ns.UIFontPath(), 12, "")
+        box:SetJustifyH("CENTER")
+        box:SetMaxLetters(6)
+        box:SetScript("OnEnterPressed", Typed)
+        box:SetScript("OnEscapePressed", box.ClearFocus)
+        box:SetScript("OnEditFocusGained", function() box.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+        box:SetScript("OnEditFocusLost", Revert)
+        box:HookScript("OnLeave", function()
+            if box:HasFocus() then box.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end
         end)
-        row:HookScript("OnLeave", function()
-            row.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
-            C_Timer.After(0.05, function()
-                local sub = placement.edgeMenu
-                if sub and sub:IsShown() and not sub:IsMouseOver() and not row:IsMouseOver() then sub:Hide() end
-            end)
-        end)
+        tag[axis:lower()] = box
+        left = box
     end
+    tag.x:SetScript("OnTabPressed", function() tag.y:SetFocus() end)
+    tag.y:SetScript("OnTabPressed", function() tag.x:SetFocus() end)
 
-    menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", item.cog, "BOTTOMLEFT", 0, -2)
-    Catcher()
-    Finish(menu)
+    tag.center = ns.Button(tag, "Center", CENTER_W, BOX_H, function()
+        if tag.item then CenterAcross(tag.item) end
+    end)
+    tag.center:SetPoint("LEFT", left, "RIGHT", PAIR_GAP, 0)
+    ns.Tooltip(tag.center, "Center", "Moves it to the middle of the screen, left to right.")
+    tag.anchor = ns.Button(tag, "Anchor", ANCHOR_W, BOX_H, function() AnchorClicked(tag) end)
+    tag.anchor:SetPoint("LEFT", tag.center, "RIGHT", AXIS_GAP, 0)
+    tag.settings = ns.Button(tag, "Settings", SETTINGS_W, BOX_H, function()
+        if tag.item then OpenSettings(tag.item) end
+    end)
+    ns.Tooltip(tag.settings, "Settings", "Opens its settings and leaves the HUD Editor.")
+
+    -- The second row, while anchored: the target's side it sits off, and the gap.
+    local sides = CreateFrame("Frame", nil, tag)
+    sides:SetPoint("TOPLEFT", tag, "TOPLEFT", TAG_PAD, -(TAG_PAD + BOX_H + ROW_GAP))
+    sides:SetPoint("TOPRIGHT", tag, "TOPRIGHT", -TAG_PAD, -(TAG_PAD + BOX_H + ROW_GAP))
+    sides:SetHeight(BOX_H)
+    local sideLabel = ns.Font(sides, 11, nil, T.muted)
+    sideLabel:SetText("Side")
+    sideLabel:SetSize(SIDE_LABEL_W, BOX_H)
+    sideLabel:SetPoint("LEFT")
+    local prev = sideLabel
+    tag.side = {}
+    for _, side in ipairs(SIDES) do
+        local button = ns.Button(sides, SIDE_NAMES[side], SIDE_W, BOX_H, function()
+            if tag.item then SetSide(tag.item, side) end
+        end)
+        button:SetPoint("LEFT", prev, "RIGHT", AXIS_GAP, 0)
+        ns.Tooltip(button, SIDE_NAMES[side], "Sits off this side of what it is anchored to, keeping the gap.")
+        tag.side[side] = button
+        prev = button
+    end
+    local gapLabel = ns.Font(sides, 11, nil, T.muted)
+    gapLabel:SetText("Gap")
+    gapLabel:SetSize(GAP_LABEL_W, BOX_H)
+    gapLabel:SetPoint("LEFT", prev, "RIGHT", PAIR_GAP, 0)
+    local gap = ns.NewEditBox(sides)
+    gap:SetSize(BOX_W, BOX_H)
+    gap:SetPoint("LEFT", gapLabel, "RIGHT", AXIS_GAP, 0)
+    gap:SetFont(ns.UIFontPath(), 12, "")
+    gap:SetJustifyH("CENTER")
+    gap:SetMaxLetters(5)
+    gap:SetScript("OnEnterPressed", TypedGap)
+    gap:SetScript("OnEscapePressed", gap.ClearFocus)
+    gap:SetScript("OnEditFocusGained", function() gap.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    gap:SetScript("OnEditFocusLost", Revert)
+    tag.gap = gap
+    tag.sides = sides
+    return tag
+end
+
+-- The side the element sits off, lit in the accent.
+local function PaintSides(tag, info)
+    for side, button in pairs(tag.side) do
+        local on = info.side == side
+        local edge, text = on and T.accent or BLACK, on and T.accent or T.fg
+        button._rest = edge
+        button._border:SetColor(edge.r, edge.g, edge.b, 1)
+        button.label:SetTextColor(text.r, text.g, text.b, 1)
+    end
+end
+
+-- Below the mover, above it when the screen ends first.
+function ShowTag()
+    local item = not Grouped() and placement.selected or nil
+    local x, y
+    if item then x, y = Position(item) end
+    local tag = placement.tag
+    if not x then
+        if tag then
+            tag:Hide()
+            tag.item = nil
+        end
+        DrawAnchor(nil)
+        return
+    end
+    if not tag then
+        tag = BuildTag()
+        placement.tag = tag
+    end
+    local info = not item.ownAnchor and AnchorOf(item.label)
+    local anchored = info and true or false
+    local height = anchored and TAG_H_ANCHORED or TAG_H
+    local _, _, _, bottom = Bounds(item.handle)
+    local above = bottom ~= nil and bottom - TAG_GAP - height < 0
+    if tag.item ~= item or tag.above ~= above or tag.anchored ~= anchored then
+        tag.item, tag.above, tag.anchored = item, above, anchored
+        tag.x.value, tag.y.value, tag.gap.value = nil, nil, nil
+        tag:SetHeight(height)
+        tag.sides:SetShown(anchored)
+        tag.anchor:SetShown(not item.ownAnchor)
+        tag.settings:SetShown(item.page ~= nil)
+        tag.settings:ClearAllPoints()
+        tag.settings:SetPoint("LEFT", item.ownAnchor and tag.center or tag.anchor, "RIGHT", AXIS_GAP, 0)
+        local w = 2 * (LETTER_W + AXIS_GAP + BOX_W) + 2 * PAIR_GAP + CENTER_W + 2 * TAG_PAD
+        if not item.ownAnchor then w = w + AXIS_GAP + ANCHOR_W end
+        if item.page then w = w + AXIS_GAP + SETTINGS_W end
+        if anchored then
+            local sidesW = SIDE_LABEL_W + 4 * (AXIS_GAP + SIDE_W) + PAIR_GAP + GAP_LABEL_W + AXIS_GAP + BOX_W
+            w = math.max(w, sidesW + 2 * TAG_PAD)
+        end
+        tag:SetWidth(w)
+        tag:ClearAllPoints()
+        if above then
+            tag:SetPoint("BOTTOM", item.handle, "TOP", 0, TAG_GAP)
+        else
+            tag:SetPoint("TOP", item.handle, "BOTTOM", 0, -TAG_GAP)
+        end
+    end
+    tag:Show()
+    SetBox(tag.x, x)
+    SetBox(tag.y, y)
+    if not item.ownAnchor then PaintAnchor(tag.anchor, item) end
+    if info then
+        SetBox(tag.gap, math.floor(Gap(info) / Pixel() + 0.5))
+        PaintSides(tag, info)
+    end
+    DrawAnchor(item)
 end
 
 -------------------------------------------------------------------------------
 --  Selection and the arrow keys
 -------------------------------------------------------------------------------
--- The mover's border and name for its state: white when hovered or selected, accent at rest;
--- the name orange while anchored.
+-- The mover's edge and fill for its state (see MOVER_FILL).
 function Refresh(item)
     if not item then return end
     local h = item.handle
-    local lit = item.selected or item.hovered or item.dragging
-    if lit then h._border:SetColor(T.fg.r, T.fg.g, T.fg.b, 1) else h._border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end
+    local picked = item.selected or item.dragging
+    local lit = picked or item.hovered
+    local edge = picked and T.accent or item.hovered and T.muted or BLACK
+    h._border:SetColor(edge.r, edge.g, edge.b, 1)
+    h._fill:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, lit and MOVER_FILL_LIT or MOVER_FILL)
     h:SetFrameLevel(item.baseLevel + (lit and 100 or 0))
-    if item.cog then item.cog:SetFrameLevel(h:GetFrameLevel() + 10) end
-    local anchored = not item.ownAnchor and AnchorOf(item.label) ~= nil
-    item.chain:SetShown(anchored)
-    if item.link then
-        item.link.label:SetText(ns.L(anchored and "Anchored" or "Anchor"))
-        local c = item.link:IsMouseOver() and T.accentSoft or T.fg
-        item.link.label:SetTextColor(c.r, c.g, c.b, 1)
-    end
+    if item == placement.selected then ShowTag() end
+    RefreshPanel()
 end
 
 function UI.ClearMoverSelection()
-    local item = placement.selected
-    StopPlacementDrag(item)
-    placement.selected = nil
-    if item then
+    StopDrag(placement.dragging)
+    local group = placement.group
+    placement.selected, placement.picking = nil, nil
+    placement.group, placement.groupKey = {}, {}
+    for _, item in ipairs(group) do
         item.selected = false
         Refresh(item)
     end
-    if placement.snapPicker then CancelPick() end
+    ShowTag()
+    ShowSelection()
     if placement.keys and not InCombatLockdown() then placement.keys:SetPropagateKeyboardInput(true) end
 end
 
@@ -1243,18 +1063,19 @@ local function PlacementKey(self, key)
     self:SetPropagateKeyboardInput(true)
     if not placement.active or GetCurrentKeyBoardFocus() then return end
     if key == "ESCAPE" then
-        local open = placement.sideMenu and placement.sideMenu:IsShown()
-            or placement.cogMenu and placement.cogMenu:IsShown()
-        if open then
-            CloseMenus()
-        elseif placement.picking or placement.snapPicker then
-            CancelPick()
-        elseif placement.selected then
-            UI.ClearMoverSelection()
+        if not placement.selected then return end
+        if placement.picking then
+            placement.picking = nil
+            ShowTag()
         else
-            return
+            UI.ClearMoverSelection()
         end
         self:SetPropagateKeyboardInput(false)
+        return
+    end
+    if IsControlKeyDown() and (key == "Z" or key == "Y") then
+        self:SetPropagateKeyboardInput(false)
+        if key == "Y" or IsShiftKeyDown() then UI.RedoMove() else UI.UndoMove() end
         return
     end
     local item = placement.selected
@@ -1264,7 +1085,16 @@ local function PlacementKey(self, key)
     if dx == 0 and dy == 0 then return end
     if not item.handle:IsVisible() then UI.ClearMoverSelection(); return end
     self:SetPropagateKeyboardInput(false)
-    local step = Mult() * (IsShiftKeyDown() and 100 or 1)
+    local step = Pixel() * (IsShiftKeyDown() and NUDGE_FAR or 1)
+    if Grouped() then
+        Checkpoint(nil, placement.groupKey)
+        for _, member in ipairs(placement.group) do
+            if Moves(member) then Nudge(member, dx * step, dy * step) end
+        end
+        ShowSelection()
+        return
+    end
+    if not Change(item, item) then return end
     Nudge(item, dx * step, dy * step)
 end
 
@@ -1282,42 +1112,34 @@ function UI.BeginMoverMode()
         end)
         keys:SetScript("OnEvent", function(_, event)
             if event == "PLAYER_REGEN_DISABLED" then
-                CloseMenus()
-                CancelPick()
                 UI.ClearMoverSelection()
                 keys:Hide()
             else
-                StopPlacementDrag(placement.pendingDrag)
+                StopDrag(placement.pendingDrag)
                 placement.pendingDrag = nil
                 if placement.active then UI.BeginMoverMode() else keys:UnregisterAllEvents() end
             end
         end)
         placement.driver = CreateFrame("Frame")
-        placement.snapInfo = {}
     end
     if not InCombatLockdown() then
         placement.keys:EnableKeyboard(true)
         placement.keys:SetPropagateKeyboardInput(true)
     end
     UI.ClearMoverSelection()
-    for _, item in ipairs(placement.items) do item.tempHidden = nil end
+    wipe(undo)
+    wipe(redo)
+    lastNudged = nil
+    PaintHistory()
     placement.keys:RegisterEvent("PLAYER_REGEN_DISABLED")
     placement.keys:RegisterEvent("PLAYER_REGEN_ENABLED")
     placement.keys:SetShown(not InCombatLockdown())
-    ShowLines(true)
 end
 
 function UI.EndMoverMode()
     placement.active = false
-    CloseMenus()
-    CancelPick()
     UI.ClearMoverSelection()
-    for _, item in ipairs(placement.items) do
-        item.snapTarget = nil
-        if item.Collapse then item.Collapse(true) end
-    end
-    if placement.lines then ShowLines(false) end
-    HideGuides()
+    Clear(dragLayer)
     if placement.keys then
         placement.keys:Hide()
         if not InCombatLockdown() then placement.keys:EnableKeyboard(false) end
@@ -1325,36 +1147,70 @@ function UI.EndMoverMode()
     end
 end
 
-function UI.SelectMover(handle)
+local function Join(item)
+    local group = placement.group
+    group[#group + 1] = item
+    placement.groupKey = {}
+    item.selected = true
+    local last = placement.selected
+    placement.selected = item
+    if last and last ~= item then Refresh(last) end
+    Refresh(item)
+    ShowSelection()
+end
+
+local function Unselect(item)
+    local group = placement.group
+    for i, member in ipairs(group) do
+        if member == item then table.remove(group, i); break end
+    end
+    if #group == 0 then return UI.ClearMoverSelection() end
+    placement.groupKey = {}
+    item.selected = false
+    placement.selected = group[#group]
+    Refresh(item)
+    Refresh(placement.selected)
+    ShowSelection()
+end
+
+-- add: Shift held, so the element joins the selection, or leaves it when already in.
+function UI.SelectMover(handle, add)
     if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
     local item = handle._placement
-    if not item then return end
-    if placement.selected ~= item then UI.ClearMoverSelection() end
-    placement.selected = item
-    item.selected = true
-    Refresh(item)
+    if not item or IsHidden(item) then return end
+    if add and placement.selected then
+        if item.selected then Unselect(item) else Join(item) end
+        return
+    end
+    if placement.selected ~= item or Grouped() then UI.ClearMoverSelection() end
+    if item.selected then Refresh(item) else Join(item) end
 end
 
 function UI.StartMoverDrag(handle)
     if not placement.active or InCombatLockdown() or not handle:IsVisible() then return end
     local item = handle._placement
-    if not item or placement.picking or placement.snapPicker then return end
-    CloseMenus()
-    item.Collapse(true)
-    UI.SelectMover(handle)
+    if not item or IsHidden(item) then return end
+    if not item.selected then UI.SelectMover(handle) end
+    if IsLocked(item) then return end
+    item.before = Snapshot()
     local l, r, t, b = Box(item)
     local fl, fr, ft, fb = Bounds(item.frame)
     if not (l and fl) then return end
     local scale = UIParent:GetEffectiveScale()
     local mx, my = GetCursorPosition()
-    mx, my = mx / scale, my / scale
-    item.dragStartX, item.dragStartY = mx, my
-    item.dragStartCX, item.dragStartCY = (l + r) / 2, (t + b) / 2
-    item.dragHalfW, item.dragHalfH = (r - l) / 2, (t - b) / 2
-    item.dragBoxX, item.dragBoxY = (l + r - fl - fr) / 2, (t + b - ft - fb) / 2
-    item.dragStartL, item.dragStartT = fl, ft
-    item.dragX, item.dragY = item.dragStartCX - mx, item.dragStartCY - my
-    item.dragAxis = nil
+    item.grabX, item.grabY = (l + r) / 2 - mx / scale, (t + b) / 2 - my / scale
+    item.boxX, item.boxY = (l + r - fl - fr) / 2, (t + b - ft - fb) / 2
+    item.boxW, item.boxH = r - l, t - b
+    item.startL, item.startT = fl, ft
+    item.startBox = item.startBox or {}
+    item.startBox.l, item.startBox.r, item.startBox.t, item.startBox.b = l, r, t, b
+    for _, other in ipairs(placement.group) do
+        other.fromX, other.fromY = nil, nil
+        if other ~= item and Moves(other) then
+            local ol, oright, ot, ob = Box(other)
+            if ol then other.fromX, other.fromY = (ol + oright) / 2, (ot + ob) / 2 end
+        end
+    end
     item.dragging = true
     placement.dragging = item
     placement.driver:SetScript("OnUpdate", DragUpdate)
@@ -1362,207 +1218,254 @@ function UI.StartMoverDrag(handle)
 end
 
 function UI.StopMoverDrag(handle)
-    StopPlacementDrag(handle._placement)
+    StopDrag(handle._placement)
     UI.RefreshMoverSelection()
+end
+
+-------------------------------------------------------------------------------
+--  Several selected: an outline round them all and a bar over it to line them up on an edge
+--  or a middle, space them evenly or by a typed gap across or down, and lock them all. Locked
+--  elements stay put, and an element that follows another selected one comes along with it.
+-------------------------------------------------------------------------------
+local GROUP_PAD = 6                    -- the outline, out from the elements
+local GROUP_ALPHA = 0.6
+local SEL_H, SEL_PAD, SEL_GAP, SEL_SEP = 30, 8, 4, 10
+local SEL_ICON = 18
+local SEL_COUNT_W = 78                 -- room for "12 selected"
+local SEL_OFFSET = 6                   -- from the outline to the bar
+local EDGES = { "left", "hcenter", "right", "top", "vcenter", "bottom" }
+local EDGE_TIPS = { left = "Line up left edges", hcenter = "Line up middles, left to right",
+    right = "Line up right edges", top = "Line up top edges", vcenter = "Line up middles, top to bottom",
+    bottom = "Line up bottom edges" }
+
+-- The box round every selected element, in UIParent units.
+local function GroupBox()
+    local l, r, t, b
+    for _, item in ipairs(placement.group) do
+        local il, ir, it, ib = Box(item)
+        if il then
+            l, r = l and math.min(l, il) or il, r and math.max(r, ir) or ir
+            t, b = t and math.max(t, it) or it, b and math.min(b, ib) or ib
+        end
+    end
+    return l, r, t, b
+end
+
+-- After the selection moved: its elements' anchors keep the new gaps, what follows comes
+-- along, and the plates, the outline and the bar catch up.
+local function Arranged(moved)
+    for _, item in ipairs(moved) do Moved(item) end
+    for _, item in ipairs(placement.group) do Refresh(item) end
+    ShowSelection()
+end
+
+function UI.AlignSelection(edge)
+    if InCombatLockdown() or not Grouped() then return end
+    local l, r, t, b = GroupBox()
+    if not l then return end
+    Checkpoint()
+    local moved = {}
+    for _, item in ipairs(placement.group) do
+        local il, ir, it, ib = Box(item)
+        if il and Moves(item) then
+            local w, h = ir - il, it - ib
+            local cx, cy = (il + ir) / 2, (it + ib) / 2
+            if edge == "left" then cx = l + w / 2
+            elseif edge == "hcenter" then cx = (l + r) / 2
+            elseif edge == "right" then cx = r - w / 2
+            elseif edge == "top" then cy = t - h / 2
+            elseif edge == "vcenter" then cy = (t + b) / 2
+            else cy = b + h / 2 end
+            MoveTo(item, cx, cy)
+            moved[#moved + 1] = item
+        end
+    end
+    Arranged(moved)
+end
+
+-- Spaces the selection out across or down, first and last where they are, the gaps between
+-- them equal; with pixels, that gap instead, from the first on. axis nil: the last one used,
+-- else the way the selection is longer.
+function UI.SpreadSelection(axis, pixels)
+    if InCombatLockdown() or not Grouped() then return end
+    local list = {}
+    for _, item in ipairs(placement.group) do
+        if Moves(item) and Box(item) then list[#list + 1] = item end
+    end
+    if #list < 2 then return end
+    local l, r, t, b = GroupBox()
+    axis = axis or placement.spreadAxis or ((r - l) >= (t - b) and "across" or "down")
+    placement.spreadAxis = axis
+    local across = axis == "across"
+    table.sort(list, function(a, c)
+        local al, ar, at, ab = Box(a)
+        local cl, cr, ct, cb = Box(c)
+        if across then return al + ar < cl + cr end
+        return at + ab > ct + cb
+    end)
+    local fl, _, ft = Box(list[1])
+    local _, lr, _, lb = Box(list[#list])
+    local total = 0
+    for _, item in ipairs(list) do
+        local il, ir, it, ib = Box(item)
+        total = total + (across and ir - il or it - ib)
+    end
+    local gap
+    if pixels then
+        gap = math.floor(pixels + 0.5) * Pixel()
+    elseif #list > 2 then
+        gap = ((across and lr - fl or ft - lb) - total) / (#list - 1)
+    else
+        return
+    end
+    Checkpoint()
+    local pos = across and fl or ft
+    for _, item in ipairs(list) do
+        local il, ir, it, ib = Box(item)
+        if across then
+            MoveTo(item, pos + (ir - il) / 2, (it + ib) / 2)
+            pos = pos + (ir - il) + gap
+        else
+            MoveTo(item, (il + ir) / 2, pos - (it - ib) / 2)
+            pos = pos - (it - ib) - gap
+        end
+    end
+    placement.spreadGap = gap
+    Arranged(list)
+end
+
+-- Locks them all, or unlocks them all when every one is locked already.
+function UI.LockSelection()
+    local marks, all = Marks("locked"), true
+    for _, item in ipairs(placement.group) do
+        if not marks[item.label] then all = false end
+    end
+    for _, item in ipairs(placement.group) do
+        marks[item.label] = not all or nil
+        PaintMarks(item)
+        Refresh(item)
+    end
+    ShowSelection()
+end
+
+local function BuildSelectionBar()
+    local Parts, St = ns.Shared.Parts, ns.Shared.Style
+    local bar = CreateFrame("Frame", nil, UIParent)
+    bar:SetHeight(SEL_H)
+    bar:SetFrameStrata("FULLSCREEN_DIALOG")
+    bar:SetFrameLevel(TAG_LEVEL)
+    bar:SetClampedToScreen(true)
+    bar:EnableMouse(true)
+    ns.Solid(bar, "BACKGROUND", T.panel, 0.98):SetAllPoints()
+    ns.Border(bar, BLACK)
+    bar.count = ns.Font(bar, 12)
+    bar.count:SetPoint("LEFT", SEL_PAD, 0)
+    local x = SEL_PAD + SEL_COUNT_W
+    local function Icon(texture, tip, onClick)
+        local button = Parts.IconButton(bar, onClick, texture, nil, tip)
+        button:SetSize(SEL_ICON, SEL_ICON)
+        button.icon:SetSize(SEL_ICON, SEL_ICON)
+        button.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
+        button:SetPoint("LEFT", x, 0)
+        x = x + SEL_ICON + SEL_GAP
+        return button
+    end
+    bar.align = {}
+    for i, edge in ipairs(EDGES) do
+        if i == 4 then x = x + SEL_SEP end
+        bar.align[edge] = Icon(St["ALIGN_" .. edge:upper()], EDGE_TIPS[edge], function() UI.AlignSelection(edge) end)
+    end
+    x = x + SEL_SEP
+    bar.across = Icon(St.ALIGN_ACROSS, "Space evenly across", function() UI.SpreadSelection("across") end)
+    bar.down = Icon(St.ALIGN_DOWN, "Space evenly down", function() UI.SpreadSelection("down") end)
+    x = x + SEL_SEP
+    local gapLabel = ns.Font(bar, 11, nil, T.muted)
+    gapLabel:SetText("Gap")
+    gapLabel:SetPoint("LEFT", x, 0)
+    x = x + GAP_LABEL_W
+    local gap = ns.NewEditBox(bar)
+    gap:SetSize(BOX_W, BOX_H)
+    gap:SetPoint("LEFT", x, 0)
+    gap:SetFont(ns.UIFontPath(), 12, "")
+    gap:SetJustifyH("CENTER")
+    gap:SetMaxLetters(5)
+    gap:SetScript("OnEnterPressed", function(box)
+        local v = tonumber(box:GetText())
+        box:ClearFocus()
+        if v then UI.SpreadSelection(nil, v) end
+    end)
+    gap:SetScript("OnEscapePressed", gap.ClearFocus)
+    gap:SetScript("OnEditFocusGained", function() gap.border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    gap:SetScript("OnEditFocusLost", function() gap.border:SetColor(0, 0, 0, 1); gap.value = nil; ShowSelection() end)
+    bar.gap = gap
+    x = x + BOX_W + SEL_SEP
+    bar.lock = Icon(St.LOCK, "Lock all", function() UI.LockSelection() end)
+    bar:SetWidth(x - SEL_GAP + SEL_PAD)
+    bar:Hide()
+    return bar
+end
+
+function ShowSelection()
+    Clear(groupLayer)
+    local bar = placement.bar
+    local l, r, t, b
+    if Grouped() then l, r, t, b = GroupBox() end
+    if not l then
+        if bar then bar:Hide() end
+        return
+    end
+    local pad = GROUP_PAD * Pixel()
+    l, r, t, b = l - pad, r + pad, t + pad, b - pad
+    DrawLine(groupLayer, l, t, r, t, T.accent, GROUP_ALPHA)
+    DrawLine(groupLayer, l, b, r, b, T.accent, GROUP_ALPHA)
+    DrawLine(groupLayer, l, b, l, t, T.accent, GROUP_ALPHA)
+    DrawLine(groupLayer, r, b, r, t, T.accent, GROUP_ALPHA)
+    if not bar then
+        bar = BuildSelectionBar()
+        placement.bar = bar
+    end
+    bar.count:SetText(#placement.group .. " selected")
+    bar:ClearAllPoints()
+    if t + SEL_OFFSET + SEL_H <= UIParent:GetHeight() then
+        bar:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", (l + r) / 2, t + SEL_OFFSET)
+    else
+        bar:SetPoint("TOP", UIParent, "BOTTOMLEFT", (l + r) / 2, b - SEL_OFFSET)
+    end
+    if placement.spreadGap then SetBox(bar.gap, math.floor(placement.spreadGap / Pixel() + 0.5)) end
+    local all = true
+    for _, item in ipairs(placement.group) do
+        if not IsLocked(item) then all = false end
+    end
+    local c = all and T.accent or T.fg
+    bar.lock.icon:SetVertexColor(c.r, c.g, c.b)
+    bar.lock.tip = all and "Unlock all" or "Lock all"
+    bar:Show()
 end
 
 -------------------------------------------------------------------------------
 --  Movers
 -------------------------------------------------------------------------------
--- The hover row under the name: "Anchor" ("Anchored" while it is), and the cog at the top
--- right. They grow in over ANIM_DUR once the cursor has rested HOVER_DELAY on the mover.
-local function BuildChrome(item)
-    local h, text = item.handle, item.handle.text
-    local frame = item.frame
+local LOCK_BADGE, LOCK_INSET = 12, 4     -- the padlock in a locked mover's corner
 
-    local link = CreateFrame("Button", nil, h)
-    link:RegisterForClicks("LeftButtonUp")
-    link.label = ns.Font(link, 10, "OUTLINE")
-    link.label:SetPoint("CENTER")
-    link:SetPoint("TOP", text, "BOTTOM", 0, -4)
-    link:Hide()
-    item.link = not item.ownAnchor and link or nil
-
-    local cog = CreateFrame("Button", nil, h)
-    cog:SetSize(16, 16)
-    cog:SetPoint("TOPRIGHT", h, "TOPRIGHT", -3, -3)
-    cog:RegisterForClicks("AnyUp")
-    cog.icon = cog:CreateTexture(nil, "ARTWORK")
-    cog.icon:SetAllPoints()
-    cog.icon:SetTexture(UI.COGS_ICON)
-    cog.icon:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    cog:Hide()
-    item.cog = cog
-
-    local chain = h:CreateTexture(nil, "OVERLAY")
-    chain:SetSize(12, 12)
-    chain:SetPoint("RIGHT", text, "LEFT", -3, 0)
-    chain:SetTexture(CHAIN_TEX)
-    chain:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    chain:Hide()
-    item.chain = chain
-
-    local pick = ns.Font(h, 11, "OUTLINE")
-    pick:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
-    pick:SetPoint("CENTER", h, "CENTER")
-    pick:SetJustifyH("CENTER")
-    pick:Hide()
-
-    local state, goal, anim = 0, 0, CreateFrame("Frame", nil, h)
-    local hoverW, hoverH = 0, 0
-    local rest   -- the mover's own points while it is grown, to put back after
-
-    local function Over()
-        return h:IsMouseOver() or cog:IsMouseOver() or link:IsShown() and link:IsMouseOver()
-    end
-
-    -- s from 0 (at rest, the mover covering the element) to 1 (grown to fit name and links).
-    local function SetState(s)
-        local point, rel = text:GetPoint(1)
-        if point == "CENTER" and rel == h then text:SetPoint("CENTER", h, "CENTER", 0, s * 8) end
-        local shown = s > 0.01
-        cog:SetAlpha(s)
-        cog:SetShown(shown)
-        if item.link then
-            link:SetAlpha(s)
-            link:SetShown(shown and not placement.picking)
+-- A hidden element's plate goes clear and lets the mouse through; a locked one shows its
+-- padlock.
+function PaintMarks(item)
+    local hidden, h = IsHidden(item), item.handle
+    h:SetAlpha(hidden and 0 or 1)
+    h:EnableMouse(not hidden)
+    if h._lock then
+        if not h._lockSet then
+            h._lock:SetTexture(ns.Shared.Style.LOCK, nil, nil, "TRILINEAR")
+            h._lock:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1)
+            h._lockSet = true
         end
-        -- Grown around its own centre, held to the element so it moves with it.
-        if s > 0 and not rest then
-            local w, hh = h:GetWidth(), h:GetHeight()
-            local hx, hy = h:GetCenter()
-            local fx, fy = frame:GetCenter()
-            if (hoverW > w or hoverH > hh) and hx and fx then
-                local hl, hr, ht, hb = Bounds(h)
-                local fl, fr, ft, fb = Bounds(frame)
-                item.inset = { hl - fl, hr - fr, ht - ft, hb - fb }
-                rest = { w = w, h = hh }
-                for i = 1, h:GetNumPoints() do rest[i] = { h:GetPoint(i) } end
-                h:ClearAllPoints()
-                h:SetPoint("CENTER", frame, "CENTER", hx - fx, hy - fy)
-            end
-        end
-        if rest then
-            if s > 0 then
-                h:SetSize(rest.w + (math.max(rest.w, hoverW) - rest.w) * s, rest.h + (math.max(rest.h, hoverH) - rest.h) * s)
-            else
-                h:ClearAllPoints()
-                for _, p in ipairs(rest) do h:SetPoint(unpack(p)) end
-                if #rest == 1 then h:SetSize(rest.w, rest.h) end
-                rest = nil
-                item.inset = nil
-            end
-        end
+        h._lock:SetShown(IsLocked(item))
     end
-
-    local function AnimateTo(target)
-        goal = target
-        anim:SetScript("OnUpdate", function(self, dt)
-            local dir = goal > state and 1 or -1
-            state = state + dir * dt / ANIM_DUR
-            if (dir == 1 and state >= goal) or (dir == -1 and state <= goal) then
-                state = goal
-                self:SetScript("OnUpdate", nil)
-            end
-            SetState(state)
-        end)
-    end
-
-    function item.Expand()
-        item.hoverConfirmed = true
-        Refresh(item)
-        local rowW = item.link and (link.label:GetStringWidth() or 45) or 0
-        link:SetSize(rowW + 4, 14)
-        hoverW = math.max(text:GetStringWidth() or 0, rowW) + 16
-        hoverH = (text:GetStringHeight() or 10) + 4 + (item.link and 14 or 0) + 12
-        pick:Hide()
-        AnimateTo(1)
-    end
-
-    function item.Collapse(now)
-        item.hoverConfirmed = false
-        if now then
-            anim:SetScript("OnUpdate", nil)
-            state, goal = 0, 0
-            SetState(0)
-        else
-            AnimateTo(0)
-        end
-    end
-
-    function item.ShowPickText(msg)
-        anim:SetScript("OnUpdate", nil)
-        state, goal = 0, 0
-        SetState(0)
-        text:SetAlpha(0)
-        pick:SetText(ns.L(msg))
-        pick:Show()
-    end
-
-    function item.HidePickText()
-        pick:Hide()
-        text:SetAlpha(1)
-    end
-
-    link:SetScript("OnEnter", function()
-        link.label:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b, 1)
-        item.hovered = true
-        Refresh(item)
-        local info = AnchorOf(item.label)
-        if info then UI.ShowWidgetTooltip(link, LabelOf(info.target)) end
-    end)
-    link:SetScript("OnLeave", function()
-        UI.HideWidgetTooltip()
-        Refresh(item)
-    end)
-    link:SetScript("OnClick", function()
-        UI.HideWidgetTooltip()
-        if InCombatLockdown() then return end
-        if AnchorOf(item.label) then
-            Unanchor(item)
-        else
-            StartPick(item)
-        end
-    end)
-
-    cog:SetScript("OnEnter", function()
-        cog.icon:SetVertexColor(T.fg.r, T.fg.g, T.fg.b)
-        item.hovered = true
-        Refresh(item)
-    end)
-    cog:SetScript("OnLeave", function()
-        cog.icon:SetVertexColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    end)
-    cog:SetScript("OnClick", function()
-        if item.menuOpen then CloseMenus() else UI.SelectMover(h); OpenCogMenu(item) end
-    end)
-
-    h:SetScript("OnEnter", function()
-        if not placement.active then return end
-        item.hovered = true
-        Refresh(item)
-        if placement.picking or placement.snapPicker then return end
-        item.hoverPending = true
-        C_Timer.After(HOVER_DELAY, function()
-            if item.hoverPending and Over() then item.Expand() end
-            item.hoverPending = false
-        end)
-    end)
-    h:SetScript("OnLeave", function()
-        if item.dragging then return end
-        C_Timer.After(HOVER_DELAY, function()
-            if item.dragging or Over() or item.menuOpen then return end
-            item.hoverPending = false
-            item.hovered = false
-            if placement.picking ~= item then item.Collapse() end
-            Refresh(item)
-        end)
-    end)
+    if hidden and placement.selected == item then UI.ClearMoverSelection() end
 end
-
 -- page: the options page that sets the element up ("QoL/General"); feature: the section on
--- it to open, if it has one. ownAnchor: it holds itself to the screen its own way, so it
--- takes no anchor of its own (it can still be anchored to).
+-- it to open, if it has one. ownAnchor: it holds itself to the screen its own way, so it takes
+-- no anchor (others can still anchor to it).
 function UI.BindMover(handle, frame, label, onMoved, page, feature, ownAnchor)
     local item = { handle = handle, frame = frame, label = label, save = onMoved, page = page, feature = feature,
         ownAnchor = ownAnchor }
@@ -1576,91 +1479,84 @@ function UI.BindMover(handle, frame, label, onMoved, page, feature, ownAnchor)
     end
     placement.items[#placement.items + 1] = item
     placement.byLabel[label] = item
-    frame:HookScript("OnSizeChanged", function() Queue(label, "size") end)
     -- The mover can cover more than the frame (a reminder's sample), and grows with it.
+    frame:HookScript("OnSizeChanged", function() Queue(label, "size") end)
     handle:HookScript("OnSizeChanged", function() Queue(label, "size") end)
     hooksecurefunc(frame, "SetPoint", function()
-        if not item.dragging then C_Timer.After(0, function() Moved(item) end) end
+        if not item.dragging then Queue(label) end
     end)
     -- A module's own resize grip sizes the frame from a corner of its choosing: the anchor
     -- leaves it be until the grip lets go.
     hooksecurefunc(frame, "StartSizing", function() item.sizing = true end)
-    -- A module's own drag (a window dragged by its title) or resize: an anchored element keeps
-    -- its anchor with the gap it was dropped at, as an Unlock Mode drag does.
     hooksecurefunc(frame, "StopMovingOrSizing", function()
         item.sizing = nil
-        C_Timer.After(0, function()
-            Recapture(item)
-            Propagate(label)
-        end)
+        C_Timer.After(0, function() Moved(item) end)
     end)
-
+    Queue(label, "size")
     handle:EnableMouse(true)
     handle:RegisterForDrag("LeftButton")
-    BuildChrome(item)
+    handle:SetScript("OnEnter", function()
+        if not placement.active then return end
+        item.hovered = true
+        Refresh(item)
+    end)
+    handle:SetScript("OnLeave", function()
+        item.hovered = false
+        Refresh(item)
+    end)
     handle:SetScript("OnMouseDown", function() item.dragged = nil end)
     handle:SetScript("OnMouseUp", function(_, button)
         if not placement.active or InCombatLockdown() or item.dragging or item.dragged then return end
-        if button == "LeftButton" then
-            if placement.picking then
-                PickTarget(item)
-            elseif placement.snapPicker then
-                local picker = placement.snapPicker
-                if picker ~= item then
-                    placement.snapPicker = nil
-                    picker.snapTarget, picker.preSnapTarget = item.label, nil
-                    Dim(false)
-                end
-            elseif placement.selected == item then
-                UI.ClearMoverSelection()
-            else
-                UI.SelectMover(handle)
-            end
-        elseif button == "RightButton" then
-            if placement.snapPicker then return end
-            if IsShiftKeyDown() then
-                item.tempHidden = true
-                if placement.selected == item then UI.ClearMoverSelection() end
-                handle:Hide()
-                return
-            end
+        if button ~= "LeftButton" then return end
+        if placement.picking then
+            PickTarget(item)
+        elseif IsShiftKeyDown() then
+            UI.SelectMover(handle, true)
+        elseif placement.selected == item and not Grouped() then
+            UI.ClearMoverSelection()
+        else
             UI.SelectMover(handle)
-            OpenCogMenu(item)
         end
     end)
     handle:SetScript("OnDragStart", function() UI.StartMoverDrag(handle) end)
     handle:SetScript("OnDragStop", function() UI.StopMoverDrag(handle) end)
-    handle:HookScript("OnShow", function(self)
-        if item.tempHidden and placement.active then self:Hide() end
-    end)
     handle:HookScript("OnHide", function()
-        StopPlacementDrag(item)
+        StopDrag(item)
+        item.hovered = false
         if placement.selected == item then UI.ClearMoverSelection() end
-        if placement.menuItem == item then CloseMenus() end
-        if placement.picking == item then CancelPick() end
-        item.Collapse(true)
+        RefreshPanel()
     end)
+    handle:HookScript("OnShow", function() RefreshPanel() end)
     Refresh(item)
 end
 
--- Unlock Mode plate for an on-screen display. Hidden until the caller shows it. page,
+-- HUD Editor plate for an on-screen display. Hidden until the caller shows it. page,
 -- feature and ownAnchor: as UI.BindMover's.
 function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetAllPoints()
     mover:SetFrameLevel(frame:GetFrameLevel() + 20)
-    ns.Solid(mover, "BACKGROUND", T.accent, 0.35):SetAllPoints()
-    mover._border = ns.Border(mover, T.accent)
-    local text = ns.Font(mover, 12, "OUTLINE")
+    mover._fill = ns.Solid(mover, "BACKGROUND", T.bg, MOVER_FILL)
+    mover._fill:SetAllPoints()
+    local strip = ns.Solid(mover, "ARTWORK", T.accent, 1)
+    strip:SetPoint("TOPLEFT")
+    strip:SetPoint("TOPRIGHT")
+    strip:SetHeight(MOVER_STRIP)
+    mover._border = ns.Border(mover, BLACK)
+    local text = ns.Shared.Parts.HudText(ns.Font(mover, 12))
     text:SetPoint("CENTER", mover, "CENTER")
     text:SetText(label)
     mover.text = text
+    mover._lock = mover:CreateTexture(nil, "OVERLAY")
+    mover._lock:SetSize(LOCK_BADGE, LOCK_BADGE)
+    mover._lock:SetPoint("TOPRIGHT", -LOCK_INSET, -LOCK_INSET)
+    mover._lock:Hide()
     UI.BindMover(mover, frame, label, onMoved, page, feature, ownAnchor)
     mover:Hide()
     return mover
 end
 
---- The position to save for a window that drags itself outside Unlock Mode: CENTER on the
+--- The position to save for a window that drags itself outside the HUD Editor: CENTER on the
 --- screen centre, where it is now. Nil before it has a size.
 function UI.CenterPosition(frame)
     local l, r, t, b, ratio = Bounds(frame)
@@ -1672,4 +1568,595 @@ function UI.CenterPosition(frame)
     return { point = "CENTER", relPoint = "CENTER", x = x, y = y }
 end
 
-WatchAnchors()
+-- Anchors catch up on entering the world, after every profile switch (ns.Apply) and after
+-- combat held a protected one back. The old anchors and snap switch were dropped before; every
+-- move they made was saved as the element's own position, so only their keys go.
+local watch = CreateFrame("Frame")
+watch:RegisterEvent("PLAYER_LOGIN")
+watch:RegisterEvent("PLAYER_ENTERING_WORLD")
+watch:RegisterEvent("PLAYER_REGEN_ENABLED")
+watch:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_LOGIN" then
+        hooksecurefunc(ns, "Apply", function()
+            local db = ns.UnlockModeSettings.DB()
+            db.anchors, db.snap = nil, nil
+            C_Timer.After(0, ReapplyAll)
+        end)
+    elseif event == "PLAYER_ENTERING_WORLD" or placement.parked then
+        placement.parked = nil
+        C_Timer.After(0, ReapplyAll)
+    end
+end)
+
+-------------------------------------------------------------------------------
+--  Entering and leaving Unlock Mode: the toolbar, the grid and the movers. Every module
+--  hooks ns.ShowRaidReminderAnchorConfig and ns.HideRaidReminderAnchorConfig to show and
+--  hide its own frames.
+-------------------------------------------------------------------------------
+-- Unlock Mode's grid, measured out from the screen's centre: faint lines in the text colour,
+-- every GRID_MAJOR-th one stronger, and the centre lines in the accent with a square where
+-- they cross.
+local GRID_SPACING = 32
+local GRID_MAJOR = 4
+local GRID_LINE_ALPHA = 0.08
+local GRID_MAJOR_ALPHA = 0.18
+local GRID_CENTER_ALPHA = 0.6
+local GRID_MARK = 6        -- the centre square, in pixels
+local gridOverlay
+
+local function BuildGridOverlay()
+    if gridOverlay then return gridOverlay end
+    gridOverlay = CreateFrame("Frame", nil, UIParent)
+    gridOverlay:SetFrameStrata("BACKGROUND")
+    gridOverlay:SetFrameLevel(1)
+    gridOverlay:SetAllPoints(UIParent)
+    gridOverlay._lines = {}
+    gridOverlay:Hide()
+
+    function gridOverlay:Rebuild()
+        for i = 1, #self._lines do self._lines[i]:Hide() end
+        local w, h = UIParent:GetWidth(), UIParent:GetHeight()
+        -- One physical pixel: fractional widths blur across two pixels.
+        local mult = Pixel()
+        local spacing = GRID_SPACING * mult
+        local function Snap(v) return math.floor(v / mult + 0.5) * mult end
+        local centerX, centerY = Snap(w / 2), Snap(h / 2)
+        local idx = 0
+
+        local function Line(isVert, pos, alpha, c)
+            c = c or T.fg
+            idx = idx + 1
+            local tex = self._lines[idx]
+            if not tex then
+                tex = self:CreateTexture(nil, "BACKGROUND", nil, -7)
+                if tex.SetSnapToPixelGrid then
+                    tex:SetSnapToPixelGrid(false)
+                    tex:SetTexelSnappingBias(0)
+                end
+                self._lines[idx] = tex
+            end
+            tex:SetColorTexture(c.r, c.g, c.b, alpha)
+            tex:ClearAllPoints()
+            if isVert then
+                tex:SetSize(mult, h)
+                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", pos, 0)
+            else
+                tex:SetSize(w, mult)
+                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -pos)
+            end
+            tex:Show()
+        end
+
+        local function Lines(isVert, center, size)
+            for dir = -1, 1, 2 do
+                local n, pos = 1, center + dir * spacing
+                while pos > 0 and pos < size do
+                    Line(isVert, Snap(pos), n % GRID_MAJOR == 0 and GRID_MAJOR_ALPHA or GRID_LINE_ALPHA)
+                    n, pos = n + 1, pos + dir * spacing
+                end
+            end
+        end
+        Lines(true, centerX, w)
+        Lines(false, centerY, h)
+        Line(true, centerX, GRID_CENTER_ALPHA, T.accent)
+        Line(false, centerY, GRID_CENTER_ALPHA, T.accent)
+
+        if not self._mark then self._mark = self:CreateTexture(nil, "BACKGROUND", nil, -6) end
+        self._mark:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
+        self._mark:SetSize(GRID_MARK * mult, GRID_MARK * mult)
+        self._mark:ClearAllPoints()
+        self._mark:SetPoint("CENTER", UIParent, "TOPLEFT", centerX, -centerY)
+    end
+
+    return gridOverlay
+end
+
+function ns.SetAnchorGridShown(shown)
+    if not shown then
+        if gridOverlay then gridOverlay:Hide() end
+        return
+    end
+    local g = BuildGridOverlay()
+    g:Rebuild()
+    g:Show()
+end
+
+-------------------------------------------------------------------------------
+--  The Elements panel: every element on screen in the HUD Editor, by module, found by name. A
+--  row's eye keeps the element out of the way while editing, its padlock holds it in place, and
+--  a click on the row selects it.
+-------------------------------------------------------------------------------
+local PANEL_W, PANEL_PAD, PANEL_HEAD = 248, 12, 40
+local PANEL_LIST_H = 420               -- the list's height; longer lists scroll
+local ROW_H, GROUP_H = 24, 22
+local ROW_ICON, ROW_ICON_GAP = 14, 8
+local ROW_HIDDEN_ALPHA = 0.45          -- a hidden element's row
+local ROW_FILL = 0.16                  -- the selected row, in the accent
+local panel, panelQueued
+
+local function GroupOf(item)
+    return item.page and item.page:match("^[^/]+") or "Other"
+end
+
+local function PanelList()
+    local filter = panel.search:GetText():lower()
+    local groups, byName = {}, {}
+    for _, item in ipairs(placement.items) do
+        if item.handle:IsShown() and (filter == "" or item.label:lower():find(filter, 1, true)) then
+            local name = GroupOf(item)
+            local group = byName[name]
+            if not group then
+                group = { name = name }
+                byName[name] = group
+                groups[#groups + 1] = group
+            end
+            group[#group + 1] = item
+        end
+    end
+    table.sort(groups, function(a, b) return a.name < b.name end)
+    for _, group in ipairs(groups) do table.sort(group, function(a, b) return a.label < b.label end) end
+    return groups
+end
+
+local function ToggleMark(key, item)
+    local marks = Marks(key)
+    marks[item.label] = not marks[item.label] or nil
+    PaintMarks(item)
+    Refresh(item)
+    RefreshPanel()
+end
+
+local function RowEnter(row)
+    local item = row.item
+    if item and not IsHidden(item) then
+        item.hovered = true
+        Refresh(item)
+    end
+end
+
+local function RowLeave(row)
+    local item = row.item
+    if item then
+        item.hovered = false
+        Refresh(item)
+    end
+end
+
+local function NewRow(child)
+    local Parts = ns.Shared.Parts
+    local St = ns.Shared.Style
+    local row = CreateFrame("Button", nil, child)
+    row:SetHeight(ROW_H)
+    row.fill = ns.Solid(row, "BACKGROUND", T.accent, ROW_FILL)
+    row.fill:SetAllPoints()
+    row.mark = ns.Solid(row, "ARTWORK", T.accent, 1)
+    row.mark:SetPoint("TOPLEFT")
+    row.mark:SetPoint("BOTTOMLEFT")
+    row.mark:SetWidth(MOVER_STRIP)
+    row.lock = Parts.IconButton(row, function() ToggleMark("locked", row.item) end, St.LOCK, nil, "Lock in place")
+    row.lock:SetSize(ROW_ICON, ROW_ICON)
+    row.lock.icon:SetSize(ROW_ICON, ROW_ICON)
+    row.lock:SetPoint("RIGHT", -PANEL_PAD, 0)
+    row.eye = Parts.IconButton(row, function() ToggleMark("hidden", row.item) end, St.EYE, nil, "Hide while editing")
+    row.eye:SetSize(ROW_ICON, ROW_ICON)
+    row.eye.icon:SetSize(ROW_ICON, ROW_ICON)
+    row.eye:SetPoint("RIGHT", row.lock, "LEFT", -ROW_ICON_GAP, 0)
+    row.label = ns.Font(row, 12)
+    row.label:SetPoint("LEFT", PANEL_PAD, 0)
+    row.label:SetPoint("RIGHT", row.eye, "LEFT", -ROW_ICON_GAP, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(false)
+    row:SetScript("OnClick", function(self)
+        if self.item then UI.SelectMover(self.item.handle, IsShiftKeyDown()) end
+    end)
+    row:SetScript("OnEnter", RowEnter)
+    row:SetScript("OnLeave", RowLeave)
+    return row
+end
+
+local function PaintRow(row, item)
+    local St = ns.Shared.Style
+    local hidden, locked, picked = IsHidden(item), IsLocked(item), item.selected == true
+    row.item = item
+    row.label:SetText(item.label)
+    row.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, hidden and ROW_HIDDEN_ALPHA or 1)
+    row.fill:SetShown(picked)
+    row.mark:SetShown(picked)
+    row.eye.icon:SetTexture(hidden and St.EYE_OFF or St.EYE, nil, nil, "TRILINEAR")
+    row.eye.tip = hidden and "Show while editing" or "Hide while editing"
+    local eye = hidden and T.fg or T.muted
+    row.eye.icon:SetVertexColor(eye.r, eye.g, eye.b, 1)
+    row.lock.tip = locked and "Unlock" or "Lock in place"
+    local lock = locked and T.accent or T.muted
+    row.lock.icon:SetVertexColor(lock.r, lock.g, lock.b, locked and 1 or ROW_HIDDEN_ALPHA)
+end
+
+local function DrawPanel()
+    panelQueued = false
+    if not (panel and panel:IsShown()) then return end
+    local child, rows, titles = panel.child, panel.rows, panel.titles
+    local y, r, g, shown, hidden = 0, 0, 0, 0, 0
+    for _, group in ipairs(PanelList()) do
+        g = g + 1
+        local title = titles[g]
+        if not title then
+            title = ns.Font(child, 10, nil, T.muted)
+            titles[g] = title
+        end
+        title:ClearAllPoints()
+        title:SetPoint("TOPLEFT", PANEL_PAD, -(y + GROUP_H - 6))
+        title:SetText(group.name:upper())
+        title:Show()
+        y = y + GROUP_H
+        for _, item in ipairs(group) do
+            r = r + 1
+            local row = rows[r] or NewRow(child)
+            rows[r] = row
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", 0, -y)
+            row:SetPoint("TOPRIGHT", 0, -y)
+            PaintRow(row, item)
+            row:Show()
+            y = y + ROW_H
+            shown = shown + 1
+            if IsHidden(item) then hidden = hidden + 1 end
+        end
+    end
+    for i = r + 1, #rows do
+        rows[i].item = nil
+        rows[i]:Hide()
+    end
+    for i = g + 1, #titles do titles[i]:Hide() end
+    child:SetHeight(math.max(1, y))
+    panel.count:SetText(hidden > 0 and (shown .. ns.Shared.Style.PLACE_DOT .. hidden .. " hidden") or tostring(shown))
+end
+
+-- One redraw a frame, however many changes ask for it.
+function RefreshPanel()
+    if panelQueued or not (panel and panel:IsShown()) then return end
+    panelQueued = true
+    C_Timer.After(0, DrawPanel)
+end
+
+local function BuildPanel()
+    if panel then return panel end
+    local St = ns.Shared.Style
+    local f = CreateFrame("Frame", "NaowhForeverHudElements", UIParent)
+    f:SetSize(PANEL_W, PANEL_HEAD + St.SEARCH_H + PANEL_PAD + PANEL_LIST_H + PANEL_PAD)
+    f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 16, -140)
+    f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:SetFrameLevel(505)
+    f:SetClampedToScreen(true)
+    ns.AllowOffscreen(f)
+    ns.Shared.Parts.Backdrop(f):Paint(St.BACKDROP_ALPHA)
+    ns.Border(f, St.BORDER_RGB)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    local title = ns.Font(f, 14)
+    title:SetPoint("LEFT", f, "TOPLEFT", PANEL_PAD, -PANEL_HEAD / 2)
+    title:SetText("Elements")
+    f.count = ns.Font(f, 11, nil, T.muted)
+    f.count:SetPoint("RIGHT", f, "TOPRIGHT", -PANEL_PAD, -PANEL_HEAD / 2)
+    f.search = ns.Shared.Parts.SearchBox(f, "Find an element", function() RefreshPanel() end)
+    f.search:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEAD)
+    f.search:SetPoint("TOPRIGHT", -PANEL_PAD, -PANEL_HEAD)
+    f.search:SetHeight(St.SEARCH_H)
+    local scroll = UI.SlimScroll(f)
+    scroll:SetPoint("TOPLEFT", 0, -(PANEL_HEAD + St.SEARCH_H + PANEL_PAD))
+    scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD, PANEL_PAD)
+    local child = CreateFrame("Frame", nil, scroll)
+    child:SetSize(PANEL_W - PANEL_PAD, 1)
+    scroll:SetScrollChild(child)
+    f.child, f.rows, f.titles = child, {}, {}
+    f:SetScript("OnShow", function() RefreshPanel() end)
+    f:Hide()
+    panel = f
+    return f
+end
+
+local function ShowPanel(shown)
+    if shown then BuildPanel():Show() elseif panel then panel:Hide() end
+end
+
+local configActive, reopenWindowOnExit = false, false
+local configToolbar
+-- Switches a module adds under the header, each { label, get, set, enabled }, under a
+-- section name (Smart Reminders' anchors).
+local toolbarChecks, toolbarSection = {}, nil
+
+function ns.AddUnlockModeChecks(section, checks)
+    toolbarSection = section
+    for _, c in ipairs(checks) do toolbarChecks[#toolbarChecks + 1] = c end
+end
+
+-- The HUD Editor's toolbar: the windows' backdrop and black edge, a header with the logo, the
+-- title and Exit Config, then the switches.
+local BAR_W, BAR_PAD, BAR_GAP = 352, 14, 10
+local BAR_HEAD = 40                   -- the header, down to its rule
+local BAR_LOGO = 20
+local EXIT_W, EXIT_H = 96, 22
+local SWITCH_W, SWITCH_H = 28, 14
+local SWITCH_ROW = 22
+local SWITCH_COL = (BAR_W - 2 * BAR_PAD) / 2
+local LABEL_GAP = 8                   -- a switch to its label
+local SECTION_H = 18                  -- a section's muted name over its switches
+local OFF_ALPHA = 0.4                 -- a module's switches while it is off; Undo with nothing to undo
+local HISTORY_W, ELEMENTS_W = 64, 84
+local LAYOUT_LETTERS = 20
+
+local function BarRule(f, y)
+    local rule = ns.Solid(f, "ARTWORK", ns.Shared.Style.BORDER_RGB, 1)
+    rule:SetPoint("TOPLEFT", 0, -y)
+    rule:SetPoint("TOPRIGHT", 0, -y)
+    ns.Hairline(rule, "h")
+end
+
+-- A house switch with its label, at y below the toolbar's top in column col (0 or 1).
+local function BarSwitch(f, text, col, y, get, set)
+    local switch = UI.BuildToggleControl(f, nil, get, set, SWITCH_W, SWITCH_H)
+    switch:SetPoint("TOPLEFT", f, "TOPLEFT", BAR_PAD + col * SWITCH_COL, -y)
+    switch.label = ns.Font(f, 11)
+    switch.label:SetPoint("LEFT", switch, "RIGHT", LABEL_GAP, 0)
+    switch.label:SetText(text)
+    return switch
+end
+
+-- Undo, Redo and Revert dim with nothing to do, Elements lights while its panel shows.
+local function Usable(button, on)
+    button:SetAlpha(on and 1 or OFF_ALPHA)
+    button:EnableMouse(on)
+end
+
+function PaintHistory()
+    local f = configToolbar
+    if not f then return end
+    Usable(f._undo, #undo > 0)
+    Usable(f._redo, #redo > 0)
+    Usable(f._revert, #undo > 0)
+    local on = ns.UnlockModeSettings.Get("elementsPanel") ~= false
+    local edge = on and T.accent or BLACK
+    f._elements._rest = edge
+    f._elements._border:SetColor(edge.r, edge.g, edge.b, 1)
+end
+
+-------------------------------------------------------------------------------
+--  Layouts: every element's spot and anchor kept under a name, per profile. Loading one is a
+--  change like any other, so Undo takes it back; a locked element stays where it is.
+-------------------------------------------------------------------------------
+local function Layouts()
+    local db = ns.UnlockModeSettings.DB()
+    if type(db.layouts) ~= "table" then db.layouts = {} end
+    return db.layouts
+end
+
+-- The layout last saved or loaded, while it still exists.
+local function CurrentLayout()
+    local name = ns.UnlockModeSettings.Get("layout")
+    return name and Layouts()[name] and name
+end
+
+local function PaintLayout()
+    if configToolbar then configToolbar._layout.label:SetText(CurrentLayout() or ns.L("Layouts")) end
+end
+
+local function SaveLayout(name)
+    Layouts()[name] = Snapshot()
+    ns.UnlockModeSettings.Set("layout", name)
+    PaintLayout()
+end
+
+local function LoadLayout(name)
+    local saved = Layouts()[name]
+    if InCombatLockdown() or placement.dragging or not saved then return end
+    local locked, snap = Marks("locked"), { spots = {}, anchors = {} }
+    for label, spot in pairs(saved.spots) do
+        if not locked[label] then snap.spots[label] = spot end
+    end
+    for label, info in pairs(saved.anchors) do
+        if not locked[label] then snap.anchors[label] = info end
+    end
+    for label, info in pairs(Anchors()) do
+        if locked[label] and type(info) == "table" then snap.anchors[label] = info end
+    end
+    Checkpoint()
+    Restore(snap)
+    ReapplyAll()
+    if Grouped() then ShowSelection() end
+    ns.UnlockModeSettings.Set("layout", name)
+    PaintLayout()
+end
+
+-- "|" starts an escape code wherever the name is drawn.
+local function NamePrompt(title, text, save)
+    ns.PromptText(title, text, LAYOUT_LETTERS, function(name)
+        name = strtrim((name:gsub("|", "")))
+        if name ~= "" then save(name) end
+    end)
+end
+
+local function NewLayout()
+    NamePrompt("Name the new layout", "", function(name)
+        if not Layouts()[name] then return SaveLayout(name) end
+        ns.Confirm(("Replace the layout %s with where everything is now?"):format(name), function() SaveLayout(name) end)
+    end)
+end
+
+local function RenameLayout()
+    local current = CurrentLayout()
+    NamePrompt("Rename this layout", current, function(name)
+        local layouts = Layouts()
+        if name == current then return end
+        if layouts[name] then return ns.Print(("There is already a layout named %s."):format(name)) end
+        layouts[name], layouts[current] = layouts[current], nil
+        ns.UnlockModeSettings.Set("layout", name)
+        PaintLayout()
+    end)
+end
+
+local function DeleteLayout()
+    local current = CurrentLayout()
+    ns.Confirm(("Delete the layout %s? Everything stays where it is now."):format(current), function()
+        Layouts()[current] = nil
+        ns.UnlockModeSettings.Set("layout", nil)
+        PaintLayout()
+    end)
+end
+
+local function LayoutMenu(owner)
+    local names = {}
+    for name in pairs(Layouts()) do names[#names + 1] = name end
+    table.sort(names, function(a, b) return a:lower() < b:lower() end)
+    local current = CurrentLayout()
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle("Layouts")
+        for _, name in ipairs(names) do
+            root:CreateRadio(name, function() return name == CurrentLayout() end, LoadLayout, name)
+        end
+        root:CreateDivider()
+        if current then root:CreateButton("Save to " .. current, function() SaveLayout(current) end) end
+        root:CreateButton("Save as New Layout", NewLayout)
+        if current then
+            root:CreateButton("Rename " .. current, RenameLayout)
+            root:CreateButton("Delete " .. current, DeleteLayout)
+        end
+    end)
+end
+
+local function BuildConfigToolbar()
+    if configToolbar then return configToolbar end
+    local St = ns.Shared.Style
+    local f = CreateFrame("Frame", "NaowhForeverRaidReminderAnchorConfig", UIParent)
+    f:SetWidth(BAR_W)
+    f:SetPoint("TOP", UIParent, "TOP", 0, -140)
+    f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:SetFrameLevel(510)
+    f:SetToplevel(true)
+    f:SetClampedToScreen(true)
+    ns.AllowOffscreen(f)
+    ns.Shared.Parts.Backdrop(f):Paint(St.BACKDROP_ALPHA)
+    ns.Border(f, St.BORDER_RGB)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+
+    local logo = f:CreateTexture(nil, "ARTWORK")
+    logo:SetTexture(St.LOGO, nil, nil, "TRILINEAR")
+    logo:SetSize(BAR_LOGO, BAR_LOGO)
+    logo:SetPoint("LEFT", f, "TOPLEFT", BAR_PAD, -BAR_HEAD / 2)
+    local title = ns.Font(f, 14)
+    title:SetPoint("LEFT", logo, "RIGHT", LABEL_GAP, 0)
+    title:SetText("HUD Editor")
+    local exit = ns.AccentBorder(ns.Button(f, "Exit Config", EXIT_W, EXIT_H, function() ns.HideRaidReminderAnchorConfig() end))
+    exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
+    BarRule(f, BAR_HEAD)
+
+    local y = BAR_HEAD + BAR_GAP
+    f._undo = ns.Button(f, "Undo", HISTORY_W, EXIT_H, function() UI.UndoMove() end)
+    f._undo:SetPoint("TOPLEFT", BAR_PAD, -y)
+    ns.Tooltip(f._undo, "Undo", "Puts back the last change. Ctrl + Z.")
+    f._redo = ns.Button(f, "Redo", HISTORY_W, EXIT_H, function() UI.RedoMove() end)
+    f._redo:SetPoint("LEFT", f._undo, "RIGHT", BAR_GAP / 2, 0)
+    ns.Tooltip(f._redo, "Redo", "Makes the change again. Ctrl + Y.")
+    f._revert = ns.Button(f, "Revert", HISTORY_W, EXIT_H, function() UI.RevertMoves() end)
+    f._revert:SetPoint("LEFT", f._redo, "RIGHT", BAR_GAP / 2, 0)
+    ns.Tooltip(f._revert, "Revert", "Puts back everything changed since the HUD Editor opened.")
+    f._elements = ns.Button(f, "Elements", ELEMENTS_W, EXIT_H, function()
+        local on = ns.UnlockModeSettings.Get("elementsPanel") == false
+        ns.UnlockModeSettings.Set("elementsPanel", on)
+        ShowPanel(on)
+        PaintHistory()
+    end)
+    f._elements:SetPoint("TOPRIGHT", -BAR_PAD, -y)
+    ns.Tooltip(f._elements, "Elements", "Shows or hides the list of every element.")
+    y = y + EXIT_H + BAR_GAP
+    f._guides = BarSwitch(f, "Guides", 0, y, GuidesOn, function(v) ns.UnlockModeSettings.Set("guides", v) end)
+    ns.Tooltip(f._guides, "Guides", "Lines a dragged element up with the others and the screen centre. Hold Alt to drag freely.")
+    f._layout = ns.Button(f, "Layouts", SWITCH_COL, EXIT_H, function() LayoutMenu(f._layout) end)
+    f._layout:SetPoint("TOPRIGHT", -BAR_PAD, -(y + (SWITCH_H - EXIT_H) / 2))
+    ns.Tooltip(f._layout, "Layouts", "Saves where everything is under a name, to load again later.")
+    y = y + SWITCH_ROW
+    local switches = {}
+    if #toolbarChecks > 0 then
+        y = y + BAR_GAP
+        f._section = ns.Font(f, 11, nil, T.muted)
+        f._section:SetPoint("TOPLEFT", BAR_PAD, -y)
+        y = y + SECTION_H
+        for i, c in ipairs(toolbarChecks) do
+            local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+            switches[i] = BarSwitch(f, c.label, col, y + row * SWITCH_ROW, c.get, c.set)
+        end
+        y = y + math.ceil(#toolbarChecks / 2) * SWITCH_ROW + BAR_GAP / 2
+    end
+    f:SetHeight(y)
+
+    f._switches = switches
+    configToolbar = f
+    return f
+end
+
+function ns.ShowRaidReminderAnchorConfig()
+    -- Stash before arming: hiding the window runs HideRaidReminderAnchorConfig via
+    -- OnHide, which disarmed the mode in the same click when armed first.
+    local reopen = ns.StashOptionsWindow and ns.StashOptionsWindow() or false
+    configActive = true
+    UI.BeginMoverMode()
+    reopenWindowOnExit = reopen
+    local f = BuildConfigToolbar()
+    f._guides._refreshValue()
+    PaintHistory()
+    PaintLayout()
+    ShowPanel(ns.UnlockModeSettings.Get("elementsPanel") ~= false)
+    for _, item in ipairs(placement.items) do PaintMarks(item) end
+    if f._section then f._section:SetText(toolbarSection()) end
+    for i, c in ipairs(toolbarChecks) do
+        local switch, on = f._switches[i], c.enabled()
+        switch._refreshValue()
+        switch:EnableMouse(on)
+        switch:SetAlpha(on and 1 or OFF_ALPHA)
+        switch.label:SetAlpha(on and 1 or OFF_ALPHA)
+    end
+    f:Show()
+    ns.SetAnchorGridShown(true)
+end
+
+-- windowClosing: called from the options window's own OnHide, which must not reopen it.
+function ns.HideRaidReminderAnchorConfig(windowClosing)
+    configActive = false
+    UI.EndMoverMode()
+    ns.SetAnchorGridShown(false)
+    if configToolbar then configToolbar:Hide() end
+    ShowPanel(false)
+    if reopenWindowOnExit then
+        reopenWindowOnExit = false
+        if not windowClosing and ns.OpenOptionsWindow then ns.OpenOptionsWindow() end
+    end
+end
+
+function ns.IsRaidReminderAnchorConfigActive()
+    return configActive
+end

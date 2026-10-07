@@ -2,6 +2,8 @@
 -- only opened, or cancelled, leaves the colour unset so it keeps following the theme; a text
 -- shows in one spot at a time, the level's three forms counting as one; the texts are
 -- measured again only when one of them changed; and its Played text comes from Shared.Played.
+-- Its look: the defaults draw today's flat bar and outlined texts, and Font, Font Size, Outline,
+-- Bar Texture and Background Opacity each apply.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -182,6 +184,65 @@ do
     check("a ding missed while nobody listened asks again", requests == 2)
     check("the bar asks only while its Played text shows", source:find(
         'if ShowsText("played") then Played.Want("xpBar") else Played.Drop("xpBar") end', 1, true))
+end
+
+-- The bar's texture and background: flat and 85% by default, then the picked ones.
+do
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local chunk = assert(source:match("(local FILL_FROM = .-\nlocal function PaintBar%(b%).-\nend)\n"))
+    local S = Settings({ xpBarTexture = "", xpBarBgAlpha = 0.85 })
+    local function Tex()
+        local t = {}
+        function t.SetTexture(self, path) self.texture = path end
+        function t.SetVertexColor(self, r, g, b, a) self.color = { r, g, b, a } end
+        function t.SetColorTexture(self, r, g, b, a) self.color = { r, g, b, a } end
+        function t.SetGradient() end
+        function t.SetColor() end
+        return t
+    end
+    local b = { fill = Tex(), done = Tex(), open = Tex(), rested = Tex(), bg = Tex(), edge = Tex() }
+    local env = { S = S, T = { accent = { r = 0, g = 0.5, b = 1 }, bg = { r = 0.1, g = 0.1, b = 0.1 } },
+        CreateColor = function(r, g, bl, a) return { r = r, g = g, b = bl, a = a } end,
+        ns = { ThemeTint = function(_, c) return c end,
+            UI = { TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end } } }
+    local PaintBar = Load(chunk .. "\nreturn PaintBar", env)
+    PaintBar(b)
+    local FLAT = "Interface\\Buttons\\WHITE8X8"
+    check("default: every segment flat", b.fill.texture == FLAT and b.done.texture == FLAT and b.open.texture == FLAT
+        and b.rested.texture == FLAT)
+    check("default: quest XP in full, incomplete faded", b.done.color[4] == 1 and b.open.color[4] == 0.4)
+    check("default: the background at 85%", b.bg.color[4] == 0.85 and b.bg.color[1] == 0.1)
+    S.Set("xpBarTexture", "Smooth")
+    S.Set("xpBarBgAlpha", 0.5)
+    PaintBar(b)
+    check("Bar Texture applies to the fill and every segment", b.fill.texture == "lsm:Smooth"
+        and b.done.texture == "lsm:Smooth" and b.rested.texture == "lsm:Smooth")
+    check("Background Opacity applies", b.bg.color[4] == 0.5)
+end
+
+-- The texts' font: the Addon Font outlined at 13 by default, then the picked font, size and outline.
+do
+    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local chunk = assert(source:match("(local TEXT_GAP = .-\nlocal function FitSlots%(slots, w, placeMid%).-\nend)\n"))
+    local S = Settings({ xpBarFont = "", xpBarFontSize = 13, xpBarOutline = "OUTLINE" })
+    local set = 0
+    local Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline; set = set + 1 end }
+    local FitSlots = Load(chunk .. "\nreturn FitSlots", { S = S, Parts = Parts, BESIDE = { 4, 5 },
+        TOP_LEFT = 1, TOP = 2, TOP_RIGHT = 3, BOTTOM_LEFT = 6, BOTTOM = 7, BOTTOM_RIGHT = 8 })
+    local slots = {}
+    for i = 1, 8 do
+        slots[i] = { GetText = function() return "" end, SetWidth = function() end, GetStringWidth = function() return 0 end }
+    end
+    FitSlots(slots, 500, function() end)
+    check("default: the Addon Font, outlined, at 13", slots[1].font == " 13 OUTLINE" and slots[4].font == " 13 OUTLINE")
+    set = 0
+    FitSlots(slots, 500, function() end)
+    check("an unchanged font is not set again", set == 0)
+    S.Set("xpBarFont", "Arial")
+    S.Set("xpBarOutline", "")
+    S.Set("xpBarFontSize", 16)
+    FitSlots(slots, 500, function() end)
+    check("Font, Outline and Font Size apply around the bar", slots[2].font == "Arial 16 " and slots[5].font == "Arial 16 ")
 end
 
 print(("test-xp-bar: %d checks passed"):format(checks))

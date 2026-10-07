@@ -8,12 +8,13 @@
 local ns = _G.NaowhForever
 local T = ns.THEME
 local Shared = ns.Shared
-local Parts, St, View = Shared.Parts, Shared.Style, Shared.View
+local Parts, St, View, Items = Shared.Parts, Shared.Style, Shared.View, Shared.Items
 local Scrap = ns.ScrapMarker
 
 local GetItemInfo = C_Item.GetItemInfo
 local GetItemCount = C_Item.GetItemCount
 local GetItemInfoInstant = C_Item.GetItemInfoInstant
+local GetItemQualityByID = C_Item.GetItemQualityByID
 local GetContainerItemID = C_Container.GetContainerItemID
 local GetContainerNumSlots = C_Container.GetContainerNumSlots
 
@@ -26,6 +27,9 @@ local CLEAR_W, CLEAR_H = 100, 24
 local EXPORT_PREFIX = "NFSCRAP:1:"
 local IMPORT_MAX = 500
 local IMPORT_LETTERS = 4000
+local SHOWN_NAMES = 3
+local UNCOMMON, RARE = 2, 3
+local HIGH_VALUE, HIGH_VALUE_TEXT = 10000, "1g"
 local LAST_BAG = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS
 local EVENTS = { "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "EQUIPMENT_SETS_CHANGED" }
 local EMPTY_NOTE = "Nothing marked. Alt-click an item in your bags to mark it."
@@ -181,7 +185,7 @@ local function Parse(text)
     local out, got = {}, {}
     for digits in body:gmatch("%d+") do
         local id = tonumber(digits)
-        if id and id > 0 and not got[id] then
+        if id and id > 0 and id < 2147483648 and not got[id] then
             got[id] = true
             out[#out + 1] = id
             if #out >= IMPORT_MAX then break end
@@ -190,6 +194,48 @@ local function Parse(text)
     return out
 end
 Scrap.Parse = Parse
+
+local function QualityFirst(a, b)
+    local qa, qb = GetItemQualityByID(a) or 0, GetItemQualityByID(b) or 0
+    if qa ~= qb then return qa > qb end
+    return a < b
+end
+
+local function ImportQuestion(add)
+    table.sort(add, QualityFirst)
+    local names = {}
+    for i = 1, math.min(#add, SHOWN_NAMES) do
+        names[i] = Items.QualityHex(add[i]) .. Items.Name(add[i]) .. "|r"
+    end
+    local more = #add - #names
+    local text = ("Add %d item%s to your scrap list: %s%s?"):format(#add, #add == 1 and "" or "s",
+        table.concat(names, ", "), more > 0 and (" and %d more"):format(more) or "")
+    local rare, uncommon, valuable = 0, 0, 0
+    for _, id in ipairs(add) do
+        local quality = GetItemQualityByID(id) or 0
+        if quality >= RARE then
+            rare = rare + 1
+        elseif quality >= UNCOMMON then
+            uncommon = uncommon + 1
+        end
+        local sell = select(11, GetItemInfo(id)) or 0
+        local auction = ns.AuctionPrice and ns.AuctionPrice(id) or 0
+        if math.max(sell, auction) >= HIGH_VALUE then valuable = valuable + 1 end
+    end
+    local warn
+    if rare > 0 then
+        warn = ("%d of these %s Rare or better"):format(rare, rare == 1 and "is" or "are")
+    elseif uncommon > 0 then
+        warn = ("%d of these %s Uncommon"):format(uncommon, uncommon == 1 and "is" or "are")
+    end
+    if valuable > 0 then
+        local worth = ("%d sell%s for %s or more"):format(valuable, valuable == 1 and "s" or "", HIGH_VALUE_TEXT)
+        warn = warn and (warn .. ", and " .. worth) or ("%d of these sell%s for %s or more")
+            :format(valuable, valuable == 1 and "s" or "", HIGH_VALUE_TEXT)
+    end
+    if not warn then return text end
+    return text .. "|n" .. St.WARN_CODE .. warn .. ".|r"
+end
 
 local function Import(text)
     local parsed = Parse(text)
@@ -205,7 +251,7 @@ local function Import(text)
         ns.Print("Nothing new to add from that list.")
         return
     end
-    ns.Confirm(("Add %d item%s to your scrap list?"):format(#add, #add == 1 and "" or "s"), function()
+    ns.Confirm(ImportQuestion(add), function()
         Scrap.AddAll(add)
     end)
 end

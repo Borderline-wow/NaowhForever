@@ -1,5 +1,5 @@
 -- Run with Lua 5.1 from the repository root: Bag Marks, the BiS List's slot marks on the items
--- in your bags, loaded from the Shared files and BiS/View/Bags.lua against stubs of the game's
+-- in your bags, loaded from the Shared files and NaowhForever_BiS/BiS/View/Bags.lua against stubs of the game's
 -- bags and EllesmereUI's. Checks that it is off and hooks nothing by default; on, gear shows its
 -- item level, your BiS its star, what is new in Forever its mark and an upgrade its arrow, in the game's bags and in
 -- EllesmereUI's (where ours stand in for its item level and make room for its BoE word and
@@ -79,7 +79,7 @@ local S = {
     end,
     OnChange = function(fn) state.listeners[#state.listeners + 1] = fn end,
 }
-state.values = { enabled = true, bis = true, bisBagMarks = false }
+state.values = { enabled = true, bis = true, bisBagMarks = false, bisBagLevels = true }
 
 local ns = {
     THEME = setmetatable({}, { __index = function() return WHITE end }),
@@ -159,8 +159,8 @@ env._G = env
 env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 
 local files = TocFiles("^Shared/.*%.lua$")
-files[#files + 1] = "BiS/View/Bags.lua"
-check("the TOC loads the bag marks", #TocFiles("^BiS/View/Bags%.lua$") == 1)
+files[#files + 1] = "NaowhForever_BiS/BiS/View/Bags.lua"
+check("the TOC loads the bag marks", #TocFiles("^NaowhForever_BiS/BiS/View/Bags%.lua$") == 1)
 Load(files, env)
 ns.Shared.ForeverNew.items[101] = true
 
@@ -241,6 +241,16 @@ eHelm.UpgradeIcon.shown = false
 paint(eHelm, data)
 check("without them, the corners of every slot of ours", mark.rank.points.BOTTOMLEFT ~= nil
     and mark.level.points.BOTTOMRIGHT ~= nil and mark.rank.points.LEFT == nil)
+S.Set("bisBagLevels", false)
+bagFrame:UpdateItems()
+paint(eHelm, data)
+check("Item Level in Bags off: no level, the other marks stay", helm.level.text == "" and helm.shown == true
+    and mark.level.text == "")
+check("and EllesmereUI's own item level shows again", eHelm.ItemLevelText.alpha == 1)
+S.Set("bisBagLevels", true)
+bagFrame:UpdateItems()
+paint(eHelm, data)
+check("on again: ours back, standing in for its", helm.level.text == 30 and eHelm.ItemLevelText.alpha == 0)
 
 -------------------------------------------------------------------------------
 --  Cost: painting a bag of 30 slots

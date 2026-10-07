@@ -1,0 +1,245 @@
+-------------------------------------------------------------------------------
+--  Data/Tips.lua -- Naowh's tip for each boss, behind the (i) after its name in the Dungeon
+--  Journal. Edited by hand; Tools/build_journal.py never writes here. Keyed by the boss's
+--  NPC ID, which is in its dungeon's file in Data/Dungeons/. One short sentence each, about the
+--  classic fight, from warcraft.wiki.gg's classic pages, the Warcraft Tavern and Almar's
+--  classic guides, and Wowhead Forever for Forever's own dungeons. Bosses with no NPC ID
+--  yet have none.
+-------------------------------------------------------------------------------
+local ns = _G.NaowhForever
+
+ns.Journal.Tips = {
+    -- Ragefire Chasm
+    [11517] = "Cleaves, so only the tank stands in front; everyone else hits him from behind.",  -- Oggleflint
+    [11520] = "Tank him away from the lava edge; his Uppercut knocks people back and Fire Nova hits everyone close.",  -- Taragaman the Hungerer
+    [11518] = "Clear the cultists around him first, then interrupt Immolate and remove his Curse of Weakness.",  -- Jergosh the Invoker
+    [11519] = "Pull the two cultists in front of him first; he hits fast and poisons, so cure the poison on the tank.",  -- Bazzalan
+    -- The Hall of Thanes
+    [261306] = "Pull him as he patrols over after clearing your side of the room; decurse Anvilmar's Curse from the tank.",  -- Faldrim Anvilmar
+    [261316] = "Kill the Dark Iron Summoner first, and tank Magmatus away from the group; his fire pulse hits everyone near him.",  -- Magmatus
+    [261311] = "Knock Away punts people, so clear nearby packs first and fight with your backs to a wall.",  -- Plunder
+    [261319] = "Clear the Looters first, then kill his two Stone Golems one at a time; he fears and Rends the tank.",  -- Durgen Dirgehammer
+    -- Wailing Caverns
+    [3671] = "Clear her escort first, then interrupt her Healing Touch and Sleep; her Lightning Bolt has long range.",  -- Lady Anacondra
+    [3669] = "AoE down his pythons first and interrupt Healing Touch and Sleep; near the end he turns into a big snake.",  -- Lord Cobrahn
+    [3653] = "Patrols the water; kill him when he swims by, as he can get stuck in the rocks and become unattackable.",  -- Kresh
+    [3670] = "Fights with an elite druid and a Shambler; CC the druid, off-tank the Shambler, interrupt his heals.",  -- Lord Pythas
+    [3674] = "Chained Bolt arcs to up to 3 players; stay spread out and interrupt it when you can.",  -- Skum
+    [3673] = "Interrupt Healing Touch and Sleep, and clear the druids around him before you pull.",  -- Lord Serpentis
+    [5775] = "Optional; he hits very hard and Grasping Vines roots everyone close, so healers and ranged stay back.",  -- Verdan the Everliving
+    [3654] = "Comes at the end of the Naralex escort, which needs all four Fanglords dead; he sleeps and fears.",  -- Mutanus the Devourer
+    [5912] = "Rare spawn, absent most runs; if it is up on the way to Serpentis, it is an easy kill with caster loot.",  -- Deviate Faerie Dragon
+    -- The Deadmines
+    [644] = "Pull him away from his two Defias guards if you can; his Slam stuns the tank for 3 seconds.",  -- Rhahk'Zor
+    [642] = "Clear the woodcarvers first, as his Terrify can fear people into them; Sneed hops out when it breaks.",  -- Sneed's Shredder
+    [643] = "Pops out with a fresh threat table and disarms; the tank should grab him straight away.",  -- Sneed
+    [1763] = "Clear the foundry and pull him alone; Molten Metal slows the tank's attacks and movement.",  -- Gilnid
+    [646] = "Stuns at 66% and 33% health; save your stun breakers and back off while he changes weapons.",  -- Mr. Smite
+    [647] = "Clear his crew on the deck first, then pull him on his own.",  -- Captain Greenskin
+    [639] = "He calls two Blackguards at half health; kill him fast or pick them up straight away.",  -- Edwin VanCleef
+    [645] = "Optional, on the ship: interrupt Cookie's Cooking to stop his heals, and don't let him run off when low.",  -- Cookie
+    [3586] = "Rare spawn in the side alcove before Sneed; he comes with other miners and cuts the tank's armor.",  -- Miner Johnson
+    -- Ruins of Lordaeron
+    [250483] = "Kill its spider adds first, and cure Leech Poison on the tank.",  -- Witherfang
+    [250660] = "Keep the tank topped up: Knockout hits very hard, stuns and drops threat. Stun him to stop it.",  -- The Baron
+    [256035] = "Lighting the chimney fire starts 5 add waves first; let the tank grab Viktor and cure his Leech Poison.",  -- Viktor the Vile
+    [250631] = "The statue starts 3 add waves before he shows up; he roots with Frost Nova and chills anyone hitting him.",  -- The Abandoned
+    [256097] = "Quick tank and spank; his Anti-Magic Shield only blocks spells for 3 sec, so casters just wait it out.",  -- Bjork
+    [250657] = "Step out of Flamestrike, placed where the tank stood when the cast began; a stun stops it.",  -- Rath'mael
+    -- Shadowfang Keep
+    [3914] = "Kill him, then free Adamant (Horde) or Ashcrombe (Alliance) from the cells to open the courtyard door.",  -- Rethilgore
+    [3886] = "A patrol walks outside his room; kill it first so it can't join the fight.",  -- Razorclaw the Butcher
+    [3887] = "Veil of Shadow is a curse that cuts healing taken by 75%; decurse the tank right away.",  -- Baron Silverlaine
+    [4278] = "Kill his Haunted Servitor first, keep the Wailing Guardsman away, and interrupt Holy Light.",  -- Commander Springvale
+    [4279] = "Kill his bats first; each Howling Rage makes him and his bats hit harder.",  -- Odo the Blindwatcher
+    [4274] = "Arugal's Voidwalkers spawn once he dies; recover health and mana before you take them on.",  -- Fenrus the Devourer
+    [3927] = "Brings a pack of elite worgs; tank them together and kill the worgs before Nandos.",  -- Wolf Master Nandos
+    [4275] = "Interrupt Void Bolt and CC anyone his curse turns into a worgen; don't chase him when he teleports.",  -- Archmage Arugal
+    [3872] = "Rare ghost patrolling the walls; he cleaves, so only the tank stands in front.",  -- Deathsworn Captain
+    -- Blackfathom Deeps
+    [4887] = "Trample hits everyone near him; ranged stay back, and leave the neutral turtles around him alone.",  -- Ghamoo-ra
+    [4831] = "Spams Frost Nova and Slow; ranged and healers stay out of melee range so only the tank gets rooted.",  -- Lady Sarevess
+    [6243] = "Clear his murlocs carefully, as a fleeing one can pull him; he hits fast and nets people in place.",  -- Gelihast
+    [12902] = "Horde quest target whose spawn point varies; Lightning Shield zaps anyone who hits him in melee.",  -- Lorgus Jett
+    [12876] = "Horde only: appears when you touch the Fathom Stone with Amongst the Ruins; watch for his Frost Nova.",  -- Baron Aquanis
+    [4832] = "His Sleep can cost the tank threat; after he dies, light the altar fires one at a time, each calls elites.",  -- Twilight Lord Kelris
+    [4830] = "Fought underwater with no air; bring Water Breathing or kite him out, and out-damage his Leech Pulse.",  -- Old Serra'kis
+    [4829] = "Frenzied Rage spikes tank damage for 5 sec; save heals and stuns for it and leave the Poison Cloud.",  -- Aku'mai
+    -- The Stockade
+    [1696] = "He stays put while you clear his room, so take the trash first; Thrash and Enrage hit the tank hard.",  -- Targorr the Dread
+    [1666] = "Shield Slam stuns the tank and Shield Wall cuts his damage taken; save burst for when the wall drops.",  -- Kam Deepfury
+    [1717] = "Spread out for Chain Lightning and interrupt it; purge or dispel his Bloodlust.",  -- Hamhock
+    [1716] = "Comes with two guards, so separate them if you can; his Smoke Bomb stuns everyone close.",  -- Bazil Thredd
+    [1663] = "Clear the nearby cells first; his fear shout can send people running into more prisoners.",  -- Dextren Ward
+    [1720] = "Rare in one of the cells; /target Bruegal from the middle of the prison to see if he is up.",  -- Bruegal Ironknuckle
+    -- Gnomeregan
+    [7361] = "Talk to Emi Shortfuse to start it, and hold the trogg waves off her until Grubbis arrives.",  -- Grubbis
+    [7079] = "Toxic Volley poisons everyone near him for 15 sec; cure poison and keep the whole group topped up.",  -- Viscous Fallout
+    [6235] = "Drops the Workshop Key; face him away for Megavolt and spread out so Chain Bolt can't jump.",  -- Electrocutioner 6000
+    [6229] = "Only the tank goes in front for Arcing Smash; casters stay back, as Crowd Pummel interrupts spells.",  -- Crowd Pummeler 9-60
+    [7800] = "Bomb machines release Walking Bombs; send someone to press the red buttons, and taunt after Knock Away.",  -- Mekgineer Thermaplugg
+    -- Razorfen Kraul
+    [4424] = "Interrupt his Chain Heal and kill the Boar Spirits he summons before they pile up.",  -- Aggem Thorncurse
+    [4428] = "He mind controls a player; kill his guards first and be ready to CC a charmed ally. He can be feared.",  -- Death Speaker Jargba
+    [4420] = "Kill or CC his two Spearhides first; their Thorns hurts melee and Whirling Barrage hits everyone near.",  -- Overlord Ramtusk
+    [4422] = "Rampage stuns everyone near him and he Frenzies; keep the healer out of melee range and heal the tank.",  -- Agathelos the Raging
+    [4421] = "Spread out for Chain Bolt and dispel her Renew; she's immune to shadow damage, stuns and silences.",  -- Charlga Razorflank
+    [4425] = "Rare bat with an AoE silence; pull it away and keep casters and the healer at range.",  -- Blind Hunter
+    [4842] = "Interrupt Lightning Bolt, break his Earthbind Totem and pick up the Stone Rumbler he summons.",  -- Earthcaller Halmgar
+    -- City of Dalaran (from a playthrough video)
+    [247126] = "He disarms the tank and summons skeletons; pick up the skeletons and AoE them down before they swarm the healer.",  -- Atrexis the Grave Knight
+    [245999] = "Arcane Bolt hits his target, so heal the tank; dodge Focal Blast, a beam he sweeps around as he turns.",  -- Arcane Anomaly
+    [246016] = "Casts Manamorph and a 10 second Silence, so don't rely on one healer's casts; kill the Arcane Manalings he calls.",  -- Arcanic Enigma
+    [246017] = "When he starts casting Malfunction, run out of its 25 yard reach before it turns into a channeled AoE.",  -- Unstable Sentinel
+    [246020] = "Don't stand in line with the player Bounding Mana targets; he also casts Arcane Bolt, Mass Polymorph and Evocation, and resets if anyone leaves the room.",  -- Shade of the Archmage
+    -- Scarlet Monastery
+    [3983] = "Priests and paladins can dispel his Immolate and Shadow Word: Pain to save the healer's mana.",  -- Interrogator Vishas
+    [4543] = "Move out of his Flame Spike pillars, and melee should mind his Fire Nova up close.",  -- Bloodmage Thalnos
+    [6490] = "Call of the Grave deals a big hit 60 sec after it lands; heal that player up before it goes off.",  -- Azshir the Sleepless
+    [6488] = "Rare that Cleaves and Executes below 20%; keep the group behind him and the tank's health high.",  -- Fallen Champion
+    [6489] = "Rare skeleton with a Poison Cloud and Curse of Weakness; drag him out of the cloud and decurse.",  -- Ironspine
+    [3974] = "Three Tracking Hounds come with him; CC or AoE them down first, then burn Loksey.",  -- Houndmaster Loksey
+    [6487] = "At half health he bubbles, then casts Detonation; run out of the room or break line of sight.",  -- Arcanist Doan
+    [3975] = "He Whirlwinds once hurt, so melee back off while he spins; AoE the trainees that rush in after he dies.",  -- Herod
+    [4542] = "Interrupt his Heal and dispel Power Word: Shield; he also fears and sleeps players.",  -- High Inquisitor Fairbanks
+    [3976] = "Whitemane enters when he dies and later revives him, so save cooldowns for fighting both at once.",  -- Scarlet Commander Mograine
+    [3977] = "At half health she sleeps the group and revives Mograine; when you wake, kill her first.",  -- High Inquisitor Whitemane
+    -- Razorfen Downs
+    [7355] = "Ring the gong three times: two waves, then him; decurse his curse and stay out of his Web Spray cone.",  -- Tuten'kash
+    [7357] = "AoE the skeletons around his bone pile and interrupt Fire Nova.",  -- Mordresh Fire Eye
+    [8567] = "Disease Cloud hurts everyone near him and he frenzies when hungry; ranged stay back, tank uses cooldowns.",  -- Glutton
+    [7358] = "Ignore the Frost Spectres, as they die with him; burn Amnennar and keep healers out of Frost Nova range.",  -- Amnennar the Coldbringer
+    [7354] = "Rare that mind controls, heals and casts Shadow Bolt; interrupt his Heal and CC anyone he controls.",  -- Ragglesnout
+    -- Uldaman
+    [6910] = "Interrupt his Chain Lightning and spread out; he drops the Shaft of Tsol for the Staff of Prehistoria.",  -- Revelosh
+    [7228] = "Needs the Staff of Prehistoria to open; stay out of her Arcing Smash and expect War Stomp stuns.",  -- Ironaya
+    [7023] = "It sheds Obsidian Shards as it weakens; kill them as they appear, and casters beware spell reflects.",  -- Obsidian Sentinel
+    [7206] = "Clear the room first; its Sand Storms slow and silence, so casters and healer keep out of them.",  -- Ancient Stone Keeper
+    [7291] = "Kill his two Geologists first and interrupt their Flame Spike; dispel Amplify Flames off the tank.",  -- Galgann Firehammer
+    [4854] = "Interrupt Lightning Bolt and Shrink, and stop casting on the Jadespine Basilisk while it reflects spells.",  -- Grimlok
+    [2748] = "He wakes 6 Earthen Guardians at 66% and 2 Vault Warders at 33%; save cooldowns to burn him then.",  -- Archaedas
+    -- Zul'Farrak
+    [8127] = "Basilisks join at 75% and 25%; peel them off the healer and kill his Earthgrab Totem fast.",  -- Antu'sul
+    [7272] = "At low health he turns immune to physical and shadow for 30 sec; stun him early or switch to spells.",  -- Theka the Martyr
+    [7271] = "Zombies rise from the graves as the fight goes on; stay away from the graves and burn him fast.",  -- Witch Doctor Zum'rah
+    [7796] = "Arrives with Sezz'ziz after the stairs event; kill one at a time and keep someone on interrupts.",  -- Nekrum Gutchewer
+    [7275] = "Interrupt his Heal and Renew, and keep the healer at range so his Psychic Scream can't reach them.",  -- Shadowpriest Sezz'ziz
+    [7604] = "Let Weegli blow the door first; Bly's crew fights with him, so kill their healer Murta first.",  -- Sergeant Bly
+    [7795] = "Optional: she only drops quest items (Tiara of the Deep, Mosh'aru tablet), so skip her if unneeded.",  -- Hydromancer Velratha
+    [7273] = "Summon her with the Mallet of Zul'Farrak at the gong; her slam launches you, so stay topped up.",  -- Gahz'rilla
+    [7267] = "Ruuzlu fights beside him; pick Ruuzlu up first and face Ukorz to a wall so his Cleave hits no one.",  -- Chief Ukorz Sandscalp
+    [10082] = "Rare patrol by the Shadowpriests' altar; he nets and shoots, so pull him around a corner.",  -- Zerillis
+    -- Maraudon
+    [13282] = "He splits into small spawns and stops fighting; AoE them down fast, and fight him on dry land.",  -- Noxxion
+    [12258] = "All physical: face him away for Cleave, have melee stand behind, and heal through the Puncture bleed.",  -- Razorlash
+    [12236] = "Stealthed Shadowstalkers guard him; when he Blinks away, stack back on the tank to dodge Multi-Shot.",  -- Lord Vyletongue
+    [12225] = "Interrupt his Wrath and Entangling Roots and focus him down; his summoned treants are non-elite.",  -- Celebras the Cursed
+    [12203] = "He calls rock Shardlings and stuns players close by; ignore the adds, as they die with him.",  -- Landslide
+    [13601] = "His Goblin Dragon Gun is a fire cone; turn him away from the group, and step out if you're caught.",  -- Tinkerer Gizlock
+    [13596] = "Big crocolisk in the lake; his bites stack bleeds, so keep the fight short and the tank topped up.",  -- Rotgrip
+    [12201] = "Fear Ward the tank for her fear, and keep her in the middle so Dust Field can't knock you off the edge.",  -- Princess Theradras
+    [12237] = "Rare; War Stomp stuns and knocks back anyone close, so ranged spread out and face him away.",  -- Meshlok the Harvester
+    -- Sunken Temple
+    [8580] = "Summon him by clicking the six statues in order: S, N, SW, SE, NW, NE; tank him against a wall.",  -- Atal'alarion
+    [5721] = "Flies in with Weaver after Jammal'an dies; pull it away and keep its breath and wings off the group.",  -- Dreamscythe
+    [5720] = "Pull it apart from Dreamscythe and tank it against a wall, facing Acid Breath away from the group.",  -- Weaver
+    [5710] = "Kill the six balcony trolls to open his area; CC anyone he hexes and break his Earthgrab Totem.",  -- Jammal'an the Prophet
+    [5711] = "Fights beside Jammal'an; give him an off-tank, interrupt his Shadow Bolts and remove his curse.",  -- Ogom the Wretched
+    [5719] = "Comes with Hazzas and they can't be split; kill both before Eranikus or they join that fight.",  -- Morphaz
+    [5722] = "Tank him and Morphaz together against a wall, both facing away; their breath hits the front.",  -- Hazzas
+    [5709] = "Clear all four drakes first or they join in; a Grounding Totem soaks his Deep Slumber sleep.",  -- Shade of Eranikus
+    [8443] = "Needs the Egg of Hakkar: douse the four flames with Bloodkeepers' blood, then CC anyone he mind controls.",  -- Avatar of Hakkar
+    -- Blackrock Depths
+    [9018] = "Interrupt her Mana Burn and expect Psychic Scream fears; she drops the Prison Cell Key.",  -- High Interrogator Gerstahn
+    [9025] = "Ground Tremor stuns everyone within 20 yards, so healers and casters should stay at range.",  -- Lord Roccor
+    [9319] = "Clear the room and kill his dogs first; he flees at 15% health, so keep a stun or snare ready.",  -- Houndmaster Grebmar
+    [9031] = "Decurse Curse of Tongues and Weakness quickly; Enveloping Web roots a player and stops their casting.",  -- Anub'shiah
+    [9029] = "Anti-Magic Shield blocks spells for 6 sec, so casters pause; heal through Shadow Bolt Volley.",  -- Eviscerator
+    [9027] = "Mortal Strike halves healing and Whirlwind hits within 8 yards; use tank cooldowns in Bloodlust.",  -- Gorosh the Dervish
+    [9028] = "Frenzies at 50% health; Ground Tremor stuns within 20 yards, so ranged keep their distance.",  -- Grizzle
+    [9032] = "Cure Baneful Poison quickly; Web Explosion roots everyone within 30 yards for 5 sec.",  -- Hedrum the Creeper
+    [9030] = "Dispel Polymorph off your players quickly and heal through his Arcane Explosion and Slow.",  -- Ok'thor the Breaker
+    [9024] = "Kill or CC his two adds first, destroy his Scorching Totem, and interrupt Molten Blast.",  -- Pyromancer Loregrain
+    [9017] = "Decurse Curse of the Elemental Lord and move out of Fire Storm; fire resistance helps.",  -- Lord Incendius
+    [9041] = "Kill or stun Verek first, then interrupt Frostbolts; stay spread to limit Frost Nova roots.",  -- Warder Stilgiss
+    [9042] = "Unlike Stilgiss he can be stunned; kill him first and watch Enrage and Thrash on the tank.",  -- Verek
+    [9056] = "He patrols the ramp in the Hall of Crafting; clear one end and wait. He drops Ironfel for Dark Iron Legacy.",  -- Fineous Darkvire
+    [9016] = "He summons Spawns of Bael'Gar that burn where they land; pick them up and keep them off healers.",  -- Bael'Gar
+    [9033] = "Clear his room first; at about 40% he calls Anvilrage Reservists and Medics, so burn him or CC the medics.",  -- General Angerforge
+    [8983] = "Clear the Manufactory first: once pulled he calls every living golem and technician to help.",  -- Golem Lord Argelmach
+    [9537] = "Smashing the three kegs in the side room calls him and his cronies; kill the cronies first, then him.",  -- Hurley Blackbreath
+    [9502] = "Turns hostile when Rocknot's ale rampage starts; fight with your backs to a corner against his knockback.",  -- Phalanx
+    [9543] = "Starts friendly: pick his gossip option to fight; expect Gouge and Hamstring.",  -- Ribbly Screwspigot
+    [9499] = "Stealing ale or food, picking his pocket or killing patrons turns the bar hostile; he resists stuns and kicks.",  -- Plugger Spazzring
+    [9156] = "Burning Spirits run from the runes to empower him; AoE or intercept them before they reach him.",  -- Ambassador Flamelash
+    [9938] = "Statues along the walls breathe fire; stand between them while you fight him.",  -- Magmus
+    [9019] = "Kill Moira first or CC her (not Polymorph); Alliance on her quest must keep her alive and interrupt her heals.",  -- Emperor Dagran Thaurissan
+    -- Dire Maul
+    [14354] = "Talk to him and chase him until he fights; he calls four imps and his buff reflects half of all spells.",  -- Pusillin
+    [11490] = "His Sacrifice pins a player on the altar and drains them; heal that player and keep hitting Zevrim.",  -- Zevrim Thornhoof
+    [13280] = "Clear the trash around his pool first; his wave knocks players back and he brings Hydrolings mid-fight.",  -- Hydrospawn
+    [14327] = "Kill her imp Pimgib first, interrupt Void Bolt and dispel Curse of Tongues from casters.",  -- Lethtendris
+    [11492] = "Kill the plants in his room first; midway the back wall breaks and imps pour out, so AoE them down.",  -- Alzzin the Wildshaper
+    [11489] = "Clear the ancients patrolling the courtyard first; he roots the group and tramples everyone in melee.",  -- Tendris Warpwood
+    [11488] = "Stand in melee range so she can't shoot or Volley; CC her bear Ferra or kill it, as it charges and mauls.",  -- Illyanna Ravenoak
+    [11487] = "Interrupt Mind Blast and Mind Flay; Dominate Mind charms a player for 10 sec, be ready to CC them.",  -- Magister Kalendris
+    [11496] = "Destroy all five pylons to drop his shield; kill each Eye fast, as its debuff cripples attack and cast speed.",  -- Immol'thar
+    [11486] = "Tank him with your back to a wall; Arcane Blast knocks the tank back and can cost threat, so DPS ease off.",  -- Prince Tortheldrin
+    [14326] = "Frenzies and calls for help at half health; on tribute runs spare him and pick the lock or pickpocket his key.",  -- Guard Mol'dar
+    [14322] = "Leave him alive on tribute runs and he sells drinks later; in a fight, melee watch for his Whirlwind.",  -- Stomper Kreeg
+    [14321] = "A rogue can loot the Courtyard Key from the chest in his room without a fight; spare him for tribute.",  -- Guard Fengus
+    [14323] = "Repair the Broken Trap in his room with Frost Oil and a Thorium Widget to freeze him and pass.",  -- Guard Slip'kik
+    [14325] = "Talk to him in a Gordok Ogre Suit to skip him; if fought, CC or off-tank the Reavers he calls at 50%.",  -- Captain Kromcrush
+    [11501] = "Interrupt Cho'Rush the Observer while the group burns Gordok; Cho'Rush stops once the king dies.",  -- King Gordok
+    -- Lower Blackrock Spire
+    [9196] = "Tank him against a wall so Knock Away can't fling the tank; loot his head to summon Urok Doomhowl.",  -- Highlord Omokk
+    [9236] = "Her Hex turns anyone close into a frog, so ranged stay 20 yards back; Curse of Blood is safe to ignore.",  -- Shadow Hunter Vosh'gajin
+    [9237] = "Gets nastier as he drops: axe throws first, then Cleave and Mortal Strike, then kicks and knockbacks.",  -- War Master Voone
+    [10596] = "Cure Mother's Milk fast, as it roots the target and anyone near them; spiderlings pop out when she dies.",  -- Mother Smolderweb
+    [10584] = "Put Omokk's Head on the Roughshod Pike at his tribute pile; ogre waves come first, then Urok.",  -- Urok Doomhowl
+    [9736] = "Pull him into the hallway so he can't shoot or drag in more mobs; he drinks healing potions, so burst him.",  -- Quartermaster Zigris
+    [10268] = "He charges in when Halycon dies; be ready, and heal through Fatal Bite, which heals him for double.",  -- Gizrul the Slavener
+    [10220] = "Fight inside the den and clear her worg pups first; killing her calls in Gizrul the Slavener.",  -- Halycon
+    [9568] = "Tank him on the back wall for his Sweeping Slam; at half health two guards join, so CC or off-tank them.",  -- Overlord Wyrmthalak
+    -- Scholomance
+    [10506] = "Summon him with Blood of Innocents at the brazier; tank away from the window, Wing Flap knocks players out.",  -- Kirtonos the Herald
+    [10503] = "She splits into a crowd of illusions; stay on the real, damaged Jandice and the copies vanish when she dies.",  -- Jandice Barov
+    [11622] = "Clear the room's patrols first; War Stomp stuns everyone in melee for 5 sec, so keep the tank topped up.",  -- Rattlegore
+    [10433] = "Kill the students first or change them with Dawn's Gambit; hitting him with them alive pulls the whole room.",  -- Marduk Blackpool
+    [10432] = "His fire aura burns melee and he casts Flamestrike; kill Marduk first, then move out of the fire.",  -- Vectus
+    [10508] = "He casts Frost volleys, Freeze and Fear throughout the fight; frost resistance helps, and ward or totem away his Fear.",  -- Ras Frostwhisper
+    [10505] = "She heals herself; interrupt her heals and drain her mana so she is forced to melee.",  -- Instructor Malicia
+    [11261] = "Melee boss with Rend and an enrage for 60% attack speed; save healing and tank cooldowns for the enrage.",  -- Doctor Theolen Krastinov
+    [10901] = "Volatile Infection makes its victim damage nearby allies every 15 sec; spread out during the fight.",  -- Lorekeeper Polkelt
+    [10507] = "Sundering Cleave stacks armor loss on the tank and nearby players; keep others out of his front.",  -- The Ravenian
+    [10504] = "Unholy Aura burns anyone close; tank him away from casters and crowd control one of his two guards.",  -- Lord Alexei Barov
+    [10502] = "Shadow caster with an area Silence, Fear and Curse of Agony; keep healers at range and use shadow protection.",  -- Lady Illucia Barov
+    [1853] = "Kill the six room bosses to summon him; clear those rooms, as Shadow Portal drops players there alone.",  -- Darkmaster Gandling
+    -- Stratholme
+    [10808] = "Looks like any other ghoul but hits hard and enrages at half health; have tank cooldowns ready.",  -- Timmy the Cruel
+    [10516] = "He brings four Vengeful Phantoms; AoE them down and interrupt his Unrelenting Anguish channel.",  -- The Unforgiven
+    [10558] = "Enchanting Lullaby sleeps a player until damaged; he dodges often, so keep steady damage on him.",  -- Hearthsinger Forresten
+    [10997] = "Use the cannons (ammo from the piles) on his Crimson Riflemen; keep one ball for the wave when he dies.",  -- Cannon Master Willey
+    [10811] = "Burning Winds stuns a player under heavy fire damage and Fire Nova hits melee; heal the stunned target.",  -- Archivist Galford
+    [10813] = "At 40% Dathrohan becomes Balnazzar at full health; dispel his Sleep and watch for mind control and fear.",  -- Balnazzar
+    [10393] = "Rare frost caster near the main gate; interrupt his Frostbolts and kill him fast before his slows add up.",  -- Skul
+    [10809] = "Rare gargoyle patrolling the Gauntlet; its Vicious Rend bleed stacks up, so burn it fast.",  -- Stonespine
+    [10435] = "Back the tank against a wall; his knockback punts the tank and drops threat, so taunt him back fast.",  -- Magistrate Barthilas
+    [10436] = "She possesses a player; bring them to 50% health or crowd control them, then burn her down.",  -- Baroness Anastari
+    [10437] = "Raises Undead Scarabs and is immune to stuns and roots; kill the scarabs and heal through his webs.",  -- Nerub'enkan
+    [10438] = "Interrupt his Drain Life and be ready to heal through Ice Tomb stuns; the easiest ziggurat boss.",  -- Maleki the Pallid
+    [10439] = "Hits very hard but walks slowly; fight in the open so players he turns on can kite until the tank retakes.",  -- Ramstein the Gorger
+    [10440] = "Kill his raised skeletons fast (Holy Water helps) or he eats them to heal; Shadow Protection eases his aura.",  -- Baron Rivendare
+    -- Upper Blackrock Spire
+    [9816] = "Use the altar to start and kill the Incarcerators; fire resistance helps against his Fire Nova.",  -- Pyroguard Emberseer
+    [10264] = "Using Father Flame starts waves; kill Rookery Hatchers first, as they hatch eggs into whelps, and avoid eggs.",  -- Solakar Flamewreath
+    [10899] = "Optional tank-and-spank; his Backhand stuns the tank for 2 seconds, so have a taunt or heal ready.",  -- Goraluk Anvilcrack
+    [10339] = "Survive the dragonkin waves in the stadium, then keep Gyth facing the tank; his breaths hit in front.",  -- Gyth
+    [10429] = "Rend jumps off Gyth late in the fight; pick him up away from casters, as his Whirlwind and Cleave hit hard.",  -- Warchief Rend Blackhand
+    [10430] = "Clear the Furnace first; tank him on a wall for Flamebreak, and ranged stay back from his fear roar.",  -- The Beast
+    [10363] = "Kill his two Chromatic Elite Guards first; Conflagration panics the tank, so keep an off-tank ready.",  -- General Drakkisath
+    [10509] = "Rare, not always up: check with /target Jed Runewatcher; he roams Goraluk's room or the Furnace.",  -- Jed Runewatcher
+
+    -- Onyxia's Lair
+    [10184] = "Never stand at her head or tail; when she flies, stay off her line for Deep Breath, and fear ward for her roar at 40%.",  -- Onyxia
+}

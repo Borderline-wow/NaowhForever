@@ -5,6 +5,11 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local UI = ns.UI
+local Parts = ns.Shared.Parts
+
+-- Card is the black panel the old Show Background toggle drew; on and off are saved as Card and None.
+local CARD_COLOR, CARD_ALPHA = { r = 0, g = 0, b = 0 }, 0.8
+local OLD_BACKGROUNDS = { [true] = "card", [false] = "none" }
 
 local frame, clock, unlocked
 local started, last = nil, 0
@@ -50,7 +55,7 @@ local function Report(duration)
     elseif m > 0 then
         text = ("%d:%02d minutes"):format(m, s)
     else
-        text = ("%d seconds"):format(s)
+        text = ("%d second%s"):format(s, s == 1 and "" or "s")
     end
     ns.Print("You were in combat for: |cffffa300" .. text .. "|r")
 end
@@ -74,8 +79,7 @@ local function Build()
     frame = CreateFrame("Frame", "NaowhForeverCombatTimer", UIParent)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
-    frame.bg = ns.Solid(frame, "BACKGROUND", { r = 0, g = 0, b = 0 }, 0.8)
-    frame.bg:SetAllPoints()
+    frame.backdrop = Parts.HudBackdrop(frame, { color = CARD_COLOR, alpha = CARD_ALPHA, mode = "none" })
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
     frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end, "QoL/Combat", "QoL/Combat:combatTimer")
@@ -92,7 +96,14 @@ local function Place()
     end
 end
 
+local function MigrateBackground()
+    local db = S.DB()
+    local mode = OLD_BACKGROUNDS[db.combatTimerBackground]
+    if mode then db.combatTimerBackground = mode end
+end
+
 local function Apply()
+    MigrateBackground()
     events:UnregisterAllEvents()
     if not On() then
         started = nil
@@ -102,12 +113,12 @@ local function Apply()
     end
     if not frame then Build() end
     local size = S.Get("combatTimerFontSize")
-    frame.text:SetFont(UI.FontPath(S.Get("combatTimerFont")), size, "OUTLINE")
+    local mode = frame.backdrop:SetMode(S.Get("combatTimerBackground"))
+    Parts.HudFont(frame.text, S.Get("combatTimerFont"), size, S.Get("combatTimerOutline"), mode)
     local c = S.Get("combatTimerClassColor") and RAID_CLASS_COLORS[select(2, UnitClass("player"))]
         or S.Get("combatTimerColor")
     frame.text:SetTextColor(c.r, c.g, c.b, 1)
     frame:SetSize(size * 7, size + 16)
-    frame.bg:SetShown(S.Get("combatTimerBackground"))
     Place()
     frame.mover:SetShown(unlocked == true)
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -133,7 +144,8 @@ local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
-local Group = ns.Shared.Settings.Group
+local Settings = ns.Shared.Settings
+local Group = Settings.Group
 
 local function OwnColour() return not S.Get("combatTimerClassColor") end
 
@@ -144,9 +156,9 @@ local function Summary(store)
     return parts
 end
 
-ns.Shared.Settings.Page("QoL/Combat", S):Card({
+Settings.Page("QoL/Combat", S):Card({
     id = "combatTimer", name = "Combat Timer", order = 90, switch = "combatTimer",
-    help = "How long the current fight has run, on screen while you fight. Move it in Unlock Mode.",
+    help = "How long the current fight has run, on screen while you fight. Move it in the HUD Editor.",
     summary = Summary,
     rows = {
         Group("When"),
@@ -155,13 +167,12 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
           help = "How long the fight lasted, in chat when it ends." },
         { key = "combatTimerSticky", label = "Keep After the Fight", toggle = true,
           help = "The last fight's time stays on screen until the next one starts." },
-        Group("Look"),
+        Settings.Look("combatTimer", { text = true, size = { 10, 72, 1 } }),
         { key = "combatTimerHidePrefix", label = "Hide the COMBAT Label", toggle = true },
-        { key = "combatTimerBackground", label = "Show Background", toggle = true },
+        Settings.Look("combatTimer", { background = "card" }),
+        Group("Colours"),
         { key = "combatTimerClassColor", label = "Class Colour", toggle = true },
         { key = "combatTimerColor", label = "Timer Colour", colour = true, needs = OwnColour,
           why = "Class colour is on" },
-        { key = "combatTimerFont", label = "Font", font = true },
-        { key = "combatTimerFontSize", label = "Font Size", slider = { 10, 72, 1 } },
     },
 })

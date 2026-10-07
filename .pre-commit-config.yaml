@@ -49,7 +49,7 @@ repos:
         entry: '(?<!\r)\n'
         args: [--multiline]
         files: \.(lua|toc|xml)$
-        exclude: ^(Tools|Locales)/|^SmartReminders/NaowhForever_Verify\.lua$
+        exclude: ^(Tools|Locales)/|^Core/NaowhForever_Verify\.lua$
 
       # Translations and the generated BiS source names are the exceptions.
       - id: addon-ascii
@@ -57,7 +57,7 @@ repos:
         language: pygrep
         entry: '[^\x00-\x7F]'
         files: \.(lua|toc|xml)$
-        exclude: ^Locales/|^BiS/Data/BiS\.lua$
+        exclude: ^Locales/|^NaowhForever_BiS/BiS/Data/BiS\.lua$
 
       - id: toc-files
         name: TOC files exist

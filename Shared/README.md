@@ -10,26 +10,31 @@ through `Shared.xml`. Nothing is made or listened to at load.
 Shared/
   Shared.xml   what loads, in order
   Shared.lua   the namespace (ns.Shared), and what a character keeps by its GUID (Shared.CharacterData)
+  Decode.lua   a pasted import string read back as plain data, with size, depth and bomb caps, and
+               outside text cleaned for display (Decode.String, Decode.Text)
   Style.lua    the house look: colors (BiS stars, worn green, looks, red and warning orange), icons, sizes
   Items.lua    item and gear helpers: an ID from a link or URL, your loot lines, quality colour, In Bag,
                gear slots, what fits where, what you wear, weapons in short ("1h Sword"),
                waiting on item data, the items the server would not send
   Bags.lua     the item buttons in your bags, the game's and EllesmereUI's, for the marks
                painted on them (Bag Marks, Scrap Marker)
+  Roster.lua   our part of a player's tooltip in the Guild & Communities and Friends lists (Badges, Naowh Score)
   Places.lua   zones by name, and showing one on the world map
   Played.lua   the character's /played time, asked for once with the chat print muted (XP Bar, XP per Hour)
   Parts.lua    components: rank stars, item icon and its check, an item's slot marks (item level, star, Forever's mark), links, icon buttons, the
                backdrop and its cards, panels, the side panel, chat sharing, lined-up numbers,
                money with its coins (Parts.Coins, made once each; compact, its largest coin only),
-               an atlas badge on an icon's top corner (Parts.ItemBadge, Bag Space's clock and quest "!"), a timer line the client runs
+               an atlas badge on an icon's top corner (Parts.ItemBadge, Bag Space's clock and quest "!"), a short label
+               in a pill of its color (Parts.Pill and Parts.SetPill, Group Inspect's "NF"), a timer line the client runs
                down by itself (Parts.TimerLine), a row of labels spread evenly (Parts.LabelRow), a HUD
-               card's background: the card, a soft fade or none (Parts.HudBackdrop)
+               card's background: the card, a soft fade or none (Parts.HudBackdrop), and a HUD line's
+               font, size and outline (Parts.HudFont)
   Window.lua   a window: the frame, title bar, icons, opacity slider, switch, search, footer,
                and a module's card on its settings page
   Tracker.lua  a tracker's small window (Parts.TrackerPanel), and a list row's bands
                (Parts.RowBands: stripe, hover, the line under it)
   View.lua     the row engine: pooled rows, cards, the card grid, one redraw per burst
-  Kinds.lua    the rows every page has: section title, note, card, and an item in a list you
+  Kinds.lua    the rows every page has: section title (shorter with view.tightTitles), note, card, and an item in a list you
                keep (icon, name in its quality colour, a line under it, a tag, a value, an X)
   Settings/
     Settings.lua  every settings page, declared once: pages, cards, rows, reset, search index
@@ -48,7 +53,9 @@ Shared/
 - **Settings:** a module declares its settings next to its code, on the page they show on:
   `ns.Shared.Settings.Page("QoL/General", S):Card({ id, name, help, switch, summary, order,
   studio, rows = { ... } })`, rows like `{ key = "iconSize", label = "Icon Size", slider = { 12,
-  32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). A row or
+  32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). A
+  row with `field` (and its own `get`/`set`) is one entry of a table setting `key`, with its own dot
+  and reset (AuraBuffs' raid buff switches). A row or
   group with `hidden` is left off the page: `true` for one set on the preview instead, or a
   function, so rows for one choice only (the Campfire's Round and Simple rows) show with it. The page
   in the options window, its search entries, the dot on what you changed and each card's reset
@@ -138,6 +145,22 @@ Shared/
   optional: `alpha` (the card's fill), `color` (`T.bg`), `softAlpha`, `fade`, `inset` and `mode`.
   Pass the mode to `Parts.HudText` for each line on it; the choice row's values are
   `Parts.HUD_BACKGROUNDS`. The XP Ticker and Bag Space use it.
+- **A HUD element's look:** every on-screen element offers the same Text, Bar and Background rows,
+  declared with `Settings.Look(prefix, opts)` as one entry of a card's `rows` (a card takes a list
+  of rows in place). Its keys are `<prefix>Font`, `<prefix>FontSize`, `<prefix>Outline`,
+  `<prefix>Texture`, and `<prefix>Background` (card/soft/none) or `<prefix>BgAlpha`; with the
+  prefix `""` they are `font`, `fontSize` and so on. `opts`: `text`, `size` (the font size
+  slider's range), `bar` (the name the element's own texture shows under), `background` (`"card"`
+  or `"alpha"`), `needs` and `why` for every row, and `keys`, which maps a suffix to a key the
+  element already saves under (`{ FontSize = "textSize" }`) or to false to leave the row out. The
+  defaults stay in the module's `UI.ModuleSettings`, at today's look (`outline = "OUTLINE"` for
+  outlined text, `""` for the rest). To draw it, `Parts.HudFont(fs, font, size, outline,
+  background)` sets the font (a SharedMedia name, `""` for the Addon Font), size and outline (one
+  of `Parts.HUD_OUTLINES`: `"NONE"` plain text, `""` Shadow, `"OUTLINE"`, `"THICKOUTLINE"`) and gives
+  Shadow the HUD shadow for its `background` mode. A bar's texture is `ns.UI.TexturePath(name, own)`: the
+  SharedMedia statusbar, or `own` for `""` and anything missing. A row of its own uses the
+  `texture` kind, `{ key = "texture", label = "Bar Texture", texture = "Flat" }`, which lists
+  `ns.UI.TextureChoices`. The Swing Timer and Threat Meter use it.
 - **A progress line:** `Parts.ProgressLine(parent, height)` is a thin line that holds still (the
   XP Ticker's level progress): a track in the theme's line color, a fill in a gradient into its
   color, and a fainter segment ahead of the fill (rested XP). `line:SetProgress(value, ahead)`

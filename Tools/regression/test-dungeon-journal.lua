@@ -2,19 +2,20 @@
 -- files its DungeonJournal.xml lists, in that order, against stubs (and checks the TOC loads
 -- that XML), then checks the generated data holds together, the loot rules, which dungeon
 -- you are in, the small helpers, what counting costs, that nothing is made or hooked while
--- the Journal is off, and the Reputation and PvP tabs. Its quests have their own test
+-- the Journal is off, the dungeon map's list of bosses and its boss page, and the Reputation
+-- and PvP tabs. Its quests have their own test
 -- (test-journal-quests.lua).
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
 -- The journal's files, in load order, from its XML; the TOC loads that XML.
 local tocLoads = false
-for line in io.lines("NaowhForever.toc") do
-    if line:gsub("\r$", "") == "DungeonJournal\\DungeonJournal.xml" then tocLoads = true end
+for line in io.lines("NaowhForever_DungeonJournal/NaowhForever_DungeonJournal.toc") do
+    if line:gsub("\r$", "") == "DungeonJournal.xml" then tocLoads = true end
 end
 check("the TOC loads the journal", tocLoads)
 local TocFiles = dofile("Tools/regression/toc_files.lua")
-local journalFiles = TocFiles("^DungeonJournal/.*%.lua$")
+local journalFiles = TocFiles("^NaowhForever_DungeonJournal/.*%.lua$")
 check("the journal lists its files", #journalFiles > 40)
 -- What the modules share loads first: the Journal is drawn with it.
 local files = TocFiles("^Shared/.*%.lua$")
@@ -75,6 +76,10 @@ local METHODS = {
     SetText = function(frame, text) frame.text = text end,
     GetText = function(frame) return rawget(frame, "text") or "" end,
     IsShown = function(frame) return rawget(frame, "shown") ~= false end,
+    SetTexture = function(frame, texture) frame.texture = texture end,
+    SetPoint = function(frame, _, a, b, c)
+        frame.pointX = type(a) == "number" and a or type(b) == "number" and b or c
+    end,
     IsVisible = function(frame) return rawget(frame, "shown") ~= false end,
     Show = function(frame) frame.shown = true end,
     Hide = function(frame) frame.shown = false end,
@@ -294,10 +299,11 @@ local function fixture(settings)
             return i.name, nil, nil, nil, nil, nil, nil, i.id
         end,
         InCombatLockdown = function() return state.combat end,
+        GetCursorPosition = function() return 0, 0 end,
         GetQuestLink = function(id) return "|Hquest:" .. id .. "|h[Quest " .. id .. "]|h" end,
         -- The chat box: open while state.chatOpen.
         ChatFrameUtil = {
-            InsertLink = function() return state.chatOpen == true end,
+            InsertLink = function(link) state.inserted = link; return state.chatOpen == true end,
             GetActiveWindow = function() return state.chatOpen and {} or nil end,
         },
         GameTooltip_SetTitle = function(tooltip, text) tooltip.title = text end,
@@ -394,6 +400,12 @@ local function fixture(settings)
         -- The level asked about kept, for a test to read.
         GetQuestDifficultyColor = function(level) state.difficultyAsked = level; return { r = 1, g = 1, b = 1 } end,
         QuestDifficultyColors = { trivial = {} },
+        UnitFullName = function(unit)
+            if unit == "player" then return "Die Man" end
+            local member = state.party and state.party[tonumber(unit:match("^party(%d)$") or 0)]
+            return member and member.name
+        end,
+        GetNormalizedRealmName = function() return "Realm" end,
         UnitGUID = function(unit)
             if unit == "player" then return state.guid end
             local member = state.party and state.party[tonumber(unit:match("^party(%d)$") or 0)]
@@ -405,9 +417,11 @@ local function fixture(settings)
         WorldMapFrame = Frame(state),
         EventUtil = { ContinueOnAddOnLoaded = function() end },
         -- A boss's abilities: every spell loaded, with a name and a line saying what it does.
+        IsModifiedClick = function(kind) return kind == "CHATLINK" and state.shift == true end,
         C_Spell = { GetSpellName = function(id) return "Spell " .. id end,
+            GetSpellLink = function(id) return "|Hspell:" .. id .. "|h[Spell " .. id .. "]|h" end,
             GetSpellTexture = function() return 136243 end,
-            GetSpellDescription = function() return "Hits the tank." end,
+            GetSpellDescription = function(id) return state.spellText and state.spellText[id] or "Hits the tank." end,
             IsSpellDataCached = function() return true end },
         C_Map = { OpenWorldMap = function(map) state.mapOpened = map end,
             GetMapInfo = function(map)
@@ -510,6 +524,9 @@ local function fixture(settings)
     }
     setmetatable(env, { __index = _G })
     state.G = env._G
+    local senders = assert(loadfile("Core/NaowhForever_Senders.lua"))
+    setfenv(senders, env)
+    senders()
     for _, path in ipairs(files) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
@@ -632,7 +649,7 @@ do
     check("a boss with no NPC ID has no tip", J.Tip({ name = "Nobody" }) == nil)
     -- Each boss names an ability once: Wowhead lists Old Serra'kis's Dazed four times.
     local withAbilities = 0
-    for line in io.lines("DungeonJournal/Data/Abilities.lua") do
+    for line in io.lines("NaowhForever_DungeonJournal/Data/Abilities.lua") do
         local npc, ids, names = line:match("^%s*%[(%d+)%] = { ([%d, ]+) },  %-%- [^:]+: (.-)\r?$")
         if npc then
             local seen, count = {}, 0
@@ -1547,80 +1564,378 @@ do
         if rawget(made, "glow") and boss and rawget(made, "shown") ~= false then onMap[boss.name] = true end
     end
     check("a placed boss is on the map", onMap["Oggleflint"])
-    -- Under the map, the legend: every boss in kill order, a click picks one for its loot.
-    local legendRows, pickRow = {}, nil
-    for _, made in ipairs(state.made) do
-        local boss = rawget(made, "boss")
-        if rawget(made, "tick") and boss and rawget(made, "shown") ~= false then
-            legendRows[boss.name] = true
-            if boss.name == "Bazzalan" then pickRow = made end
-        end
-    end
-    check("the legend lists every boss, placed or not", legendRows["Oggleflint"] and legendRows["Bazzalan"]
-        and legendRows["Taragaman the Hungerer"] and legendRows["Jergosh the Invoker"])
-    pickRow.scripts.OnClick(pickRow)
-    check("a row picks its boss", rawget(pickRow.bar, "shown") == true)
-    -- Its loot, and under it what it does in the fight.
-    local spells, ability = J.Abilities[11519], nil
-    for _, made in ipairs(state.made) do
-        if spells and rawget(made, "spell") == spells[1] and rawget(made, "shown") ~= false then ability = made end
-    end
-    check("its abilities are under its loot", ability ~= nil and rawget(ability.desc, "text") == "Hits the tank.")
-    local tipRow
-    for _, made in ipairs(state.made) do
-        if rawget(made, "mark") and rawget(made, "text") and rawget(made.text, "text") == J.Tips[11519]
-            and rawget(made, "shown") ~= false then tipRow = made end
-    end
-    check("and Naowh's tip, written out", tipRow ~= nil)
-    local bossHeader
-    for _, made in ipairs(state.made) do
-        if rawget(made, "about") and rawget(made.title, "text") == "Bazzalan" and rawget(made, "shown") ~= false then
-            bossHeader = made
-        end
-    end
-    check("its page has its name on top", bossHeader ~= nil)
-    check("and its level, where Wowhead has it", not J.BossInfo[11519]
-        or tostring(rawget(bossHeader.about, "text")):find("Level") ~= nil)
-    -- Each of its sections opens and closes by its title.
-    local abilitiesTitle
-    for _, made in ipairs(state.made) do
-        local text = rawget(made, "text")
-        if rawget(made, "onToggle") and text and tostring(rawget(text, "text")):find("^ABILITIES")
-            and rawget(made, "shown") ~= false then abilitiesTitle = made end
-    end
-    abilitiesTitle.onToggle()
-    check("a section closes by its title", rawget(ability, "shown") == false)
-    abilitiesTitle.onToggle()
-    check("and opens again", rawget(ability, "shown") ~= false)
-    -- Loot opens again on the next boss: closing it lasts for that boss only.
-    local function LootTitle()
+    state.spellText = { [J.Abilities[11519][1]] = "Hits the tank.\nThen the healer." }
+    local St = J.Style
+    local portraits = rawget(_G, "SetPortraitTextureFromCreatureDisplayID")
+    _G.SetPortraitTextureFromCreatureDisplayID = function() end
+    J.DrawDungeonMap()
+    local function Rows()
+        local list = {}
         for _, made in ipairs(state.made) do
-            local text = rawget(made, "text")
-            if rawget(made, "onToggle") and text and tostring(rawget(text, "text")):find("^LOOT")
-                and rawget(made, "shown") ~= false then return made end
-        end
-    end
-    local lootPage = rawget(LootTitle(), "parent")
-    local function LootShown(name)
-        for _, made in ipairs(state.made) do
-            local boss = rawget(made, "boss")
-            if rawget(made, "chanceText") and boss and boss.name == name and rawget(made, "shown") ~= false
-                and rawget(made, "parent") == lootPage then
-                return true
+            if rawget(made, "bisText") and rawget(made, "mark") and rawget(made, "shown") ~= false then
+                list[#list + 1] = made
             end
         end
-        return false
+        return list
+    end
+    local function RowFor(name)
+        for _, entry in ipairs(Rows()) do
+            if entry.boss.name == name then return entry end
+        end
+    end
+    local function PinFor(name)
+        for _, made in ipairs(state.made) do
+            local boss = rawget(made, "boss")
+            if rawget(made, "glow") and boss and boss.name == name and rawget(made, "shown") ~= false then return made end
+        end
+    end
+    local function KillOrder(dungeon)
+        local list = {}
+        for _, wing in ipairs(dungeon.wings) do
+            for _, boss in ipairs(wing.bosses) do
+                if boss.npc or boss.chest then list[#list + 1] = boss end
+            end
+        end
+        return list
+    end
+    local order = KillOrder(ragefire)
+    local shownRows = Rows()
+    local listView = shownRows[1]:GetParent()
+    local listScroll = listView:GetParent()
+    local mapWindow = listScroll:GetParent()
+    local MAP_SHOWN_W, MAP_SHOWN_H = 1002 * 0.7, 668 * 0.7
+    local function WingRows()
+        local list = {}
+        for _, made in ipairs(state.made) do
+            if rawget(made, "parent") == listView and rawget(made, "shown") ~= false and rawget(made, "text")
+                and not rawget(made, "arrow") and not rawget(made, "mark") then
+                list[#list + 1] = made
+            end
+        end
+        return list
+    end
+    check("the list beside the map, on its right, as tall as it", listScroll.pointX > MAP_SHOWN_W
+        and rawget(listScroll, "h") == MAP_SHOWN_H)
+    local title
+    for _, made in ipairs(state.made) do
+        if rawget(made, "arrow") and rawget(made, "parent") == listView and rawget(made, "shown") ~= false then
+            title = made
+        end
+    end
+    check("under a BOSSES title with their count", title and tostring(rawget(title.text, "text")):find("^BOSSES") ~= nil)
+    check("a row for every boss, placed or not", #shownRows == #order)
+    local inOrder, numbered = true, 0
+    for i, entry in ipairs(shownRows) do
+        if entry.boss ~= order[i] or rawget(entry.name, "text") ~= entry.boss.name or entry.h ~= 28 then inOrder = false end
+        if J.Numbered(entry.boss) then
+            numbered = numbered + 1
+            if rawget(entry.mark.badge.text, "text") ~= numbered then inOrder = false end
+        end
+    end
+    check("in kill order, each with its number on its mark's badge and its name", inOrder)
+    local markX, nameX, aligned = shownRows[1].mark.pointX, shownRows[1].name.pointX, true
+    for _, entry in ipairs(shownRows) do
+        if entry.mark.pointX ~= markX or entry.name.pointX ~= nameX then aligned = false end
+    end
+    check("every portrait at the same x, every name at the same x after it", aligned
+        and nameX > markX * 0.52 + 46 * 0.52)
+    check("one wing: no wing names", #WingRows() == 0)
+    local pickRow = RowFor("Bazzalan")
+    pickRow.scripts.OnClick(pickRow)
+    check("a row picks its boss, on an accent fill", rawget(pickRow.fill, "shown") == true)
+    check("its mark ringed as a picked pin is", rawget(pickRow.mark.gold, "shown") == true
+        and rawget(pickRow.mark.halo, "shown") == false)
+    local jergosh = RowFor("Jergosh the Invoker")
+    jergosh.scripts.OnClick(jergosh)
+    check("and its pin with it", rawget(jergosh.mark.gold, "shown") == true
+        and rawget(PinFor("Jergosh the Invoker").gold, "shown") == true)
+    pickRow.scripts.OnClick(pickRow)
+    check("and no other", rawget(RowFor("Oggleflint").fill, "shown") == false)
+    local oggle = RowFor("Oggleflint")
+    oggle.scripts.OnEnter(oggle)
+    check("hovering a row lights its pin", rawget(PinFor("Oggleflint").glow, "shown") == true)
+    check("and the row", rawget(oggle.hover, "shown") == true)
+    oggle.scripts.OnLeave(oggle)
+    check("leaving puts both out", rawget(PinFor("Oggleflint").glow, "shown") == false
+        and rawget(oggle.hover, "shown") == false)
+    local oggPin = PinFor("Oggleflint")
+    oggPin.scripts.OnEnter(oggPin)
+    check("hovering a pin lights its row", rawget(oggle.hover, "shown") == true)
+    oggPin.scripts.OnLeave(oggPin)
+    check("and leaving it puts it out", rawget(oggle.hover, "shown") == false)
+    local current, thisRun = J.Current, J.Kills.ThisRun
+    J.Current = function() return { ragefire } end
+    J.Kills.ThisRun = function(boss) return boss.name == "Oggleflint" end
+    J.DrawDungeonMap()
+    check("a boss killed this run is dimmed, with a tick", oggle.killed == true
+        and rawget(oggle.mark.badge.tick, "shown") == true and rawget(oggle.mark.badge.text, "shown") == false)
+    check("its pin too", rawget(PinFor("Oggleflint").badge.tick, "shown") == true)
+    check("the others are not", RowFor("Jergosh the Invoker").killed == false
+        and rawget(RowFor("Jergosh the Invoker").mark.badge.tick, "shown") == false)
+    local runTitle
+    for _, font in ipairs(state.fonts) do
+        local text = rawget(font, "text")
+        if type(text) == "string" and text:find(ragefire.name:upper(), 1, true)
+            and text:find(("1 of %d down"):format(numbered), 1, true) then runTitle = font end
+    end
+    check("the title counts the run", runTitle ~= nil)
+    J.Current, J.Kills.ThisRun = current, thisRun
+    J.DrawDungeonMap()
+    check("out of the run, nothing is dimmed", oggle.killed == false)
+
+    local spells = J.Abilities[11519]
+    local function PageRow(pv, test)
+        for _, made in ipairs(state.made) do
+            if rawget(made, "shown") ~= false and rawget(made, "parent") == pv and test(made) then return made end
+        end
+    end
+    local function TitleRow(name, bossPage)
+        for _, made in ipairs(state.made) do
+            local bossTitle = rawget(made, "title")
+            if rawget(made, "about") and bossTitle and rawget(bossTitle, "text") == name and rawget(made, "shown") ~= false
+                and made:GetParent().bossPage == bossPage then
+                return made
+            end
+        end
+    end
+    local function Section(pv, name)
+        return PageRow(pv, function(made)
+            local text = rawget(made, "text")
+            return rawget(made, "arrow") and text and tostring(rawget(text, "text")):find("^" .. name) ~= nil
+        end)
+    end
+    local bossTitle = TitleRow("Bazzalan", true)
+    check("the page has its name on top", bossTitle ~= nil)
+    local pageView = bossTitle:GetParent()
+    check("the page under the map and the list, the window's whole width",
+        pageView:GetWidth() >= MAP_SHOWN_W + 10 + 210 - 16 and mapWindow:GetWidth() > MAP_SHOWN_W + 210)
+    check("all the height under the map", math.abs(pageView.fitHeight - (mapWindow:GetHeight() - 30 - MAP_SHOWN_H - 6 - 10)) < 0.01)
+    check("and its level beside it, where Wowhead has it", not J.BossInfo[11519]
+        or tostring(rawget(bossTitle.about, "text")):find("Level") ~= nil)
+    local lootTitle, abilitiesTitle = Section(pageView, "LOOT"), Section(pageView, "ABILITIES")
+    check("its loot and abilities, side by side", lootTitle and abilitiesTitle and lootTitle.top == abilitiesTitle.top
+        and lootTitle.w == abilitiesTitle.w and lootTitle.w < pageView:GetWidth() / 2)
+    check("nothing to open or close", lootTitle.onToggle == nil and abilitiesTitle.onToggle == nil)
+    local pageItem = PageRow(pageView, function(made)
+        local boss = rawget(made, "boss")
+        return rawget(made, "chanceText") and boss and boss.name == "Bazzalan"
+    end)
+    check("its items in the left column, compact", pageItem ~= nil and pageItem.w == lootTitle.w
+        and pageItem.h == St.DENSE_H)
+    local ability = PageRow(pageView, function(made) return rawget(made, "spell") == spells[1] end)
+    check("its abilities in the right one", ability ~= nil and ability.w == abilitiesTitle.w)
+    check("with room below, what each does on two lines", pageView.abilityLines == 2
+        and ability.h == St.DENSE_TALL_H and rawget(ability.desc, "text") == "Hits the tank. Then the healer.")
+    local roomy = mapWindow:GetHeight()
+    mapWindow:SetHeight(roomy - 200)
+    pickRow.scripts.OnClick(pickRow)
+    check("without, on one line, cut short, as tall as an item", pageView.abilityLines == 1
+        and ability.h == St.DENSE_H and rawget(ability.desc, "text") == "Hits the tank. Then the healer.")
+    mapWindow:SetHeight(roomy)
+    pickRow.scripts.OnClick(pickRow)
+    check("and two again once there is room", pageView.abilityLines == 2 and ability.h == St.DENSE_TALL_H)
+    local spellShown
+    local spellLines = {}
+    rawset(state.tooltip, "SetSpellByID", function(_, id) spellShown = id end)
+    state.tooltip.AddLine = function(_, text) spellLines[#spellLines + 1] = text end
+    ability.scripts.OnEnter(ability)
+    check("the whole of it in the spell's tooltip", spellShown == spells[1] and Has(spellLines, "Shift-click: link"))
+    ability.scripts.OnLeave(ability)
+    state.tooltip.AddLine, state.tooltip.SetSpellByID = nil, nil
+    state.inserted = nil
+    ability.scripts.OnClick(ability)
+    check("a plain click on an ability links nothing", state.inserted == nil)
+    state.shift = true
+    ability.scripts.OnClick(ability)
+    state.shift = nil
+    check("Shift-click puts its spell link in chat", state.inserted == "|Hspell:" .. spells[1] .. "|h[Spell " .. spells[1] .. "]|h")
+    local tipRow = PageRow(pageView, function(made)
+        return rawget(made, "mark") and rawget(made, "share") and rawget(made.text, "text") == J.Tips[11519]
+    end)
+    check("Naowh's tip, written out under its name", tipRow ~= nil and tipRow.top > bossTitle.top
+        and tipRow.top < lootTitle.top)
+    check("across the page, in a card", tipRow.w == pageView:GetWidth() - St.CARD_PAD * 2)
+    check("with its share button", rawget(tipRow.share, "shown") ~= false)
+    check("a boss with a tip: the columns under it", lootTitle.top > tipRow.top + tipRow.h)
+
+    J.View.OpenBossLoot(pickRow.boss, ragefire)
+    local stackedHeader = TitleRow("Bazzalan", false)
+    check("the stacked page has its name on top", stackedHeader ~= nil)
+    local stacked = stackedHeader:GetParent()
+    local stackedAbility = PageRow(stacked, function(made) return rawget(made, "spell") == spells[1] end)
+    check("its abilities written out whole", stackedAbility ~= nil
+        and rawget(stackedAbility.desc, "text") == "Hits the tank.\nThen the healer."
+        and stackedAbility.h ~= St.DENSE_H)
+    check("and Naowh's tip", PageRow(stacked, function(made)
+        return rawget(made, "mark") and rawget(made.text, "text") == J.Tips[11519]
+    end) ~= nil)
+    local stackedAbilities = Section(stacked, "ABILITIES")
+    stackedAbilities.onToggle()
+    check("a section closes by its title", rawget(stackedAbility, "shown") == false)
+    stackedAbilities.onToggle()
+    check("and opens again", rawget(stackedAbility, "shown") ~= false)
+    local function LootShown(name)
+        return PageRow(stacked, function(made)
+            local boss = rawget(made, "boss")
+            return rawget(made, "chanceText") and boss and boss.name == name
+        end) ~= nil
     end
     check("its loot shows", LootShown("Bazzalan"))
-    LootTitle().onToggle()
+    Section(stacked, "LOOT").onToggle()
     check("its loot closes by its title", not LootShown("Bazzalan"))
-    local otherRow
-    for _, made in ipairs(state.made) do
-        local boss = rawget(made, "boss")
-        if rawget(made, "tick") and boss and boss.name == "Oggleflint" then otherRow = made end
-    end
-    otherRow.scripts.OnClick(otherRow)
+    J.View.OpenBossLoot(oggle.boss, ragefire)
     check("and opens again on the next boss", LootShown("Oggleflint"))
+    J.View.CloseBossLoot()
+
+    local excavation = J.Get("ExcavationSite")
+    J.OpenDungeonMap(excavation)
+    local horror, guardian = RowFor("Highland Horror"), RowFor("Relic Guardian")
+    check("Highland Horror is a quest boss", horror.boss.quest == true and not J.Numbered(horror.boss))
+    check("tagged QUEST after its name", rawget(horror.tag, "text") == "QUEST" and rawget(horror.tag, "shown") ~= false)
+    check("and Q, muted, where a number goes", rawget(horror.mark.badge.text, "text") == "Q"
+        and rawget(horror.mark.badge, "shown") ~= false)
+    check("as on its pin", rawget(PinFor("Highland Horror").badge.text, "text") == "Q")
+    check("Relic Guardian is the third", rawget(guardian.mark.badge.text, "text") == 3)
+    check("and so is its pin", rawget(PinFor("Relic Guardian").badge.text, "text") == 3)
+    check("the first not killed is picked", rawget(RowFor("Saltspine").fill, "shown") == true)
+    local saltTitle = TitleRow("Saltspine", true)
+    check("Saltspine has no tip", J.Tips[260322] == nil and PageRow(pageView, function(made)
+        return rawget(made, "mark") and rawget(made, "share")
+    end) == nil)
+    check("and no gap for one: its columns right under its name",
+        Section(pageView, "LOOT").top == saltTitle.top + saltTitle.h + 6)
+    horror.scripts.OnClick(horror)
+    local quests = PageRow(pageView, function(made) return rawget(made, "chips") and rawget(made, "label") end)
+    local horrorAbilities = Section(pageView, "ABILITIES")
+    check("its quest shows", quests ~= nil
+        and tostring(rawget(quests.chips[1].name, "text")):find("Horrors in the Highland", 1, true) ~= nil)
+    check("over its abilities, as it has no loot", quests.top < horrorAbilities.top and Section(pageView, "LOOT") == nil)
+    check("which take the whole width", horrorAbilities.w == pageView:GetWidth())
+    ns.OpenJournalWindow(excavation)
+    local function Card(name)
+        for _, made in ipairs(state.made) do
+            local boss = rawget(made, "boss")
+            if rawget(made, "badge") and rawget(made, "rare") and boss and boss.name == name
+                and rawget(made, "shown") ~= false then
+                return made
+            end
+        end
+    end
+    check("on the Journal's page, Relic Guardian is the third", rawget(Card("Relic Guardian").number, "text") == 3)
+    check("and Highland Horror tagged QUEST, with no number", rawget(Card("Highland Horror").rare, "text") == "QUEST"
+        and rawget(Card("Highland Horror").badge, "shown") == false)
+    J.OpenDungeonMap(J.Get("Deadmines"))
+    local vancleef = RowFor("Edwin VanCleef")
+    vancleef.scripts.OnClick(vancleef)
+    quests = PageRow(pageView, function(made) return rawget(made, "chips") and rawget(made, "label") end)
+    check("a quest boss with loot: the quest under the columns", quests ~= nil
+        and quests.top > Section(pageView, "LOOT").top)
+    local wailing = J.Get("WailingCaverns")
+    J.OpenDungeonMap(wailing)
+    local wc = Rows()
+    check("Wailing Caverns: its nine bosses", #wc == 9)
+    rawset(wc[1].name, "GetStringWidth", function() return 300 end)
+    J.DrawDungeonMap()
+    check("a long name cut to fit", wc[1].name.w < wc[1].w - nameX)
+    rawset(wc[1].name, "GetStringWidth", nil)
+    local dragon = RowFor("Deviate Faerie Dragon")
+    check("a rare: its tag after its name, R on its badge", rawget(dragon.tag, "shown") ~= false
+        and rawget(dragon.tag, "text") == "RARE" and rawget(dragon.mark.badge.text, "text") == "R")
+    check("the numbered ones have no tag", rawget(RowFor("Kresh").tag, "shown") == false)
+    check("its mark and name where a numbered one's are", dragon.mark.pointX == RowFor("Kresh").mark.pointX
+        and dragon.name.pointX == RowFor("Kresh").name.pointX)
+    local brd = J.Get("BlackrockDepths")
+    J.OpenDungeonMap(brd)
+    local brdRows = Rows()
+    check("Blackrock Depths: a row for each of its bosses", #brdRows == #KillOrder(brd))
+    local headers = {}
+    for _, made in ipairs(WingRows()) do headers[rawget(made.text, "text")] = made end
+    local wingsRight = true
+    for w, wing in ipairs(brd.wings) do
+        local header, nextWing = headers[wing.name:upper()], brd.wings[w + 1]
+        local after = nextWing and headers[nextWing.name:upper()]
+        if not header then wingsRight = false end
+        for _, entry in ipairs(brdRows) do
+            local mine = false
+            for _, boss in ipairs(wing.bosses) do mine = mine or boss == entry.boss end
+            if mine and header and (entry.top < header.top or after and entry.top > after.top) then wingsRight = false end
+        end
+    end
+    check("each wing's name over its own bosses", wingsRight)
+    local firstOfRing
+    for _, entry in ipairs(brdRows) do
+        if not firstOfRing and entry.boss == brd.wings[2].bosses[1] then firstOfRing = entry end
+    end
+    check("numbers start again under each wing", rawget(firstOfRing.mark.badge.text, "text") == 1)
+    local safe
+    for _, entry in ipairs(brdRows) do
+        if entry.boss.chest then safe = entry end
+    end
+    check("a chest's mark is a chest's icon", safe and rawget(safe.mark.face, "texture") == St.CHEST_ICON
+        and rawget(safe.mark.face, "shown") ~= false and rawget(safe.mark.big, "shown") == false)
+    check("tagged CHEST", rawget(safe.tag, "text") == "CHEST")
+    check("as is its pin's", not PinFor(safe.boss.name)
+        or rawget(PinFor(safe.boss.name).face, "texture") == St.CHEST_ICON)
+    rawset(listScroll, "SetVerticalScroll", function(self, offset) self.offset = offset end)
+    rawset(listScroll, "GetVerticalScroll", function(self) return rawget(self, "offset") or 0 end)
+    check("longer than the map, the list scrolls", listView:GetHeight() > rawget(listScroll, "h"))
+    safe.scripts.OnClick(safe)
+    local offset = listScroll:GetVerticalScroll()
+    check("the picked row scrolled into view", offset > 0 and safe.top >= offset
+        and safe.top + 28 <= offset + rawget(listScroll, "h"))
+    rawset(listScroll, "SetVerticalScroll", nil)
+    rawset(listScroll, "GetVerticalScroll", nil)
+    J.OpenDungeonMap(ragefire)
+    check("back to one wing: no wing names", #WingRows() == 0)
+
+    local function Door()
+        for _, made in ipairs(state.made) do
+            if rawget(made, "key") == "entrance" and made.view.editable then return made end
+        end
+    end
+    local door = Door()
+    rawset(door.text, "GetStringWidth", function() return 75 end)
+    J.OpenDungeonMap(wailing)
+    check("Wailing Caverns: the entrance's label clear of the rare on its right", door.side == "LEFT"
+        and rawget(door.text, "shown") ~= false)
+    local placedPins = state.account.journalMapPins
+    state.account.journalMapPins = { RagefireChasm = { entrance = { 1, 0.5, 0.5 },
+        [11517] = { 1, 0.1, 0.1 }, [11520] = { 1, 0.9, 0.1 }, [11518] = { 1, 0.1, 0.9 }, [11519] = { 1, 0.9, 0.9 } } }
+    J.OpenDungeonMap(ragefire)
+    check("with room, the label is on the right", door.side == "RIGHT")
+    state.account.journalMapPins.RagefireChasm[11519] = { 1, 0.56, 0.5 }
+    J.DrawDungeonMap()
+    check("a pin there: on the left", door.side == "LEFT")
+    state.account.journalMapPins.RagefireChasm.entrance = { 1, 0.045, 0.5 }
+    state.account.journalMapPins.RagefireChasm[11519] = { 1, 0.1, 0.47 }
+    J.DrawDungeonMap()
+    check("the map's edge on the left and a pin on the right: below", door.side == "BELOW")
+    state.account.journalMapPins.RagefireChasm = { entrance = { 1, 0.5, 0.5 },
+        [11517] = { 1, 0.44, 0.5 }, [11520] = { 1, 0.56, 0.5 }, [11518] = { 1, 0.5, 0.46 }, [11519] = { 1, 0.5, 0.54 } }
+    J.DrawDungeonMap()
+    check("boxed in: no label", door.side == nil and rawget(door.text, "shown") == false)
+    check("but the entrance still shows", rawget(door, "shown") ~= false)
+    state.account.journalMapPins = placedPins
+    rawset(door.text, "GetStringWidth", nil)
+    _G.SetPortraitTextureFromCreatureDisplayID = portraits
+    J.OpenDungeonMap(J.Get("Deadmines"))
+    J.OpenDungeonMap(ragefire)
+    local fold = mapWindow.fold:GetParent()
+    local atMouse, openLoot = 0, J.View.OpenBossLoot
+    J.View.OpenBossLoot = function() atMouse = atMouse + 1 end
+    fold.scripts.OnClick(fold)
+    check("folded: the page away, the list stays beside the map", state.account.journalMapFolded == true
+        and rawget(pageView:GetParent(), "shown") == false and rawget(listScroll, "shown") ~= false)
+    oggPin = PinFor("Oggleflint")
+    oggPin.scripts.OnClick(oggPin, "LeftButton")
+    check("a pin opens its loot at the mouse", atMouse == 1)
+    RowFor("Oggleflint").scripts.OnClick(RowFor("Oggleflint"))
+    check("and so does a row", atMouse == 2)
+    J.View.OpenBossLoot = openLoot
+    fold.scripts.OnClick(fold)
+    check("unfolded: the page again", state.account.journalMapFolded == nil
+        and rawget(pageView:GetParent(), "shown") == true and rawget(pageView, "shown") ~= false)
+    pickRow = RowFor("Bazzalan")
     pickRow.scripts.OnClick(pickRow)
     -- A drag on a pin while not placing keeps nothing: only placing saves where a pin stands.
     state.account.journalMapPins = nil
@@ -1645,8 +1960,8 @@ do
     check("leaving keeps it, for a run back", run.at ~= nil and run.left ~= nil)
     Kills.NoteRun(nil, true)
     check("a login outside ends it", run.at == nil)
-    Measure("the dungeon map and its legend drawn", 2, function() J.DrawDungeonMap() end)
-    Measure("a boss picked on the map, its loot drawn", 2, function() pickRow.scripts.OnClick(pickRow) end)
+    Measure("the dungeon map and its list of bosses drawn", 2, function() J.DrawDungeonMap() end)
+    Measure("a boss picked again on the map, its page drawn", 2, function() pickRow.scripts.OnClick(pickRow) end)
     -- The Naowh mark in its title: back to the Journal, on the dungeon's page.
     local openJournal = ns.OpenJournalWindow
     local openedOn
@@ -1675,6 +1990,266 @@ do
     ns.DungeonMapCommand("mappins")
     J.OpenDungeonMap(ragefire)
     check("a second Map closes it", true)
+    -- A dungeon with two floors of the addon's own pictures: one images line keeps both.
+    local ubrs = J.Get("UpperBlackrockSpire")
+    J.OpenDungeonMap(ubrs)
+    ns.DungeonMapCommand("mappins")
+    for _, button in ipairs(state.buttons) do
+        if button.label == "Copy" then copy = button end
+    end
+    state.copied = nil
+    copy.onClick()
+    text = state.copied and state.copied.text or ""
+    local _, imageLines = text:gsub("images = ", "")
+    check("Copy gives one images line", imageLines == 1)
+    local pasted = assert(loadstring("return {\n" .. text .. "\n}"))().UpperBlackrockSpire
+    check("which keeps every floor's picture", pasted.images[8] == J.Maps.UpperBlackrockSpire.images[8]
+        and pasted.images[9] == J.Maps.UpperBlackrockSpire.images[9])
+    check("and the floors in the order you walk them", text:find("order = { 9, 8, 7 },", 1, true) ~= nil)
+    ns.DungeonMapCommand("mappins")
+    J.OpenDungeonMap(ubrs)
+
+    local NOT_PLACED = {
+        BlackrockDepths = { [9024] = "Pyromancer Loregrain", [9499] = "Plugger Spazzring",
+            [9537] = "Hurley Blackbreath", [9543] = "Ribbly Screwspigot" },
+        Dalaran = { [246008] = "Mana Devourer", [246931] = "Mana Wraith", [247032] = "Lyn the Ignored" },
+        LowerBlackrockSpire = { [10584] = "Urok Doomhowl" },
+        RazorfenKraul = { [6168] = "Roogug" },
+        Scholomance = { [10432] = "Vectus", [10433] = "Marduk Blackpool", [10508] = "Ras Frostwhisper",
+            [16118] = "Kormok" },
+        Stratholme = { [10393] = "Skul", [10809] = "Stonespine", [11143] = "Postmaster Malown" },
+        SunkenTemple = { [8580] = "Atal'alarion" },
+        UpperBlackrockSpire = { [16042] = "Lord Valthalak" },
+    }
+    local function MapFloorsAndGaps(key, map, dungeon)
+        local function Offered(n)
+            if map.floor then return n == map.floor end
+            if map.order then
+                for _, m in ipairs(map.order) do
+                    if m == n then return true end
+                end
+                return false
+            end
+            return n >= 1 and n <= map.floors
+        end
+        for id, spot in pairs(map.pins) do
+            check("on a floor its switch offers: " .. key .. " " .. id, Offered(spot[1]))
+        end
+        check("its entrance on a floor its switch offers: " .. key, map.entrance == nil or Offered(map.entrance[1]))
+        local function Shipped(path)
+            local file = io.open(path:gsub("^Interface\\AddOns\\NaowhForever\\", ""):gsub("\\", "/") .. ".tga", "rb")
+            if file then file:close() end
+            return file ~= nil
+        end
+        if map.image then
+            check("its picture is shipped: " .. key, Shipped(map.image))
+            for n = 2, map.floors do
+                check("its floor's picture is shipped: " .. key .. " " .. n, Shipped(map.image .. n))
+            end
+        end
+        for n, path in pairs(map.images or {}) do
+            check("its floor's picture is shipped: " .. key .. " " .. n, Shipped(path))
+            check("and offered: " .. key .. " " .. n, Offered(n))
+        end
+        if next(map.pins) == nil then return end
+        local waiting = NOT_PLACED[key] or {}
+        for _, wing in ipairs(dungeon.wings) do
+            for _, boss in ipairs(wing.bosses) do
+                if boss.npc and boss.encounters and #boss.encounters > 0 then
+                    check("a boss with an encounter is pinned or listed as not placed yet: " .. key .. " "
+                        .. boss.name, (map.pins[boss.npc] ~= nil) ~= (waiting[boss.npc] ~= nil))
+                end
+            end
+        end
+    end
+
+    local function FloorsAndFollowing()
+        local function FloorsOf(shownView)
+            local list = {}
+            for i, n in ipairs(shownView.floors) do list[i] = n end
+            return table.concat(list, ",")
+        end
+        local function ShownView(name)
+            local pin = PinFor(name)
+            return pin and pin.view
+        end
+        local savedPins = state.account.journalMapPins
+        state.account.journalMapPins = nil
+        J.OpenDungeonMap(ubrs)
+        local ubrsView = ShownView("Pyroguard Emberseer")
+        check("Upper Blackrock Spire: its three floors, walked from Dragonspire Hall", ubrsView ~= nil
+            and FloorsOf(ubrsView) == "9,8,7")
+        check("on its first boss's floor, the addon's picture of it", ubrsView.floor == 8
+            and rawget(ubrsView.picture, "shown") == true
+            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\UpperBlackrockSpire8"
+            and rawget(ubrsView.tiles[1], "shown") == false)
+        check("named for the switch", rawget(ubrsView.floorName, "text") == "Hall of Binding and the Rookery")
+        ubrsView:Step(1)
+        check("the art's seventh floor next, numbered as walked", ubrsView.floor == 7
+            and rawget(ubrsView.floorName, "text") == "Floor 3" and rawget(ubrsView.picture, "shown") == false
+            and ubrsView.tiles[1].texture == "Interface\\WorldMap\\BlackrockSpire\\BlackrockSpire7_1")
+        check("with Rend's pin on it", PinFor("Warchief Rend Blackhand") ~= nil and PinFor("Pyroguard Emberseer") == nil)
+        ubrsView:Step(1)
+        check("then round to Dragonspire Hall, where you come in", ubrsView.floor == 9
+            and rawget(ubrsView.floorName, "text") == "Dragonspire Hall"
+            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\UpperBlackrockSpire9")
+        local rend = RowFor("Warchief Rend Blackhand")
+        rend.scripts.OnClick(rend)
+        check("a mapRow of a boss on another floor goes to its floor", ubrsView.floor == 7
+            and rawget(PinFor("Warchief Rend Blackhand").gold, "shown") == true)
+        J.OpenDungeonMap(J.Get("LowerBlackrockSpire"))
+        check("Lower Blackrock Spire: only the art's first six floors",
+            FloorsOf(ShownView("War Master Voone") or ShownView("Highlord Omokk")) == "1,2,3,4,5,6")
+        J.OpenDungeonMap(J.Get("ShadowfangKeep"))
+        local sfkView = ShownView("Rethilgore")
+        check("Shadowfang Keep: the art's seventh floor third", FloorsOf(sfkView) == "1,2,7,4,6")
+        sfkView:Step(2)
+        check("and called Floor 3", sfkView.floor == 7 and rawget(sfkView.floorName, "text") == "Floor 3")
+        local odo = RowFor("Odo the Blindwatcher")
+        odo.scripts.OnEnter(odo)
+        check("hovering a mapRow lights its pin on the floor shown", rawget(PinFor("Odo the Blindwatcher").glow, "shown") == true)
+        odo.scripts.OnLeave(odo)
+        sfkView:Step(1)
+        check("Floor 5 after it", sfkView.floor == 4 and rawget(sfkView.floorName, "text") == "Floor 5"
+            and PinFor("Odo the Blindwatcher") == nil and PinFor("Fenrus the Devourer") ~= nil)
+        for _, key in ipairs({ "RazorfenDowns", "Uldaman", "Maraudon", "SunkenTemple", "BlackrockDepths", "DireMaul",
+            "LowerBlackrockSpire", "UpperBlackrockSpire", "Scholomance", "Stratholme", "Dalaran", "ShadowfangKeep",
+            "Deadmines" }) do
+            local dungeon = J.Get(key)
+            J.OpenDungeonMap(dungeon)
+            local shownView
+            for _, mapRow in ipairs(Rows()) do
+                shownView = shownView or (PinFor(mapRow.boss.name) and PinFor(mapRow.boss.name).view)
+            end
+            local lit, linked, seen = true, true, 0
+            for _ = 1, shownView and #shownView.floors or 0 do
+                for _, mapRow in ipairs(Rows()) do
+                    local pin = PinFor(mapRow.boss.name)
+                    if pin then
+                        seen = seen + 1
+                        mapRow.scripts.OnEnter(mapRow)
+                        lit = lit and rawget(pin.glow, "shown") == true
+                        mapRow.scripts.OnLeave(mapRow)
+                        pin.scripts.OnEnter(pin)
+                        lit = lit and rawget(mapRow.hover, "shown") == true
+                        pin.scripts.OnLeave(pin)
+                    end
+                    local spot = J.Maps[key].pins[mapRow.key]
+                    if spot and spot[1] ~= shownView.floor then
+                        local at = shownView.floor
+                        mapRow.scripts.OnClick(mapRow)
+                        local there = PinFor(mapRow.boss.name)
+                        linked = linked and shownView.floor == spot[1] and there ~= nil and rawget(there.gold, "shown") == true
+                        shownView.floor = at
+                        shownView:Draw()
+                    end
+                end
+                shownView:Step(1)
+            end
+            local pinned = 0
+            for _ in pairs(J.Maps[key].pins) do pinned = pinned + 1 end
+            check(key .. ": its rows and pins light each other on every floor", shownView ~= nil and lit and seen == pinned)
+            check(key .. ": a mapRow goes to its pin's floor", linked)
+            J.OpenDungeonMap(dungeon)
+        end
+
+        local dalaran = J.Get("Dalaran")
+        J.OpenDungeonMap(dalaran)
+        local dalRows = Rows()
+        check("City of Dalaran: a mapRow for each of its nine bosses", #dalRows == 9 and #KillOrder(dalaran) == 9
+            and dalRows[1].boss.name == "Atrexis the Grave Knight")
+        local inKillOrder = true
+        for i, name in ipairs({ "Atrexis the Grave Knight", "Arcane Anomaly", "Fel Ancient", "Unstable Sentinel",
+            "Shade of the Archmage" }) do
+            if dalRows[i].boss.name ~= name or rawget(dalRows[i].mark.badge.text, "text") ~= i then inKillOrder = false end
+        end
+        check("numbered in kill order", inKillOrder)
+        check("Lyn the Ignored a rare", rawget(RowFor("Lyn the Ignored").tag, "text") == "RARE")
+        check("the Mana Wraith optional", rawget(RowFor("Mana Wraith").tag, "text") == "OPTIONAL")
+        local dalView = ShownView("Atrexis the Grave Knight")
+        check("opens in the Underbelly, its first picture", dalView ~= nil and dalView.floor == 1
+            and FloorsOf(dalView) == "1,2"
+            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\Dalaran"
+            and rawget(dalView.floorName, "text") == "The Underbelly")
+        check("Atrexis alone there", PinFor("Arcane Anomaly") == nil)
+        local shade = RowFor("Shade of the Archmage")
+        shade.scripts.OnClick(shade)
+        check("a mapRow on the city's floor goes up to it", dalView.floor == 2
+            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\Dalaran2"
+            and rawget(dalView.floorName, "text") == "City of Dalaran")
+        check("its pin ringed there, Atrexis's gone", rawget(PinFor("Shade of the Archmage").gold, "shown") == true
+            and PinFor("Atrexis the Grave Knight") == nil)
+        local anomaly = PinFor("Arcane Anomaly")
+        anomaly.scripts.OnEnter(anomaly)
+        check("its pins light their rows", rawget(RowFor("Arcane Anomaly").hover, "shown") == true)
+        anomaly.scripts.OnLeave(anomaly)
+
+        dalView:Step(-1)
+        ns.DungeonMapCommand("mappins")
+        check("placing: Arcane Anomaly waits along the top, from the city", PinFor("Arcane Anomaly") ~= nil
+            and PinFor("Arcane Anomaly").atX == nil and PinFor("Arcane Anomaly").elsewhere == "City of Dalaran")
+        check("Atrexis stays where it is", PinFor("Atrexis the Grave Knight").atX ~= nil
+            and PinFor("Atrexis the Grave Knight").elsewhere == nil)
+        check("and the Mana Wraith, on no floor yet, waits too", PinFor("Mana Wraith").atX == nil
+            and PinFor("Mana Wraith").elsewhere == nil)
+        local tray, apart = {}, true
+        for i = 1, dalView.used do
+            if not dalView.pins[i].atX then tray[#tray + 1] = dalView.pins[i] end
+        end
+        for i = 2, #tray do
+            if tray[i].pointX == tray[i - 1].pointX then apart = false end
+        end
+        check("each in its own place along the top", #tray == 8 and apart)
+        local atrexis = PinFor("Atrexis the Grave Knight")
+        atrexis.scripts.OnClick(atrexis, "RightButton")
+        check("a right-click takes a pin off its floor", state.account.journalMapPins.Dalaran[247126] == false
+            and PinFor("Atrexis the Grave Knight").atX == nil)
+        state.copied = nil
+        copy.onClick()
+        text = state.copied and state.copied.text or ""
+        check("Copy leaves it out", text:find("[247126]", 1, true) == nil and text:find("[245999]", 1, true) ~= nil)
+        check("and keeps the floors' names",
+            text:find('names = { [1] = "The Underbelly", [2] = "City of Dalaran" },', 1, true) ~= nil)
+        ns.DungeonMapCommand("mappins")
+        check("taken off, it is on no floor, whatever the data says", PinFor("Atrexis the Grave Knight") == nil)
+        state.account.journalMapPins = nil
+        J.DrawDungeonMap()
+        check("until the placings are cleared", PinFor("Atrexis the Grave Knight") ~= nil)
+        J.OpenDungeonMap(dalaran)
+
+        local function MapLink(dungeon)
+            for _, made in ipairs(state.made) do
+                local titleLink = rawget(made, "link")
+                if rawget(made, "linkArg") == dungeon and titleLink and rawget(titleLink.text, "text") == "Map"
+                    and rawget(made, "shown") ~= false then
+                    return made
+                end
+            end
+        end
+        local folded = state.account.journalMapFolded
+        state.account.journalMapFolded = nil
+        ns.OpenJournalWindow(ragefire)
+        local mapLink = MapLink(ragefire)
+        mapLink.onLink(mapLink.linkArg, mapLink.link)
+        check("Map opens Ragefire Chasm's map beside the Journal", rawget(mapWindow, "shown") ~= false
+            and PinFor("Oggleflint") ~= nil)
+        ns.OpenJournalWindow(wailing)
+        check("the Journal on Wailing Caverns: the map follows", rawget(mapWindow, "shown") ~= false
+            and PinFor("Mutanus the Devourer") ~= nil and PinFor("Oggleflint") == nil and #Rows() == 9)
+        check("with its first boss picked", rawget(RowFor(wailing.wings[1].bosses[1].name).fill, "shown") == true)
+        ns.OpenJournalWindow(dalaran)
+        check("and to City of Dalaran", PinFor("Atrexis the Grave Knight") ~= nil and #Rows() == 9)
+        ns.OpenJournalWindow(J.Get("DrownedCity"))
+        check("a dungeon with no map closes it", rawget(mapWindow, "shown") == false)
+        ns.OpenJournalWindow(wailing)
+        check("closed, it stays closed", rawget(mapWindow, "shown") == false)
+        J.OpenDungeonMap(J.Get("Stockade"))
+        ns.OpenJournalWindow(ragefire)
+        check("a map opened from nothing stays on its dungeon", PinFor("Bazil Thredd") ~= nil and PinFor("Oggleflint") == nil)
+        J.OpenDungeonMap(J.Get("Stockade"))
+        state.account.journalMapPins, state.account.journalMapFolded = savedPins, folded
+    end
+    FloorsAndFollowing()
     -- The world map opening (M) puts the Journal's window away; closing it brings it back.
     ns.OpenJournalWindow(ragefire)
     local journalWindow
@@ -1765,10 +2340,15 @@ do
         check("a map is for a dungeon the Journal has: " .. key, dungeon ~= nil)
         check("its art and floors: " .. key, (type(map.art) == "string" or type(map.image) == "string")
             and map.floors >= 1)
-        -- The addon's own picture is in Media/Maps, one floor, for a dungeon the game has no art for.
+        -- The addon's own picture is in Media/Maps, for a dungeon the game has no art for.
         if map.image then
             check("its picture is the addon's: " .. key, map.image:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil
-                and map.floors == 1 and map.art == nil)
+                and map.art == nil)
+        end
+        -- A floor the art lacks, as the addon's own picture.
+        for n, path in pairs(map.images or {}) do
+            check("its floor's picture is the addon's: " .. key .. " " .. n, type(map.art) == "string"
+                and n >= 1 and n <= map.floors and path:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil)
         end
         -- Every pin is one of its bosses, on one of its floors, on the map.
         local bosses = {}
@@ -1783,6 +2363,7 @@ do
             check("on its map: " .. key .. " " .. id, spot[1] >= 1 and spot[1] <= map.floors
                 and spot[2] >= 0 and spot[2] <= 1 and spot[3] >= 0 and spot[3] <= 1)
         end
+        MapFloorsAndGaps(key, map, dungeon)
     end
 
     -- Ctrl+F, with the mouse on the window: the search box.
@@ -2814,7 +3395,7 @@ do
     check("and the asker is told to wait", Printed(mine):find("a moment ago", 1, true))
 
     -- A quest the game will not share.
-    hers.clock = hers.clock + 10
+    hers.clock = hers.clock + 30
     hers.unpushable = QUEST
     asker.Journal.Sharing.Ask(entry)
     Deliver(mine, askerFrame, "Die Man-Realm", hers, emmyFrame)
@@ -2845,6 +3426,30 @@ do
     mine.timers[1]()
     check("and the first timer, run late, does nothing", Printed(mine):find("Emmy shared", 1, true))
 
+    -- A flood of asks: a few are answered, the rest dropped; what is not a quest ID is skipped.
+    hers.clock = hers.clock + 60
+    local printedBefore, sentBefore = #hers.printed, #hers.sent
+    for _ = 1, 20 do
+        emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal",
+            "1 A " .. EMMY .. " " .. ME .. " 99999999999999999999,1e5,|cff", "PARTY", "Die Man-Realm")
+    end
+    check("twenty asks in a moment: four answered, the rest dropped, and said in chat once",
+        #hers.sent - sentBefore == 4 and #hers.printed - printedBefore == 1 and #hers.pushed == 2)
+    hers.clock = hers.clock + 11
+    emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", "1 A " .. EMMY .. " " .. ME .. " 1",
+        "PARTY", "Die Man-Realm")
+    check("answered again after the window, still not said again inside 30 seconds",
+        #hers.sent - sentBefore == 5 and #hers.printed - printedBefore == 1)
+    hers.clock = hers.clock + 20
+    emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", "1 A " .. EMMY .. " " .. ME .. " 1",
+        "PARTY", "Die Man-Realm")
+    check("and said again once 30 seconds have passed", #hers.printed - printedBefore == 2)
+    sentBefore = #hers.sent - 4
+    emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal",
+        "1 A " .. EMMY .. " Player-1-" .. string.rep("A", 200) .. " 6981", "PARTY", "Die Man-Realm")
+    check("an asker that is not a GUID is not answered", #hers.sent - sentBefore == 4)
+    hers.sent = {}
+
     -- In an encounter the game passes no addon messages.
     mine.locked = true
     asker.Journal.Sharing.Ask(entry)
@@ -2863,6 +3468,38 @@ do
     -- Off, nothing is answered.
     emmy.Journal.Settings.Set("enabled", false)
     check("off, asks are not listened for", next(emmyFrame.events) == nil)
+end
+
+do
+    local ME, EMMY = "Player-4613-006EB819", "Player-4613-00E33333"
+    local emmy, hers = fixture({ enabled = true })
+    emmy.Apply()
+    hers.guid = EMMY
+    hers.party = { { name = "Die Man", guid = ME, quests = {} } }
+    local emmyFrame = hers.made[3]
+    emmyFrame.scripts.OnEvent(emmyFrame, "GROUP_ROSTER_UPDATE")
+    local lookups = 0
+    setmetatable(hers.logged, { __index = function() lookups = lookups + 1 end })
+    local function Ask(text, sender)
+        emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", text, "PARTY", sender or "Die Man-Realm")
+    end
+    Ask("1 A " .. EMMY .. " |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t 6981")
+    Ask("1 A " .. EMMY .. " Player-%s%d 6981")
+    check("an ask from something that is not a player's GUID is not answered", #hers.sent == 0 and lookups == 0)
+    local ids = {}
+    for i = 1, 120 do ids[i] = tostring(100 + i) end
+    Ask("1 A " .. EMMY .. " " .. ME .. " " .. table.concat(ids, ","))
+    check("only the first few IDs of a long ask are looked up", lookups == 8 and #hers.sent == 1)
+    lookups = 0
+    hers.sent = {}
+    Ask("1 A " .. EMMY .. " " .. ME .. " " .. ("9"):rep(200) .. ",6981")
+    check("an ID too long to be a quest is skipped", lookups == 1 and #hers.sent == 1)
+    hers.sent = {}
+    hers.clock = hers.clock + 30
+    hers.party[1].name = "Bad%s%dName"
+    Ask("1 A " .. EMMY .. " " .. ME .. " 6981", "Bad%s%dName-Realm")
+    check("a sender's name with format codes prints as written",
+        (hers.printed[#hers.printed] or ""):find("Bad%s%dName asked you", 1, true) ~= nil)
 end
 
 -------------------------------------------------------------------------------
@@ -2911,7 +3548,7 @@ do
             out[1] = l.slots[slot]
             return out
         end }
-    for _, path in ipairs({ "BiS/Quests.lua", "BiS/View/QuestsPage.lua" }) do
+    for _, path in ipairs({ "NaowhForever_BiS/BiS/Quests.lua", "NaowhForever_BiS/BiS/View/QuestsPage.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()
@@ -3026,6 +3663,30 @@ do
     for _ in pairs(refused) do kept = kept + 1 end
     check("every item the Journal lists is answered", kept == all)
     check("done, it listens to nothing", next(probe.events) == nil)
+end
+
+do
+    local ns, state = fixture({ enabled = true })
+    local J = ns.Journal
+    ns.Apply()
+    for id in pairs(J.Items) do state.names[id] = "Item " .. id end
+    local filters, hidden = J.Loot.ReadFilters({}), nil
+    for id in pairs(J.Items) do
+        if not J.Loot.Shown(id, filters) then hidden = id end
+    end
+    state.names[hidden] = "Zq Hidden"
+    ns.OpenJournalWindow(J.Get("Stratholme"))
+    state.searchBox:SetText("zq")
+    state.onSearch()
+    for i = #state.timers, 1, -1 do table.remove(state.timers, i)() end
+    local view
+    for _, frame in ipairs(state.made) do
+        if rawget(frame, "waitingFor") and frame:IsVisible() and frame.query == "zq" then view = frame end
+    end
+    check("a search draws on the window's page", view ~= nil)
+    check("a name that matches is still left out when the filters hide it", not view:Listed(hidden, "zq"))
+    check("a name that does not match is left out", not view:Listed(next(J.Items), "zq"))
+    Measure("a search over every dungeon and faction redrawn", 2, function() view:Redraw() end)
 end
 
 print(("test-dungeon-journal: %d checks passed"):format(checks))

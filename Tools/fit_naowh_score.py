@@ -1,4 +1,4 @@
-"""Fits the Naowh Score's constants (NaowhScore/Data/Formula.lua) to a WoW Forever build's own
+"""Fits the Naowh Score's constants (NaowhForever_BiS/NaowhScore/Data/Formula.lua) to a WoW Forever build's own
 item table, read through wago.tools. Run by .github/workflows/daily-watch.yml when the watch
 moves to a new build (and on manual runs, as a report), so the score follows the game.
 
@@ -63,7 +63,7 @@ from pathlib import Path
 import wago
 
 ROOT = Path(__file__).resolve().parent.parent
-FORMULA = ROOT / "NaowhScore" / "Data" / "Formula.lua"
+FORMULA = ROOT / "NaowhForever_BiS" / "NaowhScore" / "Data" / "Formula.lua"
 
 STATS = 10   # ItemSparse's stat columns, _0 to _9
 COLUMNS = {
@@ -684,7 +684,7 @@ def main():
     parser.add_argument("--cache", help="keep the tables here, and read them from here next time")
     parser.add_argument("--report", help="write the report here instead of to stdout")
     parser.add_argument("--write", action="store_true",
-                        help="rewrite NaowhScore/Data/Formula.lua when the constants move enough and the gates pass")
+                        help="rewrite NaowhForever_BiS/NaowhScore/Data/Formula.lua when the constants move enough and the gates pass")
     parser.add_argument("--bootstrap", type=int, default=50, help="refits for the report's intervals (0: none)")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+\.\d+", args.build):

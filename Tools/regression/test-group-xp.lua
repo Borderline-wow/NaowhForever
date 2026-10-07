@@ -3,18 +3,24 @@ local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
 local NO_ADDON = "|cff9ca3afno addon|r"
+-- Methods a stub frame lacks do nothing, from one shared function, so stubs add no garbage.
+local function Noop() end
+local NOOP_META = { __index = function() return Noop end }
+local DEFAULTS = { enabled = true, groupXP = true, groupXPShowSelf = true, groupXPWidth = 260,
+    groupXPFont = "", groupXPFontSize = 12, groupXPOutline = "OUTLINE", groupXPTexture = "", groupXPBgAlpha = 0.85 }
+local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
 
 local function boot(settings)
     local s = { now = 0, timers = {}, sent = {}, created = {}, combat = false, group = true,
         raid = false, settings = settings or {},
         units = {
-            player = { name = "You", guid = "Player-1-01", class = "PALADIN", level = 20, xp = 500, max = 1000 },
-            party1 = { name = "Tank", guid = "Player-1-02", class = "WARRIOR", level = 21 },
-            party2 = { name = "Mage", guid = "Player-2-03", class = "MAGE", level = 19 },
+            player = { name = "You", surname = "Lightbringer", guid = "Player-1-01", class = "PALADIN", level = 20, xp = 500, max = 1000 },
+            party1 = { name = "Tank", surname = "Ironhide", guid = "Player-1-02", class = "WARRIOR", level = 21 },
+            party2 = { name = "Mage", surname = "Frostwhisper", guid = "Player-2-03", class = "MAGE", level = 19 },
         } }
     local function frame(kind, name, parent)
         local f = { kind = kind, parent = parent, scripts = {}, events = {}, fonts = {}, shown = true }
-        setmetatable(f, { __index = function() return function() end end })
+        setmetatable(f, NOOP_META)
         function f:SetScript(k, fn) self.scripts[k] = fn end
         function f:RegisterEvent(k) self.events[k] = true end
         function f:UnregisterAllEvents() self.events = {} end
@@ -22,6 +28,9 @@ local function boot(settings)
         function f:Hide() self.shown = false end
         function f:SetShown(v) self.shown = v and true or false end
         function f:SetSize(w, h) self.w, self.h = w, h end
+        function f:SetHeight(h) self.h = h end
+        function f:SetStatusBarTexture(path) self.texture = path end
+        function f:SetColorTexture(_, _, _, a) self.alpha = a end
         function f:SetText(t) self.text = t end
         function f:SetValue(v) self.value = v end
         return f
@@ -35,11 +44,13 @@ local function boot(settings)
         Solid = function() return frame("Texture") end, Border = function() return frame("Border") end,
         Apply = function() end, ShowRaidReminderAnchorConfig = function() end,
         HideRaidReminderAnchorConfig = function() end,
-        UI = { AttachMover = function() return frame("Mover") end } }
+        UI = { AttachMover = function() return frame("Mover") end,
+            TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
+        Shared = { Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline end } } }
     ns.QoLSettings = {
         Get = function(k)
             local v = s.settings[k]
-            if v == nil then v = ({ enabled = true, groupXP = true, groupXPShowSelf = true, groupXPWidth = 260 })[k] end
+            if v == nil then v = DEFAULTS[k] end
             return v
         end,
         Set = function(k, v) s.settings[k] = v end,
@@ -66,6 +77,8 @@ local function boot(settings)
         UnitXP = function() return s.units.player.xp end,
         UnitXPMax = function() return s.units.player.max end,
         UnitName = function(u) return s.units[u] and s.units[u].name end,
+        UnitFullName = function(u) local m = s.units[u] if m then return m.name, m.surname end end,
+        GetNormalizedRealmName = function() return "Forever" end,
         UnitGUID = function(u) return s.units[u] and s.units[u].guid end,
         UnitClass = function(u) return "x", s.units[u] and s.units[u].class end,
         UnitIsUnit = function(a, b) return a == b end,
@@ -80,6 +93,7 @@ local function boot(settings)
         end,
     }
     setmetatable(env, { __index = _G })
+    local senders = assert(loadfile("Core/NaowhForever_Senders.lua")); setfenv(senders, env); senders()
     local f = assert(io.open("QoL/NaowhForever_GroupXP.lua", "rb"))
     local src = f:read("*a"); f:close()
     local chunk = assert(loadstring(src, "GroupXP")); setfenv(chunk, env); chunk()
@@ -235,6 +249,96 @@ do -- Show Yourself off drops your row
     local s = boot({ groupXPShowSelf = false })
     s.fire("GROUP_ROSTER_UPDATE")
     check("no row for yourself", s.rows() == "Tank: Lv 21  " .. NO_ADDON .. " | Mage: Lv 19  " .. NO_ADDON)
+end
+
+do -- only GUIDs in the group are kept: a stranger's numbers, or a flood of made-up GUIDs, leave nothing
+    local s = boot()
+    for i = 1, 500 do s.msg(("2 Player-9-%06X 60 1 2"):format(i), "Tank Ironhide") end
+    s.units.party3 = { name = "Late", surname = "Joiner", guid = "Player-9-000001", class = "MAGE", level = 10 }
+    s.fire("GROUP_ROSTER_UPDATE")
+    check("numbers for a GUID outside the group were not kept", s.rows():find("Late: Lv 10  " .. NO_ADDON, 1, true))
+    s.msg("2 Player-9-000001 12 50 100", "Late Joiner")
+    check("once they are in the group, theirs are", s.rows():find("Late: Lv 12  50.0%", 1, true))
+end
+
+do -- cost: roster changes and messages are heard with the bars off too, so they make no garbage
+    local Measure = dofile("Tools/regression/measure.lua")(check)
+    local s = boot({ groupXP = false })
+    s.msg("2 Player-1-02 21 300 1200", "Tank Ironhide")
+    Measure("a roster change with the bars off", 0.05, function() s.fire("GROUP_ROSTER_UPDATE") end)
+    Measure("a member's numbers with the bars off", 0.05,
+        function() s.msg("2 Player-1-02 21 300 1200", "Tank Ironhide") end)
+    local on = boot()
+    on.msg("2 Player-1-02 21 300 1200", "Tank Ironhide")
+    Measure("a roster change with the bars on", 0.1, function() on.fire("GROUP_ROSTER_UPDATE") end)
+    check("bars still right after the measured redraws",
+        on.rows() == "You: Lv 20  50.0% | Tank: Lv 21  25.0% | Mage: Lv 19  " .. NO_ADDON)
+end
+
+do
+    local s = boot()
+    local before = s.rows()
+    local SECRET = { secret = true }
+    s.fire("CHAT_MSG_ADDON", SECRET, "2 Player-1-02 21 300 1200", "PARTY", "Tank Ironhide")
+    s.fire("CHAT_MSG_ADDON", "NaowhGroupXP", "2 Player-1-02 21 300 1200", SECRET, "Tank Ironhide")
+    check("a secret prefix or channel is skipped before it is compared", s.rows() == before)
+    s.msg("2 |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t 60 1 2", "Tank Ironhide")
+    s.msg("2 %s%d%n 60 1 2", "Tank Ironhide")
+    s.msg("2 Player-9-ABCDEF 60 1 2", "Stranger")
+    check("a GUID that is not a player's, or not in the group, keeps nothing", s.rows() == before)
+    s.msg("2 Player-1-02 " .. ("9"):rep(400) .. " 1 2", "Tank Ironhide")
+    s.msg("2 Player-1-02 21 " .. ("9"):rep(40) .. " 2", "Tank Ironhide")
+    check("numbers past any level or XP are dropped", s.rows() == before)
+    local long = "2 Player-1-02 21 300 1200 " .. ("|cffff0000x|r"):rep(300)
+    local started = os.clock()
+    for _ = 1, 100 do s.msg(long, "Tank Ironhide") end
+    check("a long message of colour codes is refused, and quickly", s.rows() == before
+        and os.clock() - started < 0.5)
+    s.msg("2 Player-1-02 21 300 1200", "Tank Ironhide")
+    check("the real message still shows", s.rows():find("Tank: Lv 21  25.0%", 1, true) ~= nil)
+    s.units.party3 = { name = "Stranger", guid = "Player-9-ABCDEF", class = "MAGE", level = 12 }
+    s.fire("GROUP_ROSTER_UPDATE")
+    check("numbers sent before joining were not kept for them",
+        s.rows():find("Stranger: Lv 12  " .. NO_ADDON, 1, true) ~= nil)
+    s.msg("2 Player-9-ABCDEF 12 50 100", "Stranger")
+    check("once in the group they are heard", s.rows():find("Stranger: Lv 12  50.0%", 1, true) ~= nil)
+end
+
+do
+    local s = boot()
+    local before = s.rows()
+    s.msg("2 Player-2-03 60 0 0", "Tank Ironhide")
+    s.msg("2 Player-2-03 60 0 0", "Tank")
+    s.msg("2 Player-2-03 60 0 0", "Mage")
+    s.msg("2 Player-2-03 60 0 0", "Mage Frostwhisperer")
+    check("a member sending another member's GUID is dropped", s.rows() == before)
+    s.msg("2 Player-1-02 21 300 1200", "Outsider Someone")
+    check("a sender not in the group is dropped", s.rows() == before)
+    s.msg("2 Player-2-03 19 100 1000", "Mage-Frostwhisper")
+    check("their own GUID is taken, the name with a dash", s.rows():find("Mage: Lv 19  10.0%", 1, true) ~= nil)
+    s.msg("2 Player-1-02 21 600 1200", "Tank Ironhide-Forever")
+    check("and with your realm after it", s.rows():find("Tank: Lv 21  50.0%", 1, true) ~= nil)
+    s.msg("2 Player-1-02 21 900 1200", "Tank Ironhide-Elsewhere")
+    check("another realm's same name is not them", s.rows():find("Tank: Lv 21  50.0%", 1, true) ~= nil)
+end
+
+do -- the look: today's rows by default, then each option applies, a bigger font making taller rows
+    local s = boot()
+    local row, bar
+    for _, f in ipairs(s.created) do
+        if f.kind == "StatusBar" and f.parent.shown and not bar then bar, row = f, f.parent end
+    end
+    check("default: the gradient bar on its 85% background", bar.texture == GRADIENT and row.bg.alpha == 0.85)
+    check("default: outlined names at 12, bar text at 11, 18 tall", row.fonts[1].font == " 12 OUTLINE"
+        and bar.fonts[1].font == " 11 OUTLINE" and row.h == 18 and s.display.h == 3 * 20 - 2)
+    s.S.Set("groupXPTexture", "Smooth")
+    s.S.Set("groupXPBgAlpha", 0.4)
+    check("Bar Texture and Background Opacity apply", bar.texture == "lsm:Smooth" and row.bg.alpha == 0.4)
+    s.S.Set("groupXPFont", "Arial")
+    s.S.Set("groupXPOutline", "")
+    s.S.Set("groupXPFontSize", 16)
+    check("Font, Outline and Font Size apply", row.fonts[1].font == "Arial 16 " and bar.fonts[1].font == "Arial 15 ")
+    check("a bigger font makes taller rows", row.h == 22 and s.display.h == 3 * 24 - 2)
 end
 
 print(("PASS group XP: %d checks"):format(checks))

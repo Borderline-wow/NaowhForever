@@ -1,8 +1,8 @@
 {
   "_about": [
     "The Dungeon Journal's bosses, kept by hand; Tools/build_journal.py turns this into one Lua",
-    "file per dungeon in DungeonJournal/Data/Dungeons. Dungeons in level order, named as the",
-    "client and DungeonJournal/Data/Quests.lua name them. Each wing lists its bosses in kill order,",
+    "file per dungeon in NaowhForever_DungeonJournal/Data/Dungeons. Dungeons in level order, named as the",
+    "client and NaowhForever_DungeonJournal/Data/Quests.lua name them. Each wing lists its bosses in kill order,",
     "named as Wowhead Forever names the NPC; npcs pins an ID where the name is ambiguous. A",
     "boss listed under rare is optional and may not spawn. zone is the Wowhead zone, guide a",
     "Wowhead guide with a Loot tab per boss for dungeons whose bosses have no drop data yet.",
@@ -12,6 +12,8 @@
     "game's DungeonEncounter table where it differs from ours, so the build finds its encounter",
     "ID (what ENCOUNTER_END names it by, for the kill count). Magmatus (Infurnus) and The Baron",
     "(The Butcher) are matched by elimination, the only encounter left in their place: unproven.",
+    "Arcanic Enigma is Dalaran's Mana Elemental encounter: its quest says slay the Mana Elemental,",
+    "and no Forever NPC of that name is in Dalaran. Also unproven.",
     "new marks a dungeon that is new in WoW Forever, not in the classic game. A raid has raid",
     "(its size) and announced: only a raid announced for Forever is built; loot false leaves its",
     "loot out until Wowhead has Forever drops for it. note is shown at the",
@@ -81,10 +83,10 @@
         "rare": ["Bruegal Ironknuckle"] } ] },
     { "key": "ExcavationSite", "name": "Excavation Site: Wetlands", "new": true, "zone": 16732,
       "npcs": { "Saltspine": 260322, "Shadetooth": 260325, "Highland Horror": 260808, "Relic Guardian": 260326 },
-      "entranceZone": 11, "entrance": { "map": 1437, "x": 48.1, "y": 56.5, "source": "Forever guide sites" },
+      "entranceZone": 11, "entrance": { "map": 1437, "x": 53.4, "y": 65.3, "source": "Wowhead Forever guide: the meeting stone, where the road up to the portal starts" },
       "add": { "Relic Guardian": [273028, 273029], "Saltspine": [273022], "Shadetooth": [273027] },
       "wings": [
-      { "bosses": ["Saltspine", "Shadetooth", "Highland Horror", "Relic Guardian"] } ] },
+      { "bosses": ["Saltspine", "Shadetooth", "Highland Horror", "Relic Guardian"], "quest": ["Highland Horror"] } ] },
     { "key": "Gnomeregan", "name": "Gnomeregan", "wowsrc": "gnomeregan", "zone": 721,
       "entranceZone": 1, "entrance": { "map": 1426, "x": 24.0, "y": 40.0, "source": "Warcraft Tavern classic guide, front entrance; portal (17.5, 39.1) further in" },
       "wings": [
@@ -101,11 +103,17 @@
         "rare": ["Blind Hunter", "Earthcaller Halmgar", "Razorfen Spearhide"],
         "optional": ["Roogug"] } ] },
     { "key": "Dalaran", "name": "City of Dalaran", "new": true, "zone": 16544,
-      "npcs": { "Unstable Sentinel": 246017, "Shade of the Archmage": 246020, "Lyn the Ignored": 247032 },
+      "npcs": { "Atrexis the Grave Knight": 247126, "Arcane Anomaly": 245999, "Fel Ancient": 246003,
+                "Unstable Sentinel": 246017, "Shade of the Archmage": 246020, "Mana Wraith": 246931,
+                "Mana Devourer": 246008, "Arcanic Enigma": 246016, "Lyn the Ignored": 247032 },
+      "encounterNames": { "Arcanic Enigma": "Mana Elemental" },
       "entranceZone": 36, "entrance": { "map": 1416, "x": 21.7, "y": 68.3, "source": "the game's terrain, build 1.60.1.70124: the instance portal in the new Dalaran building, at sewer depth (map 0, tile 31_31)" },
-      "add": { "Shade of the Archmage": [273052], "Unstable Sentinel": [273046] },
+      "add": { "Shade of the Archmage": [273052], "Unstable Sentinel": [273046], "Arcanic Enigma": [273045] },
       "wings": [
-      { "bosses": ["Unstable Sentinel", "Shade of the Archmage"], "rare": ["Lyn the Ignored"] } ] },
+      { "bosses": ["Atrexis the Grave Knight", "Arcane Anomaly", "Fel Ancient", "Unstable Sentinel",
+                   "Shade of the Archmage"],
+        "rare": ["Lyn the Ignored"],
+        "optional": ["Mana Wraith", "Mana Devourer", "Arcanic Enigma"] } ] },
     { "key": "ScarletMonasteryGraveyard", "name": "Scarlet Monastery - Graveyard", "wowsrc": "scarlet-monastery-graveyard", "zone": 796,
       "entranceZone": 85, "entrance": { "map": 1420, "x": 83.9, "y": 31.6, "source": "Wowhead Classic dungeon page; the monastery, where all four wings' doors are" },
       "wings": [

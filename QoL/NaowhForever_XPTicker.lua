@@ -7,8 +7,9 @@
 --  against the fastest. A character's first login after the GUID change takes over the old entry
 --  under its first name and realm, once, if no one else has and its level fits. Its Background is
 --  the card, a soft fade or none (Parts.HudBackdrop); the old on/off setting is read as Card for
---  on and Soft for off, and saved that way on the next Apply. The pace arrow sits a share of the
---  text size lower (DROP_SHARE), level with the letters: the Naowh font leaves room above capitals.
+--  on and Soft for off, and saved that way on the next Apply, as is the old Outlined Text toggle
+--  as Outline or Shadow. The pace arrow sits a share of the text size lower (DROP_SHARE), level
+--  with the letters: the Naowh font leaves room above capitals.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -17,7 +18,6 @@ local Parts, St = ns.Shared.Parts, ns.Shared.Style
 local CharacterData, Played = ns.Shared.CharacterData, ns.Shared.Played
 local SPLITS_KEY, WANT_KEY, CHARACTER_PREFIX = "levelSplits", "xpTicker", "Player-"
 
-local OUTLINE = "OUTLINE"
 local PAD, UNIT_GAP, LABEL_GAP, HEAD_GAP, COL_GAP = 8, 4, 4, 10, 16
 local SECTION_GAP, ROW_GAP, CONTROL_GAP, CONTROLS_INSET = 6, 3, 2, 6
 local ROW_SHARE, ROW_MIN, HISTORY_MAX = 0.5, 9, 10
@@ -47,6 +47,7 @@ local historyKeys = {}
 local running = { level = 0, time = 0, partial = false }
 local trendBase, trendAt, trendDir = 0, 0, 0
 local LEGACY_BACKGROUND = { [true] = "card", [false] = "soft" }
+local LEGACY_OUTLINE = { [true] = "OUTLINE", [false] = "" }
 
 local function On()
     return S.Get("enabled") and S.Get("xpTicker")
@@ -57,10 +58,17 @@ local function Background()
     return LEGACY_BACKGROUND[mode] or mode
 end
 
-local function MigrateBackground()
+local function Outline()
+    local outline = S.Get("xpTickerOutline")
+    return LEGACY_OUTLINE[outline] or outline
+end
+
+local function MigrateLegacy()
     local db = S.DB()
     local mode = LEGACY_BACKGROUND[db.xpTickerBackground]
     if mode then db.xpTickerBackground = mode end
+    local outline = LEGACY_OUTLINE[db.xpTickerOutline]
+    if outline then db.xpTickerOutline = outline end
 end
 
 local function AtMaxLevel()
@@ -279,8 +287,7 @@ end
 function Look.Fonts(f)
     local font, size = ns.UI.FontPath(S.Get("xpTickerFont")), S.Get("xpTickerFontSize")
     local mode = f.backdrop:SetMode(Background())
-    local outlined = S.Get("xpTickerOutline") and true or false
-    local flags = outlined and OUTLINE or ""
+    local flags = Outline()
     local small = math.max(ROW_MIN, math.floor(size * ROW_SHARE))
     f.rate:SetFont(font, size, flags)
     f.unit:SetFont(font, small, flags)
@@ -306,7 +313,7 @@ function Look.Fonts(f)
     RowFont(f.time, font, small, flags)
     f.dot:SetFont(font, small, flags)
     f.percent:SetFont(font, small, flags)
-    local shadow = not outlined and mode
+    local shadow = flags == "" and mode
     for i = 1, #f.texts do Parts.HudText(f.texts[i], shadow) end
     f.line.track:SetShown(mode == "card")
     f.controls:ClearAllPoints()
@@ -860,7 +867,7 @@ end
 
 function ns.XPTickerCommand(arg)
     local run = ({ start = ns.StartXPTicker, pause = ns.PauseXPTicker, reset = ns.ResetXPTicker })[arg]
-    if run then run() else print(ns.Color("accent", "Naowh") .. ": /naowh xp start, pause or reset") end
+    if run then run() else ns.Print("/naowh xp start, pause or reset") end
 end
 
 local events = CreateFrame("Frame")
@@ -892,7 +899,7 @@ local function Place()
 end
 
 local function Apply()
-    MigrateBackground()
+    MigrateLegacy()
     if not On() then
         if cur and anchor then cur.base, anchor = LevelTime(), nil end
         events:UnregisterAllEvents()
@@ -995,7 +1002,7 @@ local STATES = {
     { key = "paused", label = "Paused", tip = "Paused from its header: the clock and the count stop." },
     { key = "resting", label = "Resting", tip = "In a city or an inn." },
 }
-local BACKGROUNDS = Parts.HUD_BACKGROUNDS
+local BACKGROUNDS, OUTLINES = Parts.HUD_BACKGROUNDS, Parts.HUD_OUTLINES
 local LINE_TOGGLES = {
     { "xpTickerPlayed", "Show Played Time" },
     { "xpTickerPace", "Compare Characters" },
@@ -1025,6 +1032,14 @@ local function SetBackground(mode)
     S.Set("xpTickerBackground", mode)
 end
 
+local function PickedOutline(outline)
+    return Outline() == outline
+end
+
+local function SetOutline(outline)
+    S.Set("xpTickerOutline", outline)
+end
+
 local function CardMenu(_, root)
     root:CreateTitle("XP per Hour")
     AddToggles(root, LINE_TOGGLES)
@@ -1032,7 +1047,9 @@ local function CardMenu(_, root)
     root:CreateTitle("Background")
     local order = BACKGROUNDS[2]
     for i = 1, #order do root:CreateRadio(BACKGROUNDS[1][order[i]], PickedBackground, SetBackground, order[i]) end
-    root:CreateCheckbox("Outlined Text", Toggled, Toggle, "xpTickerOutline")
+    root:CreateTitle("Outline")
+    order = OUTLINES[2]
+    for i = 1, #order do root:CreateRadio(OUTLINES[1][order[i]], PickedOutline, SetOutline, order[i]) end
     root:CreateDivider()
     root:CreateButton("Reset XP per Hour", ResetClicked)
 end
@@ -1193,7 +1210,7 @@ ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpTicker", name = "XP per Hour", order = 20, switch = "xpTicker",
     help = "Your experience per hour on a small card, with time to level, played time, session length and "
         .. "recent level times. Hidden at max level. Hover it for Start, Pause and Reset (also /naowh xp start, pause "
-        .. "or reset). Move it in Unlock Mode.",
+        .. "or reset). Move it in the HUD Editor.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
@@ -1205,7 +1222,8 @@ ns.Shared.Settings.Page("QoL/XP", S):Card({
         { key = "xpTickerLevel", label = "Show Ding Time", toggle = true,
           help = "How long the next level takes at your current rate." },
         { key = "xpTickerElapsed", label = "Show Time", toggle = true, help = "How long this session has run." },
-        { key = "xpTickerHideResting", label = "Hide While Resting", toggle = true, help = "Hidden in cities and inns." },
+        { label = "Reset XP per Hour", buttonText = "Reset", button = ns.ResetXPTicker,
+          help = "Starts the session again: its time, XP and rate. The XP Bar's XP/Hour starts again with it." },
         Group("Level History"),
         { key = "xpTickerSplits", label = "Level History", toggle = true,
           help = "The level you are on as it runs, then completed levels, newest first." },
@@ -1213,14 +1231,8 @@ ns.Shared.Settings.Page("QoL/XP", S):Card({
           help = "The most recent completed levels." },
         { key = "xpTickerSplitPlayed", label = "Show Played at Ding", toggle = true, needs = "xpTickerSplits",
           help = "Your played time when you reached each level, beside how long it took." },
-        Group("Look"),
-        { key = "xpTickerBackground", label = "Background", choice = BACKGROUNDS, get = Background,
-          set = SetBackground, help = "A card behind the text, a soft dark fade, or nothing at all." },
-        { key = "xpTickerOutline", label = "Outlined Text", toggle = true,
-          help = "A thick black outline round the text, in place of the soft shadow." },
-        { key = "xpTickerFont", label = "Font", font = true },
-        { key = "xpTickerFontSize", label = "Font Size", slider = SIZE_RANGE },
-        { label = "Reset XP per Hour", buttonText = "Reset", button = ns.ResetXPTicker,
-          help = "Starts the session again: its time, XP and rate. The XP Bar's XP/Hour starts again with it." },
+        ns.Shared.Settings.Look("xpTicker", { text = true, size = SIZE_RANGE, background = "card" }),
+        Group("Visibility"),
+        { key = "xpTickerHideResting", label = "Hide While Resting", toggle = true, help = "Hidden in cities and inns." },
     },
 })

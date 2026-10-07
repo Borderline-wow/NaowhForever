@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Credits.lua -- the Credits page in the options window (/nf, Credits): the
 --  team on their badges, the people we thank, and the data and libraries Naowh Forever is
---  built on, drawn on the shared row engine as cards in the house colours.
+--  built on, drawn on the shared row engine as cards in the house colours. While
+--  ns.FEATURE_BADGES is 0 the card marked badges = true is left out.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -27,7 +28,7 @@ local TEAM = {
 
 local THANKS = {
     { tier = "moderator", name = "Moderators", role = "Community", line = "Every moderator keeping the Naowh community running." },
-    { tier = "legendary", name = "Legendary Supporters", role = "Supporters", line = "Everyone wearing the Legendary badge: you keep Naowh Forever going." },
+    { tier = "legendary", badges = true, name = "Legendary Supporters", role = "Supporters", line = "Everyone wearing the Legendary badge: you keep Naowh Forever going." },
     { icon = "checklist", color = T.accentSoft, name = "Beta Testers", role = "Community", line = "Every bug report and screenshot made it better." },
 }
 
@@ -35,7 +36,7 @@ local DATA = {
     { icon = "search", color = GOLD, name = "Wowhead", role = "Data", line = "WoW Forever's items, quests and NPCs, and what is new in Forever." },
     { icon = "trophy", color = GOLD, name = "wowsrc.com", role = "Data", line = "The BiS rankings behind the BiS List." },
     { icon = "bars", color = GOLD, name = "WoWSims", role = "Data", line = "The stat weights each spec starts with." },
-    { icon = "map", color = GOLD, name = "Santiago Reyes", role = "Maps", line = "The maps of Ruins of Lordaeron, Hall of Thanes and the Excavation Site, from his Atlas de Azeroth: Forever." },
+    { icon = "map", color = GOLD, name = "Santiago Reyes", role = "Maps", line = "The maps of Ruins of Lordaeron, Hall of Thanes, the Excavation Site and the City of Dalaran, from his Atlas de Azeroth: Forever." },
 }
 
 local LIBRARIES = { "LibStub", "CallbackHandler-1.0", "LibDataBroker-1.1", "LibDBIcon-1.0", "LibSharedMedia-3.0",
@@ -202,6 +203,7 @@ local function SetChips(row, names)
 end
 
 local kinds, view
+local NO_EVENTS = {}
 
 local Draw = {}
 
@@ -220,12 +222,14 @@ function Draw:Redraw()
     for _, section in ipairs(SECTIONS) do
         self:Section(section.title)
         self:Space(8)
-        for _, person in ipairs(section.people) do self:Gather(person) end
+        for _, person in ipairs(section.people) do
+            if ns.FEATURE_BADGES == 1 or not person.badges then self:Gather(person) end
+        end
         self:DrawGrid()
         if section.chips then self:Add("chips", section.chips) end
         self:Space(SECTION_GAP)
     end
-    self:Fit({})
+    self:Fit(NO_EVENTS)
 end
 
 local function Kinds()

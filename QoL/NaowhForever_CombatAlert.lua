@@ -5,6 +5,9 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local UI = ns.UI
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
+
+local WIDTH = 300
 
 local frame, fade, unlocked
 
@@ -18,6 +21,7 @@ local function Build()
     frame:SetClampedToScreen(true)
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
+    frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
     frame.mover = UI.AttachMover(frame, "Combat Alert", function(pos) S.Set("combatAlertPos", pos) end, "QoL/Combat", "QoL/Combat:combatAlert")
     frame:Hide()
 
@@ -53,6 +57,8 @@ local function Flash(prefix)
         or S.Get(prefix .. "Color")
     frame.text:SetText(S.Get(prefix .. "Text"))
     frame.text:SetTextColor(c.r, c.g, c.b, 1)
+    -- Fitted to the text only with a background, so elements anchored to it keep their spot.
+    frame:SetWidth(frame.mode == "none" and WIDTH or frame.text:GetStringWidth() + 2 * St.CARD_PAD)
     frame:Show()
     if not unlocked then fade:Play() end
 end
@@ -96,8 +102,9 @@ local function Apply()
     end
     if not frame then Build() end
     local size = S.Get("combatAlertFontSize")
-    frame.text:SetFont(UI.FontPath(S.Get("combatAlertFont")), size, "OUTLINE")
-    frame:SetSize(300, size + 16)
+    frame.mode = frame.backdrop:SetMode(S.Get("combatAlertBackground"))
+    Parts.HudFont(frame.text, S.Get("combatAlertFont"), size, S.Get("combatAlertOutline"), frame.mode)
+    frame:SetSize(WIDTH, size + 16)
     Place()
     frame.mover:SetShown(unlocked == true)
     if unlocked then
@@ -142,11 +149,7 @@ local function Voices()
     return ns.TTSVoiceChoices()
 end
 
-local rows = {
-    Group("Font"),
-    { key = "combatAlertFont", label = "Font", font = true },
-    { key = "combatAlertFontSize", label = "Font Size", slider = { 10, 72, 1 } },
-}
+local rows = {}
 
 local function Side(prefix, name, verb)
     local function OwnColour() return not S.Get(prefix .. "ClassColor") end
@@ -175,6 +178,7 @@ end
 
 Side("combatEnter", "Entering", "enter")
 Side("combatLeave", "Leaving", "leave")
+rows[#rows + 1] = ns.Shared.Settings.Look("combatAlert", { text = true, size = { 10, 72, 1 }, background = "card" })
 
 local function Summary(store)
     return ("%s and %s"):format(store.Get("combatEnterText"), store.Get("combatLeaveText"))
@@ -184,7 +188,7 @@ local page = ns.Shared.Settings.Page("QoL/Combat", S)
 
 page:Card({
     id = "combatAlert", name = "Combat Alert", order = 70, switch = "combatAlert",
-    help = "A short flash of text entering and leaving combat. Move it in Unlock Mode.",
+    help = "A short flash of text entering and leaving combat. Move it in the HUD Editor.",
     summary = Summary,
     rows = rows,
 })

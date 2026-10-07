@@ -1,5 +1,5 @@
--- Regression test for the Cozy Sleeping Bag chain (Discovery/NaowhForever_SleepingBagData.lua and
--- the chain logic in Discovery/NaowhForever_Discovery.lua): each faction's steps in order, the
+-- Regression test for the Cozy Sleeping Bag chain (NaowhForever_Discovery/NaowhForever_SleepingBagData.lua and
+-- the chain logic in NaowhForever_Discovery/NaowhForever_Discovery.lua): each faction's steps in order, the
 -- first starting its faction's quest, every later one handing one in, the chain read from the
 -- quest log, step by step, and two steps of one name told apart by their zone. Then the Sleeping
 -- Bag tracker on the shared tracker window (its rows, no garbage per redraw), its map pins
@@ -21,7 +21,7 @@ end
 
 local ns = {}
 _G.NaowhForever = ns
-assert(loadstring(Read("Discovery/NaowhForever_SleepingBagData.lua")))()
+assert(loadstring(Read("NaowhForever_Discovery/NaowhForever_SleepingBagData.lua")))()
 local data = ns.SleepingBag
 
 -- The data.
@@ -43,7 +43,7 @@ Check(data.steps.A[1].map == 1436 and data.steps.H[1].map == 1413,
 Check(data.steps.A[3] == data.steps.H[3], "the chain is the same for both from Stonetalon on")
 
 -- The logic, read out of the module (the part between its two markers), against a quest log.
-local source = Read("Discovery/NaowhForever_Discovery.lua")
+local source = Read("NaowhForever_Discovery/NaowhForever_Discovery.lua")
 local logic = assert(source:match("(local Bag = {}.-\nfunction Bag%.Waypoint.-\nend)"), "the chain's logic")
 local completed, inLog, level, side = {}, {}, 20, "A"
 local env = setmetatable({
@@ -179,7 +179,7 @@ end
 -------------------------------------------------------------------------------
 --  The tracker
 -------------------------------------------------------------------------------
-Load("Discovery/NaowhForever_SleepingBagTracker.lua")
+Load("NaowhForever_Discovery/NaowhForever_SleepingBagTracker.lua")
 Check(panel == nil, "loaded, nothing is built")
 addon.Apply()
 Check(panel ~= nil and title == "SLEEPING BAG", "on, it is built on the shared tracker window, as Sleeping Bag")
@@ -240,7 +240,7 @@ local mapGlobals = {
 }
 settings.bagMapPins = false
 local before = #frames
-local mapEnv = Load("Discovery/NaowhForever_SleepingBagMap.lua", mapGlobals)
+local mapEnv = Load("NaowhForever_Discovery/NaowhForever_SleepingBagMap.lua", mapGlobals)
 local boot = frames[#frames]
 Check(#frames == before + 1 and boot.events.PLAYER_LOGIN, "loaded, only its login check")
 addon.Apply()
@@ -283,8 +283,8 @@ Check(lines[1] == "Sleeping Bag, step 2" and lines[2] == "Burned-Out Remains (ma
 -------------------------------------------------------------------------------
 --  One name, and short help
 -------------------------------------------------------------------------------
-for _, path in ipairs({ "Discovery/NaowhForever_Discovery.lua", "Discovery/NaowhForever_DiscoveryWindow.lua",
-        "Discovery/NaowhForever_SleepingBagTracker.lua", "Discovery/NaowhForever_SleepingBagMap.lua",
+for _, path in ipairs({ "NaowhForever_Discovery/NaowhForever_Discovery.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryWindow.lua",
+        "NaowhForever_Discovery/NaowhForever_SleepingBagTracker.lua", "NaowhForever_Discovery/NaowhForever_SleepingBagMap.lua",
         "Core/NaowhForever_Window.lua" }) do
     Check(not Read(path):find("Sleeping Bags", 1, true), path .. ": one name, Sleeping Bag")
 end
@@ -303,8 +303,8 @@ Check(not bagPage:find('help = "[^"\r\n]*"%s*%.%.'), "no help strung over lines"
 -------------------------------------------------------------------------------
 --  Both Discovery trackers on the shared tracker window, with no copy of its parts
 -------------------------------------------------------------------------------
-for _, path in ipairs({ "Discovery/NaowhForever_DiscoveryTracker.lua",
-        "Discovery/NaowhForever_SleepingBagTracker.lua" }) do
+for _, path in ipairs({ "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua",
+        "NaowhForever_Discovery/NaowhForever_SleepingBagTracker.lua" }) do
     local text = Read(path)
     Check(text:find("Parts.TrackerPanel(", 1, true) and text:find("SetRows(", 1, true),
         path .. ": on Parts.TrackerPanel, its rows through SetRows")

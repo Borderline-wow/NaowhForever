@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
---  Kinds.lua -- the rows every page has (ns.Shared.Kinds): a section title, a note, a card,
---  and an item in a list you keep (its icon, name, a line under it, a value and an X). See
---  View.lua for what a kind is.
+--  Kinds.lua -- the rows every page has (ns.Shared.Kinds): a section title (shorter on a
+--  view with tightTitles set), a note, a card, and an item in a list you keep (its icon,
+--  name, a line under it, a value and an X). See View.lua for what a kind is.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -12,7 +12,7 @@ local GetItemInfo = C_Item.GetItemInfo
 local GetItemIconByID = C_Item.GetItemIconByID
 
 local St = Shared.Style
-local SECTION_H, INDENT, NOTE_PAD = St.SECTION_H, St.INDENT, St.NOTE_PAD
+local SECTION_H, SECTION_TIGHT_H, INDENT, NOTE_PAD = St.SECTION_H, St.SECTION_TIGHT_H, St.INDENT, St.NOTE_PAD
 local CARD_FILL, CARD_HEADER_H, BORDER_RGB = St.CARD_FILL, St.CARD_HEADER_H, St.BORDER_RGB
 local ICON, ITEM_H, GAP, HOVER = St.ICON, St.ITEM_H, St.GAP, St.HOVER
 local ITEM_TEXT_GAP = 8   -- the icon to its name
@@ -92,7 +92,7 @@ Kinds.section = {
             Parts.LinkColor(link, link.disabled and T.muted or T.accentSoft)
             link.underline:Hide()
         end
-        return SECTION_H
+        return row:GetParent().tightTitles and SECTION_TIGHT_H or SECTION_H
     end,
 }
 

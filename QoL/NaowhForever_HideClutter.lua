@@ -149,13 +149,13 @@ Settings.Page("QoL/Interface", S):Card({
     help = "Hides the game's messages, pop-ups and banners you can do without, each on its own switch.",
     summary = ClutterSummary,
     rows = {
-        { key = "hideErrors", label = "Hide Error Messages", toggle = true,
+        { key = "hideErrors", label = "Hide Red Error Text", toggle = true,
           help = "Hides the red error text, like \"not ready yet\" and \"out of range\", and the "
               .. "voice line that comes with it." },
-        { key = "hideTutorials", label = "Hide Tutorial Pop-ups", toggle = true,
+        { key = "hideTutorials", label = "Turn Off Tutorials", toggle = true,
           help = "Turns off the game's tutorials and help tips. Turning this back off restores "
               .. "what you had before." },
-        { key = "hideScreenshot", label = "Hide Screenshot Status", toggle = true,
+        { key = "hideScreenshot", label = "Hide Screen Captured Text", toggle = true,
           help = "Hides the \"Screen captured\" text when you take a screenshot." },
         { key = "skipCinematics", label = "Skip Cinematics", toggle = true,
           help = "Skips cinematics you have already seen on this account. Each one plays the "

@@ -8,8 +8,9 @@ local function Read(path)
     local source = f:read("*a"); f:close()
     return source
 end
-local DATA = Read("AuraBuffs/NaowhForever_BuffReminderData.lua")
-local MODULE = Read("AuraBuffs/NaowhForever_BuffReminders.lua")
+local DATA = Read("NaowhForever_AuraBuffs/NaowhForever_BuffReminderData.lua")
+local MODULE = Read("NaowhForever_AuraBuffs/NaowhForever_BuffReminders.lua")
+local SETTINGS = Read("Shared/Settings/Settings.lua")
 
 -- itemID -> use spell, for the food scan.
 local ITEM_SPELLS = { [13931] = 1249513, [2679] = 433, [21023] = 25660 }
@@ -52,6 +53,8 @@ local function Fixture(opts)
         function f:RegisterEvent(e) f.events[e] = true end
         function f:RegisterUnitEvent(e) f.events[e] = true end
         function f:UnregisterAllEvents() f.events = {} end
+        function f:SetPoint(_, relativeTo) f.anchor = relativeTo end
+        function f:ClearAllPoints() f.anchor = nil end
         function f:CreateTexture()
             local t = Recorder()
             function t:SetTexture(tex) t.texture = tex end
@@ -64,17 +67,23 @@ local function Fixture(opts)
         return f
     end
 
-    local S = {}
-    function S.Get(k) return settings[k] end
-    function S.Set(k, v) settings[k] = v end
     local defaults = {
         enabled = true, food = true, elixirs = true, flasks = true,
         consumablesWhere = "instance", consumablesMinutes = 2,
         onlyIfCarried = true, hideResting = true,
         scrolls = true, scrollsSkipActive = true,
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
+        buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
+        raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
     }
-    for k, v in pairs(defaults) do if settings[k] == nil then settings[k] = v end end
+    local S = {}
+    function S.Get(k)
+        if settings[k] == nil then return defaults[k] end
+        return settings[k]
+    end
+    function S.Set(k, v) settings[k] = v end
+    function S.Raw(k) return settings[k] end
+    function S.Default(k) return defaults[k] end
 
     local ns = {
         AuraBuffSettings = S,
@@ -89,6 +98,8 @@ local function Fixture(opts)
             return fs
         end,
         UI = { AttachMover = function() return NewFrame() end },
+        Shared = { Parts = { HUD_OUTLINES = { { NONE = "None", [""] = "Shadow", OUTLINE = "Outline" }, { "NONE", "", "OUTLINE" } },
+            HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end } },
     }
 
     local function Count(id)
@@ -142,7 +153,15 @@ local function Fixture(opts)
         C_SpellBook = { IsSpellKnown = function(id) return state.known[id] == true end },
         C_Timer = {
             After = function(delay, fn) timers[#timers + 1] = { at = state.now + delay, fn = fn } end,
+            NewTimer = function(delay, fn)
+                local t = { at = state.now + delay, fn = fn }
+                function t:Cancel() self.cancelled = true end
+                timers[#timers + 1] = t
+                return t
+            end,
         },
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+        MAX_PARTY_MEMBERS = 4, MAX_RAID_MEMBERS = 40,
         CreateFrame = function(_, _, _, template) return NewFrame(template) end,
         hooksecurefunc = function(tbl, key, fn)
             local orig = tbl[key]
@@ -151,7 +170,7 @@ local function Fixture(opts)
     }
     env._G = { NaowhForever = ns }
     setmetatable(env, { __index = _G })
-    for _, source in ipairs({ DATA, MODULE }) do
+    for _, source in ipairs(opts.page and { SETTINGS, DATA, MODULE } or { DATA, MODULE }) do
         local chunk
         if setfenv then
             chunk = assert(loadstring(source)); setfenv(chunk, env)
@@ -161,7 +180,7 @@ local function Fixture(opts)
         chunk()
     end
 
-    local t = { state = state, frames = frames }
+    local t = { state = state, frames = frames, ns = ns }
     function t.Fire(event, ...)
         for _, f in ipairs(frames) do
             if f.events[event] and f.handler then f.handler(f, event, ...) end
@@ -176,9 +195,14 @@ local function Fixture(opts)
             if not nextTimer or nextTimer.at > stop then break end
             table.remove(timers, 1)
             state.now = nextTimer.at
-            nextTimer.fn()
+            if not nextTimer.cancelled then nextTimer.fn() end
         end
         state.now = stop
+    end
+    function t.Pending()
+        local n = 0
+        for _, timer in ipairs(timers) do if not timer.cancelled then n = n + 1 end end
+        return n
     end
     function t.Set(k, v) S.Set(k, v) end
     function t.Login() t.Fire("PLAYER_LOGIN") end
@@ -222,6 +246,21 @@ do
     t.Fire("UNIT_AURA", "player")
     t.Advance(0.5)
     Check("all up", t.Shown(), "")
+end
+
+-- The count keeps today's outlined Addon Font at 14 until Font, Font Size or Outline change it.
+do
+    local t = Fixture({ instance = "party", bags = { 13931 } })
+    t.Login()
+    local count
+    for _, f in ipairs(t.frames) do
+        if rawget(f, "count") and f.shown then count = f.count end
+    end
+    Check("count font by default", count and (count.font .. count.size .. count.outline), "14OUTLINE")
+    t.Set("buffsFont", "Naowh")
+    t.Set("buffsFontSize", 18)
+    t.Set("buffsOutline", "")
+    Check("count font set", count.font .. count.size .. count.outline, "Naowh18")
 end
 
 -- Show In: Dungeons & Raids keeps them out of the open world; Everywhere does not.
@@ -280,6 +319,29 @@ do
     Check("woken at two minutes", t.Shown(), "item:13931(t)")
     t.Set("consumablesMinutes", 0)
     Check("0 waits until it is gone", t.Shown(), "")
+end
+
+-- Aura bursts keep one wake timer, not one per refresh; in combat they queue nothing.
+do
+    local t = Fixture({ instance = "raid", settings = { flasks = false, elixirs = false },
+        bags = { 13931 }, auras = { player = { { 1249520, 300, 900 } } } })
+    t.Login()
+    for _ = 1, 50 do
+        t.Fire("UNIT_AURA", "player")
+        t.Advance(0.5)
+    end
+    Check("bursts leave one wake timer", t.Pending(), 1)
+    t.Advance(185)
+    Check("the kept timer still wakes", t.Shown(), "item:13931(t)")
+    t.state.combat = true
+    t.Fire("UNIT_AURA", "player")
+    t.Fire("UNIT_AURA", "raid3")
+    Check("combat aura events queue nothing", t.Pending(), 0)
+    t.Fire("UNIT_AURA", "nameplate4")
+    t.state.combat = false
+    t.Fire("UNIT_AURA", "nameplate4")
+    t.Fire("UNIT_AURA", "partypet1")
+    Check("non-member units queue nothing", t.Pending(), 0)
 end
 
 -- Frozen while auras are secret or in combat: no read, the icons keep what they showed.
@@ -342,6 +404,48 @@ do
     Check("everyone buffed", t.Shown(), "")
 end
 
+-- Picked raid buffs: paladin blessings start off, the rest on; a buff switched off never reminds.
+do
+    local t = Fixture({ settings = { raidBuffs = true, raidBuffsOwn = false, scrolls = false },
+        group = "party", units = { player = "MAGE", party1 = "PALADIN", party2 = "PRIEST", party3 = "DRUID" },
+        auras = { player = {}, party1 = {}, party2 = {}, party3 = {} } })
+    t.Login()
+    Check("default picks: no blessing", t.Shown(), "spell:10157x4 spell:10938x4 spell:9885x4")
+    t.Set("raidBuffPicks", { intellect = true, stamina = false, spirit = true, wild = true, blessing = false })
+    Check("fortitude switched off", t.Shown(), "spell:10157x4 spell:9885x4")
+    t.Set("raidBuffPicks", { intellect = true, stamina = true, spirit = true, wild = true, blessing = true })
+    Check("blessings switched on", t.Shown(), "spell:10157x4 spell:10938x4 spell:9885x4 spell:25291x4")
+    t.Set("raidBuffPicks", { intellect = false })
+    Check("a buff the picks do not name follows its class", t.Shown(), "spell:10938x4 spell:9885x4")
+    t.state.known = { [1460] = true }
+    t.Set("raidBuffsOwn", true)
+    Check("own and not picked: nothing", t.Shown(), "")
+end
+
+-- The card has a switch per raid buff, each with its own changed dot and reset.
+do
+    local t = Fixture({ page = true })
+    local Settings = t.ns.Shared.Settings
+    local card = Settings.pages["AuraBuffs/Settings"].cards.buffs
+    local picks = {}
+    for _, row in ipairs(card.rows) do
+        if row.field then picks[row.field] = row end
+    end
+    Check("blessings switch starts off", picks.blessing.get(), false)
+    Check("fortitude switch starts on", picks.stamina.get(), true)
+    picks.stamina.set(false)
+    Check("switching one off keeps the rest", picks.blessing.get(), false)
+    Check("only the switched row is changed", Settings.ChangedCount(card), 1)
+    Check("its dot", Settings.Changed(picks.stamina), true)
+    picks.blessing.set(true)
+    Settings.ResetRow(picks.stamina)
+    Check("row reset: back on", picks.stamina.get(), true)
+    Check("row reset leaves the other", picks.blessing.get(), true)
+    Settings.Reset(card)
+    Check("card reset: blessings off again", picks.blessing.get(), false)
+    Check("card reset: nothing changed", Settings.ChangedCount(card), 0)
+end
+
 -- Disabled means inactive; Unlock Mode shows a preview to drag.
 do
     local t = Fixture({ settings = { enabled = false }, instance = "raid", bags = { 13931 } })
@@ -378,8 +482,10 @@ do
     popup.buttons[1].scripts.PostClick(popup.buttons[1])
     Check("using an item closes the menu", popup.shown, false)
     cell.scripts.OnEnter(cell)
+    Check("open menu hangs under its cell", popup.anchor, cell)
     t.Fire("PLAYER_REGEN_DISABLED")
     Check("combat entry closes hover menu", popup.shown, false)
+    Check("closed menu lets go of its cell, so the cell stays movable in combat", rawget(popup, "anchor"), nil)
     t.state.combat = true
     cell.scripts.OnEnter(cell)
     Check("no menu in combat", popup.shown, false)

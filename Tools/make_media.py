@@ -283,6 +283,21 @@ def polygon_dist(x, y, points):
     return -d if inside else d
 
 
+def waypoint_shape(sides, ring):
+    # A regular polygon, point up: the Waypoint Pin's hex (6) or diamond (4), filled or as an
+    # outline a tenth of its size thick.
+    def pixel(x, y, size):
+        c, r = size / 2.0, size * 0.46
+        points = [(c + r * math.sin(2 * math.pi * i / sides), c - r * math.cos(2 * math.pi * i / sides))
+                  for i in range(sides)]
+        d = polygon_dist(x, y, points)
+        a = smooth(0, d)
+        if ring:
+            a *= 1.0 - smooth(0, d + size * 0.1)
+        return (255, 255, 255, int(round(255 * a)))
+    return pixel
+
+
 def star(x, y, size):
     # A five-pointed star, point up: the Journal's mark for your BiS.
     c, outer = size / 2.0, size * 0.47
@@ -592,6 +607,61 @@ def elbow(x, y, width, height):
 
 os.makedirs(OUT, exist_ok=True)
 # y runs down the image.
+
+def eye(slashed):
+    # An eye, outlined, with its pupil: the HUD Editor's show and hide an element. Hidden, a
+    # stroke crosses it on the diagonal, the eye cut back either side of the stroke.
+    def pixel(x, y, size):
+        c, w = size / 2.0, size * 0.05
+        lid = abs(ellipse_dist(x / size, y / size, 0.5, 0.5, 0.40, 0.22)) * size
+        a = max(smooth(w / 2, lid), smooth(size * 0.11, math.hypot(x - c, y - c)))
+        if slashed:
+            d = seg_dist(x, y, size * 0.18, size * 0.18, size * 0.82, size * 0.82)
+            a = max(a * (1.0 - smooth(w / 2 + size * 0.06, d)), smooth(w / 2, d))
+        return (255, 255, 255, int(round(255 * a)))
+    return pixel
+
+
+def padlock(x, y, size):
+    # A padlock, its body filled and its shackle an arch over it: the HUD Editor's lock an
+    # element in place.
+    c, w = size / 2.0, size * 0.085
+    body = smooth(0.0, rounded_rect_dist(x, y, c, size * 0.66, size * 0.27, size * 0.20, size * 0.05))
+    arch = 0.0
+    if y <= size * 0.47:
+        arch = smooth(w / 2, abs(math.hypot(x - c, y - size * 0.40) - size * 0.17))
+    return (255, 255, 255, int(round(255 * max(body, arch))))
+
+def align(edge):
+    # The HUD Editor's align buttons: two bars of different lengths and the line they line up
+    # on. edge: "left", "hcenter", "right" (the line upright), "top", "vcenter", "bottom" (level),
+    # or "across" and "down" for spacing evenly: two lines either side of one bar.
+    def pixel(x, y, size):
+        u, v = x / size, y / size
+        if edge in ("top", "vcenter", "bottom", "down"):
+            u, v = v, u
+        w = 0.08
+        if edge in ("across", "down"):
+            line = min(abs(u - 0.14), abs(u - 0.86))
+            a = smooth(w * size / 2, line * size) if 0.12 <= v <= 0.88 else 0.0
+            box = rounded_rect_dist(u, v, 0.5, 0.5, 0.14, 0.24, 0.03)
+            return (255, 255, 255, int(round(255 * max(a, smooth(0.0, box * size)))))
+        at = {"left": 0.14, "top": 0.14, "hcenter": 0.5, "vcenter": 0.5, "right": 0.86, "bottom": 0.86}[edge]
+        a = smooth(w * size / 2, abs(u - at) * size) if 0.1 <= v <= 0.9 else 0.0
+        bars = ((0.33, 0.30), (0.67, 0.18))
+        for cy, half in bars:
+            if at == 0.14:
+                cx = 0.22 + half
+            elif at == 0.86:
+                cx = 0.78 - half
+            else:
+                cx = 0.5
+            d = rounded_rect_dist(u, v, cx, cy, half, 0.09, 0.03)
+            a = max(a, smooth(0.0, d * size))
+        return (255, 255, 255, int(round(255 * a)))
+    return pixel
+
+
 write_tga(os.path.join(OUT, "chevron_up.tga"), 64, stroke(64, [(0.22, 0.64), (0.5, 0.36), (0.78, 0.64)], 0.12))
 write_tga(os.path.join(OUT, "cross.tga"), 64, lambda x, y, s: max(
     stroke(64, [(0.26, 0.26), (0.74, 0.74)], 0.11)(x, y, s),
@@ -637,3 +707,18 @@ write_tga(os.path.join(OUT, "play.tga"), 64, play)
 write_tga(os.path.join(OUT, "pause.tga"), 64, pause)
 write_tga(os.path.join(OUT, "reset.tga"), 64, reset)
 write_tga(os.path.join(OUT, "soft_shade.tga"), 64, soft_shade)
+write_tga(os.path.join(OUT, "eye.tga"), 64, eye(False))
+write_tga(os.path.join(OUT, "eye_off.tga"), 64, eye(True))
+write_tga(os.path.join(OUT, "lock.tga"), 64, padlock)
+write_tga(os.path.join(OUT, "align_left.tga"), 64, align("left"))
+write_tga(os.path.join(OUT, "align_hcenter.tga"), 64, align("hcenter"))
+write_tga(os.path.join(OUT, "align_right.tga"), 64, align("right"))
+write_tga(os.path.join(OUT, "align_top.tga"), 64, align("top"))
+write_tga(os.path.join(OUT, "align_vcenter.tga"), 64, align("vcenter"))
+write_tga(os.path.join(OUT, "align_bottom.tga"), 64, align("bottom"))
+write_tga(os.path.join(OUT, "align_across.tga"), 64, align("across"))
+write_tga(os.path.join(OUT, "align_down.tga"), 64, align("down"))
+write_tga(os.path.join(OUT, "waypoint_hex.tga"), 128, waypoint_shape(6, False))
+write_tga(os.path.join(OUT, "waypoint_hex_ring.tga"), 128, waypoint_shape(6, True))
+write_tga(os.path.join(OUT, "waypoint_diamond.tga"), 128, waypoint_shape(4, False))
+write_tga(os.path.join(OUT, "waypoint_diamond_ring.tga"), 128, waypoint_shape(4, True))

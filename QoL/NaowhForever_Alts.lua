@@ -87,13 +87,23 @@ local function Count(into, first, last)
     return into
 end
 
+local function Emptied(c, key)
+    local t = c[key]
+    if type(t) ~= "table" then
+        t = {}
+        c[key] = t
+    end
+    wipe(t)
+    return t
+end
+
 local function ScanBags()
-    Me().bags = Count({}, BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS)
+    Count(Emptied(Me(), "bags"), BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS)
 end
 
 -- The Forever bank is the character bank tabs; a tab not bought has no slots.
 local function ScanBank()
-    Me().bank = Count({}, Enum.BagIndex.CharacterBankTab_1, Enum.BagIndex.CharacterBankTab_9)
+    Count(Emptied(Me(), "bank"), Enum.BagIndex.CharacterBankTab_1, Enum.BagIndex.CharacterBankTab_9)
 end
 
 -- Attachments, how many letters wait, and when the soonest one expires. Each MAIL_INBOX_UPDATE
@@ -180,14 +190,18 @@ function ns.AltList()
     return list
 end
 
-local rows = {}
+local rows, rowPool = {}, {}
 local function Where(c, id)
     local bags, bank, mail = c.bags and c.bags[id] or 0, c.bank and c.bank[id] or 0, c.mail and c.mail[id] or 0
-    local parts = {}
-    if bags > 0 then parts[#parts + 1] = bags .. " bags" end
-    if bank > 0 then parts[#parts + 1] = bank .. " bank" end
-    if mail > 0 then parts[#parts + 1] = mail .. " mail" end
-    return bags + bank + mail, table.concat(parts, ", ")
+    local text
+    if bags > 0 then text = bags .. " bags" end
+    if bank > 0 then text = (text and text .. ", " or "") .. bank .. " bank" end
+    if mail > 0 then text = (text and text .. ", " or "") .. mail .. " mail" end
+    return bags + bank + mail, text or "", bank > 0 or mail > 0
+end
+
+local function MostFirst(a, b)
+    return a.count > b.count
 end
 
 -- Only drawn when some of the item is somewhere other than the bags you are looking at.
@@ -195,18 +209,25 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tool
     if not CountsOn() then return end
     local id = data and data.id
     if not id or (issecretvalue and issecretvalue(id)) then return end
-    local mine, total, elsewhere = ns.AltName(), 0, false
+    local mine, total, elsewhere, n = ns.AltName(), 0, false, 0
     wipe(rows)
     for name, c in pairs(ns.AltRealm()) do
-        local count, text = Where(c, id)
+        local count, text, away = Where(c, id)
         if count > 0 then
             total = total + count
-            if name ~= mine or text ~= count .. " bags" then elsewhere = true end
-            rows[#rows + 1] = { name = name, class = c.class, count = count, text = text }
+            if name ~= mine or away then elsewhere = true end
+            n = n + 1
+            local r = rowPool[n]
+            if not r then
+                r = {}
+                rowPool[n] = r
+            end
+            r.name, r.class, r.count, r.text = name, c.class, count, text
+            rows[n] = r
         end
     end
     if not elsewhere then return end
-    table.sort(rows, function(a, b) return a.count > b.count end)
+    table.sort(rows, MostFirst)
     tooltip:AddDoubleLine(Tag() .. " owned", total, 1, 1, 1, 1, 1, 1)
     for i = 1, math.min(#rows, MAX_TOOLTIP_ROWS) do
         local r = rows[i]

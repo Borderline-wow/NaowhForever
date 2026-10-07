@@ -381,7 +381,8 @@ end
 
 -------------------------------------------------------------------------------
 --  A search box: a lighter fill than the window in the black border, the accent edge while
---  you type, and a muted magnifier before the hint.
+--  you type, and a muted magnifier before the hint. columns, optional, lines it up with rows
+--  under it: { icon = x of the magnifier's centre, text = x where the text starts }.
 -------------------------------------------------------------------------------
 local SEARCH_ICON_SIZE, SEARCH_ICON_LEFT = 13, 7
 local SEARCH_TEXT_LEFT = SEARCH_ICON_LEFT + SEARCH_ICON_SIZE + 6
@@ -392,19 +393,21 @@ end
 local function SearchFocus(box) Edge(box, T.accent) end
 local function SearchBlur(box) Edge(box, BORDER_RGB) end
 
-function Parts.SearchBox(parent, hint, onSearch)
+function Parts.SearchBox(parent, hint, onSearch, columns)
     local box = ns.NewSearchBox(parent, hint, onSearch)
+    local iconLeft = columns and math.floor(columns.icon - SEARCH_ICON_SIZE / 2 + 0.5) or SEARCH_ICON_LEFT
+    local textLeft = columns and columns.text or SEARCH_TEXT_LEFT
     local fill = box:CreateTexture(nil, "BACKGROUND", nil, 1)
     fill:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 1)
     fill:SetAllPoints()
     local icon = box:CreateTexture(nil, "ARTWORK")
     icon:SetTexture(St.SEARCH)
     icon:SetSize(SEARCH_ICON_SIZE, SEARCH_ICON_SIZE)
-    icon:SetPoint("LEFT", SEARCH_ICON_LEFT, 0)
+    icon:SetPoint("LEFT", iconLeft, 0)
     icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
-    box:SetTextInsets(SEARCH_TEXT_LEFT, 22, 0, 0)
+    box:SetTextInsets(textLeft, 22, 0, 0)
     box.hint:ClearAllPoints()
-    box.hint:SetPoint("LEFT", SEARCH_TEXT_LEFT, 0)
+    box.hint:SetPoint("LEFT", textLeft, 0)
     Edge(box, BORDER_RGB)
     box:HookScript("OnEditFocusGained", SearchFocus)
     box:HookScript("OnEditFocusLost", SearchBlur)
@@ -515,7 +518,6 @@ end
 
 function Parts.SettingsCard(parent, y, key, buttonText, onOpen, headline, detail)
     local UI = ns.UI
-    if UI.searchScan then return y - CARD_H - CARD_PAD end
     local card = UI.Keep(parent, key, Parts.SettingsCardFrame)
     card:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y - CARD_PAD)
     card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -UI.CONTENT_PAD, y - CARD_PAD)

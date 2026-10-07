@@ -6,7 +6,8 @@
 -- runs (marked + when not timed from its ding) over the completed levels, the icon
 -- buttons beside the rate shown on hover, the card's tooltip, the Background choice (the card, a
 -- soft fade, or none: the shared HUD backdrop, the stronger shadow and no outline unless asked for,
--- the old on/off setting saved as Card or Soft), the font settings, the preview's states and edits,
+-- the old on/off setting saved as Card or Soft), the font settings (Font, Font Size and Outline, the
+-- old Outlined Text toggle saved as Outline or Shadow), the card's standard groups, the preview's states and edits,
 -- theme colors, the saved place, and no garbage or text work on an unchanged update. Then its colors with meaning: the level progress
 -- line with rested XP ahead of it, the rate in the accent only while earning, its trend arrow,
 -- Ding turning soft blue near a level, and paused muting the rate and the line. And level history
@@ -176,7 +177,7 @@ local function Boot(account, settings, who)
     Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua", "Shared/Window.lua", "Shared/Played.lua" }, env)
 
     local defaults = { enabled = true, xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true,
-        xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24, xpTickerOutline = false,
+        xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24, xpTickerOutline = "",
         xpTickerSplits = true, xpTickerHistoryCount = 10, xpTickerBackground = "card",
         xpTickerPlayed = true, xpTickerPace = false, xpTickerSplitPlayed = true }
     local db = settings or {}
@@ -189,11 +190,10 @@ local function Boot(account, settings, who)
         AttachMover = function(parent) return Frame(parent) end }
     ns.Apply, ns.ResetXPBarSession = NOTHING, NOTHING
     ns.ShowRaidReminderAnchorConfig, ns.HideRaidReminderAnchorConfig = NOTHING, NOTHING
-    local card
-    ns.Shared.Settings = { Group = function(name) return { group = name } end,
-        Page = function() return { Card = function(_, c) card = c end } end }
+    Load({ "Shared/Settings/Settings.lua" }, env)
     local first = #created + 1
     Load({ "QoL/NaowhForever_XPTicker.lua" }, env)
+    local card = ns.Shared.Settings.pages["QoL/XP"].cards.xpTicker
 
     for i = first, #created do
         local f = created[i]
@@ -355,10 +355,13 @@ do
     check("the card is sized from the font size", t.w > small and t.rate.size == 32 and t.time.value.size == 16)
     check("still no outline", All(t, Plain))
 
-    s.S.Set("xpTickerOutline", true)
-    check("Outlined Text outlines the card's text", All(t, Outlined) and CardShown(t))
-    s.S.Set("xpTickerOutline", false)
-    check("turning it off brings the shadow back", All(t, Plain))
+    s.S.Set("xpTickerOutline", "OUTLINE")
+    check("Outline outlines the card's text", All(t, Outlined) and CardShown(t))
+    s.S.Set("xpTickerOutline", "THICKOUTLINE")
+    check("Thick Outline too", t.rate.flags == "THICKOUTLINE" and t.time.value.flags == "THICKOUTLINE"
+        and t.rate.shadow[4] == 0)
+    s.S.Set("xpTickerOutline", "")
+    check("Shadow brings the shadow back", All(t, Plain))
 
     s.S.Set("xpTickerBackground", "soft")
     local soft = t.backdrop.soft
@@ -379,18 +382,18 @@ do
         and St.HUD_SOFT_INSET < St.HUD_SOFT_FADE)
     check("Soft: no outline, the stronger soft shadow", All(t, SoftShadow))
     check("Soft: the progress line without its track", t.line.track.shown == false)
-    s.S.Set("xpTickerOutline", true)
-    check("Soft: Outlined Text still outlines on request", All(t, Outlined))
-    s.S.Set("xpTickerOutline", false)
+    s.S.Set("xpTickerOutline", "OUTLINE")
+    check("Soft: Outline still outlines on request", All(t, Outlined))
+    s.S.Set("xpTickerOutline", "")
 
     s.S.Set("xpTickerBackground", "none")
     check("None: no card", CardHidden(t))
     check("None: no fade", SoftShown(t, false) and t.backdrop.soft == soft)
     check("None: no outline, the strongest shadow", All(t, BareShadow))
     check("None: the line's fill without its track", t.line.track.shown == false and t.line.fill)
-    s.S.Set("xpTickerOutline", true)
-    check("None: Outlined Text on request", All(t, Outlined))
-    s.S.Set("xpTickerOutline", false)
+    s.S.Set("xpTickerOutline", "OUTLINE")
+    check("None: Outline on request", All(t, Outlined))
+    s.S.Set("xpTickerOutline", "")
 
     s.S.Set("xpTickerBackground", "card")
     check("Card: the card is back", CardShown(t) and SoftShown(t, false) and All(t, Plain) and Shown(t.line.track))
@@ -410,32 +413,43 @@ do
     s.S.Set("xpTickerElapsed", true)
     s.S.Set("xpTickerLevel", true)
 
-    local rows, labels = {}, {}
+    local rows, labels, groups, groupOf, group = {}, {}, {}, {}, nil
     for _, r in ipairs(s.card.rows) do
         if r.key then rows[r.key] = r end
         if r.label then labels[r.label] = r end
+        if r.group then
+            group = r.group
+            groups[#groups + 1] = group
+        elseif r.key then
+            groupOf[r.key] = group
+        end
     end
+    check("the standard groups after its own", table.concat(groups, ", ")
+        == "Shown, Level History, Text, Background, Visibility")
+    check("Font, Font Size and Outline under Text", groupOf.xpTickerFont == "Text"
+        and groupOf.xpTickerFontSize == "Text" and groupOf.xpTickerOutline == "Text")
+    check("Font Size keeps its range", rows.xpTickerFontSize.slider[1] == 8 and rows.xpTickerFontSize.slider[2] == 32)
+    check("Hide While Resting under Visibility", groupOf.xpTickerHideResting == "Visibility")
     local bg, outline = rows.xpTickerBackground, rows.xpTickerOutline
     local Parts = ns.Shared.Parts
     check("Background is a choice on the card", bg and bg.choice == Parts.HUD_BACKGROUNDS and bg.label == "Background")
     check("Card, Soft and None, in that order", table.concat(bg.choice[2], ",") == "card,soft,none"
         and bg.choice[1].card == "Card" and bg.choice[1].soft == "Soft" and bg.choice[1].none == "None")
-    check("Outlined Text is kept, in every mode", outline and outline.toggle and outline.label == "Outlined Text"
-        and outline.needs == nil)
+    check("Outline is the shared choice, in every mode", outline and outline.choice == Parts.HUD_OUTLINES
+        and outline.label == "Outline" and outline.needs == nil)
     for _, r in ipairs({ bg, outline }) do
         check(r.label .. ": one short sentence", r.help and #r.help < 100 and not r.help:find("%. %u"))
     end
     bg.set("soft")
     check("the row sets the mode", s.S.Get("xpTickerBackground") == "soft" and bg.get() == "soft"
         and t.backdrop.mode == "soft")
-    s.db.xpTickerBackground = true
-    check("the row reads an old on as Card", bg.get() == "card")
-    s.db.xpTickerBackground = false
-    check("and an old off as Soft", bg.get() == "soft")
+    outline.set("OUTLINE")
+    check("the row sets the outline", s.S.Get("xpTickerOutline") == "OUTLINE" and All(t, Outlined))
+    outline.set("")
     bg.set("card")
     local qol = Read("QoL/NaowhForever_QoL.lua")
     check("Background is Card by default", qol:find('xpTickerBackground = "card"', 1, true))
-    check("Outlined Text off by default", qol:find("xpTickerOutline = false", 1, true))
+    check("no outline by default", qol:find('xpTickerOutline = ""', 1, true))
     check("the Color spelling in player text", not Read("QoL/NaowhForever_XPTicker.lua"):find("[Cc]olour"))
     check("Reset XP per Hour is still on the card", labels["Reset XP per Hour"])
 end
@@ -529,16 +543,27 @@ do
     check("and the preview drops it", not p.ding.on and dingHit.shown == false)
     p.scripts.OnMouseUp(p, "RightButton")
     check("right-click opens a menu", menu and menu.owner == p)
-    local items = {}
+    local items, section = {}, nil
     local root = {
-        CreateTitle = NOTHING, CreateDivider = NOTHING,
+        CreateTitle = function(_, title) section = title end, CreateDivider = NOTHING,
         CreateCheckbox = function(_, label, _, set, data) items[label] = { set = set, data = data } end,
-        CreateRadio = function(_, label, picked, set, data) items[label] = { picked = picked, set = set, data = data } end,
+        -- Background and Outline both have a None; the outline one is filed as "Outline None".
+        CreateRadio = function(_, label, picked, set, data)
+            local key = section == "Outline" and items[label] and "Outline " .. label or label
+            items[key] = { picked = picked, set = set, data = data }
+        end,
         CreateButton = function(_, label, fn) items[label] = { fn = fn } end,
     }
     menu.gen(p, root)
-    check("the menu has the backgrounds, Outlined Text and Reset", items.Card and items.Soft and items.None
-        and items["Outlined Text"] and items["Reset XP per Hour"] and items["Show Ding Time"])
+    check("the menu has the backgrounds, the outlines and Reset", items.Card and items.Soft and items.None
+        and items["Outline None"] and items.Shadow and items.Outline and items["Thick Outline"] and items["Reset XP per Hour"]
+        and items["Show Ding Time"])
+    check("the menu's Shadow picked", items.Shadow.picked(items.Shadow.data) and not items.Outline.picked(items.Outline.data))
+    items.Outline.set(items.Outline.data)
+    studio.paint(preview, "levelling")
+    check("Outline from the menu, in the preview too", s.S.Get("xpTickerOutline") == "OUTLINE" and All(p, Outlined))
+    items.Shadow.set(items.Shadow.data)
+    studio.paint(preview, "levelling")
     check("the menu's Card picked", items.Card.picked(items.Card.data) and not items.Soft.picked(items.Soft.data))
     items["Show Ding Time"].set(items["Show Ding Time"].data)
     check("and turns rows back on", s.S.Get("xpTickerLevel") == true)
@@ -572,6 +597,9 @@ end
 do
     local s = Boot(nil, { xpTickerOutline = true })
     check("a saved Outlined Text loads outlined", All(s.ticker, Outlined))
+    check("and is saved as Outline", s.db.xpTickerOutline == "OUTLINE")
+    s = Boot(nil, { xpTickerOutline = false })
+    check("Outlined Text off is saved as Shadow", s.db.xpTickerOutline == "" and All(s.ticker, Plain))
 end
 
 do

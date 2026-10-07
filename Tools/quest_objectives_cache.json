@@ -917,6 +917,28 @@
   ],
   "text": "Kill Rath'mael in the Ruins of Lordaeron for Deathguard Kristof in Brill. Rath'mael slain ( 1 )"
  },
+ "92456": {
+  "npcs": [],
+  "text": "Collect a Fel Infused Blossom from the City of Dalaran for Shylamiir in Stormwind City. Fel Infused Blossom ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(251983, 0, 1, null, null));"
+ },
+ "92457": {
+  "npcs": [
+   247003,
+   247001,
+   246600
+  ],
+  "text": "Defeat 8 Seeking Remnants , 8 Saturated Remnants , and 8 Mana Echoes inside the City of Dalaran for Archmage Modera outside of Dalaran. Seeking Remnant slain ( 8 ) Saturated Remnant slain ( 8 ) Mana Echo slain ( 8 )"
+ },
+ "92458": {
+  "npcs": [],
+  "text": "Collect the Arcane Mote for the Image of Archmage Modera near the City of Dalaran . Arcane Mote ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(251961, 0, 1, null, null)); Provided item: Dalaran Sewer Key ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(277507, 0, 0, null, null));"
+ },
+ "92489": {
+  "npcs": [
+   246016
+  ],
+  "text": "Slay the Mana Elemental in the City of Dalaran for High Sorcerer Andromath in Stormwind City. Arcanic Enigma slain ( 1 )"
+ },
  "95195": {
   "npcs": [],
   "text": "Collect 10 Bloodied Insignias and take them to General Marcus Jonathan in Stormwind City. Bloodied Insignia (Provided) ( 10 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268540, 0, 10, null, null));"
@@ -932,6 +954,43 @@
  "95250": {
   "npcs": [],
   "text": "Collect the Head of the Baron in the Ruins of Lordaeron and bring it back to Captain Truman. Head of the Baron ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(268518, 0, 1, null, null));"
+ },
+ "95646": {
+  "npcs": [],
+  "text": "Kill a Highland Horror within Excavation Sites and bring its root core to Rethiel the Greenwarden in the Wetlands. Horrible Rootcore ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270180, 0, 1, null, null));"
+ },
+ "95647": {
+  "npcs": [
+   262681
+  ],
+  "text": "Find Ardin Grassman in the Excavation Sites. Learn what happened to Ardin Grassman ( 1 )"
+ },
+ "95664": {
+  "npcs": [],
+  "text": "Take the Titan Relic to the Elder Rise in Thunder Bluff and look for someone who can tell you more about it. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270866, 0, 1, null, null));"
+ },
+ "95682": {
+  "npcs": [
+   275045,
+   275044
+  ],
+  "text": "Slay the Dragonmaw forces within the Excavation Site and return to the Deathstalker Agent outside with anything you recover. Dragonmaw Saboteur slain ( 2 ) Dragonmaw Warder slain ( 4 ) Dragonmaw Dispatch ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(284844, 0, 1, null, null));"
+ },
+ "95697": {
+  "npcs": [],
+  "text": "Enter the Excavation Sites in the Wetlands and bring back Thicket Raptor Meat . Thicket Raptor Meat ( 4 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(271100, 0, 4, null, null));"
+ },
+ "95772": {
+  "npcs": [],
+  "text": "Look for Dorin Songblade 's brother, Daewyn, in Whelgar's Excavation Site."
+ },
+ "95809": {
+  "npcs": [],
+  "text": "Return to Caitlin Grassman in Menethil Harbor. Reed-woven Heart (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270901, 0, 1, null, null));"
+ },
+ "95810": {
+  "npcs": [],
+  "text": "Bring the Titan Relic to Prospector Whelgar in the Wetlands excavation site. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270865, 0, 1, null, null));"
  },
  "959": {
   "npcs": [],
@@ -962,6 +1021,24 @@
   "npcs": [],
   "text": "Collect 8 Dwarven Heirlooms from the Hall of Thanes . Dwarven Heirloom ( 8 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(274289, 0, 8, null, null));"
  },
+ "96984": {
+  "npcs": [],
+  "text": "Collect the Arcane Mote in the City of Dalaran for Magus Wordeen Voidglare in Tarren Mill. Arcane Mote ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(251961, 0, 1, null, null)); Provided item: Dalaran Sewer Key ( 1 ) WH.ge('icon-list-icon2').appendChild(g_items.createIcon(277507, 0, 0, null, null));"
+ },
+ "96986": {
+  "npcs": [
+   247126
+  ],
+  "text": "Defeat Atrexis the Grave Knight in the City of Dalaran for Melisara in Tarren Mill. Atrexis the Grave Knight slain ( 1 )"
+ },
+ "96987": {
+  "npcs": [],
+  "text": "Collect the Founding of Dalaran from the City of Dalaran for Rexxie Copperclutch near the sewer entrance. The Founding of Dalaran ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(275996, 0, 1, null, null));"
+ },
+ "96988": {
+  "npcs": [],
+  "text": "Collect 6 Cracked Sentry Cores in the City of Dalaran for Doctor Martin Felben in Undercity. Cracked Sentry Core ( 6 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(275997, 0, 6, null, null));"
+ },
  "971": {
   "npcs": [],
   "text": "Bring the Lorgalis Manuscript to Gerrig Bonegrip in the Forlorn Cavern in Ironforge. Lorgalis Manuscript ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(5359, 0, 1, null, null));"
@@ -991,5 +1068,17 @@
  "98423": {
   "npcs": [],
   "text": "Deliver the Treaty of Understanding to Magni Bronzebeard in Ironforge. Treaty of Understanding (Provided) ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(281030, 0, 1, null, null));"
+ },
+ "98815": {
+  "npcs": [],
+  "text": "Return 4 Thicket Raptor Hides to James Halloran , the tanner, in Menethil Harbor. Thicket Raptor Hide ( 4 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(284845, 0, 4, null, null));"
+ },
+ "98823": {
+  "npcs": [],
+  "text": "Bring the Titan Relic to Muln Earthfury at the Skywatcher Plateau in northwest Mulgore. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270866, 0, 1, null, null));"
+ },
+ "98824": {
+  "npcs": [],
+  "text": "Bring the Titan Relic to High Explorer Magellas in Ironforge's Hall of Explorers. Titan Relic ( 1 ) WH.ge('icon-list-icon1').appendChild(g_items.createIcon(270865, 0, 1, null, null));"
  }
 }

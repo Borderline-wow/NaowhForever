@@ -1,7 +1,7 @@
 {
   "_about": [
     "The Dungeon Journal's factions, kept by hand; Tools/build_factions.py turns this into one Lua",
-    "file per faction in DungeonJournal/Data/Factions, its rewards from the game's item tables",
+    "file per faction in NaowhForever_DungeonJournal/Data/Factions, its rewards from the game's item tables",
     "(every item that needs a standing with the faction). tab is the Journal's tab it is listed",
     "under: reputation, or pvp for a battleground's faction (side Alliance or Horde: only that",
     "side sees it). id is the game's faction ID. zone is where its quartermaster is. dungeons are",
@@ -17,7 +17,7 @@
     "they have wrong. Its \"turnins\" list names its repeatable hand-ins, which the game's",
     "tables do not have (a quest's rewards come from the server): { \"name\": the quest's,",
     "\"quests\": its IDs (one per side), \"rep\": what one hand-in gives, \"takes\": [[item ID,",
-    "count], ...] }, from the quest's page on Wowhead Forever. See DungeonJournal/README.md,",
+    "count], ...] }, from the quest's page on Wowhead Forever. See NaowhForever_DungeonJournal/README.md,",
     "Adding things."
   ],
   "factions": [

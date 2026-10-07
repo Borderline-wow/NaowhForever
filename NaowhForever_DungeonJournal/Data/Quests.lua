@@ -1,0 +1,370 @@
+-------------------------------------------------------------------------------
+--  Data/Quests.lua -- every dungeon quest on WoW Forever, from
+--  Wowhead's Forever dungeon quest guide (patch 1.60.1, updated 2026-09-23). Generated;
+--  instance IDs are the Map table's for build 1.60.1.69913.
+--
+--  Each quest: { questID, name, level, side ("A", "H" or "B"), shareable (true,
+--  false or "pre" for a prerequisite chain), where it starts, and where the quest giver
+--  stands as uiMapID, x, y when it is outside the dungeon; class for class quests }.
+--  Positions on Stormwind, Mulgore, Redridge and the Eastern Plaguelands are converted to
+--  Forever's redrawn maps.
+--
+--  Added by hand: the new-in-Forever dungeons that have no quests in the guide, and
+--  levels = { min, max } for all nine new ones; the classic dungeons carry the classic-era
+--  ranges, which Forever's quest levels still match. map is nil where the instance ID is not
+--  in the client's Map table yet (still encrypted in 1.60.1); those are matched by the
+--  instance name GetInstanceInfo reports, so the name must be the client's own.
+--  City of Dalaran's quests are by hand too, from their Wowhead Forever quest pages
+--  (2026-10-05); the Stormwind spot is converted like the guide's.
+--
+--  Optional per quest, from Wowhead's Forever quest database (2026-09-26), filled in
+--  for the dungeons up to level 20 so far: alt = the same quest's other versions (one
+--  per faction), either of which counts; steps = the rest of its chain, all of which
+--  must be done for Done; lead = a lead-in quest that only counts while you carry it.
+--  A step can be a table of IDs, one per faction, any of which counts. next runs
+--  alongside steps: next[i] = { uiMapID, x, y, where } is where steps[i] is picked up.
+-------------------------------------------------------------------------------
+local J = _G.NaowhForever.Journal
+
+-- One entry per dungeon, matched to its Journal dungeon by name (Journal.lua).
+J.QuestData = {
+    { name = "Ragefire Chasm", map = 389, levels = { 13, 18 }, quests = {
+        { 5761, "Slaying the Beast", 9, "H", true, "Orgrimmar, The Drag - Neeru Fireblade (49.5, 50.6)", 1454, 49.5, 50.6 },
+        { 5725, "The Power to Destroy...", 9, "H", true, "Undercity, Royal Quarter - Varimathras (56.2, 92.2)", 1458, 56.2, 92.2 },
+        { 5723, "Testing an Enemy's Strength", 9, "H", true, "Thunder Bluff, Elder Rise - Rahauro (70.1, 29.5)", 1456, 70.1, 29.5 },
+        { 5722, "Searching for the Lost Satchel", 9, "H", true, "Thunder Bluff, Elder Rise - Rahauro; the satchel is on Maur Grimtotem inside RFC (70.1, 29.5)", 1456, 70.1, 29.5, steps = { 5724 } },
+        { 5728, "Hidden Enemies", 9, "H", "pre", "Orgrimmar, Valley of Wisdom - Thrall Prerequisite: Complete 3 quests, starting with Hidden Enemies from Thrall (31.7, 37.8)", 1454, 31.7, 37.8 },
+    } },
+    { name = "The Hall of Thanes", map = 3065, levels = { 13, 18 }, quests = {
+        { 96403, "Important Heirlooms", 14, "A", true, "Ironforge, Old Ironforge - Thom Filch (32.6, 44.6)", 1455, 32.6, 44.6 },
+        { 96394, "The Restless Dead", 15, "A", true, "Ironforge, Old Ironforge - Afadra Dunwall (33.2, 47.8)", 1455, 33.2, 47.8 },
+        { 96393, "Old Ironforge Incursion", 15, "A", true, "Dun Morogh, Gol'Golar Quarry - Earthseer Farsen Prerequisite to pick up Underground Map from Dark Iron Map (64.8, 58.4)", 1426, 64.8, 58.4 },
+        { 98423, "The Treaty of Understanding", 16, "A", false, "The Hall of Thanes, Located in the Reliquary of Kings in a Vault" },
+        { 96395, "An Ancient Grudge", 14, "H", true, "The Hall of Thanes, Anvilmar's Rest - Ghostly Attendant" },
+    } },
+    { name = "Wailing Caverns", map = 43, levels = { 17, 24 }, quests = {
+        { 962, "Serpentbloom", 14, "H", true, "Thunder Bluff, Pools of Vision - Apothecary Zamah (22.8, 20.9)", 1456, 22.8, 20.9 },
+        { 1491, "Smart Drinks", 13, "B", "pre", "The Barrens, Ratchet - Mebok Mizzyrix Complete Raptor Horns from same NPC first (62.4, 37.6)", 1413, 62.4, 37.6 },
+        { 959, "Trouble at the Docks", 14, "B", true, "The Barrens, Ratchet - Crane Operator Bigglefuzz (63.1, 37.6)", 1413, 63.1, 37.6 },
+        { 1486, "Deviate Hides", 13, "B", true, "The Barrens, Above WC entrance - Nalpak (46, 35.7)", 1413, 46.0, 35.7 },
+        { 1487, "Deviate Eradication", 15, "B", true, "The Barrens, Above WC entrance - Ebru (46, 35.7)", 1413, 46.0, 35.7 },
+        { 6981, "The Glowing Shard", 10, "B", false, "Wailing Caverns, drops from Mutanus the Devourer after the Disciple of Naralex event",
+            steps = { 3366, { 3369, 3370 } },
+            next = { { 1413, 63.0, 37.2, "The Barrens, Ratchet - Sputtervalve, by the flight master (63.0, 37.2)" },
+                     { 1413, 48.2, 32.8, "The Barrens, on the hill above Wailing Caverns - Falla Sagewind (48.2, 32.8)" } } },
+        { 914, "Leaders of the Fang", 15, "H", "pre", "Thunder Bluff, Elder Rise - Nara Wildmane Prerequisite: Complete 5 quests, starting with The Forgotten Pools, The Barrens, Crossroads, Tonga Runetotem (75.7, 31.6)", 1456, 75.7, 31.6 },
+    } },
+    { name = "The Deadmines", map = 36, levels = { 17, 26 }, quests = {
+        { 168, "Collecting Memories", 14, "A", true, "Stormwind, Dwarven District - Wilder Thistlenettle (70.3, 40.8)", 1453, 70.3, 40.8 },
+        { 167, "Oh Brother. . .", 15, "A", true, "Stormwind, Dwarven District - Wilder Thistlenettle (70.3, 40.8)", 1453, 70.3, 40.8 },
+        { 2040, "Underground Assault", 15, "A", true, "Stormwind, Dwarven District - Shoni the Shilent (62.6, 34.1)", 1453, 62.6, 34.1 },
+        { 373, "The Unsent Letter", 16, "A", false, "The Deadmines, drop from Edwin VanCleef Prerequisite to pick up The Stockade Riots" },
+        { 214, "Red Silk Bandanas", 14, "A", "pre", "Westfall, Sentinel Hill - Scout Riell Complete 6 quests, starting with The Defias Brotherhood, Gryan Stoutmantle, Sentinel Hill, Westfall (56.7, 47.4)", 1436, 56.7, 47.4 },
+        { 166, "The Defias Brotherhood", 14, "A", "pre", "Westfall, Sentinel Hill - Gryan Stoutmantle Same prerequisites as Red Silk Bandanas (56.3, 47.5)", 1436, 56.3, 47.5 },
+        { 1654, "The Test of Righteousness", 20, "A", "pre", "Paladin only - Ironforge, inside Gates - Jordan Stilwell Starts with Tome of Valor quest chains; starts in different places depending on race. See Paladin Quest guide below. (52.5, 36.9)", 1426, 52.5, 36.9, class = "PALADIN" },
+    } },
+    { name = "Ruins of Lordaeron", map = 2999, levels = { 15, 20 }, quests = {
+        { 92401, "A Frightened Request", 15, "H", true, "Undercity, Tabitha Heartweaver (34, 21)", 1458, 34.0, 21.0 },
+        { 92422, "The Wrath of Rath'mael", 15, "H", true, "Tirisfal Glades, Brill - Deathguard Kristof (65.2, 60.2)", 1420, 65.2, 60.2 },
+        { 95216, "The New Plague", 16, "H", true, "Undercity, Theodore Griffs (46.3, 71.9)", 1458, 46.3, 71.9 },
+        { 92421, "Light's Justice", 15, "H", true, "Undercity, Morbin Lightbane (57.8, 89.8)", 1458, 57.8, 89.8 },
+        { 97288, "Unending Torment", 15, "H", true, "Inside Dungeon - Abominable Head drop", steps = { 97289, 97290, 97291, 97292 } },
+        { 95204, "Crest of Lordaeron", 16, "B", true, "Inside Dungeon - Crest of Lordaeron drop", alt = { 95189 } },
+        { 95250, "Abominable Creatures", 16, "A", false, "TBD" },
+        { 95195, "Bloodied Insignia", 16, "A", false, "Stormwind City - General Marcus Jonathan (69.2, 82.7)", 1453, 69.2, 82.7 },
+        { 92415, "Remember That I Love You", 15, "A", false, "TBD" },
+    } },
+    { name = "Shadowfang Keep", map = 33, levels = { 22, 30 }, quests = {
+        { 1013, "The Book of Ur", 16, "H", true, "Undercity, Apothecarium - Keeper Bel'dugur (53.7, 54.5)", 1458, 53.7, 54.5 },
+        { 1098, "Deathstalkers in Shadowfang", 18, "H", true, "Silverpine Forest, Sepulcher - High Executor Hadrec (43.4, 40.9)", 1421, 43.4, 40.9 },
+        { 1014, "Arugal Must Die", 18, "H", true, "Silverpine Forest, Sepulcher - Dalar Dawnweaver (44.2, 39.8)", 1421, 44.2, 39.8 },
+        { 1740, "The Orb of Soran'ruk", 20, "B", true, "Warlock only - The Barrens, Near Camp Taurajo - Doan Karhan (49.3, 57.2)", 1413, 49.3, 57.2, class = "WARLOCK" },
+        { 1654, "The Test of Righteousness", 20, "A", "pre", "Paladin only - Ironforge, inside Gates - Jordan Stilwell Starts with Tome of Valor quest chains; starts in different places depending on race. See Paladin Quest guide below. (52.5, 36.9)", 1426, 52.5, 36.9, class = "PALADIN" },
+    } },
+    { name = "Blackfathom Deeps", map = 48, levels = { 24, 32 }, quests = {
+        { 6563, "The Essence of Aku'Mai", 17, "H", true, "Ashenvale, Zoram'gar Outpost - Je'neu Sancrea (11.6, 34.3)", 1440, 11.6, 34.3, lead = { 6562 } },
+        { 6561, "Blackfathom Villainy", 18, "H", true, "Blackfathom Deeps, Alcove SW of Ghamoo-ra - Argent Guard Thaelrid" },
+        { 6921, "Amongst the Ruins", 21, "H", true, "Ashenvale, Zoram'gar Outpost - Je'neu Sancrea Summons Baron Aquanis when Fathom Core picked up, needed for next quest (11.6, 34.3)", 1440, 11.6, 34.3 },
+        { 6922, "Baron Aquanis", 21, "H", false, "Strange Water Globe, drops from Baron Aquanis" },
+        { 1740, "The Orb of Soran'ruk", 20, "B", true, "Warlock only - The Barrens, Near Camp Taurajo - Doan Karhan (49.3, 57.2)", 1413, 49.3, 57.2, class = "WARLOCK" },
+        { 6565, "Allegiance to the Old Gods", 17, "H", false, "Damp Note, low drop rate item from Blackfathom Tide Priestess outside instance (30.4, 92.1)", 1439, 30.4, 92.1, steps = { 6564 } },
+        { 971, "Knowledge in the Deeps", 10, "A", true, "Ironforge, Forlorn Cave - Gerrig Bonegrip (50.8, 5.6)", 1455, 50.8, 5.6 },
+        { 1275, "Researching the Corruption", 18, "A", true, "Darkshore, Auberdine - Gershala Nightwhisper (38.3, 43)", 1439, 38.3, 43.0 },
+        { 1199, "Twilight Falls", 20, "A", true, "Darnassus, Craftsman's Terrace - Argent Guard Manados (55.2, 24)", 1457, 55.2, 24.0 },
+        { 1198, "In Search of Thaelrid", 18, "A", true, "Darnassus, Craftsman's Terrace - Dawnwatcher Shaedlass Prerequisite to Blackfathom Villainy (55.4, 25)", 1457, 55.4, 25.0 },
+        { 1200, "Blackfathom Villainy", 18, "A", "pre", "Blackfathom Deeps, Alcove SW of Ghamoo-ra - Argent Guard Thaelrid Requires In Search of Thaelrid" },
+        { 1654, "The Test of Righteousness", 20, "A", "pre", "Paladin only - Ironforge, inside Gates - Jordan Stilwell Starts with Tome of Valor quest chains; starts in different places depending on race. See Paladin Quest guide below. (52.5, 36.9)", 1426, 52.5, 36.9, class = "PALADIN" },
+    } },
+    { name = "The Stockade", map = 34, levels = { 24, 32 }, quests = {
+        { 387, "Quell The Uprising", 22, "A", true, "Stormwind, Outside Stockades - Warden Thelwater (51.5, 69.4)", 1453, 51.5, 69.4 },
+        { 388, "The Color of Blood", 22, "A", true, "Stockades, Old Town - Nikova Raskol (patrols) (73.8, 54.6)", 1453, 73.8, 54.6 },
+        { 377, "Crime and Punishment", 22, "A", true, "Duskwood, Darkshire - Councilman Millstipe (71.9, 47.8)", 1431, 71.9, 47.8 },
+        { 386, "What Comes Around...", 22, "A", true, "Redridge Mountains, Lakeshire - Guard Berton (21.2, 46.6)", 1433, 21.2, 46.6 },
+        { 378, "The Fury Runs Deep", 25, "A", "pre", "Wetlands, Dun Modr - Motley Garmason Requires The Dark Iron War (49.7, 18.2)", 1437, 49.7, 18.2 },
+        { 391, "The Stockade Riots", 16, "A", "pre", "Stormwind, Outside Stockades - Warden Thelwater Requires quest line starting with The Unsent Letter from Deadmines (51.5, 69.4)", 1453, 51.5, 69.4 },
+    } },
+    { name = "Excavation Site: Wetlands", map = 2998, levels = { 24, 29 }, quests = {
+        { 98815, "Highland Hides", 24, "A", "pre", "Wetlands, Menethil Harbor - James Halloran Complete Daily Delivery first (8.0, 55.0)", 1437, 8.0, 55.0 },
+        { 95772, "Songblade Search", 24, "A", true, "Redridge Mountains - Dorin Songblade (25.6, 46.6)", 1433, 25.6, 46.6 },
+        { 95646, "Horrors in the Highland", 24, "A", true, "Wetlands - Rethiel the Greenwarden (56.2, 40.6)", 1437, 56.2, 40.6 },
+        { 95647, "Lost in the Thicket Things", 24, "A", true, "Wetlands, Menethil Harbor - Caitlin Grassman Breadcrumb Seeking Caitlin from Llana in Ashenvale (35.0, 48.6) (11.8, 58.6)", 1437, 11.8, 58.6 },
+        { 95809, "Heartwoven", 24, "A", "pre", "Follow-up from Lost in the Thicket Things" },
+        { 95810, "Lost Relic Carry", 24, "A", "pre", "Excavation Site: Wetlands, loot Titan Relic from Relic Guardian" },
+        { 98824, "Prehistoric Prism", 24, "A", "pre", "Follow-up from Lost Relic Carry" },
+        { 95697, "Changing Tastes", 24, "H", true, "Orgrimmar - Borstan, the Cooking trainer" },
+        { 95682, "Open the Maw", 24, "H", true, "Wetlands - Deathstalker Agent, hiding in the hills by the entrance" },
+        { 95664, "Elder Knowledge", 24, "H", "pre", "Excavation Site: Wetlands, loot Titan Relic from Relic Guardian" },
+        { 98823, "Earthen Echo", 24, "H", "pre", "Follow-up from Elder Knowledge" },
+    } },
+    { name = "Gnomeregan", map = 90, levels = { 29, 38 }, quests = {
+        { 2841, "Rig Wars", 25, "H", true, "Orgrimmar, Valley of Honor - Nogg (76, 25.4)", 1454, 76.0, 25.4 },
+        { 2842, "Chief Engineer Scooty", 20, "H", "pre", "Orgrimmar, Valley of Honor - Sovik Must pick up Rig Wars first. (75.5, 25.4)", 1454, 75.5, 25.4 },
+        { 2843, "Gnomer-gooooone!", 20, "H", false, "Stranglethorn Vale, Booty Bay - Scooty (27.6, 77.5)", 1434, 27.6, 77.5 },
+        { 2922, "Save Techbot's Brain!", 20, "A", true, "Ironforge, Tinkertown - Tinkmaster Overspark (69.5, 50.3)", 1455, 69.5, 50.3 },
+        { 2928, "Gyrodrillmatic Excavationators", 20, "A", true, "Stormwind, Dwarven Quarter - Shoni the Shilent (62.6, 34.1)", 1453, 62.6, 34.1 },
+        { 2924, "Essential Artificials", 24, "A", true, "Ironforge, Tinkertown - Klockmort Spannerspan (67.9, 46.1)", 1455, 67.9, 46.1 },
+        { 2930, "Data Rescue", 25, "A", true, "Ironforge, Tinkertown - Master Mechanic Castpipe (69.8, 48.1)", 1455, 69.8, 48.1 },
+        { 2929, "The Grand Betrayal", 25, "A", true, "Ironforge, Tinkertown - High Tinker Mekkatorque (68.8, 49)", 1455, 68.8, 49.0 },
+        { 2926, "Gnogaine", 20, "A", false, "Dun Morogh, Kharanos - Ozzie Togglevolt (45.9, 49.4)", 1426, 45.9, 49.4 },
+        { 2962, "The Only Cure is More Green Glow", 20, "A", "pre", "Dun Morogh, Kharanos - Ozzie Togglevolt Complete Gnogaine first. (45.9, 49.4)", 1426, 45.9, 49.4 },
+        { 2951, "The Sparklematic 5200!", 25, "B", true, "Gnomeregan, an object, needs Grime-Encrusted Object" },
+        { 2904, "A Fine Mess", 20, "B", false, "Gnomeregan - Escort Kernobee from the room to the right of the Clean Room" },
+        { 2945, "Grime-Encrusted Ring", 28, "B", true, "Gnomeregan, Grime-Encrusted Ring drop. Starts Return of the Ring / Return of the Ring" },
+    } },
+    { name = "Razorfen Kraul", map = 47, levels = { 29, 38 }, quests = {
+        { 1102, "A Vengeful Fate", 29, "H", true, "Thunder Bluff, Near Main Lift - Auld Stonespire (36, 59.9)", 1456, 36.0, 59.9 },
+        { 1109, "Going, Going, Guano!", 30, "H", true, "Undercity, The Apothecarium - Master Apothecary Faranell Prerequisite for Scarlet Monastery quest Hearts of Zeal (48.8, 69.3)", 1458, 48.8, 69.3 },
+        { 6522, "An Unholy Alliance", 28, "H", false, "Razorfen Kraul, Small Scroll, drops from Charlga Razorflank Prerequisite for Razorfen Downs quest An Unholy Alliance" },
+        { 1101, "The Crone of the Kraul", 29, "A", "pre", "Feralas, The Lower Wilds - Falfindel Waywarder Complete Lonebrow's Journal first. (89.6, 46.6)", 1444, 89.6, 46.6 },
+        { 1142, "Mortality Wanes", 25, "A", true, "Razorfen Kraul - Heralath Fallowbrook inside instance behind main boss" },
+        { 1221, "Blueleaf Tubers", 20, "B", false, "The Barrens, Ratchet - Mebok Mizzyrix Don't forget quest items next to Mizzyrix. (62.4, 37.6)", 1413, 62.4, 37.6 },
+        { 1144, "Willix the Importer", 22, "B", false, "Razorfen Kraul, Tent near final boss - Willix the Importer" },
+    } },
+    { name = "City of Dalaran", map = 2959, levels = { 28, 33 }, quests = {
+        { 92457, "Starving Arcane", 33, "B", true, "Outside the City of Dalaran - Archmage Modera" },
+        { 92489, "Power Overwhelming", 33, "A", true, "Stormwind - High Sorcerer Andromath (48.7, 87.8)", 1453, 48.7, 87.8 },
+        { 92458, "Heart of Disruption", 33, "A", false, "Near the City of Dalaran - Image of Archmage Modera, after An Alarming Request" },
+        { 92456, "A Green Sample", 33, "A", true, "Stormwind - Shylamiir" },
+        { 96986, "The Grave Knight", 33, "H", true, "Hillsbrad Foothills, Tarren Mill - Melisara (62.6, 20.6)", 1424, 62.6, 20.6 },
+        { 96988, "Source of Power", 33, "H", true, "Undercity - Doctor Martin Felben (46.6, 74.4)", 1458, 46.6, 74.4 },
+        { 96984, "Heart of Disruption", 33, "H", false, "Silverpine Forest, near the City of Dalaran - Image of Archmage Modera, after Blood in the Streets (68.6, 45.2)", 1421, 68.6, 45.2 },
+        { 96987, "Opportunistic Education", 33, "H", true, "By the City of Dalaran's sewer entrance - Rexxie Copperclutch" },
+    } },
+    -- Scarlet Monastery's four wings share one instance (189), each its own dungeon here with
+    -- classic's ranges; the Journal tells them apart by the subzone you stand in (Journal.lua).
+    -- A quest goes under the wing it is done in: Hearts of Zeal (hearts from any wing) under the
+    -- first, the two that kill Loksey, Herod, Mograine and Whitemane under the Cathedral.
+    { name = "Scarlet Monastery - Graveyard", map = 189, levels = { 26, 36 }, quests = {
+        { 1051, "Vorrel's Revenge", 25, "H", true, "Scarlet Monastery, Graveyard - Vorrel Sengutz" },
+        { 1113, "Hearts of Zeal", 30, "H", true, "Undercity, The Apothecarium - Master Apothecary Faranell Complete Going, Going, Guano!, Razorfen Kraul (48.8, 69.3)", 1458, 48.8, 69.3 },
+    } },
+    { name = "Scarlet Monastery - Library", map = 189, levels = { 29, 39 }, quests = {
+        { 1049, "Compendium of the Fallen", 28, "H", true, "Thunder Bluff, First Rise - Sage Truthseeker Undead cannot pick up this quest (34.4, 46.9)", 1456, 34.4, 46.9 },
+        { 1160, "Test of Lore", 25, "H", "pre", "Undercity, The Apothecarium - Parqual Fintallas Complete 6 quests in chain, starting with Test of Faith (57.8, 65.4)", 1458, 57.8, 65.4 },
+        { 1050, "Mythology of the Titans", 28, "A", true, "Ironforge, Hall of Explorers - Librarian Mae Paledust (75, 12.5)", 1455, 75.0, 12.5 },
+        { 1951, "Rituals of Power", 30, "B", "pre", "Mage only - Thousand Needles, Shimmering Flats Raceway - Magus Tirth Complete 3 quests, starting with Journey to the Marsh (78.3, 75.7)", 1441, 78.3, 75.7, class = "MAGE" },
+    } },
+    { name = "Scarlet Monastery - Armory", map = 189, levels = { 32, 42 }, quests = {} },
+    { name = "Scarlet Monastery - Cathedral", map = 189, levels = { 35, 45 }, quests = {
+        { 1048, "Into The Scarlet Monastery", 33, "H", true, "Undercity, Royal Quarter - Varimathras (56.2, 92.2)", 1458, 56.2, 92.2 },
+        { 1053, "In the Name of the Light", 34, "A", true, "Hillsbrad Foothills, Southshore - Raleigh the Devout 3 prerequisite quests, starting with Brother Anton (51.5, 58.4)", 1424, 51.5, 58.4 },
+    } },
+    { name = "Razorfen Downs", map = 129, levels = { 37, 46 }, quests = {
+        { 3341, "Bring the End", 37, "H", true, "Undercity, Magic Quarter - Andrew Brownell (74, 33.3)", 1458, 74.0, 33.3 },
+        { 6521, "An Unholy Alliance", 28, "H", "pre", "Undercity, Royal Quarter - Varimathras Complete An Unholy Alliance from RFK (56.2, 92.2)", 1458, 56.2, 92.2 },
+        { 3636, "Bring the Light", 39, "A", false, "Stormwind, Cathedral - Archbishop Benedictus (50.3, 45.5)", 1453, 50.3, 45.5 },
+        { 6626, "A Host of Evil", 28, "B", true, "The Barrens, Outside instance portal to RFD - Myriam Moonsinger (49, 94.9)", 1413, 49.0, 94.9 },
+        { 3523, "Scourge of the Downs", 32, "B", false, "Razorfen Downs, Murder Pens - Belnistrasz Entire party should complete before picking up next quest" },
+        { 3525, "Extinguishing the Idol", 32, "B", false, "Razorfen Downs, Murder Pens - Belnistrasz Make sure entire party has finished Scourge of the Downs first or they won't get credit!" },
+    } },
+    { name = "The Drowned City", map = nil, levels = { 35, 40 }, quests = {} },
+    { name = "Uldaman", map = 70, levels = { 41, 51 }, quests = {
+        { 2342, "Reclaimed Treasures", 33, "H", true, "Undercity, Center - Patrick Garrett (62.3, 48.6)", 1458, 62.3, 48.6 },
+        { 2202, "Uldaman Reagent Run", 36, "H", "pre", "Badlands, Kargath - Jarkal Mossmeld Complete Badlands Reagent Run first (2.4, 46.1)", 1418, 2.4, 46.1 },
+        { 2283, "Necklace Recovery", 37, "H", false, "Badlands, Outside Uldaman instance - Shattered Necklace drop from Shadowforge or Shadowvault mobs" },
+        { 1360, "Reclaimed Treasures", 33, "A", true, "Ironforge, Hall of Explorers - Krom Stoutarm (74.2, 9.4)", 1455, 74.2, 9.4 },
+        { 2398, "The Lost Dwarves", 35, "A", true, "Ironforge, Hall of Explorers - Prospector Stormpike (74.6, 11.7)", 1455, 74.6, 11.7 },
+        { 2240, "The Hidden Chamber", 35, "A", "pre", "Uldaman, Lost Dwarves area - an object Complete The Lost Dwarves first" },
+        { 17, "Uldaman Reagent Run", 38, "A", "pre", "Loch Modan, Thelsamar - Ghak Healtouch Complete Badlands Reagent Run first (37.1, 49.4)", 1432, 37.1, 49.4 },
+        { 704, "Agmond's Fate", 33, "A", "pre", "Loch Modan, Ironband's Excavation Site - Prospector Ironband Complete 3 quests, starting with Ironband Wants You! (65.9, 65.6)", 1432, 65.9, 65.6 },
+        { 1139, "The Lost Tablets of Will", 30, "A", "pre", "Ironforge, Hall of Explorers - Advisor Belgrum Complete 8 quests, starting with A Sign of Hope (77.3, 9.7)", 1455, 77.3, 9.7 },
+        { 2198, "The Shattered Necklace", 37, "A", false, "Badlands, Outside Uldaman instance - Shattered Necklace drop from Shadowforge or Shadowvault mobs" },
+        { 2418, "Power Stones", 30, "B", true, "Badlands, Central - Rigglefuzz (42.4, 52.9)", 1418, 42.4, 52.9 },
+        { 709, "Solution to Doom", 30, "B", true, "Badlands, Southern - Theldurin the Lost (51.4, 76.9)", 1418, 51.4, 76.9 },
+        { 2278, "The Platinum Discs", 40, "B", false, "Uldaman, room after Archaedas - an object" },
+        { 1956, "Power in Uldaman", 35, "B", "pre", "Mage only - Dustwallow Marsh, N. of Stonemaul Ruins - Tabetha Complete 3 quests, starting with Return to the Marsh (46.1, 57.1)", 1445, 46.1, 57.1, class = "MAGE" },
+    } },
+    { name = "Krol'dok Stronghold", map = nil, levels = { 40, 45 }, quests = {} },
+    { name = "Zul'Farrak", map = 209, levels = { 44, 54 }, quests = {
+        { 2936, "The Spider God", 40, "H", "pre", "Durotar, Sen'jin Village - Master Gadrin Complete 3 quests first, starting with Venom Bottles (56, 74.7)", 1411, 56.0, 74.7 },
+        { 2991, "Nekrum's Medallion", 40, "A", "pre", "Blasted Lands, Nethergarde Keep - Thadius Grimshade Complete 3 quests first, starting with Witherbark Cages (66.9, 19.5)", 1419, 66.9, 19.5 },
+        { 2768, "Divino-matic Rod", 40, "B", true, "Tanaris, Gadgetzan - Chief Engineer Bilgewhizzle (52.5, 28.5)", 1446, 52.5, 28.5 },
+        { 2865, "Scarab Shells", 40, "B", true, "Tanaris, Gadgetzan - Tran'rek (51.6, 26.8)", 1446, 51.6, 26.8 },
+        { 3042, "Troll Temper", 40, "B", true, "Tanaris, Gadgetzan - Trenton Lighthammer (51.4, 28.8)", 1446, 51.4, 28.8 },
+        { 2846, "Tiara of the Deep", 40, "B", true, "Dustwallow Marsh, N. of Stonemaul Ruins - Tabetha (46.1, 57.1)", 1445, 46.1, 57.1 },
+        { 2770, "Gahz'rilla", 40, "B", true, "Thousand Needles, Shimmering Flats - Wizzle Brassbolts One group member must have Mallet of Zul'Farrak to summon Gahz'rilla - drop from Qiaga the Keeper in The Hinterlands (78.1, 77.1)", 1441, 78.1, 77.1 },
+        { 3527, "The Prophecy of Mosh'aru", 40, "B", "pre", "Tanaris, Steamwheedle Port - Yeh'kinya Complete Screecher Spirits first (67, 22.4)", 1446, 67.0, 22.4 },
+    } },
+    { name = "Maraudon", map = 349, levels = { 46, 55 }, quests = {
+        { 7068, "Shadowshard Fragments", 39, "H", false, "Orgrimmar, Valley of Spirits - Uthel'nay (39.2, 86.3)", 1454, 39.2, 86.3 },
+        { 7029, "Vyletongue Corruption", 41, "H", true, "Desolace, Shadowprey Village - Vark Battlescar (23.2, 70.3)", 1443, 23.2, 70.3 },
+        { 7064, "Corruption of Earth and Seed", 45, "H", true, "Desolace, S. of Shadowprey Village - Selendra (26.9, 77.7)", 1443, 26.9, 77.7 },
+        { 7070, "Shadowshard Fragments", 39, "A", true, "Dustwallow Marsh, Theramore - Archmage Tervosh (66.4, 49.3)", 1445, 66.4, 49.3 },
+        { 7041, "Vyletongue Corruption", 41, "A", true, "Desolace, Nijel's Point - Talendria (68.5, 8.9)", 1443, 68.5, 8.9 },
+        { 7065, "Corruption of Earth and Seed", 45, "A", true, "Desolace, Nijel's Point - Keeper Marandis (63.8, 10.7)", 1443, 63.8, 10.7 },
+        { 7028, "Twisted Evils", 41, "B", true, "Desolace, SE of Thunderaxe Fortress - Willow (62.2, 39.6)", 1443, 62.2, 39.6 },
+        { 7044, "Legends of Maraudon", 41, "B", true, "Maraudon, Orange side, outside instance - Cavindra (32.1, 64)", 1443, 32.1, 64.0 },
+        { 7066, "Seed of Life", 39, "B", false, "Maraudon, Zaetar's Spirit in middle of ring after killing Princess Theradras" },
+        { 7067, "The Pariah's Instructions", 39, "B", false, "Desolace, South of Mannoroc Coven - Centaur Pariah patrols around /way 48.4, 87.0 (50.4, 86.7)", 1443, 50.4, 86.7 },
+        { 7046, "The Scepter of Celebras", 41, "B", "pre", "Maraudon, Purple side - Celebras the Redeemed Complete Legends of Maraudon first" },
+    } },
+    { name = "Sunken Temple", map = 109, levels = { 50, 60 }, quests = {
+        { 1445, "The Temple of Atal'Hakkar", 38, "H", "pre", "Swamp of Sorrows, Stonard - Fel'zerul Complete 3 quests first, starting with Pool of Tears (47.9, 54.8)", 1435, 47.9, 54.8 },
+        { 4146, "Zapper Fuel", 47, "H", "pre", "The Barrens, Ratchet - Liv Rizzlefix Complete 2 quests first, starting with Larion and Muigin (62.5, 38.7)", 1413, 62.5, 38.7 },
+        { 4143, "Haze of Evil", 47, "A", "pre", "Feralas, Twin Colossals - Gregan Brewspewer Complete 2 quests first, starting with Muigin and Larion (45.1, 25.6)", 1444, 45.1, 25.6 },
+        { 1475, "Into The Temple of Atal'Hakkar", 38, "A", "pre", "Stormwind, Dwarven District - Brohann Caskbelly Complete 6 quests first, starting with In Search of The Temple (69.4, 40.4)", 1453, 69.4, 40.4 },
+        { 1446, "Jammal'an the Prophet", 38, "B", true, "Hinterlands, Spider area SW of Altar of Zul - Atal'ai Exile (33.8, 75.2)", 1425, 33.8, 75.2 },
+        { 3373, "The Essence of Eranikus", 48, "B", false, "Sunken Temple, Essence of Eranikus drop from the Shade of Eranikus" },
+        { 3446, "Into the Depths", 46, "B", "pre", "Tanaris, S. of Gadgetzan - Marvon Rivetseeker Complete 2 quests first, starting with The Sunken Temple / The Sunken Temple (52.7, 45.9)", 1446, 52.7, 45.9 },
+        { 3447, "Secret of the Circle", 46, "B", "pre", "Tanaris, S. of Gadgetzan - Marvon Rivetseeker Complete 2 quests first, starting with The Sunken Temple / The Sunken Temple (52.7, 45.9)", 1446, 52.7, 45.9 },
+        { 3528, "The God Hakkar", 40, "B", true, "Tanaris, Steamwheedle Port - Yeh'kinya Complete 3 quests first, starting with Screecher Spirits (67, 22.4)", 1446, 67.0, 22.4 },
+    } },
+    { name = "Alcaz Prison", map = 2994, levels = { 48, 53 }, quests = {} },
+    { name = "Blackrock Depths", map = 230, levels = { 52, 60 }, quests = {
+        { 4081, "KILL ON SIGHT: Dark Iron Dwarves", 48, "H", true, "Badlands, Kargath - the Wanted poster (4, 47)", 1418, 4.0, 47.0 },
+        { 4134, "Lost Thunderbrew Recipe", 50, "H", true, "Badlands, Kargath - Shadowmage Vivian Lagrave Breadcrumb Vivian Lagrave in Undercity for easy XP (2.9, 47.8)", 1418, 2.9, 47.8 },
+        { 4082, "KILL ON SIGHT: High Ranking Dark Iron Officials", 50, "H", "pre", "Badlands, Kargath - the Wanted poster Complete KILL ON SIGHT: Dark Iron Dwarves first (4, 47)", 1418, 4.0, 47.0 },
+        { 4063, "The Rise of the Machines", 52, "H", "pre", "Badlands, Eastern - Lotwil Veriatus Complete 2 quests first, starting with The Rise of the Machines (25.9, 44.9)", 1418, 25.9, 44.9 },
+        { 3906, "Disharmony of Flame", 48, "H", true, "Badlands, Kargath - Thunderheart (3.3, 48.3)", 1418, 3.3, 48.3 },
+        { 3907, "Disharmony of Fire", 48, "H", "pre", "Badlands, Kargath - Thunderheart Opens after completing Disharmony of Flame (3.3, 48.3)", 1418, 3.3, 48.3 },
+        { 3981, "Commander Gor'shak", 48, "H", "pre", "Badlands, Kargath - Galamav the Marksman Opens after completing Disharmony of Flame (6, 47.7)", 1418, 6.0, 47.7 },
+        { 7201, "The Last Element", 48, "H", "pre", "Badlands, Kargath - Shadowmage Vivian Lagrave Opens after completing Disharmony of Flame (2.9, 47.8)", 1418, 2.9, 47.8 },
+        { 4132, "Operation: Death to Angerforge", 52, "H", true, "Badlands, Kargath - Warlord Goretooth Complete 3 quests first, starting with KILL ON SIGHT: Dark Iron Dwarves. This includes Grark Lorkrub, a long escort quest. (5.8, 47.5)", 1418, 5.8, 47.5 },
+        { 4003, "The Royal Rescue", 48, "H", true, "Orgrimmar, Valley of Wisdom - Thrall Complete 4 quests first, starting with Commander Gor'shak (31.7, 37.8)", 1454, 31.7, 37.8 },
+        { 4262, "Overmaster Pyron", 48, "A", true, "Burning Steppes, Morgan's Vigil - Jalinda Sprig (85.4, 70.1)", 1428, 85.4, 70.1 },
+        { 4263, "Incendius!", 48, "A", true, "Burning Steppes, Morgan's Vigil - Jalinda Sprig Complete Overmaster Pyron first (85.4, 70.1)", 1428, 85.4, 70.1 },
+        { 4286, "The Good Stuff", 50, "A", true, "Burning Steppes, Morgan's Vigil - Oralius (84.6, 68.7)", 1428, 84.6, 68.7 },
+        { 4126, "Hurley Blackbreath", 50, "A", true, "Dun Morogh, Kharanos - Ragnar Thunderbrew (46.8, 52.4)", 1426, 46.8, 52.4 },
+        { 4341, "Kharan Mighthammer", 50, "A", "pre", "Ironforge, Throne Room - King Magni Bronzebeard Complete 2 quests first, starting with The Smoldering Ruins of Thaurissan (39.1, 56.2)", 1455, 39.1, 56.2 },
+        { 4362, "The Fate of the Kingdom", 50, "A", "pre", "Ironforge, Throne Room - King Magni Bronzebeard Complete 2 quests first, starting with Kharan Mighthammer (39.1, 56.2)", 1455, 39.1, 56.2 },
+        { 4241, "Marshal Windsor", 48, "A", "pre", "Burning Steppes, Morgan's Vigil - Marshal Maxwell Complete 2 quests first, starting with Dragonkin Menace (84.7, 69)", 1428, 84.7, 69.0 },
+        { 4322, "Jail Break!", 50, "A", "pre", "Blackrock Depths, Prison Cell - Marshal Windsor Complete 6 quests first, starting with Dragonkin Menace and moving through Marshal Windsor until A Shred of Hope" },
+        { 4136, "Ribbly Screwspigot", 50, "B", true, "Burning Steppes, Flame Crest - Yuka Screwspigot Can pick up breadcrumb Yuka Screwspigot in Steamwheedle Port for easy XP (66.1, 21.9)", 1428, 66.1, 21.9 },
+        { 4123, "The Heart of the Mountain", 50, "B", true, "Burning Steppes, Flame Crest - Maxwort Uberglint (65.2, 23.9)", 1428, 65.2, 23.9 },
+        { 7848, "Attunement to the Core", 55, "B", false, "Blackrock Mountain, Lothos Riftwaker (26.4, 24.6)", 1428, 26.4, 24.6 },
+        { 3802, "Dark Iron Legacy", 48, "B", "pre", "Blackrock Mountain, Structure in middle - Franclorn Forgewright NPC is only visible if you are dead Complete Dark Iron Legacy first" },
+        { 4201, "The Love Potion", 50, "B", false, "Blackrock Depths, Grim Guzzler - Mistress Nagmara" },
+        { 4024, "A Taste of Flame", 52, "B", true, "Burning Steppes, Cave in NE - Cyrus Therepentous Complete 11 quests first, starting with Divine Retribution (95.1, 31.6)", 1428, 95.1, 31.6 },
+    } },
+    { name = "Dire Maul", map = 429, levels = { 55, 60 }, quests = {
+        { 7489, "Lethtendris's Web", 54, "H", true, "Feralas, Camp Mojache - Talo Thornhoof (76.2, 43.8)", 1444, 76.2, 43.8 },
+        { 7488, "Lethtendris's Web", 54, "A", true, "Feralas, Feathermoon Stronghold - Latronicus Moonspear (30.4, 46.2)", 1444, 30.4, 46.2 },
+        { 7441, "Pusillin and the Elder Azj'Tordin", 54, "B", true, "Feralas, Lariss Pavilion - Azj'Tordin (76.9, 37.4)", 1444, 76.9, 37.4 },
+        { 5526, "Shards of the Felvine", 56, "B", "pre", "Moonglade, Nighthaven - Rabine Saturna Complete A Reliquary of Purity from same NPC and explore all of Dire Maul first to open quest (51.7, 45.1)", 1450, 51.7, 45.1 },
+        { 7463, "Arcane Refreshment", 60, "B", true, "Mage only - Dire Maul, Library - Lorekeeper Lydros", class = "MAGE" },
+        { 7461, "The Madness Within", 56, "B", true, "Dire Maul, West, second floor - Shen'dralar Ancient" },
+        { 7507, "Foror's Compendium", 60, "B", false, "Dire Maul - Nostro's Compendium of Dragon Slaying, rare drop or looted from an object. Not BoP. Used to create BoP tanking sword." },
+        { 7481, "Elven Legends", 54, "H", true, "Feralas, Camp Mojache - Sage Korolusk Complete to be eligible for Libram of Protection, Libram of Rapidity, and Libram of Focus (75.2, 43.8)", 1444, 75.2, 43.8 },
+        { 7482, "Elven Legends", 54, "A", true, "Feralas, Feathermoon Stronghold - Scholar Runethorn Complete to be eligible for Libram of Protection, Libram of Rapidity, and Libram of Focus (31.6, 43.5)", 1444, 31.6, 43.5 },
+        { 5525, "Free Knot!", 56, "B", true, "Dire Maul, North - Knot Thimblejack Cannot be completed during Tribute Run unless a party member already has Gordok Shackle Key" },
+        { 5518, "The Gordok Ogre Suit", 56, "B", true, "Dire Maul, North - Knot Thimblejack" },
+        { 5528, "The Gordok Taste Test", 56, "B", true, "Dire Maul, North - Stomper Kreeg Can only be picked up after completing a Tribute Run" },
+        { 7703, "Unfinished Gordok Business", 56, "B", true, "Dire Maul, North - Captain Kromcrush Requires completing one Tribute Run first, and a second Tribute Run after killing Prince Tortheldrin and looting the Gauntlet of Gordok Might" },
+    } },
+    { name = "Lower Blackrock Spire", map = 229, levels = { 55, 60 }, quests = {
+        { 4724, "The Pack Mistress", 55, "H", true, "Badlands, Kargath - Galamav the Marksman (6, 47.7)", 1418, 6.0, 47.7 },
+        { 4981, "Operative Bijou", 55, "H", true, "Badlands, Kargath - Lexlort Leads to Bijou's Belongings inside LBRS (5.9, 47.6)", 1418, 5.9, 47.6 },
+        { 4903, "Warlord's Command", 55, "H", false, "Badlands, Kargath - Warlord Goretooth (5.8, 47.5)", 1418, 5.8, 47.5 },
+        { 4701, "Put Her Down", 55, "A", true, "Burning Steppes, Morgan's Vigil - Helendis Riverhorn (85.8, 69)", 1428, 85.8, 69.0 },
+        { 5089, "General Drakkisath's Command", 55, "A", false, "Blackrock Spire, Lower, General Drakkisath's Command, dropped from Overlord Wyrmthalak" },
+        { 5001, "Bijou's Belongings", 55, "A", true, "Blackrock Spire, Lower - Bijou" },
+        { 4862, "En-Ay-Es-Tee-Why", 55, "B", true, "Burning Steppes, Flame Crest - Kibler (65.9, 21.9)", 1428, 65.9, 21.9 },
+        { 4729, "Kibler's Exotic Pets", 55, "B", false, "Burning Steppes, Flame Crest - Kibler (65.9, 21.9)", 1428, 65.9, 21.9 },
+        { 4866, "Mother's Milk", 55, "B", true, "Burning Steppes, Flame Crest - Ragged John (65, 23.8)", 1428, 65.0, 23.8 },
+        { 4742, "Seal of Ascension", 57, "B", false, "Blackrock Spire, Lower - Unadorned Seal of Ascension, Gemstone of Smolderthorn, Gemstone of Spirestone, Gemstone of Bloodaxe" },
+        { 4867, "Urok Doomhowl", 55, "B", false, "Blackrock Spire, Lower, Warosh, patrols near beginning of instance" },
+        { 4788, "The Final Tablets", 40, "B", "pre", "Tanaris, Steamwheedle Port - Prospector Ironboot Complete 5 quests first, starting with Screecher Spirits (66.9, 24)", 1446, 66.9, 24.0 },
+    } },
+    { name = "Scholomance", map = 289, levels = { 58, 60 }, quests = {
+        { 5341, "Barov Family Fortune", 52, "H", true, "Tirisfal Glades, The Bulwark - Alexi Barov Alexi Barov may be dead due to Alliance kill quest; 30m spawn timer (83.1, 71.6)", 1420, 83.1, 71.6 },
+        { 7668, "The Darkreaver Menace", 58, "H", "pre", "Shaman only - Orgrimmar, Valley of Wisdom - Sagorne Creststrider Complete Material Assistance first (38.7, 35.9)", 1454, 38.7, 35.9, class = "SHAMAN" },
+        { 5343, "Barov Family Fortune", 52, "A", true, "Western Plaguelands, Chillwind Camp - Weldon Barov Weldon Barov may be dead due to Horde kill quest; 30m spawn timer (43.5, 83.7)", 1422, 43.5, 83.7 },
+        { 5529, "Plagued Hatchlings", 55, "B", true, "Eastern Plaguelands, Light's Hope Chapel - Betina Bigglezink (71.7, 50)", 1423, 71.7, 50.0 },
+        { 5582, "Healthy Dragon Scale", 55, "B", "pre", "Scholomance, Healthy Dragon Scale, drops from Plagued Hatchlings Complete Plagued Hatchlings first - repeatable for Argent Dawn rep" },
+        { 5382, "Doctor Theolen Krastinov, the Butcher", 55, "B", true, "Western Plaguelands, Caer Darrow - Eva Sarkhoff (70.2, 73.7)", 1422, 70.2, 73.7 },
+        { 5515, "Krastinov's Bag of Horrors", 55, "B", "pre", "Western Plaguelands, Caer Darrow - Eva Sarkhoff Complete Doctor Theolen Krastinov, the Butcher first (70.2, 73.7)", 1422, 70.2, 73.7 },
+        { 5384, "Kirtonos the Herald", 55, "B", true, "Western Plaguelands, Caer Darrow - Eva Sarkhoff Complete Krastinov's Bag of Horrors first; save reward item (70.2, 73.7)", 1422, 70.2, 73.7 },
+        { 4771, "Dawn's Gambit", 57, "B", "pre", "Eastern Plaguelands, Light's Hope Chapel - Betina Bigglezink Complete 9 quests, starting with Broodling Essence (71.7, 50)", 1423, 71.7, 50.0 },
+        { 5466, "The Lich, Ras Frostwhisper", 57, "B", "pre", "Western Plaguelands, Caer Darrow - Magistrate Marduke Complete 8 quests, starting with Doctor Theolen Krastinov, the Butcher first Must have equipped to see Magistrate Marduke (70.6, 74.1)", 1422, 70.6, 74.1 },
+    } },
+    { name = "Stratholme", map = 329, levels = { 58, 60 }, quests = {
+        { 5214, "The Great Ezra Grimm", 55, "B", true, "Eastern Plaguelands, Light's Hope Chapel - Smokey LaRue (70.9, 48.4)", 1423, 70.9, 48.4 },
+        { 5251, "The Archivist", 55, "B", true, "Eastern Plaguelands, Light's Hope Chapel - Duke Nicholas Zverenhoff (71.6, 50.1)", 1423, 71.6, 50.1 },
+        { 5282, "The Restless Souls", 55, "B", "pre", "Eastern Plaguelands, Terrordale - Egan (11.3, 26.6)", 1423, 11.3, 26.6 },
+        { 5122, "The Medallion of Faith", 55, "B", true, "Stratholme, Undead Side - Aurius inside chapel at beginning Complete quest to pick up The Restless Souls on Undead side" },
+        { 5262, "The Truth Comes Crashing Down", 55, "B", "pre", "Stratholme, Live - Head of Balnazzar from Balnazzar Complete The Archivist to be eligible for drop" },
+        { 5848, "Of Love and Family", 52, "B", "pre", "Western Plaguelands, Caer Darrow - Artist Renfray Complete 7 quests, starting with Blood Tinged Skies, Carrion Grubbage, and Demon Dogs (65.8, 75.4)", 1422, 65.8, 75.4 },
+        { 6163, "Ramstein", 56, "H", "pre", "Eastern Plaguelands, Marris Stead - Nathanos Blightcaller Complete 4 quests, starting with The Ranger Lord's Behest and To Kill With Purpose (22.2, 63.5)", 1423, 22.2, 63.5 },
+        { 5243, "Houses of the Holy", 55, "B", true, "Eastern Plaguelands, Light's Hope Chapel - Leonid Barthalomew the Revered (71.9, 48.3)", 1423, 71.9, 48.3 },
+        { 5212, "The Flesh Does Not Lie", 55, "B", "pre", "Eastern Plaguelands, Light's Hope Chapel - Betina Bigglezink (71.7, 50)", 1423, 71.7, 50.0 },
+        { 5213, "The Active Agent", 55, "B", true, "Eastern Plaguelands, Light's Hope Chapel - Betina Bigglezink Complete The Flesh Does Not Lie first (71.7, 50)", 1423, 71.7, 50.0 },
+        { 5125, "Aurius' Reckoning", 55, "B", "pre", "Stratholme, Undead Side - Aurius in chapel at beginning Complete The Medallion of Faith first" },
+        { 5263, "Above and Beyond", 55, "B", "pre", "Eastern Plaguelands, Light's Hope Chapel - Duke Nicholas Zverenhoff Complete 2 quests, starting with The Archivist (71.6, 50.1)", 1423, 71.6, 50.1 },
+        { 5463, "Menethil's Gift", 57, "B", "pre", "Eastern Plaguelands, Light's Hope Chapel - Leonid Barthalomew the Revered Complete 5 quests, starting with Doctor Theolen Krastinov, the Butcher (71.9, 48.3)", 1423, 71.9, 48.3 },
+        { 8945, "Dead Man's Plea", 58, "B", "pre", "Eastern Plaguelands, Stratholme Main Entrance - Anthion Harmon Complete 9 quests, starting with A Supernatural Device / A Supernatural Device. Requires Extra-Dimensional Ghost Revealer to see quest NPC (26.2, 11.3)", 1423, 26.2, 11.3 },
+    } },
+    { name = "Upper Blackrock Spire", map = 229, levels = { 55, 60 }, quests = {
+        { 4768, "The Darkstone Tablet", 57, "H", true, "Badlands, Kargath - Shadowmage Vivian Lagrave Pick up non-required breadcrumb Vivian Lagrave and the Darkstone Tablet in Undercity for easy XP (2.9, 47.8)", 1418, 2.9, 47.8 },
+        { 4974, "For The Horde!", 55, "H", "pre", "Orgrimmar, Valley of Wisdom - Thrall Complete 2 quests, starting with Warlord's Command (31.7, 37.8)", 1454, 31.7, 37.8 },
+        { 6602, "Blood of the Black Dragon Champion", 55, "H", "pre", "Desolace, Rexxar, patrols (see database for path) Complete 13 quests, starting with Warlord's Command (46.4, 18.2)", 1444, 46.4, 18.2 },
+        { 4764, "Doomrigger's Clasp", 57, "A", true, "Burning Steppes, Morgan's Vigil - Mayara Brightwing Pick up non-required breadcrumb Mayara Brightwing in Stormwind Keep for easy XP (84.8, 69.1)", 1428, 84.8, 69.1 },
+        { 5102, "General Drakkisath's Demise", 55, "A", "pre", "Burning Steppes, Morgan's Vigil - Marshal Maxwell Complete General Drakkisath's Command first (84.7, 69)", 1428, 84.7, 69.0 },
+        { 6502, "Drakefire Amulet", 50, "A", "pre", "Winterspring, Mazthoril - Haleh Step on blue rune at end of cave to spawn NPC Complete 10 quests, starting with Dragonkin Menace (54.5, 51.2)", 1452, 54.5, 51.2 },
+        { 7761, "Blackhand's Command", 55, "B", false, "Blackrock Mountain, Side hallway on way to BWL - Blackhand's Command dropped by Scarshield Quartermaster" },
+        { 5160, "The Matron Protectorate", 57, "B", false, "Blackrock Spire, Upper, Awbee, on small ledge in room after killing Blackhand" },
+        { 5047, "Finkle Einhorn, At Your Service!", 57, "B", false, "Blackrock Spire, Upper - Pip Quickwit, only spawns after Skinner (300) skins The Beast with Pip Quickwit" },
+        { 4735, "Egg Collection", 57, "B", "pre", "Burning Steppes, Flame Crest - Tinkee Steamboil Complete 6 quests, starting with Egg Freezing and Broodling Essence from same NPC (65.2, 24)", 1428, 65.2, 24.0 },
+        { 6821, "Eye of the Emberseer", 55, "B", "pre", "Azshara - Duke Hydraxis Complete 2 quests, Stormers and Rumblers and Poisoned Water from same NPC (79.3, 73.7)", 1447, 79.3, 73.7 },
+        { 5127, "The Demon Forge", 55, "B", "pre", "Blacksmiths only - Winterspring, Southeast - Lorax Complete Lorax's Tale from same NPC. Rewards Plans: Demon Forged Breastplate (63.8, 73.8)", 1452, 63.8, 73.8 },
+    } },
+    { name = "Blackmaw Hold", map = nil, levels = { 55, 60 }, quests = {} },
+    { name = "Shaper's Terrace", map = 3001, levels = { 58, 60 }, quests = {} },
+    -- The raids announced for Forever (maps from the game's Map and Achievement tables).
+    { name = "Onyxia's Lair", map = 249, levels = { 60, 60 }, quests = {} },
+    { name = "The Barrow Deeps", map = 3052, levels = { 60, 60 }, quests = {} },
+    { name = "Hyjal Summit", map = 2981, levels = { 60, 60 }, quests = {} },
+}
+
+-- Where a quest is handed in, where that is not its quest giver: quest ID ->
+-- { uiMapID, x, y, who }. A quest in your log is tracked to here. From
+-- Wowhead Forever's NPC pages (2026-09-26), with its Classic-era spots dropped on the
+-- redrawn maps; The Glowing Shard follows the in-game quest text, which Wowhead has
+-- wrong. Dungeons up to level 20 so far.
+J.QuestTurnIns = {
+    -- The Hall of Thanes
+    [96393] = { 1455, 39.6, 55.6, "King Magni Bronzebeard, Ironforge" },
+    [98423] = { 1455, 39.6, 55.6, "King Magni Bronzebeard, Ironforge" },
+    -- Wailing Caverns
+    [6981] = { 1413, 63.0, 37.2, "Sputtervalve, Ratchet" },
+    [3366] = { 1413, 48.2, 32.8, "Falla Sagewind, above Wailing Caverns" },
+    [3369] = { 1456, 78.5, 28.5, "Arch Druid Hamuul Runetotem, Thunder Bluff" },
+    [3370] = { 1457, 35.2, 8.0, "Mathrengyl Bearwalker, Darnassus" },
+    -- The Deadmines
+    [373] = { 1453, 57.6, 47.8, "Baros Alexston, Stormwind City" },
+    -- Ruins of Lordaeron
+    [97288] = { 1458, 48.5, 69.5, "Master Apothecary Faranell, Undercity" },
+    [97289] = { 1458, 46.1, 62.6, "Unfinished Abomination, Undercity" },
+    [97290] = { 1458, 48.5, 69.5, "Master Apothecary Faranell, Undercity" },
+    [97291] = { 1458, 48.5, 69.5, "Master Apothecary Faranell, Undercity" },
+    [97292] = { 1458, 48.5, 69.5, "Master Apothecary Faranell, Undercity" },
+    [95204] = { 1458, 73.5, 32.5, "Oran Snakewrithe, Undercity" },
+    [95189] = { 1453, 69.2, 29.4, "Lady Dena Kennedy, Stormwind City" },
+    [92415] = { 1453, 56.2, 54.2, "Orphan Matron Nightingale, Stormwind City" },
+    -- Blackfathom Deeps
+    [6561] = { 1456, 70.8, 33.4, "Bashana Runetotem, Thunder Bluff" },
+    [6562] = { 1440, 11.6, 34.3, "Je'neu Sancrea, Zoram'gar Outpost" },
+    [6564] = { 1440, 11.6, 34.3, "Je'neu Sancrea, Zoram'gar Outpost" },
+    [6565] = { 1440, 11.6, 34.3, "Je'neu Sancrea, Zoram'gar Outpost" },
+    [6922] = { 1440, 11.6, 34.3, "Je'neu Sancrea, Zoram'gar Outpost" },
+    [1200] = { 1457, 55.6, 24.2, "Dawnwatcher Selgorm, Darnassus" },
+}

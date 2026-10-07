@@ -5,6 +5,7 @@ npc_drops caches. From the repo root:
 
     python -m unittest discover -s Tools/tests
 """
+import json
 import re
 import struct
 import sys
@@ -140,6 +141,19 @@ class InGame(unittest.TestCase):
                 "loot": [dict(drop(7718, 4167, 12682), chance=33.0), dict(drop(7717, 1776, 12682), chance=14.0)]}
         self.assertIn("loot = { 7718, 7717 }", build_journal.lua_boss(boss))
         self.assertNotIn("notInGame", build_journal.lua_boss(boss))
+
+    def test_a_quest_boss_is_marked(self):
+        boss = {"npc": 260808, "name": "Highland Horror", "rare": False, "quest": True, "encounters": [3644],
+                "loot": []}
+        self.assertIn("quest = true", build_journal.lua_boss(boss))
+        boss["quest"] = False
+        self.assertNotIn("quest", build_journal.lua_boss(boss))
+
+    def test_the_wing_names_its_quest_bosses(self):
+        wing = next(w for d in json.loads(build_journal.BOSSES.read_text(encoding="utf-8"))["dungeons"]
+                    if d["key"] == "ExcavationSite" for w in d["wings"])
+        self.assertEqual(wing["quest"], ["Highland Horror"])
+        self.assertIn("Highland Horror", wing["bosses"])
 
 
 class ItemsInGame(unittest.TestCase):

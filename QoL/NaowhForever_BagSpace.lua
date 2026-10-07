@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_BagSpace.lua -- the QoL Bag Space row: the cheapest things in your bags as
 --  icons on a small card, under your free slots, to delete, sell or ignore. Its Background is the
---  card, a soft fade or none (Parts.HudBackdrop); the icons keep their own edges in each.
+--  card, a soft fade or none (Parts.HudBackdrop); the icons keep their own edges in each. Its
+--  Font Size is the header's; the bag, the header line and the prices scale with it.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local UI = ns.UI
@@ -38,7 +39,7 @@ local GAP = 6             -- between cells
 local HEAD_H = 16         -- the header line, and the Stack button's height
 local HEAD_GAP = 5        -- under the header
 local HEAD_SPACE = 12     -- at least this between the free count and the Stack button
-local HEAD_SIZE = 12      -- the header's text
+local HEAD_SIZE = 12      -- the header's text at the default Font Size, which the sizes here are for
 local HEAD_ICON = 12      -- the bag before it
 local ICON_DROP = Parts.CARD_DROP   -- the bag lowered to the letters, as on a card
 local TEXT_GAP = 4        -- between the header's words
@@ -818,7 +819,7 @@ local function NewCell(view, i, size)
     b.marks = Parts.ItemMarks(icon, size)
     b.old = Parts.ItemBadge(b.marks, "TOPLEFT", St.CLOCK_ATLAS, St.WARN_RGB)
     b.quest = Parts.ItemBadge(b.marks, "TOPRIGHT", St.QUEST_ATLAS)
-    b.price = Parts.HudText(ns.Font(b, PRICE_SIZE, nil, T.muted), view.shadow)
+    b.price = Parts.HudFont(ns.Font(b, PRICE_SIZE, nil, T.muted), view.font, view.priceSize, view.outline, view.shadow)
     b.price:SetPoint("TOP", b, "BOTTOM", 0, -PRICE_GAP)
     b.price:SetWordWrap(false)
     if view.onClick then
@@ -842,7 +843,7 @@ local function ShowFree(view, count, slots, scrap)
     local c = count == 0 and St.RED_RGB or count < slots * LOW_SHARE and St.WARN_RGB or T.fg
     f.text:SetTextColor(c.r, c.g, c.b, 1)
     f.text:SetText(Parts.Fraction(count, slots))
-    local w = HEAD_ICON + TEXT_GAP + f.text:GetStringWidth() + TEXT_GAP + f.word:GetStringWidth()
+    local w = view.headIcon + TEXT_GAP + f.text:GetStringWidth() + TEXT_GAP + f.word:GetStringWidth()
     if scrap > 0 then
         f.scrap:SetText("+" .. scrap)
         w = w + TEXT_GAP + f.scrap:GetStringWidth()
@@ -869,15 +870,30 @@ local function ShowStack(view, saves)
     return w
 end
 
-local function ShowBackground(view)
+local function Scaled(v, scale)
+    return math.floor(v * scale + 0.5)
+end
+
+-- Background, Font, Font Size and Outline, and the header and price room that follow the size.
+-- Before anything is measured, and only redone when one of them changed.
+local function Style(view)
     local mode = view.backdrop:SetMode(S.Get("bagSpaceBackground"))
-    if view.shadow == mode then return end
-    view.shadow = mode
+    local font, size, outline = S.Get("bagSpaceFont"), S.Get("bagSpaceFontSize"), S.Get("bagSpaceOutline")
+    if view.shadow == mode and view.font == font and view.size == size and view.outline == outline then return end
+    view.shadow, view.font, view.size, view.outline = mode, font, size, outline
+    local scale = size / HEAD_SIZE
+    local price = Scaled(PRICE_SIZE, scale)
+    view.priceSize, view.priceH, view.priceW = price, Scaled(PRICE_H, scale), Scaled(PRICE_W, scale)
+    view.headH, view.headIcon = Scaled(HEAD_H, scale), Scaled(HEAD_ICON, scale)
     local f, cells = view.free, view.cells
-    Parts.HudText(f.text, mode)
-    Parts.HudText(f.word, mode)
-    Parts.HudText(f.scrap, mode)
-    for i = 1, #cells do Parts.HudText(cells[i].price, mode) end
+    f:SetHeight(view.headH)
+    f.icon:SetSize(view.headIcon, view.headIcon)
+    f.text:SetPoint("LEFT", view.headIcon + TEXT_GAP, 0)
+    view.stack:SetHeight(view.headH)
+    Parts.HudFont(f.text, font, size, outline, mode)
+    Parts.HudFont(f.word, font, size, outline, mode)
+    Parts.HudFont(f.scrap, font, size, outline, mode)
+    for i = 1, #cells do Parts.HudFont(cells[i].price, font, price, outline, mode) end
 end
 
 local STEP = { RIGHT = { 1, 0 }, LEFT = { -1, 0 }, UP = { 0, 1 }, DOWN = { 0, -1 } }
@@ -889,10 +905,9 @@ local function Layout(view, shown, headW)
     local size = S.Get("bagSpaceSize")
     local prices = S.Get("bagSpacePrices")
     local dir = STEP[S.Get("bagSpaceGrow")] or STEP.RIGHT
-    ShowBackground(view)
     local half = size / 2
-    local cellW = prices and math.max(size, PRICE_W) or size
-    local cellH = prices and size + PRICE_GAP + PRICE_H or size
+    local cellW = prices and math.max(size, view.priceW) or size
+    local cellH = prices and size + PRICE_GAP + view.priceH or size
     local stepX, stepY = (cellW + GAP) * dir[1], (cellH + GAP) * dir[2]
     view:SetSize(size, size)
     local cells = view.cells
@@ -909,10 +924,10 @@ local function Layout(view, shown, headW)
     local spanX, spanY = (shown - 1) * stepX, (shown - 1) * stepY
     local left, right = math.min(0, spanX) - cellW / 2, math.max(0, spanX) + cellW / 2
     local top, bottom = math.max(0, spanY) + half, math.min(0, spanY) + half - cellH
-    local head = headW > 0 and HEAD_H + HEAD_GAP or 0
+    local head = headW > 0 and view.headH + HEAD_GAP or 0
     if shown == 0 then
         -- The Stack button alone: the header over where the first icon would be.
-        left, right, top, bottom, head = -half, -half, half, half, HEAD_H
+        left, right, top, bottom, head = -half, -half, half, half, view.headH
     end
     -- A header wider than the icons widens the card away from the first icon.
     if headW > right - left then
@@ -943,6 +958,7 @@ end
 
 -- The card from a list of entries (the scan's, or the settings preview's samples).
 local function Draw(view, list, shown, count, slots, scrap, saves)
+    Style(view)
     local freeW, stackW = ShowFree(view, count, slots, scrap), ShowStack(view, saves)
     Layout(view, shown, freeW + stackW + (freeW > 0 and stackW > 0 and HEAD_SPACE or 0))
     local cells = view.cells
@@ -958,6 +974,7 @@ local function Render()
     -- while unlocked.
     if unlocked then
         local n = S.Get("bagSpaceCount")
+        Style(frame)
         local freeW
         if total > 0 then
             freeW = ShowFree(frame, free, total, scrapSlots)
@@ -1208,7 +1225,7 @@ Settings.Page("QoL/Loot & Items", S):Card({
     help = "The cheapest items in your bags as a row of icons, cheapest first. Ctrl-click an icon "
         .. "to delete it, or click it to sell it while a vendor is open. Middle-click to ignore "
         .. "an item. "
-        .. "Move it in Unlock Mode.",
+        .. "Move it in the HUD Editor.",
     summary = BagSpaceSummary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
@@ -1235,20 +1252,14 @@ Settings.Page("QoL/Loot & Items", S):Card({
         { key = "bagSpaceOnFull", label = "Show When Bags Are Full", toggle = true,
           help = "An \"Inventory is full\" error brings the row up for 20 seconds, even with more free "
               .. "slots than the threshold above." },
-        { key = "bagSpaceHideCombat", label = "Hide in Combat", toggle = true },
         { key = "bagSpaceShowFree", label = "Show Free Slots", toggle = true,
           help = "Free bag slots out of your total, above the row. Hover it for each bag." },
         { key = "bagSpaceStack", label = "Offer to Stack", toggle = true,
           help = "A Stack button on the card when part-filled stacks of an item can be combined." },
-        { label = "Pick Up Cheapest Item", binding = "NAOWHFOREVER_BAGSPACE_PICKUP",
-          help = "Puts the cheapest item on your cursor, to drop or sell." },
-        Group("Look"),
-        { key = "bagSpaceSize", label = "Icon Size", slider = { 24, 56, 1 } },
-        { key = "bagSpaceGrow", label = "Direction", choice = DIRECTION },
         { key = "bagSpacePrices", label = "Show Prices", toggle = true,
           help = "What each stack is worth, in its largest coin, under its icon." },
-        { key = "bagSpaceBackground", label = "Background", choice = Parts.HUD_BACKGROUNDS,
-          help = "A card behind the row, a soft dark fade, or nothing at all." },
+        { label = "Pick Up Cheapest Item", binding = "NAOWHFOREVER_BAGSPACE_PICKUP",
+          help = "Puts the cheapest item on your cursor, to drop or sell." },
         Group("Tooltips"),
         { key = "bagSpaceTipVendor", label = "Tooltip: Vendor Price", toggle = true,
           help = "What the whole stack sells for at a vendor, and each item's price." },
@@ -1258,5 +1269,11 @@ Settings.Page("QoL/Loot & Items", S):Card({
         { key = "bagSpaceTipDelete", label = "Tooltip: Delete Hint", toggle = true,
           help = "The Ctrl-click line, and Click to sell while a vendor is open." },
         { key = "bagSpaceTipIgnore", label = "Tooltip: Ignore Hint", toggle = true, help = "The Middle-click line." },
+        Group("Size"),
+        { key = "bagSpaceSize", label = "Icon Size", slider = { 24, 56, 1 } },
+        { key = "bagSpaceGrow", label = "Direction", choice = DIRECTION },
+        Settings.Look("bagSpace", { text = true, size = { 8, 24, 1 }, background = "card" }),
+        Group("Visibility"),
+        { key = "bagSpaceHideCombat", label = "Hide in Combat", toggle = true },
     },
 })

@@ -10,8 +10,8 @@
 prepare: each pull request merged since the newest tag adds the lines under "## Changelog" in
 its description to "## Unreleased" (one that edited CHANGELOG.md itself is skipped), then
 "## Unreleased" in CHANGELOG.md becomes "## <version>", the in-game notes' "Unreleased"
-entry (Core/NaowhForever_PatchNotes.lua) takes the version as its title, and the TOC "## Version"
-and ns.CODE_BUILD are set to it; prints the version. The version is the newest tag bumped
+entry (Core/NaowhForever_PatchNotes.lua) takes the version as its title, and every TOC's
+"## Version" (the module addons' too) and ns.CODE_BUILD are set to it; prints the version. The version is the newest tag bumped
 (patch: 0.5.16-beta -> 0.5.17-beta, minor: -> 0.6.0-beta, major: -> 1.0.0-beta), with
 "-beta" added (--beta), dropped (--no-beta) or kept as the tag has it; --version overrides
 all that. Versions before 1.0.0 must be betas or alphas. Everything is checked before
@@ -204,6 +204,13 @@ def add_entries(changelog, entries):
     return newline.join(lines)
 
 
+# The main TOC, then each module shipped as its own addon (NaowhForever_<Module>/), which
+# carries the same version.
+def toc_names(root):
+    return [TOC] + sorted(p.relative_to(root).as_posix()
+                          for p in Path(root).glob("NaowhForever_*/NaowhForever_*.toc"))
+
+
 def prepare(root, version=None, bump="patch", beta=None, fetch_body=pr_body):
     tag = newest_tag(root)
     if not version:
@@ -239,8 +246,9 @@ def prepare(root, version=None, bump="patch", beta=None, fetch_body=pr_body):
         raise ReleaseError(f"{CHANGELOG} must start with '## Unreleased' or '## {version}', "
                            f"not '## {first}'")
 
-    toc = replace_line(read(root, TOC), r"^(## Version:[ \t]*)[^\r\n]*", rf"\g<1>{version}",
-                       f"{TOC} has no '## Version' line")
+    tocs = {name: replace_line(read(root, name), r"^(## Version:[ \t]*)[^\r\n]*",
+                               rf"\g<1>{version}", f"{name} has no '## Version' line")
+            for name in toc_names(root)}
     core = replace_line(read(root, CORE), r'^(ns\.CODE_BUILD = ")[^"\r\n]*(")',
                         rf"\g<1>{version}\g<2>", f"{CORE} has no ns.CODE_BUILD line")
     # The in-game notes name the coming release "Unreleased" until it has a version, as the
@@ -253,7 +261,8 @@ def prepare(root, version=None, bump="patch", beta=None, fetch_body=pr_body):
             patch_notes = renamed
 
     write(root, CHANGELOG, changelog)
-    write(root, TOC, toc)
+    for name, text in tocs.items():
+        write(root, name, text)
     write(root, CORE, core)
     if patch_notes is not None:
         write(root, PATCH_NOTES, patch_notes)

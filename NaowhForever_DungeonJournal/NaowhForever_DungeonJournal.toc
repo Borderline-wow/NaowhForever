@@ -1,0 +1,12 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 16001
+## Title: |cff0091edNaowh|r Forever: Dungeon Journal
+## Notes: Every dungeon's bosses, loot and quests.
+## Author: Naowh
+## Version: 0.5.25-beta
+## Dependencies: NaowhForever, NaowhForever_BiS
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+# Its own XML loads its files in order (see README.md). Needs BiS, whose list and class
+# rules it reads; BiS in turn opens the journal, so the window turns the two off together.
+DungeonJournal.xml

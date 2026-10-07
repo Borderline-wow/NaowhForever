@@ -6,7 +6,7 @@ for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
     local modules = {}
     local original = saved.minimap
     local ns = { AccountSettings=function() return saved end, L=function(t) return t end,
-        ToggleOptionsWindow=function() clicked=true end,
+        ToggleOptionsWindow=function() clicked=true end, SaveModuleDefaults=function() end,
         ThemeTint=function(_,literal) return literal end }
     local frame = {
         SetScript=function(_,_,fn) event=fn end,
@@ -28,7 +28,7 @@ for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
         LibStub=function(name) return assert(libs[name]) end, hooksecurefunc=function() end,
         MODULES={ {name="QoL"}, dq, gear },
         MinimapButtonOn=function(mod) return mod.micro==true end,
-        OpenModule=function(mod) opened=mod end}, {__index=_G})
+        OpenModule=function(mod) opened=mod end, Loaded=function() return true end}, {__index=_G})
     local launcher = assert(loadstring(chunk, "launcher")); setfenv(launcher, env); launcher()
     assert(not registered)
     event(frame)

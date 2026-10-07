@@ -1,10 +1,12 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_LootFeed.lua -- the QoL loot feed and gold per hour counter. Forever never loads
 --  Blizzard_Deprecated*, so item and coin calls go through C_Item and C_CurrencyInfo. The card's
---  preview edits in place: its edges, wheel, clicks and line menu set the settings.
+--  preview edits in place: its edges, wheel, clicks and line menu set the settings. Style None
+--  leaves the lines without their fill and edge.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
+local Parts = ns.Shared.Parts
 
 local COIN_ICON = "Interface\\Icons\\INV_Misc_Coin_02"
 local XP_ICON = "Interface\\Icons\\INV_Misc_Book_11"
@@ -106,7 +108,11 @@ function Look.Size(row, w, h)
 end
 
 function Look.StyleRow(row)
-    local st = STYLES[S.Get("lootFeedStyle")] or STYLES.dark
+    local style = S.Get("lootFeedStyle")
+    local bare = style == "none"
+    row.bg:SetShown(not bare)
+    row.border._frame:SetShown(not bare)
+    local st = STYLES[style] or STYLES.dark
     if st == STYLES.dark then
         local c = ns.ThemeTint("bg", DARK_BG)
         row.bg:SetColorTexture(c.r, c.g, c.b, st.bg[4])
@@ -117,16 +123,16 @@ function Look.StyleRow(row)
         row.border:SetColor(e.r, e.g, e.b, st.edge[4])
     end
     row.glow:SetShown(S.Get("lootFeedGlow"))
-    local size = S.Get("lootFeedFontSize")
-    local font = ns.UI.FontPath(S.Get("lootFeedFont"))
+    local size, font, outline = S.Get("lootFeedFontSize"), S.Get("lootFeedFont"), S.Get("lootFeedOutline")
+    local shadow = bare and "none" or "card"
     Look.Size(row, S.Get("lootFeedWidth"), S.Get("lootFeedHeight"))
-    row.name:SetFont(font, size, "OUTLINE")
-    row.value:SetFont(font, size - 1, "OUTLINE")
+    Parts.HudFont(row.name, font, size, outline, shadow)
+    Parts.HudFont(row.value, font, size - 1, outline, shadow)
     for _, pair in ipairs(row.coins) do
-        pair.amount:SetFont(font, size - 1, "OUTLINE")
+        Parts.HudFont(pair.amount, font, size - 1, outline, shadow)
         pair.icon:SetSize(size - 1, size - 1)
     end
-    row.bags:SetFont(font, math.max(8, size - 2), "OUTLINE")
+    Parts.HudFont(row.bags, font, math.max(8, size - 2), outline, shadow)
 end
 
 local function CoinPair(pair, amount, anchor)
@@ -186,7 +192,7 @@ function Look.Stack(list, holder, height)
 end
 
 function Look.GPHFont(text)
-    text:SetFont(ns.UI.FontPath(S.Get("lootFeedFont")), S.Get("lootFeedFontSize"), "OUTLINE")
+    Parts.HudFont(text, S.Get("lootFeedFont"), S.Get("lootFeedFontSize"), S.Get("lootFeedOutline"), "none")
 end
 
 function Look.GPH(text, newest, per)
@@ -563,7 +569,7 @@ boot:SetScript("OnEvent", Apply)
 
 local Group = ns.Shared.Settings.Group
 local QUALITY = { { [0] = "Poor", [1] = "Common", [2] = "Uncommon", [3] = "Rare", [4] = "Epic" }, { 0, 1, 2, 3, 4 } }
-local STYLE = { { dark = "Dark", light = "Light" }, { "dark", "light" } }
+local STYLE = { { dark = "Dark", light = "Light", none = "None" }, { "dark", "light", "none" } }
 local PRICE = { { vendor = "Vendor Price", ahscan = "Auction (Naowh Scan)", tsm = "Auction (TSM)" },
     { "vendor", "ahscan", "tsm" } }
 local GROWTH = { { up = "Up", down = "Down" }, { "up", "down" } }
@@ -615,7 +621,8 @@ local function Choices(title, key, choice)
     return list
 end
 
-local RADIOS = { Choices("Style", "lootFeedStyle", STYLE), Choices("Growth Direction", "lootFeedGrowth", GROWTH) }
+local RADIOS = { Choices("Style", "lootFeedStyle", STYLE), Choices("Outline", "lootFeedOutline", Parts.HUD_OUTLINES),
+    Choices("Growth Direction", "lootFeedGrowth", GROWTH) }
 
 local function Snap(v, range)
     local low, high, step = range[1], range[2], range[3]
@@ -982,7 +989,8 @@ local function ResetGPH()
 end
 
 local function LootFeedSummary(store)
-    local style = store.Get("lootFeedStyle") == "light" and "light" or "dark"
+    local style = store.Get("lootFeedStyle")
+    style = style == "none" and "no background" or style == "light" and "light" or "dark"
     return ("%d lines, %s%s"):format(store.Get("lootFeedCount"), style,
         store.Get("lootFeedGPH") and ", gold per hour" or "")
 end
@@ -990,7 +998,7 @@ end
 ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
     id = "lootFeed", name = "Loot Feed", order = 5, switch = "lootFeed",
     help = "Everything you loot pops up on screen with its icon, amount and value, stacking "
-        .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in Unlock Mode.",
+        .. "in your chosen direction and fading out. Hover a line for the item's tooltip. Move it in the HUD Editor.",
     summary = LootFeedSummary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
@@ -1023,22 +1031,22 @@ ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
               .. "since your first loot this session." },
         { label = "Reset Gold per Hour", button = ResetGPH, buttonText = "Reset", always = true,
           help = "Starts the gold per hour count again from your next loot." },
-        Group("Look"),
-        { key = "lootFeedStyle", label = "Style", choice = STYLE },
-        { key = "lootFeedGlow", label = "Glow", toggle = true, help = "A soft glow beside each icon." },
-        { key = "lootFeedWidth", label = "Width", slider = WIDTH_RANGE },
-        { key = "lootFeedHeight", label = "Line Height", slider = HEIGHT_RANGE,
-          help = "The icon grows and shrinks with it." },
-        { key = "lootFeedSpacing", label = "Spacing", slider = SPACING_RANGE,
-          help = "Space between lines. -1 lets neighbouring lines share one border instead of two side by side." },
-        { key = "lootFeedFont", label = "Font", font = true },
-        { key = "lootFeedFontSize", label = "Font Size", slider = SIZE_RANGE,
-          help = "The item name. Values and the bag count scale with it." },
         Group("Loot Window"),
         { key = "hideLootWindow", label = "Hide Blizzard Loot Window", toggle = true, always = true,
           help = "Takes everything the moment you loot, with Blizzard's loot window kept out of "
               .. "sight, so the feed is all you see. Works with or without the game's auto loot. "
               .. "Hold Shift while looting to get the window back. It also appears whenever "
               .. "something cannot be taken: a group roll, a locked item, or bags too full." },
+        Group("Size"),
+        { key = "lootFeedWidth", label = "Width", slider = WIDTH_RANGE },
+        { key = "lootFeedHeight", label = "Line Height", slider = HEIGHT_RANGE,
+          help = "The icon grows and shrinks with it." },
+        { key = "lootFeedSpacing", label = "Spacing", slider = SPACING_RANGE,
+          help = "Space between lines. -1 lets neighbouring lines share one border instead of two side by side." },
+        ns.Shared.Settings.Look("lootFeed", { text = true, size = SIZE_RANGE }),
+        Group("Background"),
+        { key = "lootFeedStyle", label = "Style", choice = STYLE,
+          help = "A dark or light fill and edge behind each line, or none." },
+        { key = "lootFeedGlow", label = "Glow", toggle = true, help = "A soft glow beside each icon." },
     },
 })

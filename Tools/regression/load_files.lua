@@ -3,7 +3,7 @@
 -- test*.lua). Run from the repo root.
 --
 --   local Load = dofile("Tools/regression/load_files.lua")
---   Load({ "Shared/Shared.lua", "BiS/BiS.lua" }, env)
+--   Load({ "Shared/Shared.lua", "NaowhForever_BiS/BiS/BiS.lua" }, env)
 return function(files, env)
     for _, path in ipairs(files) do
         local chunk = assert(loadfile(path))

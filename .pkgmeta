@@ -1,5 +1,23 @@
 package-as: NaowhForever
 
+# Modules shipped as their own addons, beside NaowhForever/ in the zip. Listed so each one
+# follows the modules it needs; the tests load them in this order.
+move-folders:
+  NaowhForever/NaowhForever_SmartReminders: NaowhForever_SmartReminders
+  NaowhForever/NaowhForever_Professions: NaowhForever_Professions
+  NaowhForever/NaowhForever_Training: NaowhForever_Training
+  NaowhForever/NaowhForever_BiS: NaowhForever_BiS
+  NaowhForever/NaowhForever_DungeonJournal: NaowhForever_DungeonJournal
+  NaowhForever/NaowhForever_GroupInspect: NaowhForever_GroupInspect
+  NaowhForever/NaowhForever_Discovery: NaowhForever_Discovery
+  NaowhForever/NaowhForever_GearSets: NaowhForever_GearSets
+  NaowhForever/NaowhForever_Blessings: NaowhForever_Blessings
+  NaowhForever/NaowhForever_Macros: NaowhForever_Macros
+  NaowhForever/NaowhForever_ActionBars: NaowhForever_ActionBars
+  NaowhForever/NaowhForever_AuraBuffs: NaowhForever_AuraBuffs
+  NaowhForever/NaowhForever_ThreatMeter: NaowhForever_ThreatMeter
+  NaowhForever/NaowhForever_SwingTimer: NaowhForever_SwingTimer
+
 externals:
   Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1
   Libs/LibDBIcon-1.0: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0

@@ -5,6 +5,9 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local UI = ns.UI
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
+
+local WIDTH = 300
 
 -- GetShapeshiftFormID values, the same ones the threat meter reads.
 local CAT, TRAVEL, AQUATIC, BEAR, DIRE_BEAR, FLIGHT, SHADOWFORM, SWIFT_FLIGHT, MOONKIN =
@@ -37,16 +40,19 @@ local function Build(label, posKey, defaultY)
     frame:SetClampedToScreen(true)
     frame.text = ns.Font(frame, 22, "OUTLINE")
     frame.text:SetPoint("CENTER")
+    frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
     frame.posKey, frame.defaultY = posKey, defaultY
     frame.mover = UI.AttachMover(frame, label, function(pos) S.Set(posKey, pos) end, "QoL/Combat", "QoL/Combat:stealthReminder")
     frame:Hide()
     return frame
 end
 
-local function Style(frame, fontKey, sizeKey)
-    local size = S.Get(sizeKey)
-    frame.text:SetFont(UI.FontPath(S.Get(fontKey)), size, "OUTLINE")
-    frame:SetSize(300, size + 12)
+-- prefix is "stealth" or "form".
+local function Style(frame, prefix)
+    local size = S.Get(prefix .. "FontSize")
+    frame.mode = frame.backdrop:SetMode(S.Get(prefix .. "Background"))
+    Parts.HudFont(frame.text, S.Get(prefix .. "Font"), size, S.Get(prefix .. "Outline"), frame.mode)
+    frame:SetSize(WIDTH, size + 12)
     frame.mover:SetShown(unlocked == true)
     local pos = S.Get(frame.posKey)
     frame:ClearAllPoints()
@@ -60,6 +66,8 @@ end
 local function Paint(frame, text, c)
     frame.text:SetText(text)
     frame.text:SetTextColor(c.r, c.g, c.b, 1)
+    -- Fitted to the text only with a background, so elements anchored to it keep their spot.
+    frame:SetWidth(frame.mode == "none" and WIDTH or frame.text:GetStringWidth() + 2 * St.CARD_PAD)
     frame:Show()
 end
 
@@ -161,8 +169,8 @@ local function Apply()
     if formOn and not formFrame then
         formFrame = Build("Form Reminder", "formPos", 110)
     end
-    if stealthFrame then Style(stealthFrame, "stealthFont", "stealthFontSize") end
-    if formFrame then Style(formFrame, "formFont", "formFontSize") end
+    if stealthFrame then Style(stealthFrame, "stealth") end
+    if formFrame then Style(formFrame, "form") end
     if stealthOn or formOn then
         inCombat = UnitAffectingCombat("player")
         for _, event in ipairs({ "UPDATE_STEALTH", "UPDATE_SHAPESHIFT_FORM", "UPDATE_SHAPESHIFT_FORMS",
@@ -207,7 +215,7 @@ local function StealthedOwnColour() return S.Get("stealthShowStealthed") and not
 ns.Shared.Settings.Page("QoL/Combat", S):Card({
     id = "stealthReminder", name = "Stealth Reminder", order = 30, switch = "stealthReminder",
     help = "Out-of-combat stealth status for rogues and druids: a reminder while you are not in "
-        .. "stealth. Move it in Unlock Mode.",
+        .. "stealth. Move it in the HUD Editor.",
     rows = {
         Group("When"),
         { key = "reminderInGroup", label = "Only In a Group", toggle = true,
@@ -220,14 +228,13 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "stealthDruid", label = "Druids", choice = DRUID_STEALTH,
           help = "In Cat Form reminds a druid only while in Cat Form. In Any Form reminds in every "
               .. "form but travel forms, for a druid who prowls between fights." },
-        Group("Text"),
+        Group("Messages"),
         { key = "warningText", label = "Out of Stealth Text", text = true,
           help = "What it says while you are out of stealth." },
         { key = "stealthText", label = "Stealthed Text", text = true, needs = "stealthShowStealthed",
           help = "What it says while you are in stealth." },
-        { key = "stealthFont", label = "Font", font = true },
-        { key = "stealthFontSize", label = "Font Size", slider = { 10, 60, 1 } },
-        Group("Colour"),
+        ns.Shared.Settings.Look("stealth", { text = true, size = { 10, 60, 1 }, background = "card" }),
+        Group("Colours"),
         { key = "warningClassColor", label = "Out of Stealth in Class Colour", toggle = true },
         { key = "warningColor", label = "Out of Stealth Colour", colour = true, needs = WarningOwnColour,
           why = "Class colour is on" },

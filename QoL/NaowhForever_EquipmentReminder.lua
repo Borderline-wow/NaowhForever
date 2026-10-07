@@ -219,7 +219,7 @@ local function Apply()
     end
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
     events:RegisterEvent("READY_CHECK")
-    events:RegisterEvent("UNIT_INVENTORY_CHANGED")
+    events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player")
     if frame and frame:IsShown() then Refresh() end
 end
 

@@ -1,5 +1,5 @@
--- The settings search: the row widgets' scan mode (real Widgets.lua), the index and matching
--- (real Search.lua) and the list of pages the scan leaves out (read from Window.lua).
+-- The sidebar search's list, matching, filter and lit words (real Search.lua over the real
+-- settings declarations in Shared/Settings/Settings.lua), and that the old builder scan is gone.
 -- Run with Lua 5.1 from the repository root.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
@@ -10,227 +10,143 @@ end
 local cases = 0
 local function Check(ok, label) assert(ok, label); cases = cases + 1 end
 
--- Widgets.lua and Search.lua, loaded the way the client does, into one namespace.
 local frames = 0
 local ns
 ns = { THEME = { bg = {}, panel = {}, line = {}, fg = {}, muted = {}, accent = {}, grey = {} },
     L = function(text) return ns.translations and ns.translations[text] or text end,
-    Color = function(_, text) return text or "" end }
-local env = { _G = { NaowhForever = ns }, LibStub = false,
-    CreateFrame = function() frames = frames + 1; return {} end }
+    Color = function(token, text) return "<" .. token .. ":" .. (text or "") .. ">" end, Shared = {}, UI = {} }
+local env = { _G = { NaowhForever = ns }, CreateFrame = function() frames = frames + 1; return {} end }
 setmetatable(env, { __index = _G })
 local function Load(path)
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()
 end
-Load("Core/NaowhForever_Widgets.lua")
+Load("Shared/Settings/Settings.lua")
 Load("Core/NaowhForever_Search.lua")
-local UI = ns.UI
-local W = UI.Widgets
+local UI, Settings = ns.UI, ns.Shared.Settings
 
--- Scan mode: rows say what they are called and build nothing.
-do
-    UI.searchScan = { section = "", items = {} }
-    local scan = UI.searchScan
-    local row, h = W:SectionHeader({}, "TIMING", -6)
-    Check(row == nil and type(h) == "number" and scan.section:find("TIMING", 1, true), "a header sets the section")
-    row, h = W:DualRow({}, -46,
-        { type = "toggle", text = "Show Timer", tooltip = "Draws the timer." },
-        { type = "slider", text = "Timer Size", tooltip = function() return "dynamic" end })
-    Check(row == nil and type(h) == "number", "a row returns no frame and a height")
-    W:DualRow({}, -96, { type = "dropdown", text = "Font" }, { type = "label", text = "Move in Unlock Mode" })
-    W:DualRow({}, -146, { type = "toggle", text = "Alone" })
-    W:DualRow({}, -196, { type = "label", text = "" }, { type = "toggle", text = "" })
-    W:DualRow({}, -226, { type = "dropdown", text = "Look" }, { type = "palette", text = "", colors = function() error("never runs") end })
-    W:Button({}, "Reset Timer", -246, function() error("never runs") end)
-    W:ColorPicker({}, "Timer Color", -296, function() end, function() end)
-    Check(select(2, W:Note({}, "A long note.", -346)) ~= nil, "a note returns a height and is not recorded")
-    local labels = {}
-    for i, item in ipairs(scan.items) do labels[i] = item.label end
-    Check(table.concat(labels, ",") == "Show Timer,Timer Size,Font,Alone,Look,Reset Timer,Timer Color",
-        "labels are recorded in order, without label captions or empty text")
-    Check(scan.items[1].tooltip == "Draws the timer." and scan.items[2].tooltip == nil, "string tooltips only")
-    Check(scan.items[1].section:find("TIMING", 1, true), "each item knows its section")
-    Check(frames == 0, "scan mode builds no frames")
-    UI.searchScan = nil
-end
+local store = { Get = function() end, Set = function() end, Default = function() end, OnChange = function() end }
+local bars = Settings.Page("Meter/Bars", store)
+bars:Card({ id = "timer", name = "Swing Timer", help = "A bar for your next swing.", rows = {
+    Settings.Group("Look"),
+    { key = "size", label = "Bar Size", slider = { 1, 10, 1 }, help = "How tall the bar is." },
+    { key = "sound", label = "Timer Sound", toggle = true, help = "Plays a ping on a parry." },
+} })
+bars:Card({ id = "alert", name = "Parry Alert", help = "Flashes when you parry.", rows = {
+    { key = "alertSound", label = "Alert Sound", toggle = true },
+    { key = "colour", label = "Alert Colour", colour = true },
+} })
+Settings.Page("Meter/Other", store):Card({ id = "misc", name = "Odds and Ends", rows = {
+    { key = "naowh", label = "Naowh's Tips", toggle = true },
+} })
 
--- A button row is found by its name and by each of its buttons.
-do
-    UI.searchScan = { section = "LISTS", items = {} }
-    W:DualRow({}, -6, { type = "buttons", text = "Manage Lists", buttons = {
-        { text = "New", tooltip = "Start a list." }, { text = "Delete" } } })
-    local labels = {}
-    for i, item in ipairs(UI.searchScan.items) do labels[i] = item.label end
-    Check(table.concat(labels, ",") == "Manage Lists,New,Delete", "a button row scans its buttons")
-    Check(UI.searchScan.items[2].tooltip == "Start a list.", "with their tooltips")
-    Check(UI.FormatPercent(100) == "100%" and UI.FormatSeconds(6) == "6s", "slider values in their units")
-    UI.searchScan = nil
-end
+Settings.Page("Solo/Settings", store):Card({ id = "solo", name = "Solo Card", rows = {
+    { key = "solo", label = "Solo Toggle", toggle = true },
+} })
 
--- Plain: what a section header reads as.
-Check(UI.Search.Plain("|cff9a9ea6UNLEARNED RECIPES|r") == "UNLEARNED RECIPES", "colour stripped")
-Check(UI.Search.Plain("  FONT ") == "FONT", "trimmed")
-
--- The index, over pages that stand in for the real ones.
-local scanFlagSeenByBuilder
-local function Builder(section, rows)
-    return function(parent, y)
-        local Widgets = UI.Widgets
-        scanFlagSeenByBuilder = UI.searchScan ~= nil
-        Widgets:SectionHeader(parent, section, y)
-        for _, r in ipairs(rows) do Widgets:DualRow(parent, y, r[1], r[2]) end
-        return y
-    end
-end
-ns.BuildTimers = Builder("TIMERS", { { { type = "toggle", text = "Timer Sound", tooltip = "Plays a sound." },
-    { type = "slider", text = "Timer Size" } } })
-ns.BuildAlerts = Builder("ALERTS", { { { type = "toggle", text = "Alert Sound", tooltip = "Timer alert volume." } } })
-ns.BuildBroken = function(parent, y)
-    UI.Widgets:DualRow(parent, y, { type = "toggle", text = "Said Before Failing" })
-    error("this builder makes its own frames")
-end
-ns.BuildEditor = Builder("EDITOR", { { { type = "toggle", text = "Editor Setting" } } })
-ns.BuildSeen = function() error("must not run") end
+local meter, solo = { name = "Meter" }, { name = "Solo" }
 local pages = {
-    { key = "Settings", name = "Settings", title = "Settings", build = "BuildAlerts" },
-    { key = "Meter/Bars", name = "Bars", module = { name = "Meter" }, build = "BuildTimers" },
-    { key = "Meter/Odd", name = "Odd", module = { name = "Meter" }, build = "BuildBroken" },
-    { key = "Meter/Editor", name = "Editor", module = { name = "Meter" }, build = "BuildEditor", noscan = true },
-    { key = "Meter/Soon", name = "Soon", module = { name = "Meter" }, build = "BuildSeen", soon = "later" },
-    { key = "Meter/Gone", name = "Gone", module = { name = "Meter" }, build = "BuildMissing" },
+    { key = "Settings", name = "Settings", title = "Settings" },
+    { key = "Meter/Bars", name = "Bars", module = meter },
+    { key = "Meter/Other", name = "Other", module = meter },
+    { key = "Solo/Settings", name = "Settings", module = solo },
 }
+meter.tabs = { pages[2], pages[3] }
+solo.tabs = { pages[4] }
 function UI.SearchPages() return pages end
 
-local index = UI.Search.Build()
-Check(scanFlagSeenByBuilder == true, "the builder ran with the scan on")
-Check(UI.searchScan == nil, "the scan flag is cleared, failing builders included")
-Check(#UI.Search.failed == 1 and UI.Search.failed[1] == "Meter/Odd", "the page whose builder failed is listed")
-local function Find(label)
-    for _, e in ipairs(index) do if e.label == label then return e end end
-end
-Check(Find("Timer Size").crumb == "Meter > Bars" and Find("Timer Size").key == "Meter/Bars", "breadcrumb and key")
-Check(Find("Alert Sound").crumb == "Settings", "a window page's breadcrumb is its name")
-Check(Find("Said Before Failing") ~= nil, "what a page said before it failed is kept")
-Check(Find("Editor Setting") == nil, "noscan pages are not scanned")
-local pageEntries = 0
-for _, e in ipairs(index) do if not e.label then pageEntries = pageEntries + 1 end end
-Check(pageEntries == #pages, "every page can be found by name")
-Check(frames == 0, "building the index created no frames")
-
--- Matching.
-local function Labels(query, limit)
+local list = UI.Search.Collect()
+Check(frames == 0, "collecting builds no frames")
+local function Names(query)
     local out = {}
-    for i, e in ipairs(UI.Search.Match(index, query, limit)) do out[i] = e.label or ("[" .. e.crumb .. "]") end
+    for i, t in ipairs(UI.Search.Find(list, query)) do out[i] = t.label or ("[" .. t.trail .. "]") end
     return table.concat(out, "|")
 end
-Check(Labels("timer size") == "Timer Size", "every word must match")
-Check(Labels("TIMER SIZE") == "Timer Size", "case does not matter")
-Check(Labels("sound") == "Alert Sound|Timer Sound", "results keep page order on a tie")
-Check(Labels("volume") == "Alert Sound", "the tooltip is searched")
-Check(Labels("timers") == "Timer Sound|Timer Size", "the section name counts")
-Check(Labels("zzz") == "", "no match, no results")
-Check(Labels("   ") == "", "blanks match nothing")
-Check(Labels("meter") == "Timer Sound|Timer Size|Said Before Failing|[Meter > Bars]|[Meter > Odd]|[Meter > Editor]|[Meter > Soon]|[Meter > Gone]",
-    "a module name finds its settings first, then its pages")
-Check(Labels("editor") == "[Meter > Editor]", "a page that is not scanned is found by name")
-Check(Labels("bars timer") == "Timer Sound|Timer Size", "tab and label words combine")
 
--- A setting outranks a page with the same score, and results are capped.
-do
-    local ranked = UI.Search.Match(index, "alerts")
-    Check(ranked[1].label == "Alert Sound", "the setting in the ALERTS section comes first")
-    Check(#UI.Search.Match(index, "e", 3) == 3, "the cap applies")
+-- What each target says about itself.
+local first, size
+for _, t in ipairs(list) do
+    if t.label == "Swing Timer" then first = t end
+    if t.label == "Bar Size" then size = t end
 end
+Check(first.card == "Meter/Bars:timer" and first.page == "Meter/Bars" and first.isCard, "a card is a target, with its page")
+Check(not size.isCard, "a setting is not a card")
+Check(size.card == "Meter/Bars:timer" and size.tag == "Meter" and size.trail == "Bars / Swing Timer",
+    "a setting knows its module, tab and card")
+Check(list[1].page == "Settings" and list[1].tag == "Settings" and list[1].trail == "" and not list[1].label,
+    "a window page is a target, named by itself")
+local trails = table.concat({ list[1].trail, size.trail }, "")
+Check(not trails:find(">", 1, true), "no > in a trail")
 
--- Translated names are searchable too.
+-- Matching: every typed word starts a word of the target's own.
+Check(Names("bar size") == "Bar Size", "every word must match")
+Check(Names("BAR SIZE") == "Bar Size", "case does not matter")
+Check(Names("siz") == "Bar Size", "a word's start is enough")
+Check(Names("ize") == "", "but not its middle")
+Check(Names("sound") == "Timer Sound|Alert Sound", "matches come in window order")
+Check(Names("ping") == "Timer Sound", "a setting's help counts")
+Check(Names("look") == "Bar Size|Timer Sound", "and its group")
+Check(Names("parry") == "Timer Sound|Parry Alert|Alert Sound|Alert Colour",
+    "a card's name finds the card and the settings in it")
+Check(Names("meter") == "[Bars]|[Other]", "a module's name finds its pages")
+Check(Names("bars timer") == "", "page and setting words do not mix")
+Check(Names("naowh's") == "Naowh's Tips" and Names("naowh") == "Naowh's Tips", "punctuation splits words")
+Check(Names("zzz") == "" and Names("   ") == "", "nothing typed or nothing found, no matches")
+
+-- Translated names are found and shown.
 do
     ns.translations = { Meter = "Anzeige", Bars = "Balken" }
-    local translated = UI.Search.Build()
+    local translated = UI.Search.Collect()
     ns.translations = nil
-    local found = UI.Search.Match(translated, "balken")
-    Check(#found > 0 and found[1].crumb == "Anzeige > Balken", "ns.L names are matched and shown")
+    local hit = UI.Search.Find(translated, "balken")[1]
+    Check(hit and hit.tag == "Anzeige" and hit.trail == "Balken", "ns.L names are matched and shown")
 end
 
--- The pages the scan leaves out are exactly the ones the audit found unsafe.
+-- The filter the window draws with: which pages have a match and how many, which cards show
+-- whole, and which settings of the rest.
 do
-    local expected = { ["Profiles"] = true, ["Credits"] = true }
-    local window = Read("Core/NaowhForever_Window.lua")
-    local system = {}
-    for name in window:match("local SYSTEM_PAGES = (%b{})"):gmatch('\n    { name = "([^"]+)"') do system[name] = true end
-    local module, total, seen = nil, 0, {}
-    for line in window:gmatch("[^\n]+") do
-        local first = line:match('^    { name = "([^"]+)"')
-        local systemName = first and system[first] and first
-        local moduleName = not systemName and first
-        local tabName = line:match('^          { name = "([^"]+)"')
-        local name
-        if systemName then name = systemName
-        elseif moduleName then module = moduleName
-        elseif tabName then name = module .. "/" .. tabName end
-        if name then
-            total = total + 1
-            local noscan = line:find("noscan = true", 1, true) ~= nil
-            seen[name] = noscan
-            Check(noscan == (expected[name] == true), name .. ": noscan is " .. tostring(expected[name] == true))
-        end
-    end
-    Check(total == 30, "the window lists 30 pages (" .. total .. "): decide noscan for a new one")
-    for name in pairs(expected) do Check(seen[name] ~= nil, "the audited page still exists: " .. name) end
+    local Build = UI.Search.Build
+    Check(Build(list, "") == nil and Build(list, "  ") == nil, "nothing typed, no filter")
+    local f = Build(list, "sound")
+    Check(f.count["Meter/Bars"] == 2 and not f.count["Meter/Other"] and not f.count.Settings,
+        "a page counts its matches; pages without one are not in it")
+    local timer = f.cards["Meter/Bars:timer"]
+    Check(type(timer) == "table" and timer["Timer Sound"] and not timer["Bar Size"],
+        "a card keeps only its matching settings")
+    Check(f.cards["Meter/Bars:alert"]["Alert Sound"] and not f.cards["Meter/Other:misc"], "card by card")
+    Check(f.first["Meter/Bars"] == "Meter/Bars:timer" and f.order[1] == "Meter/Bars", "the first card and page, in window order")
+    f = Build(list, "parry")
+    Check(f.cards["Meter/Bars:alert"] == true and f.count["Meter/Bars"] == 4,
+        "a card matched by name shows whole, and its own settings still count")
+    f = Build(list, "meter")
+    Check(f.all["Meter/Bars"] and f.all["Meter/Other"] and f.count["Meter/Other"] == 0,
+        "a page matched by name shows whole, though it counts nothing")
+    f = Build(list, "set")
+    Check(f.all.Settings and not f.count["Solo/Settings"],
+        "a lone tab's name (mostly Settings) does not match its module's page")
+    Check(Build(list, "solo").all["Solo/Settings"], "its module's name still does")
+    f = Build(list, "zzz")
+    Check(f and #f.order == 0 and next(f.count) == nil, "nothing found is a filter with no pages")
 end
 
--- The rows the search jumps to carry their label.
+-- The typed words, lit in the accent where they start a word.
+do
+    local Mark, f = UI.Search.Mark, UI.Search.Build(list, "tim sou")
+    Check(Mark(f, "Timer Sound") == "<accent:Tim>er <accent:Sou>nd", "each typed word is lit where it starts a word")
+    Check(Mark(f, "Untimely") == "Untimely", "but not in a word's middle")
+    Check(Mark(nil, "Timer Sound") == "Timer Sound" and Mark(f, nil) == nil, "no filter, no change")
+    Check(Mark(UI.Search.Build(list, "naowh s"), "Naowh's Tips") == "<accent:Naowh>'<accent:s> Tips",
+        "punctuation starts a word")
+end
+
+-- The builder scan, its row tags, the jump's glow and the old bar are gone for good.
 do
     local widgets = Read("Core/NaowhForever_Widgets.lua")
-    Check(widgets:find("row._searchL, row._searchR = leftCfg.text, rightCfg and rightCfg.text", 1, true),
-        "DualRow tags its row")
     local window = Read("Core/NaowhForever_Window.lua")
-    Check(window:find("row._searchL == label or row._searchR == label", 1, true), "the jump finds the row by label")
-    Check(window:find("UI.AttachSearch(top", 1, true), "the window attaches the search box")
+    Check(not widgets:find("searchScan", 1, true) and not widgets:find("_searchL", 1, true), "no scan in the widgets")
+    Check(not window:find("noscan", 1, true) and not window:find("Flash", 1, true), "no scan flags or glow in the window")
+    Check(window:find("searchBox = UI.AttachSearchBox(sidebar", 1, true), "the sidebar holds the search box")
+    Check(not window:find("AttachSearchBar", 1, true) and not window:find("searchOpen", 1, true), "the bar is gone")
 end
-
-
--- Features (W:Feature): a setting under one carries it, so the jump can open it.
-do
-    UI.searchScan = { section = "", items = {}, page = "QoL/Loot" }
-    local scan = UI.searchScan
-    local row, h = W:Feature({}, -6, { type = "toggle", text = "Restock Reminder", tooltip = "Reminds you." })
-    Check(row == nil and type(h) == "number", "a feature returns no frame and a height")
-    W:DualRow({}, -56, { type = "toggle", text = "Ammo" }, { type = "slider", text = "Ammo to Carry" })
-    W:EndFeature({})
-    W:DualRow({}, -106, { type = "toggle", text = "Faster Loot" })
-    W:Feature({}, -156, { type = "label", text = "Appearance" }, "appearance")
-    W:DualRow({}, -206, { type = "slider", text = "Font Size" })
-    W:SectionHeader({}, "OTHER", -256)
-    W:DualRow({}, -296, { type = "toggle", text = "After Header" })
-    local by = {}
-    for _, item in ipairs(scan.items) do by[item.label] = item end
-    Check(by["Restock Reminder"] and by["Restock Reminder"].feature == nil, "a feature's own row is not under itself")
-    Check(by["Ammo"].feature == "QoL/Loot:Restock Reminder" and by["Ammo to Carry"].featureName == "Restock Reminder",
-        "rows after a feature carry it")
-    Check(by["Faster Loot"].feature == nil, "EndFeature ends it")
-    Check(by["Appearance"] ~= nil and by["Font Size"].feature == "QoL/Loot:appearance", "a label feature, by its key")
-    Check(by["After Header"].feature == nil, "a section header ends it")
-    Check(frames == 0, "scanning features builds no frames")
-    UI.searchScan = nil
-end
-
-do
-    ns.BuildFeatured = function(parent, y)
-        UI.Widgets:Feature(parent, y, { type = "toggle", text = "Pet Tracker" })
-        UI.Widgets:DualRow(parent, y, { type = "toggle", text = "Warn While Passive" })
-        return y
-    end
-    local saved = pages
-    pages = { { key = "QoL/Alerts", name = "Alerts", module = { name = "QoL" }, build = "BuildFeatured" } }
-    local hit = UI.Search.Match(UI.Search.Build(), "passive")[1]
-    pages = saved
-    Check(hit.feature == "QoL/Alerts:Pet Tracker" and hit.crumb == "QoL > Alerts > Pet Tracker",
-        "an entry knows its feature, and the breadcrumb names it")
-    local window = Read("Core/NaowhForever_Window.lua")
-    Check(window:find("UI.OpenFeature(feature)", 1, true), "the jump opens the feature first")
-    local widgets = Read("Core/NaowhForever_Widgets.lua")
-    Check(widgets:find("UI.searchOpen and UI.searchOpen[id]", 1, true), "a feature holding a match opens while typing")
-end
-print("PASS settings search: " .. cases .. " checks")
+print("PASS sidebar search: " .. cases .. " checks")

@@ -6,8 +6,8 @@ upkeep it adds and how much code it brings. If you want to build a feature, mess
 Glyalith on [Discord](https://discord.gg/naowh) before you start.**
 
 Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
-BiS, Dungeon Journal, Professions, Gear Sets, Swing Timer, Threat Meter, QoL, macros and
-buff reminders, in one window.
+BiS, Dungeon Journal, Professions, Gear Sets, Swing Timer, Threat Meter, Group Inspect, QoL,
+macros and buff reminders, in one window.
 
 Thanks for wanting to help! Pull requests are welcome. This document explains how PRs
 are reviewed and the rules the codebase lives by, so your change can merge quickly
@@ -70,10 +70,11 @@ comment, sent back for changes, or merged and fixed up by me.
 - **Match the surrounding code.** Before building an options row, slider or popup, find
   the nearest existing example in the same module and copy its shape.
 - Each module has its own folder with `NaowhForever_<Name>.lua` files. Add new files to
-  `NaowhForever.toc` next to the rest of that module's files.
+  the TOC that loads that module (`NaowhForever.toc` for the core, or the module addon's
+  own `NaowhForever_<Module>.toc`) next to the rest of its files.
 - A module with many files loads them through its own XML file, which the TOC lists once,
   and names its files plainly inside its folder. The Dungeon Journal is the example:
-  `DungeonJournal/DungeonJournal.xml`, with its layout in `DungeonJournal/README.md`. Add a
+  `NaowhForever_DungeonJournal/DungeonJournal.xml`, with its layout in `NaowhForever_DungeonJournal/README.md`. Add a
   new file to that XML. The checks read the XML too, so its files are linted and compiled.
 - Settings go through `UI.ModuleSettings`, option widgets through the `ns.UI` kit in
   `Core/NaowhForever_Widgets.lua`, confirmations through `ns.Confirm` / `ns.PromptText`,
@@ -131,6 +132,13 @@ comment, sent back for changes, or merged and fixed up by me.
   from a release build into your checkout, or the addon will not load.
 - Point your Forever `Interface\AddOns\NaowhForever` folder at your checkout (a junction
   or symlink works). `/reload` picks up new files and TOC changes, no restart needed.
+- Modules ship as their own addons, in the `NaowhForever_<Module>/` folders at the root of
+  the checkout. Point an `Interface\AddOns\NaowhForever_<Module>` folder at each one too. A
+  folder the game has not seen before may need a restart to show up in the AddOns list.
+- A new module addon gets its own TOC with `## Dependencies: NaowhForever` (and any module
+  it needs) and `## Group: NaowhForever`, which files it under Naowh Forever in the AddOns
+  list, a `move-folders` line in `.pkgmeta` after the modules it needs, and `addon =`
+  on its entry in `MODULES` (`needs =` too when it cannot work without another module).
 - A new global the addon writes goes in `globals` in `.luacheckrc`, a new game API it
   reads in `read_globals`.
 
@@ -229,3 +237,21 @@ If a hook fails, it prints the file and line: fix it and commit again. Skipping 
 By submitting a PR, you keep the copyright to your contribution but grant Naowh Forever
 a perpetual, worldwide, royalty-free license to use, modify, incorporate and distribute
 it as part of Naowh Forever.
+
+## Your responsibility for what you submit
+
+Naowh Forever is a free project that anyone can contribute to. By submitting a PR, you
+confirm that:
+
+- the contribution is your own work, or you have the right to submit it: its license, or
+  its author's permission, allows it to be included and distributed in Naowh Forever;
+- it does not copy code, art, text or data from another addon, game, website or tool
+  unless that source's license or terms allow it, and the PR says where anything taken
+  from such a source comes from;
+- you, not the Naowh Forever maintainers, are responsible for any breach of a third
+  party's copyright, license or terms that your contribution contains.
+
+The maintainers review changes for quality and fit, and cannot check where every line
+comes from. They accept contributions on the strength of this confirmation. Anything
+found to break a third party's rights is removed, and the responsibility for it stays
+with the person who submitted it.

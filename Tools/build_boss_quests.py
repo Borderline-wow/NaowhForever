@@ -1,11 +1,11 @@
 """Which dungeon quests need which boss, for a boss's page in the Dungeon Journal: a quest
 needs a boss when the objective on its Wowhead Forever page (or an item or NPC it asks for)
-names the boss, or links the boss's NPC. Written to DungeonJournal/Data/BossQuests.lua as
+names the boss, or links the boss's NPC. Written to NaowhForever_DungeonJournal/Data/BossQuests.lua as
 quest IDs (Data/Quests.lua's) keyed by NPC ID. The rest of a quest's chain (its steps)
 counts too: the quest is listed for a boss any step needs.
 
-The quests are read from DungeonJournal/Data/Quests.lua, the bosses from
-DungeonJournal/Data/Dungeons; pages are kept in Tools/quest_objectives_cache.json, so a run
+The quests are read from NaowhForever_DungeonJournal/Data/Quests.lua, the bosses from
+NaowhForever_DungeonJournal/Data/Dungeons; pages are kept in Tools/quest_objectives_cache.json, so a run
 only fetches quests not seen yet. --refresh fetches all.
 
 Usage: py Tools/build_boss_quests.py [--refresh]
@@ -20,9 +20,9 @@ import urllib.error
 import wowhead
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-QUESTS = os.path.join(ROOT, "DungeonJournal", "Data", "Quests.lua")
-DUNGEONS = os.path.join(ROOT, "DungeonJournal", "Data", "Dungeons")
-OUT = os.path.join(ROOT, "DungeonJournal", "Data", "BossQuests.lua")
+QUESTS = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "Quests.lua")
+DUNGEONS = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "Dungeons")
+OUT = os.path.join(ROOT, "NaowhForever_DungeonJournal", "Data", "BossQuests.lua")
 CACHE = os.path.join(ROOT, "Tools", "quest_objectives_cache.json")
 
 HEADER = """-------------------------------------------------------------------------------
@@ -58,6 +58,20 @@ def dungeon_quests():
             quests.append((qid, qname, steps))
         out[name] = quests
     return out
+
+
+def dungeon_maps():
+    """{dungeon name: instance map ID} from Data/Quests.lua; the wings of one instance share it."""
+    with open(QUESTS, encoding="utf-8") as f:
+        text = f.read()
+    return {name: int(m) for name, m in re.findall(r'\n    \{ name = "([^"]+)", map = (\d+)', text)}
+
+
+def kin_bosses(dungeon, bosses, maps):
+    """The bosses a dungeon's quests can need: every wing of its instance, else its own."""
+    m = maps.get(dungeon)
+    kin = [d for d in bosses if m is not None and maps.get(d) == m] or [dungeon]
+    return [boss for d in kin for boss in bosses.get(d, [])]
 
 
 def dungeon_bosses():
@@ -126,9 +140,10 @@ def main():
         with open(CACHE, encoding="utf-8") as f:
             cache = json.load(f)
     bosses = dungeon_bosses()
+    maps = dungeon_maps()
     found = {}   # npc -> [(quest ID, quest name)]
     for dungeon, quests in dungeon_quests().items():
-        here = bosses.get(dungeon)
+        here = kin_bosses(dungeon, bosses, maps)
         if not here:
             print(f"  no bosses for {dungeon}", file=sys.stderr)
             continue
@@ -138,7 +153,7 @@ def main():
             lower = text.lower()
             npcs = {n for p in pages for n in p["npcs"]}
             for npc, name in here:
-                if npc in npcs or name.lower() in lower or short_name(name, text):
+                if (npc in npcs or name.lower() in lower or short_name(name, text))                         and (qid, qname) not in found.get(npc, []):
                     found.setdefault(npc, []).append((qid, qname))
     lines = []
     for dungeon, here in bosses.items():

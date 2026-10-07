@@ -7,6 +7,7 @@ local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
 local Played = ns.Shared.Played
+local Parts = ns.Shared.Parts
 
 -- Naowh's blue for the fill, his logo's gold for quest XP, a darker blue for rested.
 local FILL_FROM = CreateColor(0x00 / 255, 0x4f / 255, 0x85 / 255, 1)
@@ -14,14 +15,16 @@ local QUEST     = { r = 0xf2 / 255, g = 0xa9 / 255, b = 0x00 / 255 }
 local RESTED    = { r = 0x1e / 255, g = 0x40 / 255, b = 0xaf / 255 }
 local QUEST_HEX, RESTED_HEX = "|cfff2a900", "|cff6b8cff"
 local OPEN_ALPHA = 0.4  -- incomplete quests: the completed quests colour, faded
-local BG_ALPHA = 0.85
+local FLAT = "Interface\\Buttons\\WHITE8X8"
+local EDGE = { r = 0, g = 0, b = 0 }  -- the bar's border: black, as the rest of the UI's
 local FILL_DARK = 0.55  -- how dark the fill's left end is against its colour
 local RESTED_DARK = 0.7 -- how dark rested is against a theme's changed accent
 
 -- The colours a player picked (Colours, under XP Bar) win; unset ones follow the theme, and
 -- the shipped colours above while the theme leaves the accent alone. Text in a quest or
 -- rested colour follows the bar.
-local COLOR_KEYS = { "xpBarFillColor", "xpBarQuestColor", "xpBarRestedColor", "xpBarBgColor" }
+local COLOR_KEYS = { "xpBarFillColor", "xpBarQuestColor", "xpBarOpenColor", "xpBarRestedColor", "xpBarBgColor",
+    "xpBarBorderColor" }
 local questHex, restedHex = QUEST_HEX, RESTED_HEX
 
 local function FillGradient()
@@ -50,16 +53,46 @@ local function RestedDefault()
         or RESTED
 end
 
+-- The border is black, as the rest of the UI's; a theme changes it to its line colour, as it
+-- does the other themed borders.
+local function BorderDefault()
+    return ns.ThemeTint("line", EDGE)
+end
+
+-- Incomplete quests, unpicked: the completed quests colour faded over the background, as
+-- its swatch shows it.
+local function OpenDefault()
+    local q = S.Get("xpBarQuestColor") or QuestDefault()
+    local bg = S.Get("xpBarBgColor") or T.bg
+    return { r = q.r * OPEN_ALPHA + bg.r * (1 - OPEN_ALPHA), g = q.g * OPEN_ALPHA + bg.g * (1 - OPEN_ALPHA),
+        b = q.b * OPEN_ALPHA + bg.b * (1 - OPEN_ALPHA) }
+end
+
 -- Colours a bar: the live one and the settings preview alike.
 local function PaintBar(b)
+    local tex = ns.UI.TexturePath(S.Get("xpBarTexture"), FLAT)
+    b.fill:SetTexture(tex)
     b.fill:SetGradient("HORIZONTAL", FillGradient())
     local q = S.Get("xpBarQuestColor") or QuestDefault()
     local r = S.Get("xpBarRestedColor") or RestedDefault()
     local bg = S.Get("xpBarBgColor") or T.bg
-    b.done:SetColorTexture(q.r, q.g, q.b, 1)
-    if b.open then b.open:SetColorTexture(q.r, q.g, q.b, OPEN_ALPHA) end
-    b.rested:SetColorTexture(r.r, r.g, r.b, 1)
-    b.bg:SetColorTexture(bg.r, bg.g, bg.b, BG_ALPHA)
+    local e = S.Get("xpBarBorderColor") or BorderDefault()
+    b.done:SetTexture(tex)
+    b.done:SetVertexColor(q.r, q.g, q.b, 1)
+    if b.open then
+        -- A picked colour is drawn as picked; unpicked, the quest colour faded.
+        local o = S.Get("xpBarOpenColor")
+        b.open:SetTexture(tex)
+        if o then
+            b.open:SetVertexColor(o.r, o.g, o.b, 1)
+        else
+            b.open:SetVertexColor(q.r, q.g, q.b, OPEN_ALPHA)
+        end
+    end
+    b.rested:SetTexture(tex)
+    b.rested:SetVertexColor(r.r, r.g, r.b, 1)
+    b.bg:SetColorTexture(bg.r, bg.g, bg.b, S.Get("xpBarBgAlpha"))
+    b.edge:SetColor(e.r, e.g, e.b, 1)
 end
 
 -- The rested text keeps its lighter blue by default, which reads better than the bar's own.
@@ -81,7 +114,9 @@ end
 function ns.XPBarDefaultColor(key)
     if key == "xpBarFillColor" then return T.accent end
     if key == "xpBarQuestColor" then return QuestDefault() end
+    if key == "xpBarOpenColor" then return OpenDefault() end
     if key == "xpBarRestedColor" then return RestedDefault() end
+    if key == "xpBarBorderColor" then return BorderDefault() end
     return T.bg
 end
 
@@ -387,8 +422,7 @@ local function ConvertOldTexts()
 end
 
 local TEXT_GAP = 8       -- between two texts in a row
-local SLOT_FONT = 13     -- the texts around the bar, when they fit
-local SLOT_FONT_MIN = 8  -- the smallest they shrink to before they cut off
+local SLOT_FONT_MIN = 8  -- the smallest the texts around the bar shrink to before they cut off
 
 -- How wide a text is in full, with a pixel spare so rounding never cuts it off.
 local function Natural(fs)
@@ -453,15 +487,15 @@ local function RowSize(w, left, mid, right, base)
 end
 
 local function SetSlotSize(fs, size)
-    local font = ns.UIFontPath()
-    if fs._fitSize == size and fs._fitFont == font then return end
-    fs._fitSize, fs._fitFont = size, font
-    fs:SetFont(font, size, "OUTLINE")
+    local font, outline = S.Get("xpBarFont"), S.Get("xpBarOutline")
+    if fs._fitSize == size and fs._fitFont == font and fs._fitOutline == outline then return end
+    fs._fitSize, fs._fitFont, fs._fitOutline = size, font, outline
+    Parts.HudFont(fs, font, size, outline)
 end
 
--- One row of slots (left, middle, right indexes): its own size, then its room.
-local function FitSlotRow(slots, w, placeMid, l, m, r)
-    local size = RowSize(w, slots[l], slots[m], slots[r], SLOT_FONT)
+-- One row of slots (left, middle, right indexes): its own size up to base, then its room.
+local function FitSlotRow(slots, w, placeMid, base, l, m, r)
+    local size = RowSize(w, slots[l], slots[m], slots[r], base)
     SetSlotSize(slots[l], size)
     SetSlotSize(slots[m], size)
     SetSlotSize(slots[r], size)
@@ -472,10 +506,11 @@ end
 -- own texts need. The texts beside the bar have nothing to share their room with, so they keep
 -- the full size and take what they need. placeMid(index, offset) moves a row's middle text.
 local function FitSlots(slots, w, placeMid)
-    FitSlotRow(slots, w, placeMid, TOP_LEFT, TOP, TOP_RIGHT)
-    FitSlotRow(slots, w, placeMid, BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT)
+    local base = S.Get("xpBarFontSize")
+    FitSlotRow(slots, w, placeMid, base, TOP_LEFT, TOP, TOP_RIGHT)
+    FitSlotRow(slots, w, placeMid, base, BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT)
     for _, i in ipairs(BESIDE) do
-        SetSlotSize(slots[i], SLOT_FONT)
+        SetSlotSize(slots[i], base)
         slots[i]:SetWidth(math.max(1, Natural(slots[i])))
     end
 end
@@ -523,7 +558,7 @@ local Look = {}
 
 function Look.New(b)
     -- Coloured by PaintBar.
-    b.bg = ns.Solid(b, "BACKGROUND", T.bg, BG_ALPHA)
+    b.bg = ns.Solid(b, "BACKGROUND", T.bg)
     b.bg:SetAllPoints()
 
     -- The track holds the fill and segments, the full width of the bar.
@@ -536,12 +571,14 @@ function Look.New(b)
     b.done = ns.Solid(b.track, "ARTWORK", QUEST, 1)
     b.open = ns.Solid(b.track, "ARTWORK", QUEST, OPEN_ALPHA)
     b.rested = ns.Solid(b.track, "ARTWORK", RESTED, 1)
+    -- Completed quests over rested; incomplete ones, faded, under it, so they never tint it.
+    b.open:SetDrawLayer("ARTWORK", -1)
     b.rested:SetDrawLayer("ARTWORK", 0)
     b.done:SetDrawLayer("ARTWORK", 1)
-    b.open:SetDrawLayer("ARTWORK", 1)
 
     -- Above the track, whose own frame would otherwise cover the border.
-    ns.Border(b)._frame:SetFrameLevel(b:GetFrameLevel() + 4)
+    b.edge = ns.Border(b, EDGE)   -- coloured by PaintBar
+    b.edge._frame:SetFrameLevel(b:GetFrameLevel() + 4)
 
     local text = CreateFrame("Frame", nil, b)
     text:SetAllPoints()
@@ -562,7 +599,7 @@ function Look.New(b)
     end
     b.slots = {}
     for i, slot in ipairs(SLOTS) do
-        local fs = ns.Font(b, SLOT_FONT, "OUTLINE")
+        local fs = ns.Font(b, S.Get("xpBarFontSize"), "OUTLINE")
         fs:SetPoint(slot.point, b, slot.rel, slot.x or 0, slot.y)
         fs:SetJustifyH(slot.justify)
         fs:SetWordWrap(false)
@@ -596,7 +633,7 @@ function Look.Segments(b, total, pct, done, open, rested, max, maxed)
         b.open:Hide()
     end
     -- Rested runs from the end of your XP like Blizzard's, the full height of the bar and
-    -- drawn over the quest segments, so a bar full of quest XP cannot push it off the
+    -- drawn over the incomplete quests, so a bar full of quest XP cannot push it off the
     -- end. At least 3px, so a sliver of rest still reads.
     local from = total * pct / 100
     local w = math.min(math.max(total * rested / max, 3), total - from)
@@ -621,9 +658,10 @@ end
 function Look.Fit(b, total, h)
     local insideChanged = TextsChanged(b.inside)
     local slotsChanged = TextsChanged(b.slots)
-    local font = ns.UIFontPath()
-    if insideChanged or slotsChanged or b._fitW ~= total or b._fitH ~= h or b._fitFont ~= font then
-        b._fitW, b._fitH, b._fitFont = total, h, font
+    local font, size, outline = S.Get("xpBarFont"), S.Get("xpBarFontSize"), S.Get("xpBarOutline")
+    if insideChanged or slotsChanged or b._fitW ~= total or b._fitH ~= h or b._fitFont ~= font
+        or b._fitSize ~= size or b._fitOutline ~= outline then
+        b._fitW, b._fitH, b._fitFont, b._fitSize, b._fitOutline = total, h, font, size, outline
         FitInside(b.inside, total, h, b.placeInside)
         FitSlots(b.slots, total, b.placeMid)
     end
@@ -950,7 +988,7 @@ local function PaintPreview(preview, state)
     end
     local beside = 0
     for _, i in ipairs(BESIDE) do
-        SetSlotSize(b.slots[i], SLOT_FONT)
+        SetSlotSize(b.slots[i], S.Get("xpBarFontSize"))
         beside = math.max(beside, Natural(b.slots[i]))
     end
     local avail = preview:GetWidth()
@@ -1044,14 +1082,18 @@ local ROWS = {
     { key = "xpBarResetOnReload", label = "Reset Session on Reload", toggle = true,
       help = "Starts the session time and XP/Hour again on a /reload. Off: a /reload carries on the "
           .. "session. A fresh login always starts a new one." },
+    ns.Shared.Settings.Look("xpBar", { text = true, size = { SLOT_FONT_MIN, 20, 1 }, bar = "Flat",
+        background = "alpha" }),
     Group("Colours"),
     ColourRow("xpBarFillColor", "Fill Colour", "Your experience. Its left end is a darker shade."),
-    ColourRow("xpBarQuestColor", "Completed Quests Colour",
-        "The XP of completed quests, and their text. Incomplete quests show it faded."),
+    ColourRow("xpBarQuestColor", "Completed Quests Colour", "The XP of completed quests, and their text."),
+    ColourRow("xpBarOpenColor", "Incomplete Quests Colour",
+        "The XP of quests still in progress. By default the completed quests colour, faded."),
     ColourRow("xpBarRestedColor", "Rested Colour", "Rested experience, and its text."),
     ColourRow("xpBarBgColor", "Background Colour", "Behind the fill."),
+    ColourRow("xpBarBorderColor", "Border Colour", "The line round the bar."),
     { label = "Reset Colours", buttonText = "Reset Colours", button = ns.ResetXPBarColors,
-      help = "The four colours back to their defaults, which follow the theme." },
+      help = "The colours back to their defaults, which follow the theme." },
     Hidden(Group("Text")),
 }
 for _, spot in ipairs(INSIDE) do ROWS[#ROWS + 1] = TextRow(spot, INSIDE, BAR_TEXTS, BAR_TEXT_HELP) end
@@ -1066,8 +1108,8 @@ end
 ns.Shared.Settings.Page("QoL/XP", S):Card({
     id = "xpBar", name = "XP Bar", order = 10, switch = "xpBar",
     help = "Your level, experience and percentage on one bar, with the XP of completed quests and rested "
-        .. "experience drawn past the fill. Replaces Blizzard's experience bar while it is on. Move it in "
-        .. "Unlock Mode. Ctrl + right-click the bar to reset the session time and XP/Hour.",
+        .. "experience drawn past the fill. Replaces Blizzard's experience bar while it is on. Move it in the "
+        .. "HUD Editor. Ctrl + right-click the bar to reset the session time and XP/Hour.",
     summary = Summary,
     studio = { height = PREVIEW_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = ROWS,

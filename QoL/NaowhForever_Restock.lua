@@ -5,6 +5,7 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 -- Class spells that use a vendor reagent on Forever, from its SpellReagents data
 -- (build 1.60.1.69913). Each family lists its ranks from lowest; the highest rank you know
@@ -45,6 +46,7 @@ local TARGETS = {
 
 local AMMO_SLOT = 0
 local FOOD_CLASS, FOOD_SUBCLASS = 0, 5   -- Consumable: Food & Drink
+local TITLE_GROW = 6   -- the title's font size over the list's
 
 local alert, flash
 local wasResting
@@ -179,7 +181,7 @@ local function BuildAlert()
     alert.text = ns.Font(alert, 16, "OUTLINE")
     alert.text:SetPoint("TOP", alert.title, "BOTTOM", 0, -4)
     alert.text:SetJustifyH("CENTER")
-    alert.mover = ns.UI.AttachMover(alert, "Restock", function(pos) S.Set("restockPos", pos) end, "QoL/Loot & Items", "QoL/Loot & Items:restock")
+    alert.backdrop = Parts.HudBackdrop(alert, { mode = "none" })
 
     -- Pulses a few times when it appears, then stays solid until it is dealt with.
     flash = alert:CreateAnimationGroup()
@@ -193,13 +195,8 @@ local function BuildAlert()
     pulse:SetToAlpha(0.35)
     pulse:SetDuration(0.6)
 
-    local pos = S.Get("restockPos")
-    if pos then
-        alert:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else
-        alert:SetPoint("CENTER", UIParent, "CENTER", 0, 220)
-    end
     alert:Hide()
+    ns.AlertStack(alert, 4)
 end
 
 local function HideAlert()
@@ -209,8 +206,16 @@ local function HideAlert()
     end
 end
 
+local function Style()
+    local font, size, outline = S.Get("restockFont"), S.Get("restockFontSize"), S.Get("restockOutline")
+    local mode = alert.backdrop:SetMode(S.Get("restockBackground"))
+    Parts.HudFont(alert.title, font, size + TITLE_GROW, outline, mode)
+    Parts.HudFont(alert.text, font, size, outline, mode)
+end
+
 local function ShowAlert(lines)
     if not alert then BuildAlert() end
+    Style()
     alert.text:SetText(table.concat(lines, "\n"))
     alert:SetSize(math.max(alert.title:GetStringWidth(), alert.text:GetStringWidth()) + 16,
         alert.title:GetStringHeight() + alert.text:GetStringHeight() + 12)
@@ -353,7 +358,7 @@ end
 
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or key == "sellJunk" or key == "autoRepair"
-        or (key:find("^restock") and key ~= "restockPos") then
+        or key:find("^restock") then
         Apply()
     end
 end)
@@ -361,14 +366,8 @@ hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
     if not On() then return end
     ShowAlert({ "Arcane Powder  3 / 20", "Rough Arrow  150 / 1000", "Junk to sell  6" })
-    alert.mover:Show()
 end)
-hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
-    if alert then
-        alert.mover:Hide()
-        HideAlert()
-    end
-end)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", HideAlert)
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
@@ -415,6 +414,7 @@ local FIXED = {
     { key = "restockBagsBelow", label = "Free Slots Below", slider = { 1, 20, 1 }, needs = "restockVendor" },
 }
 local CARRY_GROUP = Group("Reagents to Carry")
+local LOOK = ns.Shared.Settings.Look("restock", { text = true, size = { 10, 32, 1 }, background = "card" })
 
 local restockRows, reagentRows, seenReagents = {}, {}, {}
 
@@ -452,6 +452,7 @@ local function RestockRows()
             end
         end
     end
+    restockRows[#restockRows + 1] = LOOK
     return restockRows
 end
 
@@ -469,7 +470,7 @@ loot:Card({
     id = "restock", name = "Restock Reminder", order = 50, switch = "restock",
     help = "When you reach a city or inn, a flashing list in the middle of the screen of what "
         .. "you are short on. It stays up until you have what you need or leave. Move it "
-        .. "in Unlock Mode.",
+        .. "in the HUD Editor.",
     summary = RestockSummary,
     rows = RestockRows,
 })

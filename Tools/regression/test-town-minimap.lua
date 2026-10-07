@@ -1,0 +1,133 @@
+-- Run with Lua 5.1 from the repository root: the town map's minimap pins. With the setting on,
+-- the zone's mailboxes and spirit healers (whatever the world map's toggles for them say) are
+-- pinned around the player in yards, scaled to the minimap's view radius, hidden out of range,
+-- turned with a rotating minimap, placed often only while moving, and nothing is registered
+-- while the setting is off.
+local function Read(path)
+    local f = assert(io.open(path, "rb"))
+    local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
+    return s
+end
+
+local checks = 0
+local function Check(ok, label) assert(ok, label); checks = checks + 1 end
+
+local settings = { enabled = true, townMap = true, townMinimap = false, townMail = false, townSpiritHealers = false }
+local S = { Get = function(key) return settings[key] end, Set = function() end }
+local ns = {
+    QoLSettings = S, Apply = function() end, ThemeTint = function() end,
+    TownCapitals = {}, TownNPCs = {},
+    TownMailboxes = { [1] = { { 55, 50, "mail", "Mailbox", "", nil, "AH" }, { 50, 30, "mail", "Mailbox", "", nil, "AH" } } },
+    TownSpiritHealers = { [1] = { { 50, 55, "spirit", "Spirit Healer", "Graveyard", nil, "AH" } } },
+    Shared = { Settings = { Group = function() end, Page = function() return { Card = function() end } end } },
+}
+
+local frames = {}
+local function NewFrame()
+    local f = { events = {}, scripts = {}, shown = true }
+    function f:RegisterEvent(e) self.events[e] = true end
+    function f:UnregisterEvent(e) self.events[e] = nil end
+    function f:SetScript(name, fn) self.scripts[name] = fn end
+    function f:SetSize() end
+    function f:SetPoint(_, _, _, x, y) self.x, self.y = x, y end
+    function f:SetShown(shown) self.shown = shown end
+    function f:Hide() self.shown = false end
+    f.Icon = { SetTexCoord = function() end, SetTexture = function() end }
+    frames[#frames + 1] = f
+    return f
+end
+
+local player = { 0.5, 0.5 }
+local facing, rotate, walking, continent = 0, false, false, 0
+-- World coordinates as the game has them: the axes swapped and mirrored from the map's.
+local function World(x, y) return 5000 - y * 1000, 3000 - x * 1000 end
+local function Vector(x, y) return { GetXY = function() return x, y end } end
+local env = setmetatable({
+    _G = { NaowhForever = ns },
+    CreateFromMixins = function() return {} end,
+    MapCanvasPinMixin = {}, MapCanvasDataProviderMixin = {},
+    CreateFrame = function(_, _, parent) local f = NewFrame(); f.parent = parent; return f end,
+    hooksecurefunc = function() end,
+    WorldMapFrame = { AddDataProvider = function() end, IsShown = function() return false end,
+        dataProviders = {}, EnumeratePinsByTemplate = function() return function() end end },
+    Minimap = { GetWidth = function() return 200 end, GetHeight = function() return 200 end },
+    C_Map = {
+        GetBestMapForUnit = function() return 1 end,
+        GetMapWorldSize = function() return 1000, 1000 end,
+        GetWorldPosFromMapPos = function(_, pos) return 0, Vector(World(pos:GetXY())) end,
+        GetPlayerMapPosition = function() error("makes a table on every tick") end,
+    },
+    CreateVector2D = Vector,
+    UnitPosition = function()
+        local wx, wy = World(player[1], player[2])
+        return wx, wy, 0, continent
+    end,
+    IsPlayerMoving = function() return walking end,
+    C_Minimap = { GetViewRadius = function() return 100 end },
+    C_CVar = { GetCVarBool = function() return rotate end },
+    GetPlayerFacing = function() return facing end,
+    wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+}, { __index = _G })
+local chunk = assert(loadstring(Read("QoL/NaowhForever_TownMap.lua")))
+setfenv(chunk, env)
+chunk()
+
+local boot, mini
+for _, f in ipairs(frames) do
+    if f.events.PLAYER_LOGIN then boot = f end
+end
+mini = frames[1]
+Check(boot and mini.scripts.OnEvent, "the town map's frames")
+
+boot.scripts.OnEvent()
+Check(next(mini.events) == nil, "nothing registered while the minimap setting is off")
+
+settings.townMinimap = true
+boot.scripts.OnEvent()
+local pins = {}
+for _, f in ipairs(frames) do
+    if f.parent == env.Minimap then pins[#pins + 1] = f end
+end
+Check(#pins == 3 and mini.events.PLAYER_STARTED_MOVING and mini.events.ZONE_CHANGED_NEW_AREA,
+    "a pin for each mailbox and spirit healer, with the world map's toggles for them off")
+local east, north, south = pins[1], pins[2], pins[3]
+Check(math.abs(east.x - 50) < 1e-6 and math.abs(east.y) < 1e-6 and east.shown, "50 yards east, in range")
+Check(not north.shown, "200 yards north is out of range")
+Check(math.abs(south.y + 50) < 1e-6 and south.shown, "50 yards south, below the player")
+Check(mini.scripts.OnUpdate == nil, "standing still nothing runs")
+
+mini.scripts.OnEvent(mini, "PLAYER_STARTED_MOVING")
+Check(mini.scripts.OnUpdate ~= nil, "placed while moving")
+player[1] = 0.53
+mini.scripts.OnUpdate(mini, 0.1)
+Check(math.abs(east.x - 20) < 1e-6, "the pin follows as you walk")
+mini.scripts.OnEvent(mini, "PLAYER_STOPPED_MOVING")
+Check(mini.scripts.OnUpdate == nil, "and stops when you stop")
+
+player[1] = 0.5
+rotate, facing = true, math.pi / 2
+mini.scripts.OnEvent(mini, "MINIMAP_UPDATE_ZOOM")
+Check(math.abs(east.x) < 1e-6 and math.abs(east.y + 50) < 1e-6, "facing west, east is behind you")
+rotate, facing = false, 0
+
+continent = 1
+mini.scripts.OnEvent(mini, "MINIMAP_UPDATE_ZOOM")
+Check(not east.shown and not south.shown, "on another continent the pins hide")
+continent = 0
+
+walking = true
+mini.scripts.OnEvent(mini, "PLAYER_STARTED_MOVING")
+settings.townMinimap = false
+boot.scripts.OnEvent()
+Check(not east.shown and not south.shown and next(mini.events) == nil, "turning it off clears the minimap")
+Check(mini.scripts.OnUpdate == nil, "and stops placing pins")
+walking = false
+settings.townMinimap = true
+boot.scripts.OnEvent()
+Check(mini.scripts.OnUpdate == nil, "back on while standing still, nothing runs")
+settings.townMinimap = false
+boot.scripts.OnEvent()
+
+Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimap = false", 1, true), "Minimap pins start off")
+
+print(("test-town-minimap: %d checks passed"):format(checks))

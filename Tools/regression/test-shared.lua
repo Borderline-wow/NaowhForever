@@ -24,6 +24,7 @@ local METHODS = {
     RegisterEvent = function(f, event) f.events[event] = true end,
     UnregisterAllEvents = function(f) for event in pairs(f.events) do f.events[event] = nil end end,
     GetParent = function(f) return rawget(f, "parent") end,
+    IsForbidden = function() return false end,
     SetWidth = function(f, w) f.w = w end,
     SetHeight = function(f, h) f.h = h end,
     SetSize = function(f, w, h) f.w, f.h = w, h end,
@@ -56,6 +57,7 @@ end
 
 local WHITE = { r = 1, g = 1, b = 1 }
 local timers = {}
+local coinCalls = 0
 local tooltip = Frame()
 tooltip.GetOwner = function() return nil end
 
@@ -112,6 +114,10 @@ local env = setmetatable({
     InCombatLockdown = function() return false end,
     CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end,
     UIParent = Frame(),
+    C_CurrencyInfo = { GetCoinTextureString = function(copper)
+        coinCalls = coinCalls + 1
+        return "<" .. copper .. ">"
+    end },
 }, { __index = _G })
 env._G = env
 
@@ -148,6 +154,17 @@ local Parts = Shared.Parts
 local newItem = next(Shared.ForeverNew.items)
 check("an item new in Forever has the mark; one from the original game not", Parts.IsForever("items", newItem)
     and not Parts.IsForever("items", 19019))
+
+local partsSource = assert(io.open("Shared/Parts.lua", "rb")):read("*a")
+local COINS_KEPT = tonumber(partsSource:match("local COINS_KEPT = (%d+)"))
+check("a price in coins, asked for again, is made once", Parts.Coins(12345) == "<12345>"
+    and Parts.Coins(12345) == "<12345>" and coinCalls == 1)
+for copper = 1, COINS_KEPT * 3 do Parts.Coins(copper) end
+local calls = coinCalls
+Parts.Coins(COINS_KEPT * 3)
+check("the prices kept are bounded: the newest are still there", coinCalls == calls)
+Parts.Coins(1)
+check("and the oldest go", coinCalls == calls + 1)
 
 -------------------------------------------------------------------------------
 --  The row engine: a page of rows of its own kind, under a shared section title.
@@ -192,6 +209,18 @@ check("drawn again shorter: rows reused, none made, the rest hidden", madeRows =
     and view.pools.line[11].shown == false)
 local row = view:Find("line", function(r, text) return r.label.text == text end, "line 7")
 check("a drawn row found by what it shows", row and row.top == view.pools.line[7].top)
+local forbidden = setmetatable({}, { __index = function(_, key)
+    if key == "IsForbidden" then return function() return true end end
+    error("touched a forbidden frame: " .. key)
+end })
+tooltip.GetOwner = function() return forbidden end
+tooltip.shown = true
+check("a redraw leaves a tooltip on a forbidden frame (a nameplate aura in combat) alone",
+    pcall(view.Redraw, view) and tooltip.shown == true)
+tooltip.GetOwner = function() return view.pools.line[1] end
+view:Redraw()
+check("and still closes its own row's tooltip", tooltip.shown == false)
+tooltip.GetOwner = function() return nil end
 view.waitOn = 3
 view:Redraw()
 check("a row waiting on an item's name: listened for", view.events.GET_ITEM_INFO_RECEIVED)
@@ -257,6 +286,40 @@ check("the second time too", backs == 2)
 view.Redraw = redraw
 view.count = 50
 Measure(check)("a page of 50 rows redrawn", 1, function() view:Redraw() end)
+
+-------------------------------------------------------------------------------
+--  A declared settings page, drawn again after a change: no garbage.
+-------------------------------------------------------------------------------
+local function Control(parent)
+    local control = Frame(parent)
+    control._refreshValue, control._refreshLabel = NOTHING, NOTHING
+    return control
+end
+METHODS.GetFrameLevel = function() return 1 end
+ns.UI.BuildToggleControl = Control
+ns.UI.BuildSliderCore = function(parent) return Control(parent), Frame(parent) end
+ns.UI.SetSliderRange = NOTHING
+ns.UI.CHEVRON, ns.UI.CONTENT_PAD = "chevron", 20
+local values = { on = true, size = 12 }
+local store = {
+    Get = function(k) return values[k] end,
+    Raw = function(k) return values[k] end,
+    Default = function() return nil end,
+    Set = function(k, v) values[k] = v end,
+    OnChange = NOTHING,
+}
+local Settings = Shared.Settings
+Settings.Page("Test/Costs", store):Card({ id = "costs", name = "Costs", switch = "on", rows = {
+    Settings.Group("Look"),
+    { key = "shown", label = "Shown", toggle = true },
+    { key = "size", label = "Size", slider = { 8, 32, 1 }, unit = "px", needs = "shown" },
+    { key = "alpha", label = "Opacity", slider = { 0, 100, 5 }, unit = "%" },
+} })
+local settingsParent = Frame()
+Settings.Render(settingsParent, "Test/Costs", NOTHING)
+local settingsView = settingsParent.settingsView
+check("the settings page drew its card", settingsView.pools.setting.used == 3 and settingsView.pools.group.used == 1)
+Measure(check)("a settings page redrawn", 1, function() settingsView:Redraw() end)
 
 -------------------------------------------------------------------------------
 --  A tracker's window (Parts.TrackerPanel): built only when asked, its parts where the
@@ -351,5 +414,119 @@ local plain = Parts.TrackerPanel("PLAIN", {})
 check("with no options: no bar, dropdown or cog, its body under the title", not plain.bar and not plain.picker
     and not plain.settings and plain.footer == 0 and plain:Top() == 34 and plain:Fit(100) == false)
 check("and a tracker's width", plain.w == Shared.Style.TRACKER_W)
+
+-------------------------------------------------------------------------------
+--  The look standard: Settings.Look's rows, a card holding them, the texture and outline
+--  choices, and Parts.HudFont.
+-------------------------------------------------------------------------------
+local widgets = assert(io.open("Core/NaowhForever_Widgets.lua", "rb")):read("*a"):gsub("\r\n", "\n")
+local helpers = assert(widgets:match("\n(function UI%.FontPath%(name%).-\nfunction UI%.TexturePath%(name, fallback%).-\nend)\n"),
+    "Widgets: FontPath to TexturePath")
+local MEDIA = { font = { Naowh = "naowh.ttf" },
+    statusbar = { Blizzard = "bar.blp", Solid = "solid", ["Naowh Gradient"] = "gradient.tga" } }
+local LSM = {
+    List = function(_, kind)
+        local names = {}
+        for name in pairs(MEDIA[kind]) do names[#names + 1] = name end
+        table.sort(names)
+        return names
+    end,
+    Fetch = function(_, kind, name) return MEDIA[kind][name] end,
+}
+local helperEnv = setmetatable({ UI = ns.UI, ns = ns, LibStub = function() return LSM end }, { __index = _G })
+local chunk = assert(loadstring(helpers))
+setfenv(chunk, helperEnv)
+chunk()
+local UI = ns.UI
+
+local textures, list = UI.TextureChoices("", "Flat")
+check("texture choices: the element's own texture first, under its name", list[1] == "" and textures[""] == "Flat")
+check("then every SharedMedia statusbar", textures.Solid == "Solid" and textures["Naowh Gradient"] == "Naowh Gradient"
+    and #list == 4)
+textures, list = UI.TextureChoices("Gone", "Naowh Gradient")
+check("an entry named as the element's own is not listed twice", textures["Naowh Gradient"] == nil and #list == 4)
+check("a saved texture that has gone stays listed", textures.Gone == "Gone (unavailable)" and list[#list] == "Gone")
+check("texture path: a SharedMedia name", UI.TexturePath("Solid", "own") == "solid")
+check("texture path: the element's own for empty or missing", UI.TexturePath("", "own") == "own"
+    and UI.TexturePath("Gone", "own") == "own" and UI.TexturePath(nil, "own") == "own")
+local core = assert(io.open("Core/NaowhForever_Core.lua", "rb")):read("*a")
+check("the Naowh Gradient is a SharedMedia statusbar",
+    core:find('LSM:Register("statusbar", "Naowh Gradient", "Interface\\\\AddOns\\\\NaowhForever\\\\Media\\\\NaowhGradient.tga")', 1, true))
+
+local function Keys(entries)
+    local out = {}
+    for _, r in ipairs(entries) do out[#out + 1] = r.group and ("[" .. r.group .. "]") or r.key end
+    return table.concat(out, " ")
+end
+local function Needs() return true end
+local look = Settings.Look("combatTimer", { text = true, background = "card", needs = Needs, why = "Off" })
+check("text and card rows keyed by the prefix", Keys(look)
+    == "[Text] combatTimerFont combatTimerFontSize combatTimerOutline [Background] combatTimerBackground")
+check("every row takes needs and why", look[2].needs == Needs and look[6].why == "Off")
+check("the card background is the HUD backgrounds choice", look[6].choice == Parts.HUD_BACKGROUNDS)
+check("the outline row is the shared outline choice", look[4].choice == Parts.HUD_OUTLINES
+    and Parts.HUD_OUTLINES[2][1] == "NONE" and Parts.HUD_OUTLINES[2][2] == "" and Parts.HUD_OUTLINES[2][4] == "THICKOUTLINE")
+look = Settings.Look("", { text = true, size = { 6, 24, 1 }, bar = "Flat", background = "alpha",
+    keys = { FontSize = "textSize", Outline = false } })
+check("no prefix: plain keys; an existing key kept; a row left out", Keys(look)
+    == "[Text] font textSize [Bar] texture bgAlpha")
+check("the size range given, the texture's own name, opacity in percent", look[3].slider[2] == 24
+    and look[5].texture == "Flat" and look[6].unit == "%" and look[6].scale == 0.01)
+look = Settings.Look("bag", { background = "alpha", keys = { BgAlpha = false } })
+check("a part with every row left out has no group", #look == 0)
+look = Settings.Look("bag", { background = "alpha" })
+check("opacity without a bar has its own group", Keys(look) == "[Background] bagBgAlpha")
+
+local picked
+ns.UI.BuildDropdownControl = function(parent)
+    local control = Control(parent)
+    control._refreshLabel = function() picked = control._values end
+    return control
+end
+local lookValues = { on = true, texture = "Solid" }
+local lookStore = {
+    Get = function(k) return lookValues[k] end,
+    Raw = function(k) return lookValues[k] end,
+    Default = function(k) return ({ on = true, texture = "", outline = "OUTLINE" })[k] end,
+    Set = function(k, v) lookValues[k] = v end,
+    OnChange = NOTHING,
+}
+local card = Settings.Page("Test/Look", lookStore):Card({ id = "look", name = "Look", rows = {
+    Settings.Group("Behaviour"),
+    { key = "on", label = "On", toggle = true },
+    Settings.Look("", { bar = "Flat" }),
+    { key = "barAlpha", label = "Bar Opacity", slider = { 0, 100, 5 } },
+} })
+check("a card takes Look's rows in place", Keys(card.rows) == "[Behaviour] on [Bar] texture barAlpha")
+check("its rows are set up like any other", card.rows[4].kind == "texture" and card.rows[4].get() == "Solid"
+    and card.rows[4].card == card)
+card.rows[4].set("Blizzard")
+check("and save to the store", lookValues.texture == "Blizzard" and Settings.ChangedCount(card) == 1)
+Settings.Render(Frame(), "Test/Look", NOTHING)
+check("a texture row lists SharedMedia's statusbars", picked and picked[""] == "Flat" and picked.Blizzard == "Blizzard")
+local fnCard = Settings.Page("Test/Look", lookStore):Card({ id = "fn", name = "Fn", rows = function()
+    return { Settings.Look("", { text = true, keys = { Font = false, FontSize = false } }) }
+end })
+check("rows from a function are flattened too", Keys(Settings.Rows(fnCard)) == "[Text] outline"
+    and fnCard.rows[2].kind == "choice")
+
+local fs = Frame()
+function fs:SetFont(path, size, flags) self.font, self.size, self.flags = path, size, flags end
+function fs:SetShadowColor(_, _, _, a) self.shadowAlpha = a end
+function fs:SetShadowOffset(x, y) self.shadowX, self.shadowY = x, y end
+ns.UI.FontPath = function(name) return name == "" and "addon.ttf" or name .. ".ttf" end
+local St = Shared.Style
+check("hud font: face, size and outline, and returns the string", Parts.HudFont(fs, "Naowh", 14, "OUTLINE") == fs
+    and fs.font == "Naowh.ttf" and fs.size == 14 and fs.flags == "OUTLINE")
+check("an outline takes the shadow off", fs.shadowAlpha == 0 and fs.shadowX == 0)
+Parts.HudFont(fs, "", 12, "")
+check("no outline: the Addon Font with the card's shadow", fs.font == "addon.ttf" and fs.flags == ""
+    and fs.shadowAlpha == St.HUD_SHADOW_ALPHA and fs.shadowX == St.HUD_SHADOW_X)
+Parts.HudFont(fs, "", 12, "", "soft")
+check("or the shadow for its background", fs.shadowAlpha == St.HUD_SOFT_SHADOW_ALPHA)
+Parts.HudFont(fs, "", 12, "THICKOUTLINE", "none")
+check("a thick outline has no shadow either", fs.flags == "THICKOUTLINE" and fs.shadowAlpha == 0)
+Parts.HudFont(fs, "", 12, "NONE")
+check("None: no outline and no shadow", fs.flags == "" and fs.shadowAlpha == 0 and fs.shadowX == 0)
 
 print(("test-shared: %d checks passed"):format(checks))

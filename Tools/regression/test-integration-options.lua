@@ -89,7 +89,7 @@ local function Fixture()
         end,
     }, { __index = _G })
     env._G = env
-    local c = assert(loadfile(root .. "/SmartReminders/NaowhForever_IntegrationOptions.lua")); setfenv(c, env); c()
+    local c = assert(loadfile(root .. "/NaowhForever_SmartReminders/NaowhForever_IntegrationOptions.lua")); setfenv(c, env); c()
     e.tab = Tab
     -- There is no Save button any more. Committing every text box is what leaving the
     -- editor does, and every other control writes through the moment it changes.

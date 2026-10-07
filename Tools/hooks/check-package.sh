@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Checks the zip the packager built in .release: one NaowhForever/ folder at the top, every
-# file the TOC loads (following the XML files it includes) and every library .pkgmeta
-# fetches is inside, and no tooling ships.
+# Checks the zip the packager built in .release: NaowhForever/ and each module addon
+# (NaowhForever_<Module>/, moved out by .pkgmeta) at the top, every file the TOCs load
+# (following the XML files they include) and every library .pkgmeta fetches is inside, and
+# no tooling ships.
 set -u
 shopt -s nullglob
 zips=(.release/*.zip)
@@ -15,12 +16,26 @@ list=$(unzip -Z1 "$zip")
 problems=0
 fail() { echo "  $1"; problems=$((problems + 1)); }
 
-outside=$(echo "$list" | grep -v '^NaowhForever/' || true)
-[ -z "$outside" ] || fail "outside the NaowhForever/ folder: $(echo "$outside" | head -3 | tr '\n' ' ')"
+children=$(tr -d '\r' < .pkgmeta | sed -n 's/^  NaowhForever\/\(NaowhForever_[^:]*\):.*/\1/p')
+allowed="NaowhForever"
+for child in $children; do allowed="$allowed|$child"; done
+outside=$(echo "$list" | grep -vE "^($allowed)/" || true)
+[ -z "$outside" ] || fail "outside the addon folders: $(echo "$outside" | head -3 | tr '\n' ' ')"
 
-has() { echo "$list" | grep -qxF "NaowhForever/$1"; }
+# A module addon's files sit in its own folder at the top of the zip, the rest in NaowhForever/.
+has() {
+    case "$1" in
+        NaowhForever_*) echo "$list" | grep -qxF "$1" ;;
+        *) echo "$list" | grep -qxF "NaowhForever/$1" ;;
+    esac
+}
 
-# Every file the TOC loads, following its XML includes (Tools/hooks/toc_files.py).
+for child in $children; do
+    has "$child/$child.toc" || fail "TOC missing: $child/$child.toc"
+    if echo "$list" | grep -q "^NaowhForever/$child/"; then fail "$child is still inside NaowhForever/"; fi
+done
+
+# Every file the TOCs load, following their XML includes (Tools/hooks/toc_files.py).
 while IFS= read -r path; do
     path="${path%$'\r'}"
     [ -n "$path" ] || continue

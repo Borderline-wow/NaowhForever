@@ -93,7 +93,7 @@ local function Fixture(opts)
         QuestDifficultyColors = COLORS,
         GetQuestDifficultyColor = function(questLevel) return DifficultyColor(questLevel, level) end,
     }, { __index = _G })
-    local chunk = assert(loadfile("DungeonJournal/Quests.lua"))
+    local chunk = assert(loadfile("NaowhForever_DungeonJournal/Quests.lua"))
     setfenv(chunk, env)
     chunk()
     local byID = {}
@@ -414,8 +414,8 @@ end)
 Case("the generated quest and chain data is well formed and free of loops", function()
     local J = {}
     local env = setmetatable({ _G = { NaowhForever = { Journal = J } } }, { __index = _G })
-    for _, path in ipairs({ "DungeonJournal/Data/Quests.lua", "DungeonJournal/Data/QuestChains.lua",
-        "DungeonJournal/Data/BiSQuests.lua" }) do
+    for _, path in ipairs({ "NaowhForever_DungeonJournal/Data/Quests.lua", "NaowhForever_DungeonJournal/Data/QuestChains.lua",
+        "NaowhForever_DungeonJournal/Data/BiSQuests.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()
@@ -516,8 +516,8 @@ Case("every quest in a generated chain is in its own chain", function()
     local J = {}
     local ns = { Journal = J }
     local env = setmetatable({ _G = { NaowhForever = ns }, C_QuestLog = {} }, { __index = _G })
-    for _, path in ipairs({ "DungeonJournal/Data/Quests.lua", "DungeonJournal/Data/QuestChains.lua",
-                            "DungeonJournal/Quests.lua" }) do
+    for _, path in ipairs({ "NaowhForever_DungeonJournal/Data/Quests.lua", "NaowhForever_DungeonJournal/Data/QuestChains.lua",
+                            "NaowhForever_DungeonJournal/Quests.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()

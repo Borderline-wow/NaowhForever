@@ -1,6 +1,8 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_Core.lua -- theme, chrome primitives, DB and profile plumbing.
 --  Standalone addon: no EllesmereUI dependency.
+--  ns.FEATURE_BADGES: 0 hides supporter badges, badge settings and support mentions until they
+--  launch; the team's badges still show, on their defaults.
 -------------------------------------------------------------------------------
 local ADDON_NAME = ...
 
@@ -23,7 +25,9 @@ end
 -- Bumped by hand on every code change sent to a tester and printed beside the TOC version,
 -- which only moves on release. A report naming a stamp the reporter was not sent comes from
 -- a client that was not reloaded after the files changed.
-ns.CODE_BUILD = "0.5.21-beta"
+ns.CODE_BUILD = "0.5.25-beta"
+
+ns.FEATURE_BADGES = 0
 
 -- Naowh's own scheme: dark grey with his blue (#0091ed) as the single accent.
 ns.THEME = {
@@ -122,6 +126,12 @@ function ns.Color(token, text)
     end
     if text == nil then return prefix end
     return prefix .. text .. "|r"
+end
+
+function ns.PlainText(text, max)
+    if type(text) ~= "string" then return nil end
+    if max and #text > max then text = text:sub(1, max) end
+    return (text:gsub("%c", " "):gsub("||", "\1"):gsub("|", "||"):gsub("\1", "||"))
 end
 
 -- Player colors from Settings > COLORS, saved for this computer. They are written into the
@@ -273,11 +283,14 @@ end
 -- A secret-tainted message is silently dropped by the display, so a combat diagnostic can
 -- vanish as if the code never ran. tostring() on a secret returns a secret string that taints
 -- whatever it is joined to, so issecretvalue() must be asked before the value is coerced.
+local PRINT_LOGO_DROP = 1
+ns.PRINT_LOGO = ("|TInterface\\AddOns\\NaowhForever\\Media\\LogoAddon.tga:0:0:0:%d|t"):format(-PRINT_LOGO_DROP)
+
 function ns.Print(msg)
     if issecretvalue and issecretvalue(msg) then
         msg = ns.Color("accent", "(withheld: this line contained a secret value)")
     end
-    print(ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
+    print(ns.PRINT_LOGO .. " " .. ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
 
 -- Libs/ is not in git; the packager adds it. An install from the repository's source zip has
@@ -367,6 +380,7 @@ local NAOWH_FONT = "Interface\\AddOns\\NaowhForever\\Media\\Fonts\\Naowh.ttf"
 local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
 if LSM then
     LSM:Register("font", "Naowh", NAOWH_FONT, LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western)
+    LSM:Register("statusbar", "Naowh Gradient", "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
 end
 
 -- The three fonts on the Settings page, saved for this computer. Addon Font is this addon's
@@ -576,6 +590,7 @@ function ns.Button(parent, text, w, h, onClick)
     local border = ns.Border(btn, BLACK)
     -- The border and the colour it rests at, so a caller can restyle a button (AccentButton).
     btn._border, btn._rest = border, BLACK
+    btn._bg = bg
     local lbl = ns.Font(btn, 12, nil)
     lbl:SetPoint("CENTER")
     lbl:SetText(ns.L(text))
@@ -871,6 +886,7 @@ end
 
 -- Confirm for a reload: Reload UI runs the game's own /reload (see Reload UI above).
 local CONFIRM_W, CONFIRM_WIDE = 96, 150
+local CONFIRM_H, CONFIRM_ROOM = 110, 74
 
 function ns.ConfirmReload(text)
     local UI = ns.UI
@@ -888,18 +904,22 @@ end
 
 function ns.Confirm(text, onYes, onNo, yesText, noText)
     local UI = ns.UI
-    local dimmer, panel = ns.MakeModal(340, 110, "confirm")
+    local dimmer, panel = ns.MakeModal(340, CONFIRM_H, "confirm")
     local head = UI.KeepFont(panel, "head", 13, nil)
     head:SetPoint("TOP", 0, -18)
     head:SetWidth(310)
     head:SetText(text)
+    panel:SetHeight(math.max(CONFIRM_H, head:GetStringHeight() + CONFIRM_ROOM))
     local w = (yesText or noText) and CONFIRM_WIDE or CONFIRM_W
-    UI.KeepButton(panel, "yes", yesText or "Yes", w, 26, function() dimmer:Hide(); onYes() end)
-        :SetPoint("BOTTOM", panel, "BOTTOM", -(w / 2 + 4), 14)
-    UI.KeepButton(panel, "no", noText or "No", w, 26, function()
+    UI.KeepButton(panel, "yes", yesText or "Yes", w, 26, function()
+        dimmer.onClose = nil
         dimmer:Hide()
-        if onNo then onNo() end
-    end):SetPoint("BOTTOM", panel, "BOTTOM", w / 2 + 4, 14)
+        onYes()
+    end):SetPoint("BOTTOM", panel, "BOTTOM", -(w / 2 + 4), 14)
+    UI.KeepButton(panel, "no", noText or "No", w, 26, function() dimmer:Hide() end)
+        :SetPoint("BOTTOM", panel, "BOTTOM", w / 2 + 4, 14)
+    -- No, Escape and a newer confirm taking this one's place all count as no.
+    dimmer.onClose = onNo
     dimmer:Show()
 end
 
@@ -907,8 +927,8 @@ end
 --  SavedVariables and profiles
 -------------------------------------------------------------------------------
 -- The addon's own DB. Profiles are account-wide with a per-character active pointer;
--- SettingsRoot hands back the active profile's root, and TRDB layers its defaults onto
--- root.tankReminder from there. A switch hands TRDB a different table identity, which is
+-- SettingsRoot hands back the active profile's root, and ns.DB layers its defaults onto
+-- root.tankReminder from there. A switch hands ns.DB a different table identity, which is
 -- what re-runs its weak-keyed defaults fill.
 local activeRoot, provisional
 
@@ -957,6 +977,96 @@ function ns.SettingsRoot()
     return activeRoot
 end
 
+-------------------------------------------------------------------------------
+--  Smart Reminders' settings (ns.DB). In the core so they are there while its addon is
+--  off: profiles carry them, and the class macros and consumables are kept in them.
+-------------------------------------------------------------------------------
+-- Flat scalars only: a nested default would hand out a live reference to DEFAULTS itself.
+-- Everything ships off by the owner's direction; until enabled, no events or frames exist.
+local DEFAULTS = {
+    enabled   = false,
+    showIcon  = false,
+    showText  = false,
+    showBar   = false,
+    soundOn   = false,
+    soundKey  = "none",
+    fallbackOn = false,
+    coveredSkip = false,
+    coveredCastWindow = 6,   -- how long your own cast counts as cover
+    leadTime   = 3,     -- seconds before impact that the alert fires
+    lingerSec  = 3,     -- display duration; early dismissal on cast is opt-in
+    cdmGlow    = false, -- glow the called defensive on the Cooldown Manager bar
+    voiceOn   = false,
+    voiceNone = "Call for external",
+    externalChat = false,
+    voiceVol  = 100,
+    iconSize  = 64,
+    -- 21 matches the old derived floor(iconSize * 0.34) at the default iconSize of 64.
+    textSize   = 21,
+    textSide   = "BOTTOM",   -- TOP, BOTTOM, LEFT or RIGHT
+    -- bossSource ("timeline", "bigwigs" or "dbm") has no default: unset follows the
+    -- installed boss mod, see ns.BossSource().
+    -- pos = { point, relPoint, x, y } once moved in Unlock Mode; nil = default centre.
+}
+
+-- Profile tables already migrated and default-filled. Keyed by table so nothing lands in
+-- SavedVariables; per table, not once at init, because SettingsRoot() follows profile switches.
+local prepared = setmetatable({}, { __mode = "k" })
+
+function ns.DB()
+    local root = ns.SettingsRoot()
+    if type(root.tankReminder) ~= "table" then root.tankReminder = {} end
+    local t = root.tankReminder
+    if prepared[t] then return t end
+    prepared[t] = true
+    -- Migration: the pre-presets flat list per spec becomes that spec's "Default" preset.
+    if type(t.lists) == "table" and next(t.lists) ~= nil and type(t.presets) ~= "table" then
+        t.presets = {}
+        t.activePreset = t.activePreset or {}
+        for specKey, list in pairs(t.lists) do
+            t.presets[specKey] = { p1 = { name = "Default", list = list } }
+            t.activePreset[specKey] = "p1"
+        end
+        t.lists = nil
+    end
+    -- The text used to be positioned on its own; it rides the icon now.
+    t.textPos = nil
+    -- Broadcasts outside any encounter used to be catalogued under "0", which nothing reads.
+    if type(t.bwCatalogue) == "table" then t.bwCatalogue["0"] = nil end
+    -- Older builds pre-filled the callout editor with "Use <name>", so saved callouts still
+    -- carry the prefix the spoken default dropped.
+    if type(t.callouts) == "table" then
+        for id, text in pairs(t.callouts) do
+            local bare = type(text) == "string" and text:match("^[Uu]se%s+(.+)$")
+            if bare then t.callouts[id] = bare end
+        end
+    end
+    -- Call Together was briefly stored as a chain to the entry below; nothing reads it now.
+    if type(t.presets) == "table" then
+        for _, specPresets in pairs(t.presets) do
+            if type(specPresets) == "table" then
+                for _, p in pairs(specPresets) do
+                    if type(p) == "table" then p.chain = nil end
+                end
+            end
+        end
+    end
+    for k, v in pairs(DEFAULTS) do if t[k] == nil then t[k] = v end end
+    return t
+end
+
+-- For the pack exporter. `pos` is not in DEFAULTS, so the exporter takes it separately.
+function ns.SettingKeys()
+    local out = {}
+    for k in pairs(DEFAULTS) do out[#out + 1] = k end
+    table.sort(out)
+    return out
+end
+
+function ns.SettingDefault(key)
+    return DEFAULTS[key]
+end
+
 -- Account-wide, outside the profiles: the window scale follows the monitor, so it must not
 -- travel in an exported pack or change on a profile switch.
 function ns.AccountSettings()
@@ -1000,6 +1110,87 @@ nameWatch:SetScript("OnEvent", function(self)
     if provisional and ns.SettingsRoot() ~= provisional then ns.QueueReapply() end
     provisional = nil
 end)
+
+-- The player's spec ID (0 before it is known) and whether it is a tank spec.
+function ns.CurrentSpec()
+    local index = C_SpecializationInfo.GetSpecialization()
+    if not index then return 0, false end
+    local id, _, _, _, role = C_SpecializationInfo.GetSpecializationInfo(index)
+    return id or 0, role == "TANK"
+end
+
+-- Spec-bound profiles (Profiles page) switch at login and on a spec change.
+local specWatch = CreateFrame("Frame")
+specWatch:RegisterEvent("PLAYER_LOGIN")
+specWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
+specWatch:RegisterUnitEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+specWatch:SetScript("OnEvent", function() ns.ApplySpecProfile((ns.CurrentSpec())) end)
+
+-- The spoken voice, picked on the Smart Reminders page and used by every module that speaks.
+-- "Game Default" stores no id and follows Blizzard's Text to Speech panel; an uninstalled
+-- stored voice falls back rather than going silent. Cached because GetTtsVoices builds a
+-- table per call. Blizzard's TTS panel raises no event on a voice change, so closing it or
+-- Settings drops the cache; not combat start, where re-reading stalled every pull.
+do
+    local cachedWant, cachedID
+
+    function ns.InvalidateTTSVoice()
+        cachedWant, cachedID = nil, nil
+    end
+
+    local voiceWatch = CreateFrame("Frame")
+    voiceWatch:RegisterEvent("PLAYER_LOGIN")
+    voiceWatch:RegisterEvent("VOICE_CHAT_TTS_VOICES_UPDATE")
+    voiceWatch:SetScript("OnEvent", function(self, event)
+        if event == "VOICE_CHAT_TTS_VOICES_UPDATE" then return ns.InvalidateTTSVoice() end
+        self:UnregisterEvent("PLAYER_LOGIN")
+        for _, panel in ipairs({ _G.SettingsPanel, _G.TextToSpeechFrame }) do
+            panel:HookScript("OnHide", ns.InvalidateTTSVoice)
+        end
+    end)
+
+    function ns.TTSVoiceID()
+        local want = ns.DB().ttsVoiceID
+        if cachedID and cachedWant == want then return cachedID end
+        if not (C_VoiceChat and C_VoiceChat.GetTtsVoices) then return 0 end
+        local voices = C_VoiceChat.GetTtsVoices()
+        local resolved
+        if want and voices then
+            for i = 1, #voices do
+                if voices[i].voiceID == want then
+                    resolved = want
+                    break
+                end
+            end
+        end
+        if not resolved and TextToSpeech_GetSelectedVoice then
+            local ok, voice = pcall(TextToSpeech_GetSelectedVoice, Enum.TtsVoiceType.Standard)
+            if ok and voice and voice.voiceID then resolved = voice.voiceID end
+        end
+        if not resolved then
+            resolved = (voices and voices[1] and voices[1].voiceID) or 0
+        end
+        -- The voice list can be empty early in a session; do not cache a guess from it.
+        if voices and #voices > 0 then cachedWant, cachedID = want, resolved end
+        return resolved
+    end
+end
+
+-- Game Default is keyed "" since a dropdown cannot carry nil as a value.
+function ns.TTSVoiceChoices()
+    local values, order = { [""] = "Game Default" }, { "" }
+    if C_VoiceChat and C_VoiceChat.GetTtsVoices then
+        local voices = C_VoiceChat.GetTtsVoices()
+        for i = 1, #(voices or {}) do
+            local v = voices[i]
+            if v and v.voiceID and v.name then
+                values[v.voiceID] = v.name
+                order[#order + 1] = v.voiceID
+            end
+        end
+    end
+    return values, order
+end
 
 function ns.ActiveProfileName()
     if ns.SettingsRoot() == provisional then return DB().defaultProfile or "Default" end
@@ -1168,7 +1359,7 @@ function ns.ResetProfileNamed(name)
     local sv = DB()
     if type(sv.profiles[name]) ~= "table" then return false, "no such profile" end
     if name == sv.charActive[CharKey()] then
-        if ns.Reset then ns.Reset() end
+        if ns.Reset then ns.Reset() else ns.SettingsRoot().tankReminder = nil end
         return true
     end
     sv.profiles[name].tankReminder = nil
@@ -1206,6 +1397,10 @@ end
 -- Coalesced: one click can request several reapplies.
 local reapplyPending
 
+-- Re-applies the active profile. Empty here: Smart Reminders and every module that needs it
+-- hook it.
+function ns.Apply() end
+
 function ns.QueueReapply()
     -- Invalidate old-profile work immediately, even if two switches share a frame.
     if ns.PruneCustomReminderTimers then ns.PruneCustomReminderTimers() end
@@ -1214,7 +1409,7 @@ function ns.QueueReapply()
     reapplyPending = true
     C_Timer.After(0, function()
         reapplyPending = false
-        if ns.Apply then ns.Apply() end
+        ns.Apply()
         -- Profile changes do not reopen the options window, so its OnShow preview
         -- callback will not run. Restore it after Apply has rebuilt/hidden the slots.
         if ns.RefreshDefensivePreview then ns.RefreshDefensivePreview() end

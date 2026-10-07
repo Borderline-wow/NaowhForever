@@ -1,7 +1,7 @@
 local root = arg[1] or "."
 local function Read(suffix)
     local name = suffix == "" and "_SmartReminders" or suffix
-    local dir = (name == "_Core" or name == "_Widgets") and "/Core" or "/SmartReminders"
+    local dir = (name == "_Core" or name == "_Widgets" or name == "_Packs") and "/Core" or "/NaowhForever_SmartReminders"
     local f = assert(io.open(root .. dir .. "/NaowhForever" .. name .. ".lua", "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close(); return s
 end
@@ -28,7 +28,7 @@ Case("late LSM, negative cache, and later sound registration", function()
         UnregisterCallback = function() end,
     }
     local env = { UI = ui, LibStub = false }
-    Eval(widgets:sub((assert(widgets:find("local bundledVoices =", 1, true)))), env)
+    Eval(Slice(widgets, "local bundledVoices =", "-- Fresh tables per call"), env)
     assert(ui.SoundPathFor("sm:later") == nil)
     env.LibStub = function() return provider end
     assert(ui.SoundPathFor("sm:later") == "later.ogg")
@@ -167,9 +167,11 @@ Case("bundled serializers round-trip real profile strings and reject malformed i
     local writes = 0
     local ns = { Color = function(token, text) return "|cff" .. ({ accent = "0091ed", muted = "9a9ea6", fg = "f0f1f3", accentSoft = "4db5f5" })[token] .. (text and (text .. "|r") or "") end,
         DB = function() return db end,
+        PlainText = dofile(root .. "/Tools/regression/plain_text.lua")(root),
         EnsureProfile = function() writes = writes + 1; return {} end }
     local env = { _G = { NaowhForever = ns }, LibStub = LibStub }
     Eval(Read("_Packs"), env)
+    ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env) }
     local encoded, err = ns.ExportPack("Recovery test", "Tester")
     assert(encoded, err)
     local decoded, why = ns.DecodePack(encoded)

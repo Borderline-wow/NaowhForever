@@ -1,11 +1,11 @@
 ## Interface: 120000, 120001, 120005, 120007, 120100, 16001
 ## Title: |cff0091edNaowh|r Forever
-## Notes: Naowh's Forever companion: Smart Reminders, QoL, macros and buff reminders.
-## Author: NaowhUI
-## Version: 0.5.21-beta
+## Notes: Naowh's Forever companion: QoL, the Top Bar and the window every module shares.
+## Author: Naowh
+## Version: 0.5.25-beta
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhForeverDB, NaowhUI_SmartRemindersDB
-## Group: NaowhUI
+## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
 ## AddonCompartmentFunc: NaowhForever_OnCompartmentClick
 
@@ -19,6 +19,9 @@ Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 # Core first: theme, chrome primitives, the DB and profiles -- everything later files
 # hang off.
 Core\NaowhForever_Core.lua
+
+# ns.SenderIs: whether an addon message's sender is the player its GUID names. Needs the Core.
+Core\NaowhForever_Senders.lua
 
 # ns.PlaceWaypoint: a waypoint (or TomTom's) for any module. Needs the Core.
 Core\NaowhForever_Waypoint.lua
@@ -47,51 +50,22 @@ Core\NaowhForever_Search.lua
 # a page is drawn with. Its own XML loads its files in order (see Shared/README.md).
 Shared\Shared.xml
 
-# Tank busters Blizzard's own TankRole bit does not carry. Additive to it, never a
-# replacement, so content this file has never heard of still works unchanged. Loads after
-# Core, which owns the namespace it hangs off.
-SmartReminders\NaowhForever_Abilities.lua
-
-SmartReminders\NaowhForever_SmartReminders.lua
-
-# Raid-wide external/CD reminders, assignable to a role/class/spec/name/subgroup rather
-# than the local player only -- built on the same BigWigs/DBM bar bridge the main file
-# already runs for tank busters (ns.ScheduleBWFire), not a second one. Loads after the
-# main file, which owns that bridge and the per-boss-set helper this hangs off.
-SmartReminders\NaowhForever_RaidReminders.lua
-
-# Shareable Reminder Packs: a curator's lists, priorities and written reminders as
-# one string, with preview-before-apply. Loads after the runtime it packages.
-SmartReminders\NaowhForever_Integrations.lua
-SmartReminders\NaowhForever_IntegrationOptions.lua
-# Signature check for naowh.gg's personalized pack downloads. Loads before Packs,
-# which calls into it; standalone otherwise, so load order relative to the main
-# runtime does not matter.
-SmartReminders\NaowhForever_Verify.lua
-
-SmartReminders\NaowhForever_Packs.lua
+# Shareable Reminder Packs: a curator's lists, priorities and written reminders as one
+# string, with preview-before-apply, and the installer's NaowhForever_API. They carry every
+# module's settings, so they stay in the core while Smart Reminders is a module of its own.
+# Signature check for naowh.gg's personalized pack downloads. Loads before Packs, which
+# calls into it.
+Core\NaowhForever_Verify.lua
+Core\NaowhForever_Packs.lua
 
 # The Profiles page's Export and Import: the whole profile as one string. Uses the pack
 # dialogs' text box and hands pack strings to them.
 Core\NaowhForever_ProfileShare.lua
 
-# Reads this season's bosses and their tank-flagged abilities out of the player's own
-# Dungeon Journal. Lazy: nothing is read until the page is opened.
-SmartReminders\NaowhForever_Bosses.lua
-
-# What the boss actually did, recorded from the player's own pulls. Loads after the main
-# file, whose dispatchers call into it and whose pull clocks it reads.
-SmartReminders\NaowhForever_Observed.lua
-
-# The Custom Reminders tab and the MRT note format behind it. Loads last: the page
-# renders through the shared section builder and editors Bosses.lua defines.
-SmartReminders\NaowhForever_Note.lua
-SmartReminders\NaowhForever_SmartRemindersSettings.lua
-SmartReminders\NaowhForever_SmartRemindersWindow.lua
-
 # The Naowh Forever modules and the Patch Notes page. Page builders only, resolved by
 # the window at open time.
 QoL\NaowhForever_QoL.lua
+QoL\NaowhForever_AlertStack.lua
 QoL\NaowhForever_DeathRelease.lua
 QoL\NaowhForever_StealthReminder.lua
 QoL\NaowhForever_CoTank.lua
@@ -110,11 +84,10 @@ QoL\NaowhForever_GlobalCopy.lua
 QoL\NaowhForever_SlashCommands.lua
 QoL\NaowhForever_HideClutter.lua
 QoL\NaowhForever_Crosshair.lua
-QoL\NaowhForever_FPS.lua
 QoL\NaowhForever_MouseRing.lua
 QoL\NaowhForever_PetTracker.lua
 QoL\NaowhForever_EquipmentReminder.lua
-QoL\NaowhForever_EmoteDetection.lua
+QoL\NaowhForever_SummonEmote.lua
 QoL\NaowhForever_GcdTracker.lua
 QoL\NaowhForever_FocusCastBar.lua
 QoL\NaowhForever_Performance.lua
@@ -123,86 +96,31 @@ QoL\NaowhForever_AuctionPrices.lua
 QoL\NaowhForever_XPTicker.lua
 QoL\NaowhForever_XPBar.lua
 QoL\NaowhForever_GroupXP.lua
+QoL\NaowhForever_PlayerHistory.lua
 QoL\NaowhForever_Restock.lua
+QoL\NaowhForever_FoodBar.lua
 QoL\NaowhForever_BagSpace.lua
 QoL\NaowhForever_ScrapMarker.lua
 QoL\NaowhForever_ScrapList.lua
 QoL\NaowhForever_Alts.lua
 QoL\NaowhForever_Mail.lua
-# Discovery: the library books and the Cozy Sleeping Bag. The data loads first; the module reads it.
-Discovery\NaowhForever_DiscoveryData.lua
-Discovery\NaowhForever_SleepingBagData.lua
-Discovery\NaowhForever_Discovery.lua
-Discovery\NaowhForever_DiscoveryWindow.lua
-Discovery\NaowhForever_DiscoveryTracker.lua
-Discovery\NaowhForever_SleepingBagTracker.lua
-Discovery\NaowhForever_DiscoveryMap.xml
-Discovery\NaowhForever_SleepingBagMap.xml
-Discovery\NaowhForever_DiscoveryNearby.lua
-# Training Planner: the data loads first; the module reads it.
-Training\NaowhForever_TrainingData.lua
-Training\NaowhForever_TrainingBuilds.lua
-Training\NaowhForever_Training.lua
-Training\NaowhForever_TrainingWindow.lua
-Training\NaowhForever_TrainingTrainer.lua
 QoL\NaowhForever_TownData.lua
 QoL\NaowhForever_TownMailboxes.lua
+QoL\NaowhForever_TownSpiritHealers.lua
+QoL\NaowhForever_TownTravel.lua
+QoL\NaowhForever_ZoneExits.lua
 QoL\NaowhForever_TownMap.xml
-GearSets\NaowhForever_GearSets.lua
-GearSets\NaowhForever_GearSetsWindow.lua
-# Naowh Score: one number for a character's gear, on the item level scale, for you and the
-# players you hover. Its own XML loads its files in order (see NaowhScore/README.md).
-NaowhScore\NaowhScore.xml
-
-# Stat Weights: what each stat is worth to your spec, for gear tooltips and the BiS List's
-# upgrades and enchants. Its own XML loads its files in order (see StatWeights/README.md).
-StatWeights\StatWeights.xml
-
-# BiS List: your best-in-slot picks, their window and where they drop. Its own XML loads its
-# files in order (see BiS/README.md).
-BiS\BiS.xml
-# Dungeon Journal: every dungeon's bosses, loot and quests. Its own XML loads its files in
-# order (see DungeonJournal/README.md). Loads after BiS, whose list and class rules it reads.
-DungeonJournal\DungeonJournal.xml
-# Character Panel: the game's character panel in the BiS List's look. Its own XML loads its
-# files in order (see CharacterPanel/README.md). Loads after BiS, whose lists it shows.
-CharacterPanel\CharacterPanel.xml
-Blessings\NaowhForever_Blessings.xml
-Blessings\NaowhForever_Blessings.lua
-Blessings\NaowhForever_BlessingsPage.lua
-Blessings\NaowhForever_BlessingsWindow.lua
+QoL\NaowhForever_MapOverlays.lua
+QoL\NaowhForever_Unexplored.xml
 QoL\NaowhForever_Trainer.lua
-# Professions: Naowh's profession window, and where to learn each recipe you lack. The window
-# file creates the module's settings, so it loads first.
-Professions\NaowhForever_Professions.lua
-Professions\NaowhForever_ProfessionsSettings.lua
-Professions\NaowhForever_RecipeData.lua
-Professions\NaowhForever_RecipeFinder.lua
-Professions\NaowhForever_RankAlert.lua
-Professions\NaowhForever_GatherTracking.lua
-Professions\NaowhForever_CraftTimer.lua
-Professions\NaowhForever_FavoriteRecipes.lua
-Professions\NaowhForever_ShoppingList.lua
-ThreatMeter\NaowhForever_ThreatMeter.lua
-SwingTimer\NaowhForever_SwingTimer.lua
 TopBar\NaowhForever_TopBar.lua
 QoL\NaowhForever_FlightData.lua
 QoL\NaowhForever_Flight.lua
+QoL\NaowhForever_Waypoints.lua
 QoL\NaowhForever_QuizData.lua
 QoL\NaowhForever_Quiz.lua
 QoL\NaowhForever_AimTrainer.lua
 QoL\NaowhForever_AimBoard.lua
-Macros\NaowhForever_MacroText.lua
-Macros\NaowhForever_Macros.lua
-Macros\NaowhForever_MacroWindow.lua
-ActionBars\NaowhForever_ActionBars.lua
-ActionBars\NaowhForever_ActionBarsWindow.lua
-AuraBuffs\NaowhForever_AuraBuffs.lua
-AuraBuffs\NaowhForever_Campfire.lua
-AuraBuffs\NaowhForever_LowHealth.lua
-AuraBuffs\NaowhForever_BuffReminderData.lua
-AuraBuffs\NaowhForever_BuffReminders.lua
-AuraBuffs\NaowhForever_AuraBuffsWindow.lua
 # Supporter badges: the staff and patron lists, then the chat name filter and card that read it.
 Badges\NaowhForever_BadgesStaff.lua
 Badges\NaowhForever_BadgesPatrons.lua

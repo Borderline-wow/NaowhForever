@@ -1,4 +1,4 @@
-"""Build BiS/Data/Enchants.lua: every enchant an enchanter can put on your gear, what it gives
+"""Build NaowhForever_BiS/BiS/Data/Enchants.lua: every enchant an enchanter can put on your gear, what it gives
 and what it takes, so the BiS List can say which is best for your spec on what you wear.
 
 From the game's own tables (wago.tools, Tools/wago.py): the Enchanting recipes, what each
@@ -24,7 +24,7 @@ import wago
 from build_bis_data import WOWHEAD, fetch, lua_string
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "BiS" / "Data" / "Enchants.lua"
+OUT = ROOT / "NaowhForever_BiS" / "BiS" / "Data" / "Enchants.lua"
 CACHE = Path(__file__).resolve().parent / "enchant_recipes.json"
 ENCHANTING = 333
 ENCHANT_ITEM = 53   # SpellEffect: enchant an item
@@ -146,7 +146,7 @@ def main():
         rows.append((spell, made, taught, cls, inv, sub, stats, special))
     lines = [
         "-------------------------------------------------------------------------------",
-        "--  BiS/Data/Enchants.lua -- every enchant an enchanter can put on your gear: [recipe spell ID] =",
+        "--  NaowhForever_BiS/BiS/Data/Enchants.lua -- every enchant an enchanter can put on your gear: [recipe spell ID] =",
         "--  { enchant ID, skill (Enchanting it needs), source (trainer, vendor, drop or quest),",
         "--  what it goes on: class 2 weapon or 4 armor, inv (bit per inventory type), sub (bit per",
         "--  subclass), and what it gives: stats by key, text, or special (unranked, for that stat) }.",

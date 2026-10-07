@@ -14,6 +14,12 @@ local PACK_PREFIX = "NSRPACK2:"
 local FORMAT = 1
 local MAX_DEPTH = 12
 local MAX_VALUES = 200000   -- values a string may hold; more is refused as too big
+local LIMITS = { maxChars = 1000000, maxBytes = 4194304, maxDepth = 32, maxValues = 1000000 }
+local TEXT_MAX = 64
+local LOOK_TYPES = { themePreset = "string", themeColors = "table", uiFont = "string", windowScale = "number" }
+local GEAR_SLOT = { [1] = true, [2] = true, [3] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true,
+    [10] = true, [11] = true, [12] = true, [13] = true, [14] = true, [15] = true, [16] = true, [17] = true, [18] = true }
+local MAX_PICKS = 50
 
 -- The account's look: every profile shares it, so it travels as its own part.
 local LOOK = { "themePreset", "themeColors", "uiFont", "windowScale" }
@@ -44,6 +50,14 @@ local function Codec()
     local LS = LibStub and LibStub("LibSerialize", true)
     local LD = LibStub and LibStub("LibDeflate", true)
     if LS and LD then return LS, LD end
+end
+
+local function ValidReminders(data)
+    return type(data) == "table" and ns.ValidPackData ~= nil and ns.ValidPackData(data) == true
+end
+
+local function ValidClassMacros(list)
+    return ValidReminders({ utilityReminders = { classMacros = list } })
 end
 
 -- Plain data only (strings, numbers, booleans, tables keyed by strings or numbers), so
@@ -203,19 +217,24 @@ function ns.DecodeProfile(text)
     if text == "" then return nil end
     if text:sub(1, #PACK_PREFIX) == PACK_PREFIX then return nil, "pack" end
     if text:sub(1, #PREFIX) ~= PREFIX then return nil, "This is not a Naowh Forever profile string." end
-    local LS, LD = Codec()
-    if not LS then return nil, "The serializer libraries are missing from this build." end
-    local compressed = LD:DecodeForPrint(text:sub(#PREFIX + 1))
-    local raw = compressed and LD:DecompressDeflate(compressed)
-    if not raw then return nil, "The string is damaged: copy it again in full." end
-    local ok, payload = LS:Deserialize(raw)
-    if not ok or type(payload) ~= "table" or type(payload.parts) ~= "table" then
+    local payload, why = ns.Shared.Decode.String(text:sub(#PREFIX + 1), LIMITS)
+    if why == "missing" then return nil, "The serializer libraries are missing from this build." end
+    if why == "big" then return nil, "This string is too big." end
+    if type(payload) ~= "table" or type(payload.parts) ~= "table" then
         return nil, "The string is damaged: copy it again in full."
     end
     if payload.format ~= FORMAT then return nil, "This string is from a newer Naowh Forever: update first." end
     local budget = { n = 0 }
     payload.parts = Plain(Swap(payload.parts, ZERO, 0), 1, budget)
     if budget.over then return nil, "This string is too big." end
+    local Text, parts = ns.Shared.Decode.Text, payload.parts
+    payload.name, payload.author = Text(payload.name, TEXT_MAX), Text(payload.author, TEXT_MAX)
+    payload.made = Text(payload.made, TEXT_MAX)
+    if parts.smartReminders ~= nil and not ValidReminders(parts.smartReminders) then parts.smartReminders = nil end
+    local macros = parts.macros
+    if type(macros) == "table" and macros.classMacros ~= nil and not ValidClassMacros(macros.classMacros) then
+        macros.classMacros = nil
+    end
     return payload
 end
 
@@ -254,6 +273,53 @@ function ns.ProfileStringParts(payload)
     return out
 end
 
+local SAYS_MAX = 80
+
+local function SellsScrap(values)
+    return (values.scrapMarkerVendor or "sell") == "sell"
+end
+
+local function EmoteLines(list)
+    if type(list) ~= "string" then return nil end
+    local lines = {}
+    for text in list:gmatch("%d+%s*:%s*([^;]+)") do lines[#lines + 1] = text:match("^%s*(.-)%s*$") end
+    if #lines == 0 then return nil end
+    return ns.PlainText(table.concat(lines, " / "), SAYS_MAX)
+end
+
+local ACTING = {
+    { module = "qol", key = "autoEmote", label = "Summon Emote", says = "autoEmoteList" },
+    { module = "qol", key = "questAccept", label = "Accept Quests" },
+    { module = "qol", key = "questTurnIn", label = "Hand In Quests" },
+    { module = "qol", key = "questShare", label = "Share Quests With Group" },
+    { module = "qol", key = "autoRepair", label = "Auto Repair" },
+    { module = "qol", key = "sellJunk", label = "Auto Sell Junk" },
+    { module = "qol", key = "restockBuy", label = "Buy at Vendors" },
+    { module = "qol", key = "lootConfirm", label = "Skip Loot Confirmations" },
+    { module = "qol", key = "enchantReplace", label = "Auto-Replace Enchants" },
+    { module = "qol", key = "scrapMarker", label = "Scrap Marker, which sells what it marks", when = SellsScrap },
+    { module = "journal", key = "acceptShared", label = "Accept Shared Dungeon Quests" },
+}
+
+local function ActingOn(settings, item)
+    local values = type(settings) == "table" and settings[item.module]
+    if type(values) ~= "table" or values[item.key] ~= true then return false end
+    local defaults = ns.ModuleDefaults(item.module)
+    if defaults and defaults[item.key] == true then return false end
+    return not item.when or item.when(values)
+end
+
+function ns.ProfileActing(payload)
+    local out, settings = {}, type(payload.parts) == "table" and payload.parts.settings
+    for _, item in ipairs(ACTING) do
+        if ActingOn(settings, item) then
+            local says = item.says and EmoteLines(settings[item.module][item.says])
+            out[#out + 1] = says and ('%s, which says "%s"'):format(item.label, says) or item.label
+        end
+    end
+    return out
+end
+
 -------------------------------------------------------------------------------
 --  Taking a string in
 -------------------------------------------------------------------------------
@@ -274,6 +340,30 @@ local function SameList(a, b)
     return true
 end
 
+local function ItemID(id)
+    return type(id) == "number" and id >= 1 and id < 2147483648 and id % 1 == 0
+end
+
+local function CleanBisList(list)
+    if type(list) ~= "table" or type(list.slots) ~= "table" then return nil end
+    local name = ns.Shared.Decode.Text(list.name, 40)
+    if not name or name == "" then return nil end
+    local out = { name = name, spec = ns.Shared.Decode.Text(list.spec, 40), slots = {}, extra = {} }
+    for slot, id in pairs(list.slots) do
+        if GEAR_SLOT[slot] and ItemID(id) then out.slots[slot] = id end
+    end
+    for slot, ids in pairs(type(list.extra) == "table" and list.extra or {}) do
+        if GEAR_SLOT[slot] and type(ids) == "table" then
+            local keep = {}
+            for _, id in ipairs(ids) do
+                if ItemID(id) and #keep < MAX_PICKS then keep[#keep + 1] = id end
+            end
+            out.extra[slot] = keep[1] and keep or nil
+        end
+    end
+    return out
+end
+
 -- Each list joins its class's lists under a free name; one already there as it is, is skipped.
 local function AddBisLists(incoming)
     local account = ns.AccountSettings()
@@ -287,13 +377,15 @@ local function AddBisLists(incoming)
                 account.bisLists[class] = store
             end
             store.nextID = tonumber(store.nextID) or #store.lists + 1
-            for _, list in ipairs(lists) do
+            for _, raw in ipairs(lists) do
+                local list = CleanBisList(raw)
                 local have = false
                 for _, mine in ipairs(store.lists) do
                     if type(list) == "table" and SameList(mine, list) then have = true end
                 end
                 if type(list) == "table" and type(list.name) == "string" and not have then
-                    local name, n = list.name, 1
+                    local base = list.name
+                    local name, n = base, 1
                     local function Taken(try)
                         for _, mine in ipairs(store.lists) do
                             if type(mine.name) == "string" and mine.name:lower() == try:lower() then return true end
@@ -301,7 +393,7 @@ local function AddBisLists(incoming)
                     end
                     while Taken(name) do
                         n = n + 1
-                        name = ("%s %d"):format(list.name, n)
+                        name = ("%s %d"):format(base, n)
                     end
                     list.name, list.id = name, store.nextID
                     store.nextID = store.nextID + 1
@@ -397,15 +489,24 @@ function ns.ImportProfile(payload, wanted, name)
                 root[key] = Checked(values, defaults)
             end
         end
+        if not wanted.acting then
+            for _, item in ipairs(ACTING) do
+                local values = root[item.module]
+                if type(values) == "table" and ActingOn(parts.settings, item) then
+                    values[item.key] = nil
+                    if item.says then values[item.says] = nil end
+                end
+            end
+        end
     end
-    if wanted.smartReminders and type(parts.smartReminders) == "table" then
+    if wanted.smartReminders and ValidReminders(parts.smartReminders) then
         root.tankReminder = parts.smartReminders
         root.tankReminder.importedPack = nil
     end
     if wanted.macros and type(parts.macros) == "table" then
         local macros = parts.macros
         if type(macros.module) == "table" then root.macros = Checked(macros.module, ns.ModuleDefaults("macros") or {}) end
-        if type(macros.classMacros) == "table" then
+        if type(macros.classMacros) == "table" and ValidClassMacros(macros.classMacros) then
             local sr = root.tankReminder
             if type(sr.utilityReminders) ~= "table" then sr.utilityReminders = {} end
             sr.utilityReminders.classMacros = macros.classMacros
@@ -413,12 +514,14 @@ function ns.ImportProfile(payload, wanted, name)
     end
     local added = { bisLists = 0, library = 0, builds = 0 }
     if wanted.bisLists and type(parts.bisLists) == "table" then added.bisLists = AddBisLists(parts.bisLists) end
-    if wanted.library and type(parts.library) == "table" then added.library = AddLibrary(parts.library) end
-    if wanted.builds and type(parts.builds) == "table" then added.builds = AddBuilds(parts.builds) end
+    -- The Library and builds are checked by the Macros and Training Planner code, so they wait
+    -- for those modules to be on.
+    if wanted.library and ns.MacroText and type(parts.library) == "table" then added.library = AddLibrary(parts.library) end
+    if wanted.builds and ns.Training and type(parts.builds) == "table" then added.builds = AddBuilds(parts.builds) end
     if wanted.look and type(parts.look) == "table" then
         local account = ns.AccountSettings()
         for _, key in ipairs(LOOK) do
-            if parts.look[key] ~= nil then account[key] = parts.look[key] end
+            if type(parts.look[key]) == LOOK_TYPES[key] then account[key] = parts.look[key] end
         end
     end
 
@@ -433,20 +536,24 @@ end
 local EXPORT_W, EXPORT_H, BOX_H = 560, 360, 180
 local IMPORT_W, IMPORT_H, PASTE_H = 600, 520, 110
 local PAD, ROW_H, BUTTON_W, BUTTON_H = 14, 24, 120, 26
+local PREVIEW_GAP = 16
+local ACTING_LINE = "It also turns on settings that act for you: %s; they stay off unless you tick Also Import."
+local ACTING_HELP = "Turns those settings on in the new profile"
 local TOGGLE_W, TOGGLE_H = 32, 16
 
 -- Strings another import takes in: what the dialog says, and the button that hands them over.
+-- `needs` is the ns function the hand-off calls, missing while its `module` is switched off.
 local HANDOFFS = {
     { prefix = PACK_PREFIX, button = "Open Pack Import",
       what = "This is a Smart Reminders pack. The pack import takes it in, with its specs and licence.",
       go = function(text) ns.ShowPackImport(text) end },
-    { prefix = "!NFM1!", button = "Add Macros",
+    { prefix = "!NFM1!", button = "Add Macros", module = "Macros", needs = "ImportMacroString",
       what = "These are Forge macros. They are added as character macros on this character.",
       go = function(text) ns.ImportMacroString(text) end },
-    { prefix = "!NFB1!", button = "Add Build",
+    { prefix = "!NFB1!", button = "Add Build", module = "Training Planner", needs = "Training",
       what = "This is a talent build. It is added to your builds in the Training Planner.",
       go = function(text) ns.Training.ImportBuild(text, function() end) end },
-    { prefix = "!NBIS1!", button = "Add BiS List",
+    { prefix = "!NBIS1!", button = "Add BiS List", module = "BiS List", needs = "ImportBisList",
       what = "This is a BiS list. It is added next to your own lists.",
       go = function(text) ns.ImportBisList(text) end },
 }
@@ -508,6 +615,11 @@ local function PaintImport()
     if import.handoff then
         import.payload = nil
         import.nameRow:Hide()
+        if import.handoff.needs and not ns[import.handoff.needs] then
+            import.preview:SetText(("Turn on %s under Settings > Modules to add this."):format(import.handoff.module))
+            import.go:Hide()
+            return
+        end
         import.preview:SetText(import.handoff.what)
         ns.SetButtonText(import.go, import.handoff.button)
         import.go:Show()
@@ -522,10 +634,19 @@ local function PaintImport()
         import.preview:SetText(err or "Paste a profile, macro, talent build or BiS list string above.")
         return
     end
-    import.preview:SetText(("%s, shared by %s on %s. Untick what you don't want."):format(
-        tostring(payload.name or "A profile"), tostring(payload.author or "someone"), tostring(payload.made or "?")))
-    local y = -(40 + PASTE_H + 44)
-    for i, part in ipairs(ns.ProfileStringParts(payload)) do
+    local preview = ("%s, shared by %s on %s. Untick what you don't want."):format(
+        tostring(payload.name or "A profile"), tostring(payload.author or "someone"), tostring(payload.made or "?"))
+    local acting = ns.ProfileActing(payload)
+    if #acting > 0 then
+        preview = preview .. "|n" .. ACTING_LINE:format(table.concat(acting, ", "))
+    end
+    import.preview:SetText(preview)
+    local y = math.min(-(40 + PASTE_H + 44), -(40 + PASTE_H + 14 + import.preview:GetStringHeight() + PREVIEW_GAP))
+    local list = ns.ProfileStringParts(payload)
+    if #acting > 0 then
+        list[#list + 1] = { key = "acting", label = "Also Import", help = ACTING_HELP, off = true }
+    end
+    for i, part in ipairs(list) do
         local row = import.rows[i]
         if not row then
             row = CreateFrame("Frame", nil, import.panel)
@@ -540,7 +661,7 @@ local function PaintImport()
             import.rows[i] = row
         end
         row.key = part.key
-        if import.wanted[part.key] == nil then import.wanted[part.key] = true end
+        if import.wanted[part.key] == nil then import.wanted[part.key] = not part.off end
         row.label:SetText(part.label)
         row.help:SetText(part.detail and (part.help .. " (" .. part.detail .. ")") or part.help)
         row.toggle._refreshValue()
@@ -576,7 +697,8 @@ local function Go()
     ns.ConfirmReload(("Imported as %s and switched to it.%s Reload so every module picks it up?"):format(name, extra))
 end
 
-function ns.ShowProfileImport()
+-- text: what was pasted on the Profiles page, to carry on with here.
+function ns.ShowProfileImport(text)
     if not import then
         local dimmer, panel = ns.MakeModal(IMPORT_W, IMPORT_H, "profileImport")
         local title = ns.Font(panel, 14, "OUTLINE")
@@ -606,7 +728,7 @@ function ns.ShowProfileImport()
             nameBox = nameBox, go = go, rows = {}, wanted = {} }
         box:SetScript("OnTextChanged", function(_, user) if user then PaintImport() end end)
     end
-    import.box:SetText("")
+    import.box:SetText(text or "")
     wipe(import.wanted)
     PaintImport()
     import.dimmer:Show()
@@ -614,14 +736,33 @@ function ns.ShowProfileImport()
 end
 
 -------------------------------------------------------------------------------
---  The Profiles page: Import and New Profile, the profile in use, and Export part by part
+--  The Profiles page: three cards. The profile in use with the others under it, the parts
+--  to share as a grid of switches, and a paste box for Import.
 -------------------------------------------------------------------------------
-local GAP, INNER, STRIP, ICON = 12, 16, 2, 24
-local ACTION_H, BAR_H, HEAD_H, COLUMNS_H, PART_H, FOOT_H = 64, 72, 54, 26, 44, 54
-local INCLUDE_X = 150      -- the Include column's centre, in from the export's right edge
-local CONTROL_H = 24
+local HEAD_H, HEAD_SIZE = 44, 14     -- a card's head, as the settings pages draw theirs
+local INSET = 16                     -- a card's contents from its edge
+local GAP = 8                        -- between buttons, and between the share's tiles
+local NAME_SIZE, LINE_SIZE, SMALL_SIZE = 13, 12, 11
+local ACTIVE_H, ACTIVE_SIZE = 76, 18 -- the profile in use, its name larger
+local MARK_W, MARK_INSET, MARK_GAP = 3, 16, 12   -- the accent bar beside it
+local LINE_GAP = 6                   -- a name to the muted line under it
+local ACTION_W = 84                  -- Use, Copy, Reset and Delete, one column each
+local SMALL_H = 22                   -- buttons on the other profiles' rows and in a head
+local NEW_W = 110
+local GROUP_H = 30
+local PROFILE_H = 46
+local SHOWN_CHARS = 2                -- names before "and N more"
+local TILE_H, TILE_PAD, TILE_GAP = 52, 12, 12   -- a part's tile, its padding, its switch to its name
+local TWO_COLUMNS_W = 620            -- narrower than this, the tiles go one per row
+local SEND_H = 58
+local FIELD_H = 112                  -- the paste box, about six lines
+local FIELD_TEXT = 12
+local FIELD_INSET_X, FIELD_INSET_Y = 8, 6
+local SCROLL_ROOM = 13               -- right of the paste box's text, for its scroll bar
+local IMPORT_GAP = 12                -- the paste box to the row under it
+local DIM = 0.4
 
--- Ticks on the export, by part key: false when unticked, so every part starts in.
+-- Picks on the share, by part key: false when left out, so every part starts in.
 local wanted = {}
 
 local function Ticked(key)
@@ -647,8 +788,7 @@ local function NewProfile()
     end)
 end
 
-local function CopyActive()
-    local from = ns.ActiveProfileName()
+local function CopyNamed(from)
     ns.PromptText("Copy " .. from, "", 40, function(text)
         local name = strtrim(text)
         local function Make(overwrite)
@@ -662,262 +802,525 @@ local function CopyActive()
     end)
 end
 
-local function ResetActive()
-    local name = ns.ActiveProfileName()
+-- Only the profile in use: ResetProfileNamed clears just Smart Reminders on any other.
+local function ResetActive(name)
     ns.Confirm(("Reset %s to default settings? Cannot be undone."):format(name),
         function() Done(ns.ResetProfileNamed(name)) end, nil, "Reset")
 end
 
-local function DeleteActive()
-    local name = ns.ActiveProfileName()
+local function DeleteNamed(name)
     ns.Confirm(("Delete %s? Characters using it move to the account's default profile."):format(name),
         function() Done(ns.DeleteProfile(name)) end, nil, "Delete")
 end
 
-local function Card(frame)
-    local St = ns.Shared.Style
-    ns.Solid(frame, "BACKGROUND", ns.THEME.fg, St.WINDOW_CARD_FILL):SetAllPoints()
-    frame.edge = ns.Border(frame, St.BORDER_RGB)
-    local strip = ns.Solid(frame, "ARTWORK", ns.THEME.accent, 1)
-    strip:SetPoint("TOPLEFT")
-    strip:SetPoint("TOPRIGHT")
-    strip:SetHeight(STRIP)
+local function UseNamed(name)
+    Done(ns.SwitchProfile(name))
 end
 
-local function ActionEnter(card)
-    local c = ns.THEME.accent
-    card.edge:SetColor(c.r, c.g, c.b, 1)
-end
-
-local function ActionLeave(card)
-    card.edge:SetColor(0, 0, 0, 1)
-end
-
-local function NewAction(view)
-    local T = ns.THEME
-    local card = CreateFrame("Button", nil, view)
-    Card(card)
-    card.icon = card:CreateTexture(nil, "ARTWORK")
-    card.icon:SetSize(ICON, ICON)
-    card.icon:SetPoint("LEFT", INNER + 4, 0)
-    card.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1)
-    card.title = ns.Font(card, 14, nil, T.fg)
-    card.title:SetPoint("BOTTOMLEFT", card.icon, "RIGHT", INNER, 1)
-    card.line = ns.Font(card, 11, nil, T.muted)
-    card.line:SetPoint("TOPLEFT", card.icon, "RIGHT", INNER, -3)
-    card:SetScript("OnEnter", ActionEnter)
-    card:SetScript("OnLeave", ActionLeave)
-    card:SetScript("OnClick", function(self) self.onClick() end)
-    return card
-end
-
-local function SetAction(card, icon, title, line, onClick)
-    ns.Shared.Parts.Smooth(card.icon, icon)
-    card.title:SetText(title)
-    card.line:SetText(line)
-    card.onClick = onClick
-    return ACTION_H
-end
-
-local BAR_LABELS = { "Active Profile", "Copy Profile", "Reset or Delete" }
-
-local function NewBar(view)
-    local T = ns.THEME
-    local bar = CreateFrame("Frame", nil, view)
-    Card(bar)
-    bar.labels = {}
-    for i, text in ipairs(BAR_LABELS) do
-        bar.labels[i] = ns.Font(bar, 11, nil, i == 1 and T.accentSoft or T.muted)
-        bar.labels[i]:SetText(text)
+-- Who else is on each profile, by name without the realm.
+local function Characters()
+    local me = UnitName("player") .. "-" .. GetRealmName()
+    local by = {}
+    for _, known in ipairs(ns.KnownCharacters()) do
+        if known.char ~= me then
+            local list = by[known.profile] or {}
+            by[known.profile] = list
+            list[#list + 1] = known.char:match("^[^-]+")
+        end
     end
-    bar.pick = UI.BuildDropdownControl(bar, 200, nil, {}, {}, function() return ns.ActiveProfileName() end,
-        function(name) Done(ns.SwitchProfile(name)) end)
-    bar.copy = ns.Button(bar, "Create New (Copy)", 160, CONTROL_H, CopyActive)
-    bar.reset = ns.Button(bar, "Reset", 80, CONTROL_H, ResetActive)
-    bar.delete = ns.Button(bar, "Delete", 80, CONTROL_H, DeleteActive)
-    return bar
+    return by
 end
 
-local function SetBar(bar)
-    local column = (bar:GetWidth() - INNER * 2) / 3
-    for i, label in ipairs(bar.labels) do
-        label:ClearAllPoints()
-        label:SetPoint("TOPLEFT", INNER + (i - 1) * column, -(INNER + STRIP))
+local function NameList(names)
+    local n = #names
+    if n > SHOWN_CHARS + 1 then
+        return ("%s and %d more"):format(table.concat(names, ", ", 1, SHOWN_CHARS), n - SHOWN_CHARS)
     end
-    local values, order = {}, ns.ListProfiles()
-    for _, name in ipairs(order) do values[name] = name end
-    bar.pick._values, bar.pick._order = values, order
-    bar.pick._refreshLabel()
-    bar.pick:SetWidth(column - INNER)
-    bar.pick:ClearAllPoints()
-    bar.pick:SetPoint("TOPLEFT", bar.labels[1], "BOTTOMLEFT", 0, -8)
-    bar.copy:SetWidth(column - INNER)
-    bar.copy:ClearAllPoints()
-    bar.copy:SetPoint("TOPLEFT", bar.labels[2], "BOTTOMLEFT", 0, -8)
-    bar.reset:ClearAllPoints()
-    bar.reset:SetPoint("TOPLEFT", bar.labels[3], "BOTTOMLEFT", 0, -8)
-    bar.delete:ClearAllPoints()
-    bar.delete:SetPoint("LEFT", bar.reset, "RIGHT", 8, 0)
-    return BAR_H
+    if n == 1 then return names[1] end
+    return table.concat(names, ", ", 1, n - 1) .. " and " .. names[n]
 end
 
-local function TickAll(view, on)
-    for _, part in ipairs(PARTS) do wanted[part.key] = on end
-    view:Redraw()
+local function WhoUses(names, active)
+    if active then
+        return #names == 0 and "In use on this character" or "In use on this character and on " .. NameList(names)
+    end
+    return #names == 0 and "Not in use on any character" or "In use on " .. NameList(names)
+end
+
+local function Rule(frame, point)
+    local rule = ns.Solid(frame, "ARTWORK", ns.THEME.line, 1)
+    rule:SetPoint(point .. "LEFT")
+    rule:SetPoint(point .. "RIGHT")
+    ns.Hairline(rule, "h")
+    return rule
+end
+
+-- The whole list of names behind "and N more".
+local function WhoEnter(hit)
+    local T = ns.THEME
+    if not (hit.names and ns.Shared.Parts.Tip(hit, "ANCHOR_TOP")) then return end
+    GameTooltip:SetText("Also in use on", 1, 1, 1)
+    for _, name in ipairs(hit.names) do GameTooltip:AddLine(name, T.muted.r, T.muted.g, T.muted.b) end
+    GameTooltip:Show()
+end
+
+local function WhoLeave()
+    GameTooltip:Hide()
+end
+
+local function WhoLine(row, size)
+    row.line = ns.Font(row, size, nil, ns.THEME.muted)
+    row.line:SetJustifyH("LEFT")
+    row.line:SetWordWrap(false)
+    row.who = CreateFrame("Frame", nil, row)
+    row.who:SetAllPoints(row.line)
+    row.who:EnableMouse(true)
+    row.who:SetScript("OnEnter", WhoEnter)
+    row.who:SetScript("OnLeave", WhoLeave)
+end
+
+local function SetWho(row, names, active)
+    row.line:SetText(WhoUses(names, active))
+    row.who.names = #names > SHOWN_CHARS + 1 and names or nil
+end
+
+-- A button that cannot be used yet: dimmed, and deaf to the mouse.
+local function SetUsable(button, on)
+    button:SetAlpha(on and 1 or DIM)
+    button:EnableMouse(on)
+end
+
+local function Paint(fs, color, alpha)
+    fs:SetTextColor(color.r, color.g, color.b, alpha or 1)
+end
+
+-- Delete on the last profile stays dimmed and says why on hover.
+local function SetDelete(button, alone)
+    button.alone = alone
+    button:SetAlpha(alone and DIM or 1)
+    ns.Tooltip(button, alone and "The last profile cannot be deleted." or nil)
+end
+
+local function DeleteButton(row, h)
+    local button = ns.Button(row, "Delete", ACTION_W, h, function()
+        if not row.delete.alone then DeleteNamed(row.profile) end
+    end)
+    Paint(button.label, ns.Shared.Style.RED_RGB)
+    return button
+end
+
+-------------------------------------------------------------------------------
+--  A card's head: its name, a muted line, and a button or a link on the right
+-------------------------------------------------------------------------------
+local function HeadAction(head)
+    if head.action then head.action(head.arg) end
+end
+
+local function HeadLinkClicked(link)
+    HeadAction(link:GetParent())
 end
 
 local function NewHead(view)
     local T = ns.THEME
-    local Parts = ns.Shared.Parts
     local head = CreateFrame("Frame", nil, view)
-    head.title = ns.Font(head, 14, nil, T.fg)
-    head.title:SetPoint("TOPLEFT", 0, -INNER)
-    head.title:SetText("Export Profile")
-    head.line = ns.Font(head, 11, nil, T.muted)
-    head.line:SetPoint("TOPLEFT", head.title, "BOTTOMLEFT", 0, -6)
-    head.line:SetText("Choose what goes in the string. Tick everything to share the whole profile.")
-    head.none = Parts.Link(head, function() TickAll(view, false) end)
-    Parts.SetLink(head.none, "Deselect All")
-    head.none:SetPoint("BOTTOMRIGHT", 0, 6)
-    head.all = Parts.Link(head, function() TickAll(view, true) end)
-    Parts.SetLink(head.all, "Select All")
-    head.all:SetPoint("RIGHT", head.none, "LEFT", -12, 0)
+    ns.Solid(head, "BACKGROUND", T.panel, 1):SetAllPoints()
+    Rule(head, "BOTTOM")
+    head.name = ns.Font(head, HEAD_SIZE, nil, T.fg)
+    head.name:SetPoint("LEFT", INSET, 0)
+    head.summary = ns.Font(head, SMALL_SIZE, nil, T.muted)
+    head.summary:SetPoint("LEFT", head.name, "RIGHT", GAP + 4, 0)
+    head.summary:SetJustifyH("LEFT")
+    head.summary:SetWordWrap(false)
+    head.button = ns.Button(head, "", NEW_W, SMALL_H, function() HeadAction(head) end)
+    head.button:SetPoint("RIGHT", -INSET, 0)
+    head.link = ns.Shared.Parts.Link(head, HeadLinkClicked)
+    head.link:SetPoint("RIGHT", -INSET, 0)
     return head
 end
 
-local function SetHead()
+-- asLink: the action as a link instead of a button; with no action, it rests muted.
+local function SetHead(head, title, summary, actionText, action, arg, asLink)
+    local T, Parts = ns.THEME, ns.Shared.Parts
+    head.action, head.arg = action, arg
+    head.name:SetText(title)
+    head.summary:SetText(summary or "")
+    head.button:SetShown(actionText ~= nil and not asLink)
+    head.link:SetShown(actionText ~= nil and asLink == true)
+    local right = head
+    if actionText and asLink then
+        Parts.SetLink(head.link, actionText)
+        head.link.disabled = action == nil
+        Parts.LinkColor(head.link, action and T.accentSoft or T.muted)
+        right = head.link
+    elseif actionText then
+        ns.SetButtonText(head.button, actionText)
+        right = head.button
+    end
+    head.summary:SetPoint("RIGHT", right, right == head and "RIGHT" or "LEFT", -INSET, 0)
     return HEAD_H
 end
 
-local function Rule(row, point)
-    local line = ns.Solid(row, "ARTWORK", ns.THEME.line, 1)
-    line:SetPoint(point .. "LEFT")
-    line:SetPoint(point .. "RIGHT")
-    ns.Hairline(line, "h")
-end
-
-local function NewColumns(view)
+-------------------------------------------------------------------------------
+--  Profiles: the one in use, then the others
+-------------------------------------------------------------------------------
+local function NewActive(view)
     local T = ns.THEME
     local row = CreateFrame("Frame", nil, view)
-    local part = ns.Font(row, 11, nil, T.muted)
-    part:SetPoint("LEFT")
-    part:SetText("Part")
-    local include = ns.Font(row, 11, nil, T.muted)
-    include:SetPoint("CENTER", row, "RIGHT", -INCLUDE_X, 0)
-    include:SetText("Include")
-    local status = ns.Font(row, 11, nil, T.muted)
-    status:SetPoint("RIGHT")
-    status:SetText("Status")
-    Rule(row, "TOP")
-    Rule(row, "BOTTOM")
+    row.mark = ns.Solid(row, "ARTWORK", T.accent, 1)
+    row.mark:SetPoint("TOPLEFT", INSET, -MARK_INSET)
+    row.mark:SetPoint("BOTTOMLEFT", INSET, MARK_INSET)
+    row.mark:SetWidth(MARK_W)
+    row.name = ns.Font(row, ACTIVE_SIZE, nil, T.fg)
+    row.name:SetPoint("BOTTOMLEFT", row, "LEFT", INSET + MARK_W + MARK_GAP, LINE_GAP / 2)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+    WhoLine(row, LINE_SIZE)
+    row.line:SetPoint("TOPLEFT", row, "LEFT", INSET + MARK_W + MARK_GAP, -LINE_GAP / 2)
+    row.delete = DeleteButton(row, BUTTON_H)
+    row.delete:SetPoint("RIGHT", -INSET, 0)
+    row.copy = ns.Button(row, "Copy", ACTION_W, BUTTON_H, function() CopyNamed(row.profile) end)
+    row.copy:SetPoint("RIGHT", row.delete, "LEFT", -GAP, 0)
+    ns.Tooltip(row.copy, "Copy this profile into a new one and switch to it.")
+    row.reset = ns.Button(row, "Reset", ACTION_W, BUTTON_H, function() ResetActive(row.profile) end)
+    row.reset:SetPoint("RIGHT", row.copy, "LEFT", -GAP, 0)
+    ns.Tooltip(row.reset, "Put every setting in this profile back to its default.")
+    row.name:SetPoint("RIGHT", row.reset, "LEFT", -INSET, 0)
+    row.line:SetPoint("RIGHT", row.reset, "LEFT", -INSET, 0)
     return row
 end
 
-local function SetColumns()
-    return COLUMNS_H
+local function SetActive(row, name, names, alone)
+    row.profile = name
+    row.name:SetText(name)
+    SetWho(row, names, true)
+    SetDelete(row.delete, alone)
+    return ACTIVE_H
 end
 
--- What a part's Status says, and in which colour.
-local STATUS = {
-    ready = { "Ready", "HAVE_RGB" },
-    empty = { "Nothing yet", "muted" },
-    pack = { "From a pack", "WARN_RGB" },
-}
+local function NewGroup(view)
+    local row = CreateFrame("Frame", nil, view)
+    Rule(row, "TOP")
+    row.text = ns.Font(row, SMALL_SIZE, nil, ns.THEME.accentSoft)
+    row.text:SetPoint("BOTTOMLEFT", INSET, LINE_GAP)
+    return row
+end
 
-local function NewPart(view)
+local function SetGroup(row, title)
+    row.text:SetText(title)
+    return GROUP_H
+end
+
+local function RowEnter(row)
+    row.hover:Show()
+end
+
+local function RowLeave(row)
+    if not row:IsMouseOver() then row.hover:Hide() end
+end
+
+local function PartEntered(part)
+    RowEnter(part:GetParent())
+end
+
+local function PartLeft(part)
+    RowLeave(part:GetParent())
+end
+
+local function NewProfileRow(view)
     local T = ns.THEME
     local row = CreateFrame("Frame", nil, view)
-    row.name = ns.Font(row, 13, nil, T.fg)
-    row.name:SetPoint("BOTTOMLEFT", row, "LEFT", 0, 1)
-    row.line = ns.Font(row, 11, nil, T.muted)
-    row.line:SetPoint("TOPLEFT", row, "LEFT", 0, -3)
-    row.toggle = UI.BuildToggleControl(row, nil, function() return Ticked(row.key) end, function(on)
-        wanted[row.key] = on
-        view:Redraw()
-    end, 32, 16)
-    row.toggle:SetPoint("CENTER", row, "RIGHT", -INCLUDE_X, 0)
-    row.status = ns.Font(row, 11, nil, T.fg)
-    row.status:SetPoint("RIGHT")
+    ns.Shared.Parts.RowBands(row, INSET)
+    row.name = ns.Font(row, NAME_SIZE, nil, T.fg)
+    row.name:SetPoint("BOTTOMLEFT", row, "LEFT", INSET, LINE_GAP / 2 - 1)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+    WhoLine(row, SMALL_SIZE)
+    row.line:SetPoint("TOPLEFT", row, "LEFT", INSET, -LINE_GAP / 2 + 1)
+    row.delete = DeleteButton(row, SMALL_H)
+    row.delete:SetPoint("RIGHT", -INSET, 0)
+    row.copy = ns.Button(row, "Copy", ACTION_W, SMALL_H, function() CopyNamed(row.profile) end)
+    row.copy:SetPoint("RIGHT", row.delete, "LEFT", -GAP, 0)
+    row.use = ns.AccentBorder(ns.Button(row, "Use", ACTION_W, SMALL_H, function() UseNamed(row.profile) end))
+    row.use:SetPoint("RIGHT", row.copy, "LEFT", -GAP, 0)
+    for _, part in ipairs({ row.delete, row.copy, row.use, row.who }) do
+        part:HookScript("OnEnter", PartEntered)
+        part:HookScript("OnLeave", PartLeft)
+    end
+    row.name:SetPoint("RIGHT", row.use, "LEFT", -INSET, 0)
+    row.line:SetPoint("RIGHT", row.use, "LEFT", -INSET, 0)
+    row:EnableMouse(true)
+    row:SetScript("OnEnter", RowEnter)
+    row:SetScript("OnLeave", RowLeave)
     return row
 end
 
-local function SetPart(row, part, status)
-    row.key = part.key
-    row.name:SetText(part.label)
-    row.line:SetText(part.share)
-    row.toggle._refreshValue()
-    local say = STATUS[status]
-    local c = ns.Shared.Style[say[2]] or ns.THEME[say[2]]
-    row.status:SetText(say[1])
-    row.status:SetTextColor(c.r, c.g, c.b, 1)
-    return PART_H
+local function SetProfileRow(row, name, names, striped)
+    row.profile = name
+    row.stripe:SetShown(striped)
+    row.hover:Hide()
+    row.name:SetText(name)
+    SetWho(row, names, false)
+    SetDelete(row.delete, false)
+    return PROFILE_H
 end
 
-local function NewFoot(view)
+-------------------------------------------------------------------------------
+--  Share: a tile per part, then the summary and the button
+-------------------------------------------------------------------------------
+local function PickAll(view)
+    local all = true
+    for _, part in ipairs(PARTS) do
+        if view.status[part.key] == "ready" and not Ticked(part.key) then all = false end
+    end
+    for _, part in ipairs(PARTS) do wanted[part.key] = not all end
+    view:Redraw()
+end
+
+local function Pick(tile, on)
+    if not tile.ready then return end
+    wanted[tile.key] = on
+    tile:GetParent():Redraw()
+end
+
+local function TileClicked(tile)
+    Pick(tile, not Ticked(tile.key))
+end
+
+local function TileEnter(tile)
+    local T = ns.THEME
+    if tile.ready then tile.edge:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end
+    if not ns.Shared.Parts.Tip(tile, "ANCHOR_TOP") then return end
+    GameTooltip:SetText(tile.name:GetText(), 1, 1, 1)
+    GameTooltip:AddLine(tile.tip, T.muted.r, T.muted.g, T.muted.b, true)
+    GameTooltip:Show()
+end
+
+local function TileLeave(tile)
+    local c = ns.Shared.Style.BORDER_RGB
+    tile.edge:SetColor(c.r, c.g, c.b, 1)
+    GameTooltip:Hide()
+end
+
+local function NewTile(view)
+    local T, St = ns.THEME, ns.Shared.Style
+    local tile = CreateFrame("Button", nil, view)
+    ns.Solid(tile, "BACKGROUND", T.fg, St.CARD_FILL):SetAllPoints()
+    tile.edge = ns.Border(tile, St.BORDER_RGB)
+    tile.switch = UI.BuildToggleControl(tile, nil, function() return tile.ready and Ticked(tile.key) end,
+        function(on) Pick(tile, on) end)
+    tile.switch:SetPoint("LEFT", TILE_PAD, 0)
+    tile.name = ns.Font(tile, NAME_SIZE, nil, T.fg)
+    tile.name:SetPoint("BOTTOMLEFT", tile.switch, "RIGHT", TILE_GAP, 1)
+    tile.name:SetPoint("RIGHT", -TILE_PAD, 0)
+    tile.name:SetJustifyH("LEFT")
+    tile.name:SetWordWrap(false)
+    tile.detail = ns.Font(tile, SMALL_SIZE, nil, T.muted)
+    tile.detail:SetPoint("TOPLEFT", tile.switch, "RIGHT", TILE_GAP, -3)
+    tile.detail:SetPoint("RIGHT", -TILE_PAD, 0)
+    tile.detail:SetJustifyH("LEFT")
+    tile.detail:SetWordWrap(false)
+    tile:SetScript("OnClick", TileClicked)
+    tile:SetScript("OnEnter", TileEnter)
+    tile:SetScript("OnLeave", TileLeave)
+    return tile
+end
+
+-- Ready: its switch on while it goes in. Empty or from a pack: dimmed, its switch off and still.
+local function SetTile(tile, part, state, detail)
+    local T, St = ns.THEME, ns.Shared.Style
+    tile.key, tile.ready = part.key, state == "ready"
+    tile.name:SetText(part.label)
+    Paint(tile.name, T.fg, tile.ready and 1 or DIM)
+    if state == "pack" then
+        tile.detail:SetText("From a pack")
+        Paint(tile.detail, St.WARN_RGB)
+        tile.tip = "Came with a pack, so it stays with the pack's author."
+    else
+        tile.detail:SetText(state == "empty" and "Nothing saved yet" or detail or (part.share:gsub("%.$", "")))
+        Paint(tile.detail, T.muted, tile.ready and 1 or DIM)
+        tile.tip = part.share
+    end
+    tile.switch._refreshValue()
+    SetUsable(tile.switch, tile.ready)
+    return TILE_H
+end
+
+local function Send()
+    local ticks = {}
+    for _, part in ipairs(PARTS) do ticks[part.key] = Ticked(part.key) or nil end
+    ns.ShowProfileExport(ticks)
+end
+
+local function NewSend(view)
     local row = CreateFrame("Frame", nil, view)
     Rule(row, "TOP")
-    row.count = ns.Font(row, 11, nil, ns.THEME.muted)
-    row.count:SetPoint("LEFT")
-    row.export = ns.AccentBorder(ns.Button(row, "Export Profile", 160, 26, function()
-        local ticks = {}
-        for _, part in ipairs(PARTS) do ticks[part.key] = Ticked(part.key) or nil end
-        ns.ShowProfileExport(ticks)
-    end))
-    row.export:SetPoint("RIGHT")
+    row.count = ns.Font(row, LINE_SIZE, nil, ns.THEME.muted)
+    row.count:SetPoint("LEFT", INSET, 0)
+    row.send = ns.AccentBorder(ns.Button(row, "Export", BUTTON_W, BUTTON_H, Send))
+    row.send:SetPoint("RIGHT", -INSET, 0)
+    row.count:SetPoint("RIGHT", row.send, "LEFT", -INSET, 0)
+    row.count:SetJustifyH("LEFT")
     return row
 end
 
-local function SetFoot(row, count, ready)
-    row.count:SetText(count > 0 and ("Export will include %d of %d parts."):format(count, ready)
-        or "Tick a part to export.")
-    return FOOT_H
+local function SetSend(row, count, ready)
+    row.count:SetText(count > 0 and ("%d of %d parts of %s go in the string."):format(count, ready,
+        ns.ActiveProfileName() or "?") or "Pick a part to share.")
+    SetUsable(row.send, count > 0)
+    return SEND_H
 end
 
+-------------------------------------------------------------------------------
+--  Import: a paste box, and the button that takes what is in it to the import
+-------------------------------------------------------------------------------
+local function Typed(box)
+    local has = box:GetText():find("%S") ~= nil
+    box.hint:SetShown(not has)
+    SetUsable(box.go, has)
+end
+
+local function TakeIn(box)
+    local text = box:GetText()
+    box:SetText("")
+    box:ClearFocus()
+    Typed(box)
+    ns.ShowProfileImport(text)
+end
+
+local function NewPaste(view)
+    local T, St = ns.THEME, ns.Shared.Style
+    local row = CreateFrame("Frame", nil, view)
+    local field = CreateFrame("Frame", nil, row)
+    field:SetPoint("TOPLEFT", INSET, -INSET)
+    field:SetPoint("TOPRIGHT", -INSET, -INSET)
+    field:SetHeight(FIELD_H)
+    ns.Solid(field, "BACKGROUND", T.bg, 1):SetAllPoints()
+    ns.Border(field, St.BORDER_RGB)
+    local scroll = UI.SlimScroll(field)
+    scroll:SetPoint("TOPLEFT", 1, -1)
+    scroll:SetPoint("BOTTOMRIGHT", -SCROLL_ROOM, 1)
+    local box = CreateFrame("EditBox", nil, scroll)
+    box:SetMultiLine(true)
+    box:SetAutoFocus(false)
+    box:SetMaxLetters(0)
+    box:SetFont(ns.UIFontPath(), FIELD_TEXT, "")
+    box:SetTextColor(T.fg.r, T.fg.g, T.fg.b, 1)
+    box:SetTextInsets(FIELD_INSET_X, FIELD_INSET_X, FIELD_INSET_Y, FIELD_INSET_Y)
+    -- A multiline box is as tall as its text, so an empty one would take no clicks.
+    box:SetHeight(FIELD_H - 2)
+    box:SetScript("OnEscapePressed", box.ClearFocus)
+    box:SetScript("OnTextChanged", Typed)
+    scroll:SetScrollChild(box)
+    scroll:SetScript("OnSizeChanged", function(_, w) box:SetWidth(w) end)
+    scroll:EnableMouse(true)
+    scroll:SetScript("OnMouseDown", function() box:SetFocus() end)
+    box.hint = ns.Font(field, FIELD_TEXT, nil, T.muted)
+    box.hint:SetPoint("TOPLEFT", FIELD_INSET_X + 1, -(FIELD_INSET_Y + 1))
+    box.hint:SetText("Paste a profile, macro, talent build or BiS list string here.")
+    box.go = ns.AccentBorder(ns.Button(row, "Import", BUTTON_W, BUTTON_H, function() TakeIn(box) end))
+    box.go:SetPoint("TOPRIGHT", field, "BOTTOMRIGHT", 0, -IMPORT_GAP)
+    local note = ns.Font(row, SMALL_SIZE, nil, T.muted)
+    note:SetPoint("LEFT", field, "BOTTOMLEFT", 0, -(IMPORT_GAP + BUTTON_H / 2))
+    note:SetPoint("RIGHT", box.go, "LEFT", -INSET, 0)
+    note:SetJustifyH("LEFT")
+    note:SetText("You see what it holds and pick the parts before anything changes.")
+    row.box = box
+    Typed(box)
+    return row
+end
+
+local function SetPaste()
+    return INSET + FIELD_H + IMPORT_GAP + BUTTON_H + INSET
+end
+
+-------------------------------------------------------------------------------
+--  The page
+-------------------------------------------------------------------------------
 local kinds
 local Draw = {}
+local NO_EVENTS = {}
+
+function Draw:BeginCard()
+    self.left, self.width = 0, self:GetWidth()
+    local card = self:Acquire("card")
+    card:SetFrameLevel(self:GetFrameLevel())
+    return card
+end
+
+function Draw:EndCard(card)
+    card:SetHeight(self.cursor - card.top)
+    self:Space(ns.Shared.Style.CARD_GAP)
+end
+
+function Draw:Tiles()
+    local w = self:GetWidth() - INSET * 2
+    local columns = self:GetWidth() >= TWO_COLUMNS_W and 2 or 1
+    local tileW = math.floor((w - GAP * (columns - 1)) / columns)
+    local top = self.cursor + INSET
+    for i, part in ipairs(PARTS) do
+        local column = (i - 1) % columns
+        if column == 0 and i > 1 then top = top + TILE_H + GAP end
+        self.cursor = top
+        self.left = INSET + column * (tileW + GAP)
+        self.width = column == columns - 1 and w - column * (tileW + GAP) or tileW
+        self:Add("part", part, self.status[part.key], self.details[part.key])
+    end
+    self.cursor = top + TILE_H + INSET
+    self.left, self.width = 0, self:GetWidth()
+end
 
 function Draw:Redraw()
-    local St = ns.Shared.Style
     self:Clear()
-    local width = self:GetWidth()
-    local half = (width - GAP) / 2
-    self.width = half
-    self:Add("action", St.IMPORT, "Import Profile",
-        "Paste a profile, macros, a talent build or a BiS list.", ns.ShowProfileImport)
-    self.cursor, self.left = 0, half + GAP
-    self:Add("action", St.PLUS, "New Profile", "Start a profile at default settings.", NewProfile)
-    self.left, self.width = 0, width
-    self:Space(GAP)
-    self:Add("bar")
-    self:Space(GAP)
+    local order, by = ns.ListProfiles(), Characters()
+    local active = ns.ActiveProfileName()
 
-    local top = self.cursor
-    local card = self:OpenCard(0, width)
-    self:Add("head")
-    self:Add("columns")
+    local card = self:BeginCard()
+    self:Add("head", "Profiles", #order == 1 and "1 profile on this account" or (#order .. " profiles on this account"),
+        "New Profile", NewProfile)
+    self:Add("active", active, by[active] or {}, #order == 1)
+    if #order > 1 then
+        self:Add("group", "OTHER PROFILES")
+        local n = 0
+        for _, name in ipairs(order) do
+            if name ~= active then
+                n = n + 1
+                self:Add("profile", name, by[name] or {}, n % 2 == 0)
+            end
+        end
+    end
+    self:EndCard(card)
+
     local count, ready = 0, 0
     for _, part in ipairs(PARTS) do
-        local status = self.status[part.key]
-        self:Add("part", part, status)
-        if status == "ready" then
+        if self.status[part.key] == "ready" then
             ready = ready + 1
             if Ticked(part.key) then count = count + 1 end
         end
     end
-    self:Add("foot", count, ready)
-    self:CloseCard(card, top)
-    self:Fit({})
+    card = self:BeginCard()
+    self:Add("head", "Share", "Pick what goes in the string you give someone.",
+        count < ready and "Pick All" or "Pick None", ready > 0 and PickAll or nil, self, true)
+    self:Tiles()
+    self:Add("send", count, ready)
+    self:EndCard(card)
+
+    card = self:BeginCard()
+    self:Add("head", "Import", "Profiles, Forge macros, talent builds, BiS lists and Smart Reminders packs.")
+    self:Add("paste")
+    self:EndCard(card)
+    self:Fit(NO_EVENTS)
 end
 
 local function Kinds()
     if kinds then return kinds end
     kinds = ns.Shared.View.NewKinds()
-    kinds.action = { New = NewAction, Set = SetAction }
-    kinds.bar = { New = NewBar, Set = SetBar }
     kinds.head = { New = NewHead, Set = SetHead }
-    kinds.columns = { New = NewColumns, Set = SetColumns }
-    kinds.part = { New = NewPart, Set = SetPart }
-    kinds.foot = { New = NewFoot, Set = SetFoot }
+    kinds.active = { New = NewActive, Set = SetActive }
+    kinds.group = { New = NewGroup, Set = SetGroup }
+    kinds.profile = { New = NewProfileRow, Set = SetProfileRow }
+    kinds.part = { New = NewTile, Set = SetTile }
+    kinds.send = { New = NewSend, Set = SetSend }
+    kinds.paste = { New = NewPaste, Set = SetPaste }
     return kinds
 end
 
@@ -930,11 +1333,12 @@ function ns.BuildProfileSettings(parent, y)
     local all = Collect()
     local sr = ns.SettingsRoot().tankReminder
     local packed = type(sr) == "table" and type(sr.importedPack) == "table"
-    view.status = {}
+    view.status, view.details = {}, {}
     for _, part in ipairs(PARTS) do
         view.status[part.key] = all[part.key] and "ready"
             or packed and part.key == "smartReminders" and "pack" or "empty"
     end
+    for _, part in ipairs(ns.ProfileStringParts({ parts = all })) do view.details[part.key] = part.detail end
     view:ClearAllPoints()
     view:SetPoint("TOPLEFT", parent, "TOPLEFT", UI.CONTENT_PAD, y - UI.CONTENT_PAD / 2)
     view:SetWidth(math.max(1, parent:GetWidth() - UI.CONTENT_PAD * 2))

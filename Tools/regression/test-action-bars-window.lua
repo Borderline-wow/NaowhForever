@@ -252,7 +252,7 @@ local env = setmetatable({
 env._G.NaowhForever = ns
 
 Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua", "Shared/Window.lua",
-    "ActionBars/NaowhForever_ActionBars.lua", "ActionBars/NaowhForever_ActionBarsWindow.lua" }, env)
+    "NaowhForever_ActionBars/NaowhForever_ActionBars.lua", "NaowhForever_ActionBars/NaowhForever_ActionBarsWindow.lua" }, env)
 
 local function RunTimers()
     local timers = state.timers

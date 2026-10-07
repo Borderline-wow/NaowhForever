@@ -1,6 +1,6 @@
 -- Offline behavior checks for the Flight Timer's Request Stop fade, its display, and Flight Games
--- (what opens on a flight, and the one-time move from the old toggles); these do not emulate
--- client taint or rendering.
+-- (what opens on a flight, and the one-time move from the old toggles), and its look; these do
+-- not emulate client taint or rendering.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 local function fixture(settings)
@@ -22,6 +22,10 @@ local function fixture(settings)
         function f:CreateTexture() return frame() end
         function f:SetText(v) self.text = v end
         function f:GetStringWidth() return 40 end
+        function f:SetAlpha(a) self.alpha = a end
+        function f:SetFont(path, size, flags) self.font = path .. " " .. size .. " " .. flags end
+        function f:SetTexture(path) self.texture = path end
+        function f:SetTextColor(r) self.red = r end
         s.frames[#s.frames + 1] = f
         return f
     end
@@ -31,19 +35,27 @@ local function fixture(settings)
     function leave:EnableMouse(v) self.mouse = v; self.mouseCalls = self.mouseCalls + 1 end
     s.leave = leave
     local defaults = { enabled = true, flightTimer = true, flightEarlyLanding = false, flightTimerScale = 1,
-        flightGame = 'aim' }
+        flightTimerAlpha = 1, flightGame = 'aim', flightTimerFont = '', flightTimerOutline = 'NONE', flightTimerTexture = '' }
     local S = { Get = function(k) if s.settings[k] ~= nil then return s.settings[k] end return defaults[k] end,
         Set = function(k, v) s.settings[k] = v end, DB = function() return s.settings end,
         Raw = function(k) return s.settings[k] end }
-    local ns = { QoLSettings = S, THEME = { accent = {}, bg = {}, muted = {}, accentSoft = {}, fg = {}, line = {} },
-        Font = function() return frame() end, Solid = function() return frame() end, Border = function() end,
-        Button = function(_, text) local b = frame(); b.label = text; return b end,
+    local ns = { QoLSettings = S, THEME = { accent = {}, bg = {}, muted = { r = 0.5 }, accentSoft = {}, fg = { r = 1 },
+            line = {} },
+        Font = function() return frame() end, Solid = function() return frame() end,
+        Border = function() return { _frame = frame() } end,
+        Button = function(_, text)
+            local b = frame()
+            b.name, b.label = text, frame()
+            b._bg, b._border = frame(), { _frame = frame() }
+            return b
+        end,
         AccentBorder = function(f) return f end, PixelInset = function() end,
         Tooltip = function() end, AccountSettings = function() return {} end, FLIGHT_ROUTES = {},
         Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
-        UI = { AttachMover = function() return frame() end },
+        UI = { AttachMover = function() return frame() end, FontPath = function(name) return 'font:' .. name end,
+            TexturePath = function(name, own) if name == '' then return own end return 'lsm:' .. name end },
         Shared = { Style = { ROUND = 'round', BORDER_RGB = { r = 0, g = 0, b = 0 }, PLACE_DOT = ' . ' },
-            Parts = { Arrow = function() return frame() end } },
+            Parts = { Arrow = function() return frame() end, HudText = function(fs, shadow) fs.shadow = shadow end } },
         QuizOffer = function(reason) s.offers[#s.offers + 1] = 'quiz:' .. reason end,
         AimOffer = function(reason) s.offers[#s.offers + 1] = 'aim:' .. reason end,
         QuizDismiss = function(reason) s.dismissed.quiz = reason end,
@@ -79,7 +91,7 @@ local function fixture(settings)
         for _, f in ipairs(s.frames) do if pred(f) then return f end end
     end
     function s.text(v) return s.find(function(f) return rawget(f, 'text') == v end) end
-    function s.button(label) return s.find(function(f) return rawget(f, 'label') == label end) end
+    function s.button(label) return s.find(function(f) return rawget(f, 'name') == label end) end
     function s.tick()
         local bar = s.find(function(f) return f.scripts.OnUpdate end)
         bar.scripts.OnUpdate(bar)
@@ -227,4 +239,30 @@ do
     check('the old flight toggles are gone', not qol:find('quizFlight', 1, true) and not qol:find('aimAutoFlight', 1, true)
         and not quiz:find('quizFlight', 1, true))
 end
+do -- the look: today's card by default, then Font, Outline, Bar Texture and Background Opacity
+    local s = fixture({ flightEarlyLanding = true })
+    s.board()
+    local bar = s.find(function(f) return f.scripts.OnUpdate end)
+    local land = s.button('Land')
+    check('default: the Addon Font, no outline or shadow', bar.time.font == 'font: 20 ' and bar.time.shadow == false
+        and bar.to.font == 'font: 14 ')
+    check('default: the flat fill and a solid card', bar.fill.texture == 'Interface\\Buttons\\WHITE8X8'
+        and bar.bg.alpha == 1 and land._bg.alpha == 1 and bar.from.red == 0.5)
+    s.set('flightTimerFont', 'Arial')
+    s.set('flightTimerOutline', 'OUTLINE')
+    s.set('flightTimerTexture', 'Smooth')
+    check('Font, Outline and Bar Texture apply', bar.time.font == 'font:Arial 20 OUTLINE'
+        and bar.nextKey.font == 'font:Arial 12 OUTLINE' and bar.fill.texture == 'lsm:Smooth')
+    s.set('flightTimerAlpha', 0.3)
+    check('Background Opacity fades the card and its buttons', bar.bg.alpha == 0.3 and bar.border._frame.alpha == 0.3
+        and land._bg.alpha == 0.3 and land._border._frame.alpha == 0.3)
+    check('an outline needs no shadow; muted labels go bright', bar.time.shadow == false and bar.from.red == 1)
+    s.set('flightTimerOutline', 'NONE')
+    check('plain text over a faded card gets a shadow', bar.time.shadow == 'none' and bar.time.font == 'font:Arial 20 ')
+    s.set('flightTimerAlpha', 1)
+    check('and loses it on a solid card', bar.time.shadow == false and bar.from.red == 0.5)
+    s.set('flightTimerOutline', '')
+    check('Shadow keeps one on a solid card', bar.time.shadow == 'card')
+end
+
 print(checks .. ' flight request-stop checks passed')

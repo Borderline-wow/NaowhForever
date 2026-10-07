@@ -68,6 +68,16 @@ function Parts.HudText(fs, shadow)
     return fs
 end
 
+Parts.HUD_OUTLINES = { { NONE = "None", [""] = "Shadow", OUTLINE = "Outline", THICKOUTLINE = "Thick Outline" },
+    { "NONE", "", "OUTLINE", "THICKOUTLINE" } }
+
+-- font is a SharedMedia name ("" for the Addon Font); outline one of HUD_OUTLINES. Shadow ("")
+-- gets the HUD shadow for background (a Parts.HudBackdrop mode, or nil for the card's).
+function Parts.HudFont(fs, font, size, outline, background)
+    fs:SetFont(ns.UI.FontPath(font), size, outline == "NONE" and "" or outline)
+    return Parts.HudText(fs, outline == "" and (background or "card") or false)
+end
+
 Parts.HUD_BACKGROUNDS = { { card = "Card", soft = "Soft", none = "None" }, { "card", "soft", "none" } }
 local BACKGROUND_NAMES, NO_OPTS = Parts.HUD_BACKGROUNDS[1], {}
 local SOFT_CORNERS = {   -- point, its x and y outwards, then the round texture's quarter: left, right, top, bottom
@@ -315,7 +325,8 @@ function Parts.Fraction(part, whole)
     return text
 end
 
-local coins = {}
+local coins, coinsKept = {}, 0
+local COINS_KEPT = 500
 local GOLD, SILVER = 10000, 100   -- copper in a gold coin, in a silver one
 
 -- The amount with the game's coin icons ("1g 50s 25c"), made once each. With compact, only its
@@ -328,8 +339,13 @@ function Parts.Coins(copper, compact)
     end
     local text = coins[copper]
     if not text then
+        if coinsKept >= COINS_KEPT then
+            wipe(coins)
+            coinsKept = 0
+        end
         text = C_CurrencyInfo.GetCoinTextureString(copper)
         coins[copper] = text
+        coinsKept = coinsKept + 1
     end
     return text
 end
@@ -446,6 +462,33 @@ function Parts.ItemBadge(set, corner, atlas, color)
     if color then badge.art:SetVertexColor(color.r, color.g, color.b) end
     badge:Hide()
     return badge
+end
+
+local PILL_PAD, PILL_FILL = 4, St.TAB_FILL
+
+function Parts.Pill(parent, size, color)
+    local pill = CreateFrame("Frame", nil, parent)
+    pill.fill = ns.Solid(pill, "BACKGROUND", color, PILL_FILL)
+    pill.fill:SetAllPoints()
+    pill.edge = ns.Border(pill, color)
+    pill.text = ns.Font(pill, size, nil, color)
+    pill.text:SetPoint("CENTER")
+    pill:SetHeight(size + PILL_PAD)
+    return pill
+end
+
+function Parts.ColorPill(pill, color)
+    if pill.color == color then return end
+    pill.color = color
+    pill.fill:SetColorTexture(color.r, color.g, color.b, PILL_FILL)
+    pill.edge:SetColor(color.r, color.g, color.b)
+    pill.text:SetTextColor(color.r, color.g, color.b)
+end
+
+function Parts.SetPill(pill, text)
+    pill.text:SetText(text)
+    pill:SetWidth(math.ceil(pill.text:GetStringWidth()) + 2 * PILL_PAD)
+    return pill:GetWidth()
 end
 
 -- The tooltip's owner set, for a hover card; nothing while a menu is open, so moving the mouse
@@ -565,7 +608,7 @@ function Parts.CopyWowhead(kind, id, name)
 end
 
 -- A where line without its colour codes (they pull the eye off the titles), dashes between
--- place and person ("Ratchet- Crane Operator") as dots. Made once each.
+-- place and person ("Ratchet - Crane Operator") as dots. Made once each.
 local plain = {}
 
 function Parts.Plain(text)
@@ -694,7 +737,7 @@ function Parts.ShareMenu(owner, title, message, copyTitle, copyText, trade, icon
         root:CreateDivider()
         root:CreateButton("Copy", function() ns.ShowCopyLine(copyTitle, copyText, icon) end)
         if locked then root:CreateTitle(ns.Color("muted", "Chat is locked right now.")) end
-        if trade and not tradeChannel then root:CreateTitle(ns.Color("muted", "Trade is open in a city.")) end
+        if trade and not tradeChannel then root:CreateTitle(ns.Color("muted", "Trade chat is only available in cities.")) end
     end)
 end
 

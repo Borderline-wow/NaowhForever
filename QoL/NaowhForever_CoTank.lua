@@ -5,7 +5,9 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
+local BAR = "Interface\\Buttons\\WHITE8X8"
 local RIGHTEOUS_FURY = 25780
 local PALADIN = select(2, UnitClass("player")) == "PALADIN"
 
@@ -139,12 +141,12 @@ end
 -- Button calls are denied while auras are secret, so a restyle waits for them to clear.
 local function StyleButton(button, r)
     local size = S.Get("coTankDebuffSize")
-    local font = ns.UI.FontPath(S.Get("coTankFont"))
+    local font, outline = S.Get("coTankFont"), S.Get("coTankOutline")
     button:SetSize(size, size)
     button:SetMouseMotionEnabled(S.Get("coTankDebuffTooltips"))
-    r.duration:SetFont(font, S.Get("coTankDebuffDurationSize"), "OUTLINE")
+    Parts.HudFont(r.duration, font, S.Get("coTankDebuffDurationSize"), outline)
     r.duration:SetShown(S.Get("coTankDebuffDuration"))
-    r.stack:SetFont(font, S.Get("coTankDebuffStackSize"), "OUTLINE")
+    Parts.HudFont(r.stack, font, S.Get("coTankDebuffStackSize"), outline)
     r.stack:SetShown(S.Get("coTankDebuffStacks"))
 end
 
@@ -242,7 +244,7 @@ local function LayoutDebuffs()
         end
     end
 
-    local key = table.concat({ S.Get("coTankDebuffSize"), S.Get("coTankFont"),
+    local key = table.concat({ S.Get("coTankDebuffSize"), S.Get("coTankFont"), S.Get("coTankOutline"),
         tostring(S.Get("coTankDebuffTooltips")), tostring(S.Get("coTankDebuffDuration")),
         S.Get("coTankDebuffDurationSize"), tostring(S.Get("coTankDebuffStacks")),
         S.Get("coTankDebuffStackSize") }, "|")
@@ -315,7 +317,6 @@ local function Build()
 
     frame.bar = CreateFrame("StatusBar", nil, frame)
     ns.PixelInset(frame.bar, 1)
-    frame.bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     frame.name = ns.Font(frame.bar, 12, "OUTLINE")
     frame.name:SetPoint("CENTER")
 
@@ -418,7 +419,8 @@ function Refresh()
     frame:SetAttribute("unit", tank)
     frame:SetSize(S.Get("coTankWidth"), S.Get("coTankHeight"))
     frame.bg:SetAlpha(S.Get("coTankBgAlpha"))
-    frame.name:SetFont(ns.UI.FontPath(S.Get("coTankFont")), S.Get("coTankFontSize"), "OUTLINE")
+    frame.bar:SetStatusBarTexture(ns.UI.TexturePath(S.Get("coTankTexture"), BAR))
+    Parts.HudFont(frame.name, S.Get("coTankFont"), S.Get("coTankFontSize"), S.Get("coTankOutline"))
     Place()
     frame.mover:SetShown(unlocked == true)
 
@@ -485,30 +487,17 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
     help = "A small health bar for the other tank in your group, shown while you are tanking: "
         .. "tank role, Bear Form, Defensive Stance or Righteous Fury. The other tank is whoever has "
         .. "the tank role or the raid's Main Tank assignment. Click it to target them. Changes made "
-        .. "in combat apply when the fight ends. Move it in Unlock Mode.",
+        .. "in combat apply when the fight ends. Move it in the HUD Editor.",
     summary = Summary,
     rows = {
-        Group("Size"),
-        { key = "coTankWidth", label = "Width", slider = { 50, 400, 5 } },
-        { key = "coTankHeight", label = "Height", slider = { 10, 80, 1 } },
-        Group("Health"),
-        { key = "coTankClassColor", label = "Class Colour Health", toggle = true },
-        { key = "coTankColor", label = "Health Colour", colour = true, needs = OwnHealthColour,
-          why = "Class colour is on" },
-        { key = "coTankBgAlpha", label = "Background Opacity", slider = { 0, 100, 5 }, unit = "%", scale = 0.01 },
         Group("Name"),
         { key = "coTankName", label = "Show Name", toggle = true },
         { key = "coTankNameLength", label = "Name Length", slider = { 0, 20, 1 }, needs = "coTankName",
           help = "Cuts the name to this many letters. 0 shows it whole." },
-        { key = "coTankNameClassColor", label = "Class Colour Name", toggle = true, needs = "coTankName" },
-        { key = "coTankNameColor", label = "Name Colour", colour = true, needs = OwnNameColour,
-          why = "Needs Show Name, class colour off" },
-        { key = "coTankFont", label = "Font", font = true, needs = "coTankName" },
-        { key = "coTankFontSize", label = "Font Size", slider = { 8, 24, 1 }, needs = "coTankName" },
         Group("Position"),
         { key = "coTankAnchor", label = "Anchor to a Frame", text = true, wide = true,
           help = "Frame to anchor to, such as PlayerFrame. UIParent puts it back on the screen, and so "
-              .. "does dragging it in Unlock Mode." },
+              .. "does dragging it in the HUD Editor." },
         { key = "coTankX", label = "X Offset", slider = { -2000, 2000, 1 }, help = FROM_ANCHOR },
         { key = "coTankY", label = "Y Offset", slider = { -2000, 2000, 1 }, help = FROM_ANCHOR },
         Group("Debuffs"),
@@ -531,5 +520,16 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "coTankDebuffStacks", label = "Show Stacks", toggle = true, needs = "coTankDebuffs" },
         { key = "coTankDebuffStackSize", label = "Stacks Size", slider = { 6, 20, 1 },
           needs = { "coTankDebuffs", "coTankDebuffStacks" } },
+        Group("Size"),
+        { key = "coTankWidth", label = "Width", slider = { 50, 400, 5 } },
+        { key = "coTankHeight", label = "Height", slider = { 10, 80, 1 } },
+        ns.Shared.Settings.Look("coTank", { text = true, size = { 8, 24, 1 }, bar = "Flat", background = "alpha" }),
+        Group("Colours"),
+        { key = "coTankClassColor", label = "Class Colour Health", toggle = true },
+        { key = "coTankColor", label = "Health Colour", colour = true, needs = OwnHealthColour,
+          why = "Class colour is on" },
+        { key = "coTankNameClassColor", label = "Class Colour Name", toggle = true, needs = "coTankName" },
+        { key = "coTankNameColor", label = "Name Colour", colour = true, needs = OwnNameColour,
+          why = "Needs Show Name, class colour off" },
     },
 })

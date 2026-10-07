@@ -14,7 +14,7 @@ local function fixture(settings, withSettings)
         }, settings = settings or {}, cards = {}, cx = 0, cy = 0 }
     local function frame(kind, name, parent)
         local f = { kind = kind, scripts = {}, events = {}, shown = true, w = 280, h = 240, parent = parent }
-        setmetatable(f, { __index = function() return function() end end })
+        setmetatable(f, { __index = function(_, k) if k:match('^%u') then return function() end end end })
         function f:SetScript(k, fn) self.scripts[k] = fn end
         function f:RegisterEvent(k) self.events[k] = true end
         function f:RegisterUnitEvent(k) self.events[k] = true end
@@ -28,12 +28,14 @@ local function fixture(settings, withSettings)
         function f:GetWidth() return self.w end
         function f:GetHeight() return self.h end
         function f:GetEffectiveScale() return 1 end
+        function f:SetAlpha(a) self.alpha=a end
         function f:GetFrameLevel() return 1 end
         function f:GetLeft() return 100 end
         function f:GetTop() return 600 end
         function f:SetPoint(...) self.point={...} end
         function f:SetText(t) assert(type(t)~='boolean','boolean passed to SetText'); self.text=t end
-        function f:SetFont(path,size) assert(type(path)=='string' and type(size)=='number'); self.fontSize=size end
+        function f:SetFont(path,size,flags) assert(type(path)=='string' and type(size)=='number'); self.fontSize,self.flags=size,flags end
+        function f:SetStatusBarTexture(t) self.barTexture=t end
         function f:SetTexture(t) self.texture=t end
         function f:SetDesaturated(v) self.desaturated=v end
         function f:SetStatusBarColor(...) self.color={...} end
@@ -47,13 +49,14 @@ local function fixture(settings, withSettings)
         UIFontPath=function() return 'font.ttf' end, Print=function() end,
         Apply=function() end, ShowRaidReminderAnchorConfig=function() end, HideRaidReminderAnchorConfig=function() end,
         Font=function() return frame('FontString') end,
-        Border=function(_,color) local b=frame('Border'); b.edge=color; return b end,
+        Border=function(_,color) local b=frame('Border'); b.edge=color; return {_frame=b} end,
         AllowOffscreen=function() end,
         Solid=function(_,_,color,alpha) local t=frame('Texture'); t.solid={color=color,alpha=alpha}; return t end,
         ThemeTint=function(_,literal) return literal end, Tooltip=function() end,
         Button=function(parent,text,w,h,fn) local b=frame('Button',nil,parent); b.label=frame('FontString'); b.label:SetText(text); b.scripts.OnClick=fn; return b end,
         OpenOptionsWindow=function(name) s.opened=name end,
         UI={STATUS={},FontPath=function() return 'font.ttf' end,AttachMover=function() return frame('Mover') end,
+            TexturePath=function(name,fallback) if name=='Solid' then return 'solid' end return fallback end,
             SoundPathFor=function() return 'sound' end,_PlayLSMSound=function() s.sounds=s.sounds+1 end},
     }
     ns.UI.ModuleSettings=function(_, defaults)
@@ -93,12 +96,13 @@ local function fixture(settings, withSettings)
     env.GameTooltip=frame('Tooltip')
     function env.GameTooltip:SetOwner(o) self.owner=o end
     function env.GameTooltip:GetOwner() return self.owner end
+    ns.Shared={Parts={HudFont=function(fs,font,size,outline) fs:SetFont('font.ttf',size,outline);fs.shadowFor=outline=='' end}}
     if withSettings then
-        ns.Shared={Settings={Group=function(name) return {group=name} end,
-            Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}}
+        ns.Shared.Settings={Group=function(name) return {group=name} end,Look=function(_,opts) s.look=opts;return {} end,
+            Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}
     end
     setmetatable(env,{__index=_G})
-    local chunk=assert(loadfile('ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
+    local chunk=assert(loadfile('NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
     s.ns=ns
     function s.fire(event,unit)
         local all={};for i,f in ipairs(s.frames) do all[i]=f end
@@ -233,6 +237,39 @@ do
  check('render fit preserves font preference',s.settings.fontSize==24)
 end
 do
+ local s=fixture({enabled=true})
+ local bg,border=s.window.background,s.window.border._frame
+ check('default background follows the theme',bg.colorTexture[1]==0.025 and bg.colorTexture[2]==0.04 and bg.colorTexture[3]==0.055)
+ check('border is drawn at full background',bg.alpha==0.94 and border.alpha==0.94)
+ s.set('backgroundAlpha',0);check('hidden background hides the border',bg.alpha==0 and border.alpha==0)
+ s.set('backgroundAlpha',0.5);check('border fades with the background',border.alpha==0.5)
+ s.set('backgroundColor',{r=0.3,g=0.2,b=0.1})
+ check('picked background colour paints the window',bg.colorTexture[1]==0.3 and bg.colorTexture[2]==0.2 and bg.colorTexture[3]==0.1)
+ check('picked colour keeps the opacity',bg.alpha==0.5)
+end
+do
+ local s=fixture({enabled=true},true)
+ local row
+ for _,r in ipairs(s.cards.meter.rows) do if r.key=='backgroundColor' then row=r end end
+ check('background colour row sits in the card',row and row.colour==true)
+ local r,g,b=row.get();check('colour row shows the theme colour while unset',r==0.025 and g==0.04 and b==0.055)
+ row.set(0.5,0.6,0.7);local c=s.settings.backgroundColor
+ check('colour row saves the pick',c.r==0.5 and c.g==0.6 and c.b==0.7)
+end
+do
+ local s=fixture({enabled=true,showHeader=false,width=160,height=50,pullBar=false},true)
+ check('narrow width is kept',s.window.w==160)
+ check('short window keeps one row and the status line',s.window.h==24+24+16 and #s.bars()==1)
+ s.set('width',100);check('width stops at the minimum',s.window.w==160)
+ local row=s.bar(s.bars()[1].name.text)
+ check('narrow rows keep the name inside the row',row.w-8-18-(row.icon.w+6)-5-99*row.name.fontSize/12-8>0)
+ local width,height
+ for _,r in ipairs(s.cards.meter.rows) do
+     if r.key=='width' then width=r.slider[1] elseif r.key=='height' then height=r.slider[1] end
+ end
+ check('sliders go below the old minimums',width==160 and height==50)
+end
+do
  -- With Custom Colors off the window paints exactly the surfaces it always did.
  local s=fixture({enabled=true})
  local function solid(r,g,b) for _,f in ipairs(s.frames) do local sd=rawget(f,'solid'); local c=sd and sd.color
@@ -318,5 +355,26 @@ do
  check('hiding the preview ends a drag',grip.scripts.OnUpdate==nil)
  s.settings.enabled=false;studio.paint(shot,'tanking')
  check('preview is not editable while off',not shot.edit.shown and shot.note.text:find('Turn on',1,true)==1)
+end
+do
+ local s=fixture({enabled=true})
+ local row=s.bar('You')
+ check('rows draw the Naowh Gradient by default',row.barTexture:find('NaowhGradient',1,true)~=nil)
+ check('rows are outlined by default',row.name.flags=='OUTLINE' and row.value.flags=='OUTLINE' and row.percent.flags=='OUTLINE')
+ s.set('outline','');check('a changed outline relays the rows',s.bar('You').name.flags=='' and s.bar('You').name.shadowFor)
+ s.set('texture','Solid');check('a SharedMedia texture is drawn',s.bar('You').barTexture=='solid')
+end
+do
+ local s=fixture({enabled=true,texture='smooth'})
+ check('the old Naowh Gradient value becomes the default',s.settings.texture==nil)
+ check('it still draws the gradient',s.bar('You').barTexture:find('NaowhGradient',1,true)~=nil)
+ s=fixture({enabled=true,texture='flat'})
+ check('the old Flat value becomes Solid',s.settings.texture=='Solid' and s.bar('You').barTexture=='solid')
+ s=fixture({texture='flat'})
+ check('the texture moves over while the meter is off too',s.settings.texture=='Solid')
+end
+do
+ local s=fixture({enabled=true},true)
+ check('the meter card takes the shared text and bar rows',s.look and s.look.text and s.look.bar=='Naowh Gradient')
 end
 print(checks..' threat-meter checks passed')
