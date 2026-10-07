@@ -4,7 +4,8 @@
 --  Shown once per account, a few seconds into the first login (or the reload another addon's
 --  setup asks for before it is seen) and out of combat; /nf welcome and QoL > System open it
 --  again. Nothing is made until it shows. A preset picked on a new
---  account applies at once; picked again later, it asks first, as on the Defaults card.
+--  account applies at once; picked again later, it asks first, as on the Defaults card. Its
+--  height follows its contents once the game has laid the text out, whatever the resolution.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -72,6 +73,10 @@ local function Pick(key)
     ns.UsePreset(key, not fresh)
 end
 
+local function Fit(content)
+    window:SetHeight(math.ceil(content:GetHeight()) + INSET + BUTTON_H + EDGE)
+end
+
 local function Presets()
     local P = ns.PRESETS
     if not (P and P.order and #P.order > 1 and ns.UsePreset) then return nil end
@@ -132,6 +137,10 @@ local function Build()
             above = button
         end
     end
+    window.content = CreateFrame("Frame", nil, window)
+    window.content:SetPoint("TOPLEFT")
+    window.content:SetPoint("BOTTOMRIGHT", above, "BOTTOMRIGHT")
+    window.content:SetScript("OnSizeChanged", Fit)
     window.discord = ns.AccentBorder(ns.Button(window, "Join Discord", DISCORD_W, BUTTON_H, JoinDiscord))
     window.discord:SetPoint("BOTTOMLEFT", EDGE, EDGE)
     window.settings = ns.Button(window, "Open Settings", SETTINGS_W, BUTTON_H, OpenSettings)

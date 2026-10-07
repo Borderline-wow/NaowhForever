@@ -210,6 +210,14 @@ do
     check("the house window: its title and the logo's bar", win.titleText == "Welcome to Naowh Forever"
         and win.key == "welcomeWindow" and win.backdrop.alpha ~= nil)
     check("three lines of text", #win.lines == 3 and win.h ~= nil)
+    local content = win.content
+    content.GetHeight = function() return 400 end
+    content.scripts.OnSizeChanged(content)
+    local fitted = win.h
+    content.GetHeight = function() return 460.4 end
+    content.scripts.OnSizeChanged(content)
+    check("its height follows its laid out contents, room for the buttons below", fitted > 400
+        and win.h == fitted + 61)
     check("Join Discord is the main action, in the accent", win.discord.label == "Join Discord"
         and win.discord.accent == true and win.settings.label == "Open Settings" and win.close.label == "Close")
     -- Its parent hidden (the game's UI toggled off) is not a close.

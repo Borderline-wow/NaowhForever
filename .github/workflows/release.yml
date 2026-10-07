@@ -12,16 +12,12 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "Bump the newest tag: patch (0.5.16 -> 0.5.17), minor (-> 0.6.0) or major (-> 1.0.0)"
+        description: "Bump the newest tag: patch (1.0.1 -> 1.0.2), minor (-> 1.1.0) or major (-> 2.0.0)"
         type: choice
         options: [patch, minor, major]
         default: patch
-      beta:
-        description: "Beta release (adds -beta; untick for a full release such as 1.0.0)"
-        type: boolean
-        default: true
       version:
-        description: "Exact version instead, e.g. 0.5.17-beta (optional; overrides the two above)"
+        description: "Exact version instead, e.g. 1.0.2 (optional; overrides the bump)"
         required: false
         type: string
 
@@ -56,14 +52,12 @@ jobs:
       - name: Release commit and tag
         env:
           BUMP: ${{ inputs.bump }}
-          BETA: ${{ inputs.beta }}
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_DEPLOY_KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
         run: |
-          args=(prepare --bump "$BUMP")
-          if [ "$BETA" = true ]; then args+=(--beta); else args+=(--no-beta); fi
+          args=(prepare --bump "$BUMP" --no-beta)
           if [ -n "$VERSION" ]; then args+=(--version "$VERSION"); fi
           version=$(python3 Tools/release.py "${args[@]}")
           git config user.name "github-actions[bot]"
