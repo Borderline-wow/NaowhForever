@@ -226,7 +226,7 @@ do
     for i = 1, RAID do unitClass[RAID_UNITS[i]] = CLASSES[i % 9 + 1] end
     local values = { enabled = true, raidBuffs = true, raidBuffsOwn = false, scrolls = false,
         consumablesWhere = "always", consumablesMinutes = 2, onlyIfCarried = true, hideResting = true,
-        iconSize = 36, consumableEntries = {
+        iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE", consumableEntries = {
             { category = "food", itemID = 13931, auras = { 1249520 } },
             { category = "flask", itemID = 13510, auras = { 17626 } },
         } }
@@ -235,7 +235,8 @@ do
         ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
         Border = function() end, Solid = function(parent) return New("Texture", nil, parent) end,
         Font = function(parent) return New("FontString", nil, parent) end,
-        UI = { AttachMover = function() return New("Mover") end } }
+        UI = { AttachMover = function() return New("Mover") end },
+        Shared = { Parts = { HudFont = function(fs, _, size, outline) fs:SetFont("font", size, outline) end } } }
     local lastAfter
     local timer = { Cancel = function() end }
     local env = BaseEnv(ns, {

@@ -10,6 +10,7 @@
 local ns = _G.NaowhForever
 local S = ns.AuraBuffSettings
 local D = ns.BuffReminderData
+local Parts = ns.Shared.Parts
 
 local GAP = 4
 local ELIXIR_ICON = 13454   -- Greater Arcane Elixir, for "no elixir at all"
@@ -17,6 +18,7 @@ local KEYS = {
     consumableEntries = true, enabled = true, food = true, elixirs = true, flasks = true, consumablesWhere = true,
     consumablesMinutes = true, onlyIfCarried = true, hideResting = true, scrolls = true,
     scrollsSkipActive = true, raidBuffs = true, raidBuffsOwn = true, iconSize = true,
+    buffsFont = true, buffsFontSize = true, buffsOutline = true,
 }
 
 local frame, unlocked
@@ -270,6 +272,7 @@ function Look.Place(cell, parent, i, size, icon, count)
     cell:ClearAllPoints()
     cell:SetPoint("LEFT", parent, "LEFT", (i - 1) * (size + GAP), 0)
     cell.icon:SetTexture(icon)
+    Parts.HudFont(cell.count, S.Get("buffsFont"), S.Get("buffsFontSize"), S.Get("buffsOutline"))
     cell.count:SetText(count or "")
 end
 
@@ -555,7 +558,8 @@ Settings.Page("AuraBuffs/Settings", S):Card({
               .. "so it still counts as missing." },
         { key = "raidBuffsOwn", label = "Only Buffs I Can Cast", toggle = true, needs = RaidBuffsOn,
           why = "Needs Raid Buff Reminders", help = "Off: every buff a class in your group can cast." },
-        Group("Icons"),
+        Group("Size"),
         { key = "iconSize", label = "Icon Size", slider = { 20, 64, 1 }, needs = Enabled, why = OFF },
+        Settings.Look("buffs", { text = true, size = { 8, 24, 1 }, needs = Enabled, why = OFF }),
     },
 })

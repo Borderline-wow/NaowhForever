@@ -242,6 +242,7 @@ local NOTES = {
     group = "Red: missing the class blessing. Yellow: running out. Blue: only players with their own.",
     range = "Grey: nobody of that class in range. The number still counts who is missing it.",
 }
+local THEMED_GROUP = "Accent: missing the class blessing. Lighter: running out. Deeper: only players with their own."
 
 local function On() return S.Get("blessings") == true end
 
@@ -545,7 +546,7 @@ local function PaintPreview(preview, state)
     end
     bar:SetSize(Look.Width(x), Look.size)
     Fit(preview)
-    preview.note:SetText(NOTES[state])
+    preview.note:SetText(state == "group" and S.Get("blessThemeColors") and THEMED_GROUP or NOTES[state])
     preview.hint:SetText(editable and HINT or HINT_OFF)
     local wheels = preview.wheels
     for i = 1, #wheels do wheels[i]:EnableMouseWheel(editable) end
@@ -586,15 +587,18 @@ page:Card({
           help = "Each class's name under its button." },
         { key = "blessTimers", label = "Minutes Left", toggle = true, needs = On, why = BLESSINGS_OFF,
           help = "Minutes left on each class's shortest blessing, and on each player's." },
-        Group("Layout"),
+        Group("Size"),
         { key = "blessBarSize", label = "Button Size", slider = SIZE_SLIDER, needs = On, why = BLESSINGS_OFF,
           help = "How big each button is." },
         { key = "blessSpacing", label = "Button Spacing", slider = SPACING_SLIDER, needs = On, why = BLESSINGS_OFF,
           help = "The gap between two buttons." },
         { key = "blessGroupSpacing", label = GROUP_LABEL, slider = GROUP_SLIDER, needs = On,
           why = BLESSINGS_OFF, help = "The extra gap between your aura and Righteous Fury and the class buttons." },
-        { key = "blessTimerSize", label = "Timer Text Size", slider = { 8, 24, 1 }, needs = On, why = BLESSINGS_OFF,
-          help = "How big the minutes left are." },
+        Settings.Look("bless", { text = true, size = { 8, 24, 1 }, keys = { FontSize = "blessTimerSize" }, needs = On,
+            why = BLESSINGS_OFF }),
+        Group("Colours"),
+        { key = "blessThemeColors", label = "Apply Theme to Status Colours", toggle = true, needs = On,
+          why = BLESSINGS_OFF, help = "Missing, running out and other blessings in your theme's Accent shades." },
         Group("Key Bindings"),
         { label = "Next Blessing", binding = "CLICK NaowhForeverBlessNext:LeftButton",
           help = "Blesses the next player who needs it, most urgent first. In combat each press steps through "

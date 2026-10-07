@@ -18,6 +18,7 @@ local Toast = {}
 B.Toast = Toast
 
 local W, H, ICON, PAD, STAR = 300, 54, 38, 8, 16
+local DETAIL_SMALLER = 2   -- the line under the name, this much under Font Size
 local STAR_LIFT = 5   -- frame levels the star sits above the icon, over its badge (+3) too
 local STACK_GAP = 6
 local MAX_SHOWN = 3
@@ -112,6 +113,9 @@ function Toast.Paint(f, item, rank, event)
     local slot = B.Lists.SlotOf(id)
     f:SetScale(S.Get("bisToastScale"))
     f.bg:SetAlpha(S.Get("bisToastAlpha"))
+    local font, size, outline = S.Get("bisToastFont"), S.Get("bisToastFontSize"), S.Get("bisToastOutline")
+    Parts.HudFont(f.name, font, size, outline)
+    Parts.HudFont(f.detail, font, size - DETAIL_SMALLER, outline)
     local border = BorderColor(id, rank) or BLACK
     f.edge:SetColor(border.r, border.g, border.b, S.Get("bisToastBorder") == "none" and 0 or 1)
     local glow = S.Get("bisToastGlow") and Parts.RankColor(rank)

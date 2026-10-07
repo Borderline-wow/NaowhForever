@@ -48,6 +48,7 @@ local METHODS = {
     GetVerticalScrollRange = function() return 5000 end,
     SetDesaturated = function(f, on) f.desaturated = on end,
     SetAlpha = function(f, alpha) f.alpha = alpha end,
+    SetFont = function(f, path, size, flags) f.font, f.size, f.flags = path, size, flags end,
     EnableMouse = function(f, on) f.mouse = on end,
     CreateTexture = function(f) return Frame(f) end,
     TryOn = function() tried = tried + 1 end,
@@ -82,7 +83,8 @@ local function Fixture()
         bisAlertFor = "all", bisAlertChat = true, bisAlertBadge = true, bisToast = true,
         bisDropSound = "game:raidwarning", bisYoursSound = "game:epicloot", bisToastScale = 1, bisToastTime = 6,
         bisToastAlpha = 0.95, bisToastGlow = true, bisToastStar = "icon", bisToastBorder = "rank",
-        bisToastEvent = true, bisToastRank = true, bisToastSlot = true, bisToastSource = false, bisToastGain = true }
+        bisToastEvent = true, bisToastRank = true, bisToastSlot = true, bisToastSource = false, bisToastGain = true,
+        bisToastFont = "", bisToastFontSize = 13, bisToastOutline = "NONE" }
     local listeners = {}
     local S = {
         Get = function(key) return values[key] end,
@@ -105,6 +107,7 @@ local function Fixture()
         QoLSettings = S,
         UI = { SlimScroll = function(parent) return Frame(parent) end, CloseOnEscape = NOTHING,
             RefreshPage = NOTHING, CONTENT_PAD = 20,
+            FontPath = function(name) return name == "" and "font" or "lsm:" .. name end,
             AttachMover = function(frame) return Frame(frame) end,
             _PlayLSMSound = function(path) state.sounds = (state.sounds or 0) + 1; state.soundPath = path end,
             SoundPathFor = function(key) return "sound:" .. key end,
@@ -727,6 +730,18 @@ paint(toast, bisHead, 1, "dropped")
 check("each can go", not toast.star:IsShown() and toast.edge.opacity == 0 and not toast.glow:IsShown()
     and toast.bg.alpha == 0.5)
 check("and only the parts you keep say anything", toast.detail.text == "Your BiS")
+check("its text in the Addon Font at today's sizes, no outline", toast.name.font == "font" and toast.name.size == 13
+    and toast.name.flags == "" and toast.detail.size == 11 and toast.detail.flags == "")
+S.Set("bisToastFont", "Naowh")
+S.Set("bisToastFontSize", 16)
+S.Set("bisToastOutline", "OUTLINE")
+paint(toast, bisHead, 1, "dropped")
+check("Font, Font Size and Outline change both lines", toast.name.font == "lsm:Naowh" and toast.name.size == 16
+    and toast.name.flags == "OUTLINE" and toast.detail.font == "lsm:Naowh" and toast.detail.size == 14
+    and toast.detail.flags == "OUTLINE")
+S.Set("bisToastFont", "")
+S.Set("bisToastFontSize", 13)
+S.Set("bisToastOutline", "NONE")
 S.Set("bisToastGain", true)
 
 -- The preview on Drop Alert's card: the alert as it will look, in the moment picked.

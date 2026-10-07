@@ -95,7 +95,8 @@ local function SavePosition(point, relPoint, x, y)
 end
 
 local function Mover(frame, onMoved)
-    return ns.UI.AttachMover(frame, "Library Books", onMoved, "Discovery/Library Books")
+    return ns.UI.AttachMover(frame, "Library Books", onMoved, "Discovery/Library Books",
+        "Discovery/Library Books:tracker")
 end
 
 -- The X closes it until you change zone, and switches Always Show off, so switching that

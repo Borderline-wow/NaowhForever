@@ -191,6 +191,7 @@ do
     local ns = { QoLSettings = { Get = function() return true end, Set = function() end },
         THEME = { fg = {}, muted = {}, accent = {}, bg = {} }, AccountSettings = function() return {} end,
         Apply = function() end, UI = { RefreshPage = function() end },
+        Shared = { Parts = { HudFont = function() end } },
         ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end }
     local env = setmetatable({ NaowhForever = ns, CreateFrame = Frame, hooksecurefunc = function() end,
         C_Timer = { After = function() end }, GetTime = function() return 0 end,

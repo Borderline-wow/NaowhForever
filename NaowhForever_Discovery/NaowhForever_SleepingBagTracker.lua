@@ -38,7 +38,8 @@ local function SavePosition(point, relPoint, x, y)
 end
 
 local function Mover(frame, onMoved)
-    return ns.UI.AttachMover(frame, "Sleeping Bag", onMoved, "Discovery/Sleeping Bag")
+    return ns.UI.AttachMover(frame, "Sleeping Bag", onMoved, "Discovery/Sleeping Bag",
+        "Discovery/Sleeping Bag:bagtracker")
 end
 
 -- The X switches the tracker off, as its switch in the settings does.

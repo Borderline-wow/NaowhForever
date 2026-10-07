@@ -20,17 +20,27 @@ local function Frame(kind, parent, template)
     function f:UnregisterEvent(e) self.events[e] = nil end
     function f:UnregisterAllEvents() self.events = {} end
     function f:SetPoint(...) self.point = { ... } end
+    function f:SetFont(path, size, flags) self.font, self.size, self.flags = path, size, flags end
     frames[#frames + 1] = f
     return f
 end
 
-local settings = { enabled = true }
+local settings = { enabled = true, groupButtonsWidth = 90, groupButtonsHeight = 24, groupButtonsFont = "",
+    groupButtonsFontSize = 12, groupButtonsOutline = "NONE", groupButtonsBackground = "card" }
 local setHooks = {}
 local S = { Get = function(k) return settings[k] end }
 local ns = {
     QoLSettings = S,
     THEME = setmetatable({}, { __index = function() return { r = 1, g = 1, b = 1 } end }),
-    UI = { AttachMover = function(parent) return Frame("Mover", parent) end },
+    UI = { AttachMover = function(parent) return Frame("Mover", parent) end,
+        FontPath = function(name) return name == "" and "font" or "lsm:" .. name end },
+    Shared = { Parts = { HudFont = function(fs, font, size, outline)
+        fs:SetFont(font == "" and "font" or "lsm:" .. font, size, outline == "NONE" and "" or outline)
+    end, HudBackdrop = function(_, opts)
+        local backdrop = { opts = opts, border = { SetColor = NOTHING } }
+        function backdrop:SetMode(mode) self.mode = mode end
+        return backdrop
+    end } },
     Solid = function(parent) return Frame("Texture", parent) end,
     Border = function() return { SetColor = NOTHING } end,
     Font = function(parent) return Frame("FontString", parent) end,
@@ -88,6 +98,31 @@ Case("side by side", function()
     local bar = Bar()
     assert(bar.w == 184 and bar.h == 24, "row: " .. bar.w .. "x" .. bar.h)
     assert(bar.disband.point[3] == "TOPRIGHT", "Disband right of Invite")
+end)
+
+Case("today's look by default: 90x24, the panel card, the Addon Font at 12 with no outline", function()
+    local bar = Bar()
+    local invite = bar.invite
+    assert(invite.w == 90 and invite.h == 24 and invite.backdrop.mode == "card")
+    assert(invite.backdrop.opts.alpha == 0.9, "the panel fill as before")
+    assert(invite.label.font == "font" and invite.label.size == 12 and invite.label.flags == "")
+end)
+
+Case("size, text and background apply to both buttons", function()
+    Set("groupButtonsWidth", 120)
+    Set("groupButtonsHeight", 30)
+    Set("groupButtonsFont", "Naowh")
+    Set("groupButtonsFontSize", 14)
+    Set("groupButtonsOutline", "OUTLINE")
+    Set("groupButtonsBackground", "none")
+    local bar = Bar()
+    assert(bar.w == 244 and bar.h == 30, "side by side, wider: " .. bar.w .. "x" .. bar.h)
+    for _, button in ipairs({ bar.invite, bar.disband }) do
+        assert(button.w == 120 and button.h == 30 and button.backdrop.mode == "none")
+        assert(button.label.font == "lsm:Naowh" and button.label.size == 14 and button.label.flags == "OUTLINE")
+    end
+    Set("groupButtonsWidth", 90)
+    Set("groupButtonsHeight", 24)
 end)
 
 Case("a change in combat waits for the fight to end", function()

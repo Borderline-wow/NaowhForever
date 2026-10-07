@@ -156,6 +156,7 @@ page:Card({
           help = "Where your star sits: on the icon's corner, before the name, or hidden." },
         { key = "bisToastBorder", label = "Border", choice = BORDERS, needs = NEEDS_LOOKS,
           help = "Its edge: none, black, the item's quality, or your rank's colour." },
+        Settings.Look("bisToast", { text = true, size = { 10, 20, 1 }, needs = NEEDS_LOOKS }),
         Settings.Group("Line Under the Name"),
         { key = "bisToastEvent", label = "What Happened", toggle = true, needs = NEEDS_LOOKS,
           help = "Up for a roll, dropped, or yours." },

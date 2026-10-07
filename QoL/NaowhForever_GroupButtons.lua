@@ -10,8 +10,9 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
 local S = ns.QoLSettings
+local Parts = ns.Shared.Parts
 
-local BUTTON_W, BUTTON_H, GAP = 90, 24, 4
+local GAP, FILL_ALPHA = 4, 0.9
 local BLACK = { r = 0, g = 0, b = 0 }
 
 local bar, moving, pending
@@ -32,9 +33,8 @@ end
 
 -- The house button look, on a button that may be secure.
 local function Style(button, text, tip)
-    button:SetSize(BUTTON_W, BUTTON_H)
-    ns.Solid(button, "BACKGROUND", T.panel, 0.9):SetAllPoints()
-    button.border = ns.Border(button, BLACK)
+    button.backdrop = Parts.HudBackdrop(button, { color = T.panel, alpha = FILL_ALPHA })
+    button.border = button.backdrop.border
     button.label = ns.Font(button, 12)
     button.label:SetPoint("CENTER")
     button.label:SetText(text)
@@ -78,11 +78,19 @@ local function Apply()
         return
     end
     if not bar then Build() end
+    local w, h = S.Get("groupButtonsWidth"), S.Get("groupButtonsHeight")
+    local font, size, outline = S.Get("groupButtonsFont"), S.Get("groupButtonsFontSize"), S.Get("groupButtonsOutline")
+    local background = S.Get("groupButtonsBackground")
+    for _, button in ipairs({ bar.invite, bar.disband }) do
+        button:SetSize(w, h)
+        button.backdrop:SetMode(background)
+        Parts.HudFont(button.label, font, size, outline, background)
+    end
     local stacked = S.Get("groupButtonsLayout") ~= "row"
     if stacked then
-        bar:SetSize(BUTTON_W, BUTTON_H * 2 + GAP)
+        bar:SetSize(w, h * 2 + GAP)
     else
-        bar:SetSize(BUTTON_W * 2 + GAP, BUTTON_H)
+        bar:SetSize(w * 2 + GAP, h)
     end
     bar.invite:ClearAllPoints()
     bar.invite:SetPoint("TOPLEFT")
@@ -108,7 +116,7 @@ events:SetScript("OnEvent", function()
     if pending then Apply() end
 end)
 hooksecurefunc(S, "Set", function(key)
-    if key == "enabled" or key == "groupButtons" or key == "groupButtonsLayout" then Apply() end
+    if key == "enabled" or key:find("^groupButtons") and key ~= "groupButtonsPos" then Apply() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function() moving = true; Apply() end)
@@ -150,5 +158,9 @@ Settings.Page("QoL/Questing & Group", S):Card({
           help = "Removes everyone from your group. Group leader only." },
         { label = "Invite Player", button = Invite, buttonText = "Invite", always = true,
           help = "Type a name and invite them. Handy when you play with the same people." },
+        Settings.Group("Size"),
+        { key = "groupButtonsWidth", label = "Button Width", slider = { 60, 200, 1 } },
+        { key = "groupButtonsHeight", label = "Button Height", slider = { 16, 48, 1 } },
+        Settings.Look("groupButtons", { text = true, size = { 8, 24, 1 }, background = "card" }),
     },
 })

@@ -10,6 +10,7 @@ local ns = _G.NaowhForever
 local S = ns.ProfessionSettings
 local UI = ns.UI
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local FIND_HERBS, FIND_MINERALS, FIND_FISH = 2383, 2580, 43308
 -- Find Fish sits among Fishing's unlearned recipes with no source recorded yet; it only
@@ -37,6 +38,7 @@ end
 function Look.Fill(frame, size, texture, text)
     frame:SetSize(size, size)
     frame.icon:SetTexture(texture)
+    Parts.HudFont(frame.label, S.Get("gatherFont"), S.Get("gatherFontSize"), S.Get("gatherOutline"))
     frame.label:SetText(text)
 end
 
@@ -235,12 +237,14 @@ Settings.Page("Professions/Settings", S):Card({
     summary = GatherSummary,
     studio = { height = 130, states = PREVIEW_STATES, new = NewPreview, paint = PaintPreview },
     rows = {
-        { key = "gatherIconSize", label = "Icon Size", slider = { 24, 80, 1 }, needs = ModuleOn, why = GATHER_OFF,
-          help = "How big the reminder icon is." },
         { key = "gatherInInstances", label = "Show in Dungeons and Raids", toggle = true, needs = ModuleOn,
           why = GATHER_OFF, help = "Also reminds you inside instances. Off by default: few have herbs or ore." },
         { key = "gatherFish", label = "Include Find Fish", toggle = true, needs = ModuleOn, why = GATHER_OFF,
           help = "Counts Find Fish as a tracking to remind you of, once you have learned it. Turn off if you only "
               .. "track fish now and then." },
+        Settings.Group("Size"),
+        { key = "gatherIconSize", label = "Icon Size", slider = { 24, 80, 1 }, needs = ModuleOn, why = GATHER_OFF,
+          help = "How big the reminder icon is." },
+        Settings.Look("gather", { text = true, size = { 8, 24, 1 }, needs = ModuleOn, why = GATHER_OFF }),
     },
 })

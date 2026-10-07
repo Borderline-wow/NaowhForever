@@ -4,7 +4,8 @@ local function check(label, value) assert(value, label); checks = checks + 1 end
 local function fixture(kind)
     local state = { combat = false, secret = false, now = 1000, bags = { 101, 202, 101, 303 },
         settings = { gearSets = true, gearBarVisible = false, trinketBar = true,
-            trinketSize = 36, trinketSpacing = 4, gearBarSize = 32 }, frames = {}, named = {}, timers = {}, equips = {} }
+            trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearBarSpacing = 4, gearBarShow = 'always' },
+        frames = {}, named = {}, timers = {}, equips = {} }
     local function frame(name, parent, template)
         local f = { scripts = {}, events = {}, shown = true, parent = parent, attributes = {},
             secure = template == 'SecureActionButtonTemplate' or name == 'NaowhForeverTrinkets' }
@@ -55,7 +56,8 @@ local function fixture(kind)
         PixelInset = function(region) return region end,
         ThemeTint = function(_, literal) return literal end,
         Shared = { Style = { TIME_OK_RGB = {}, TIME_LOW_RGB = {}, TIME_OUT_RGB = {} },
-            Parts = { Smooth = function(t) return t end, HudText = function(t) return t end } },
+            Parts = { Smooth = function(t) return t end, HudText = function(t) return t end,
+                HudFont = function(fs, font, size, outline) fs:SetFont(font, size, outline) end } },
         Font = function() return frame() end, Tooltip = function() end,
         Button = function(parent, text, w, h, callback)
             local f = frame(nil, parent); f.scripts.OnClick = callback; return f
@@ -165,6 +167,30 @@ do
     s.S.Set('trinketBar', false)
     check('switched off again: it stops listening', not watcher.events.PLAYER_REGEN_DISABLED
         and not watcher.events.PLAYER_EQUIPMENT_CHANGED and not watcher.events.PLAYER_REGEN_ENABLED)
+end
+
+do
+    local s = fixture('gear')
+    s.settings.gearBarVisible, s.settings.gearBarShow, s.settings.trinketBar = true, 'nocombat', false
+    s.load('NaowhForever_GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    local bar = s.named.NaowhForeverGearBar
+    check('Show Out of Combat: shown out of combat', bar.shown)
+    s.fire('PLAYER_REGEN_DISABLED'); s.combat = true
+    check('and hidden as a fight starts', not bar.shown)
+    s.combat = false; s.fire('PLAYER_REGEN_ENABLED')
+    check('and back after it', bar.shown)
+    check('4px between buttons by default', bar.width == 36)
+    s.S.Set('gearBarSpacing', 10)
+    check('Spacing widens the gaps', bar.width == 42)
+    s.S.Set('gearBarShow', 'combat')
+    check('Show In Combat: hidden out of combat', not bar.shown)
+    s.fire('PLAYER_REGEN_DISABLED')
+    check('shown in one', bar.shown)
+    s.fire('PLAYER_REGEN_ENABLED')
+    s.S.Set('gearBarShow', 'always')
+    local listens = false
+    for _, f in ipairs(s.frames) do if f.events.PLAYER_REGEN_DISABLED then listens = true end end
+    check('Show Always: shown, with no combat event of its own', bar.shown and not listens)
 end
 
 do

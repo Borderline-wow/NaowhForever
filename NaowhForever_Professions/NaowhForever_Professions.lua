@@ -31,6 +31,7 @@ local S = UI.ModuleSettings("professions", {
     trainFavorites = false, searchFavoritesAH = false,
     -- Gathering: all off until switched on.
     gatherReminder = false, gatherInInstances = false, gatherIconSize = 40, gatherFish = false,
+    gatherFont = "", gatherFontSize = 13, gatherOutline = "OUTLINE",
     -- Buying and Selling: all off until switched on.
     ahSearch = false, ahShiftClick = false, craftProfit = false, craftProfitList = false,
     buyMaterials = false, buyVendor = false,

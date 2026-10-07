@@ -75,6 +75,7 @@ local function Fixture(opts)
         onlyIfCarried = true, hideResting = true,
         scrolls = true, scrollsSkipActive = true,
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
+        buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
     }
     for k, v in pairs(defaults) do if settings[k] == nil then settings[k] = v end end
 
@@ -91,6 +92,9 @@ local function Fixture(opts)
             return fs
         end,
         UI = { AttachMover = function() return NewFrame() end },
+        Shared = { Parts = { HudFont = function(fs, font, size, outline)
+            fs.font, fs.size, fs.outline = font, size, outline
+        end } },
     }
 
     local function Count(id)
@@ -237,6 +241,21 @@ do
     t.Fire("UNIT_AURA", "player")
     t.Advance(0.5)
     Check("all up", t.Shown(), "")
+end
+
+-- The count keeps today's outlined Addon Font at 14 until Font, Font Size or Outline change it.
+do
+    local t = Fixture({ instance = "party", bags = { 13931 } })
+    t.Login()
+    local count
+    for _, f in ipairs(t.frames) do
+        if rawget(f, "count") and f.shown then count = f.count end
+    end
+    Check("count font by default", count and (count.font .. count.size .. count.outline), "14OUTLINE")
+    t.Set("buffsFont", "Naowh")
+    t.Set("buffsFontSize", 18)
+    t.Set("buffsOutline", "")
+    Check("count font set", count.font .. count.size .. count.outline, "Naowh18")
 end
 
 -- Show In: Dungeons & Raids keeps them out of the open world; Everywhere does not.

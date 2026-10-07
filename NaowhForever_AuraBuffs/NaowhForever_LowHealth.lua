@@ -9,6 +9,7 @@
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.AuraBuffSettings
+local Parts = ns.Shared.Parts
 
 -- Classic-era item IDs, best first. The talented healthstones are the second of each pair.
 local HEALTHSTONES = {
@@ -21,6 +22,7 @@ local HEALTHSTONES = {
 local POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
 ns.HEALTHSTONES, ns.HEALING_POTIONS = HEALTHSTONES, POTIONS
 local FALLBACK_ICON = 134830    -- Healing Potion
+local COUNT_SIZE = 14
 
 local Look = {}
 
@@ -30,12 +32,19 @@ function Look.New(frame)
     frame.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     ns.Border(frame, { r = 0, g = 0, b = 0 })
 
-    frame.count = ns.Font(frame, 14, "OUTLINE")
+    frame.count = ns.Font(frame, COUNT_SIZE, "OUTLINE")
     frame.count:SetPoint("BOTTOMRIGHT", -2, 2)
 
     frame.label = ns.Font(frame, 16, "OUTLINE", { r = 1, g = 0.25, b = 0.25 })
     frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -4)
     frame.label:SetText("LOW HEALTH")
+end
+
+-- Font Size is the warning's; the count keeps its size and follows the font and outline.
+function Look.Style(frame)
+    local font, outline = S.Get("lowHealthFont"), S.Get("lowHealthOutline")
+    Parts.HudFont(frame.label, font, S.Get("lowHealthFontSize"), outline)
+    Parts.HudFont(frame.count, font, COUNT_SIZE, outline)
 end
 
 function Look.Item(frame, id, count)
@@ -170,6 +179,7 @@ local function Apply()
     if not frame then Build() end
     local size = S.Get("lowHealthIconSize")
     frame:SetSize(size, size)
+    Look.Style(frame)
     Place()
     BuildCurve()
     frame.itemShown = nil
@@ -243,6 +253,7 @@ local function PaintPreview(shot, state)
     local f = shot.icon
     local size = S.Get("lowHealthIconSize")
     f:SetSize(size, size)
+    Look.Style(f)
     local room = shot:GetHeight() - STAGE_MARGIN * 2 - NOTE_Y * 2 - LABEL_ROOM
     local scale = (room > 0 and size > room) and room / size or 1
     f:SetScale(scale)
@@ -271,12 +282,14 @@ Settings.Page("AuraBuffs/Settings", S):Card({
           why = OFF },
         { key = "lowHealthItem", label = "Item", choice = ITEMS, needs = Enabled, why = OFF,
           help = "Best in Bags: your best healthstone, else your best healing potion." },
-        { key = "lowHealthIconSize", label = "Icon Size", slider = { 24, 96, 1 }, needs = Enabled, why = OFF },
         { key = "lowHealthGlow", label = "Glow", toggle = true, needs = Enabled, why = OFF,
           help = "A red glow around the icon while it shows." },
         { key = "lowHealthSound", label = "Play a Sound", toggle = true, needs = Enabled, why = OFF,
           help = "Plays once each time your health drops below the threshold. If the game hides your "
               .. "health from addons mid-fight, it only plays out of combat." },
         { key = "lowHealthSoundKey", label = "Sound", sound = true, needs = SoundOn, why = "Needs Play a Sound" },
+        Settings.Group("Size"),
+        { key = "lowHealthIconSize", label = "Icon Size", slider = { 24, 96, 1 }, needs = Enabled, why = OFF },
+        Settings.Look("lowHealth", { text = true, size = { 10, 28, 1 }, needs = Enabled, why = OFF }),
     },
 })

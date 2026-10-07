@@ -46,6 +46,8 @@ function methods:IsMouseOver() return self.over == true end
 function methods:EnableMouseWheel(on) self.wheel = on end
 function methods:SetText(t) self.text = t end
 function methods:SetTexture(t) self.texture = t end
+function methods:SetVertexColor(r, g, b) self.vertex = { r, g, b } end
+function methods:SetTextColor(r, g, b) self.color = { r, g, b } end
 function methods:CreateTexture() return New("Texture", self) end
 function methods:CreateFontString() return New("FontString", self) end
 
@@ -58,7 +60,7 @@ function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end
 function S.Set(k, v) settings[k] = v; sets = sets + 1 end
 
 local THEME = { fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
-    accent = { r = 0, g = 0.57, b = 0.93 }, bg = { r = 0, g = 0, b = 0 } }
+    accent = { r = 0, g = 0.57, b = 0.93 }, accentSoft = { r = 0.3, g = 0.71, b = 0.96 }, bg = { r = 0, g = 0, b = 0 } }
 local cards = {}
 local account = {}
 local refreshed = 0
@@ -75,8 +77,10 @@ local ns = {
     UI = { RefreshPage = function() refreshed = refreshed + 1 end },
     Shared = {
         Style = { PLUS = "plus", CROSS = "cross", OPACITY_MIN = 20 },
+        Parts = { HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end },
         Settings = {
             Group = function(name) return { group = name } end,
+            Look = function(prefix, opts) return { { look = prefix, opts = opts } } end,
             Page = function()
                 return { Window = function() end, Card = function(_, card) cards[card.id] = card end }
             end,
@@ -229,6 +233,31 @@ Measure("the wheel", 0.5, function()
     wheel(aura, 1)
     wheel(aura, -1)
 end)
+
+-- Font, outline and the status colours: today's look until a setting changes it.
+settings.blessFont, settings.blessOutline, settings.blessThemeColors = "", "OUTLINE", false
+studio.paint(preview, "group")
+local warriorCell, priestCell = preview.cells[1], preview.cells[2]
+check("the minutes left keep the Addon Font, outlined, at Font Size", warriorCell.timer.font == ""
+    and warriorCell.timer.outline == "OUTLINE" and warriorCell.timer.size == 14)
+check("the count and class label keep their sizes", warriorCell.mark.size == 14 and warriorCell.label.size == 10)
+check("missing is red and running out yellow", warriorCell.icon.vertex[1] == B.Look.RED.r
+    and priestCell.icon.vertex[2] == B.Look.YELLOW.g and warriorCell.mark.color[1] == B.Look.RED.r)
+settings.blessFont, settings.blessOutline, settings.blessTimerSize = "Naowh", "", 18
+studio.paint(preview, "group")
+check("Font, Outline and Font Size reach every text", warriorCell.timer.font == "Naowh"
+    and warriorCell.timer.outline == "" and warriorCell.timer.size == 18 and warriorCell.mark.font == "Naowh"
+    and warriorCell.label.outline == "")
+settings.blessThemeColors = true
+studio.paint(preview, "group")
+check("Apply Theme: missing in the Accent, running out in the lighter Accent",
+    warriorCell.icon.vertex[3] == THEME.accent.b and priestCell.icon.vertex[3] == THEME.accentSoft.b
+    and warriorCell.mark.color[3] == THEME.accent.b and preview.note.text:find("^Accent"))
+local look
+for _, row in ipairs(cards.bar.rows) do if row[1] and row[1].look then look = row[1] end end
+check("the card has the standard Text rows on the timer size", look and look.look == "bless"
+    and look.opts.keys.FontSize == "blessTimerSize")
+settings.blessFont, settings.blessOutline, settings.blessTimerSize, settings.blessThemeColors = nil, nil, nil, nil
 
 -- Off: nothing in the preview edits.
 settings.blessings = false

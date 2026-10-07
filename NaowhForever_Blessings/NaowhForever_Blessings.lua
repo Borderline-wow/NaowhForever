@@ -9,6 +9,7 @@
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 
 local PREFIX = "NaowhBless"
 local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true }
@@ -59,6 +60,7 @@ local RED = { r = 0.97, g = 0.27, b = 0.27 }
 local YELLOW = { r = 1, g = 0.85, b = 0.3 }
 local BLUE = { r = 0.35, g = 0.6, b = 1 }
 local ICON_BORDER = { r = 0, g = 0, b = 0 }
+local MARK_SIZE, LABEL_SIZE = 14, 10
 local HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
 local AURA_TIP = "Left-click: cast your aura.\nRight-click: choose it."
 local FURY_TIP = "Left-click: cast it on yourself."
@@ -673,7 +675,7 @@ local function Watch(frame)
                 icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                 button:SetIcon(icon)
                 local text = button:CreateFontString(nil, "OVERLAY")
-                text:SetFont(ns.UIFontPath(), S.Get("blessTimerSize"), "OUTLINE")
+                Parts.HudFont(text, S.Get("blessFont"), S.Get("blessTimerSize"), S.Get("blessOutline"))
                 frame.watchText = text
                 text:SetPoint("BOTTOM", 0, 1)
                 button:SetDurationText(text, {})
@@ -701,20 +703,26 @@ end
 local Look = {}
 Look.RED, Look.YELLOW, Look.BLUE, Look.HIGHLIGHT = RED, YELLOW, BLUE, HIGHLIGHT
 
+-- What each status colour paints with: itself, or with Apply Theme to Status Colours the
+-- theme's Accent for missing, its lighter Accent for running out and a deeper shade of it for
+-- players on their own blessing.
+local tints = { [RED] = RED, [YELLOW] = YELLOW, [BLUE] = BLUE }
+local deepAccent
+
 -- Every icon on the bar: the art inset 1px inside the house black border.
 function Look.Icon(frame)
     frame.icon = frame:CreateTexture(nil, "ARTWORK")
     ns.PixelInset(frame.icon, 1)
     frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     ns.Border(frame, ICON_BORDER)
-    frame.mark = ns.Font(frame, 14, "OUTLINE", RED)
+    frame.mark = ns.Font(frame, MARK_SIZE, "OUTLINE", RED)
     frame.mark:SetPoint("CENTER")
     frame.timer = ns.Font(frame, 10, "OUTLINE")
     frame.timer:SetPoint("BOTTOM", 0, 1)
 end
 
 function Look.Label(cell, class)
-    cell.label = ns.Font(cell, 10, "OUTLINE")
+    cell.label = ns.Font(cell, LABEL_SIZE, "OUTLINE")
     cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
     cell.label:SetText(ClassName(class))
 end
@@ -722,14 +730,27 @@ end
 function Look.Read()
     Look.size, Look.gap, Look.groupGap = S.Get("blessBarSize"), S.Get("blessSpacing"), S.Get("blessGroupSpacing")
     Look.timerSize, Look.labels = S.Get("blessTimerSize"), S.Get("blessShowLabels")
+    Look.font, Look.outline = S.Get("blessFont"), S.Get("blessOutline")
+    if S.Get("blessThemeColors") then
+        deepAccent = deepAccent or { r = T.accent.r * 0.6, g = T.accent.g * 0.6, b = T.accent.b * 0.6 }
+        tints[RED], tints[YELLOW], tints[BLUE] = T.accent, T.accentSoft, deepAccent
+    else
+        tints[RED], tints[YELLOW], tints[BLUE] = RED, YELLOW, BLUE
+    end
 end
 
 function Look.Place(frame, row, x)
     local size = Look.size
     frame:SetSize(size, size)
-    frame.timer:SetFont(ns.UIFontPath(), Look.timerSize, "OUTLINE")
-    if frame.watchText then frame.watchText:SetFont(ns.UIFontPath(), Look.timerSize, "OUTLINE") end
-    if frame.label then frame.label:SetShown(Look.labels) end
+    local font, outline, missing = Look.font, Look.outline, tints[RED]
+    Parts.HudFont(frame.timer, font, Look.timerSize, outline)
+    if frame.watchText then Parts.HudFont(frame.watchText, font, Look.timerSize, outline) end
+    Parts.HudFont(frame.mark, font, MARK_SIZE, outline)
+    frame.mark:SetTextColor(missing.r, missing.g, missing.b)
+    if frame.label then
+        Parts.HudFont(frame.label, font, LABEL_SIZE, outline)
+        frame.label:SetShown(Look.labels)
+    end
     frame:ClearAllPoints()
     frame:SetPoint("LEFT", row, "LEFT", x, 0)
     frame:Show()
@@ -751,6 +772,7 @@ function Look.Minutes(seconds)
 end
 
 function Look.Class(cell, colour, reachable, missing, shortest)
+    colour = colour and tints[colour]
     cell.icon:SetDesaturated(not reachable)
     cell.icon:SetVertexColor(colour and colour.r or 1, colour and colour.g or 1, colour and colour.b or 1)
     cell.mark:SetText(missing > 0 and missing or "")
@@ -758,7 +780,8 @@ function Look.Class(cell, colour, reachable, missing, shortest)
 end
 
 function Look.Self(frame, missing, remaining)
-    frame.icon:SetVertexColor(missing and RED.r or 1, missing and RED.g or 1, missing and RED.b or 1)
+    local c = tints[RED]
+    frame.icon:SetVertexColor(missing and c.r or 1, missing and c.g or 1, missing and c.b or 1)
     frame.mark:SetText(missing and "!" or "")
     frame.timer:SetText(Look.Minutes(remaining))
 end
@@ -883,12 +906,12 @@ local function PrepareCell(cell)
     local color = s.classMissing > 0 and RED or s.classDue > 0 and YELLOW
         or s.missingNear + s.expiringNear > 0 and BLUE or nil
     Look.Class(cell, color, s.reachable, s.missing, s.shortest)
-    local glow = s.classMissing > 0
+    local glow = s.classMissing > 0 and tints[RED]
     if glow ~= cell.glowing then
         cell.glowing = glow
         local LCG = LibStub("LibCustomGlow-1.0")
         if glow then
-            LCG.PixelGlow_Start(cell, { RED.r, RED.g, RED.b, 1 }, 8, nil, nil, 1, 0, 0, nil, "NaowhBless")
+            LCG.PixelGlow_Start(cell, { glow.r, glow.g, glow.b, 1 }, 8, nil, nil, 1, 0, 0, nil, "NaowhBless")
         else
             LCG.PixelGlow_Stop(cell, "NaowhBless")
         end
