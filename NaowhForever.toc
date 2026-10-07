@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever
 ## Notes: Naowh's Forever companion: QoL, the Top Bar and the window every module shares.
 ## Author: Naowh
-## Version: 0.5.25-beta
+## Version: 1.0.1
 ## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
 ## SavedVariables: NaowhForeverDB, NaowhUI_SmartRemindersDB
 ## Group: NaowhForever
