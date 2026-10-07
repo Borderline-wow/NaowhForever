@@ -104,8 +104,8 @@ local function Count(t)
     return n
 end
 
--- NaowhUI, then the presets as Core lists them, so a preset added there needs no new count here.
-local KEYS, NAMES = { "" }, { [""] = "NaowhUI" }
+-- Naowh, then the presets as Core lists them, so a preset added there needs no new count here.
+local KEYS, NAMES = { "" }, { [""] = "Naowh" }
 do
     local _, coreNs = Load({}, false)
     for _, key in ipairs(coreNs.THEME_PRESET_ORDER) do
@@ -113,7 +113,7 @@ do
         NAMES[key] = coreNs.THEME_PRESETS[key].name
     end
 end
-local FIXED = #KEYS            -- NaowhUI and every preset
+local FIXED = #KEYS            -- Naowh and every preset
 local REGISTERED = FIXED + 1   -- and Naowh (current)
 local LAST = KEYS[#KEYS]
 local function NameOf(key) return "NaowhForever:" .. (key == "" and "default" or key) end
@@ -145,7 +145,7 @@ do
     local env, ns, frames, boot = Load({ rxpThemes = true }, true)
     Fire(frames, "NaowhForever")
     local list = env.RXPGuides_Themes
-    Check(type(list) == "table" and Count(list) == REGISTERED, "NaowhUI, every preset and the current theme are registered")
+    Check(type(list) == "table" and Count(list) == REGISTERED, "Naowh, every preset and the current theme are registered")
     Check(boot.events.PLAYER_LOGIN and not boot.events.ADDON_LOADED, "then it waits for login, for the arrow")
     Login(boot)
     Check(next(boot.events) == nil, "and is unregistered after login")
@@ -176,10 +176,10 @@ do
     end
 
     local default, midnight = list["NaowhForever:default"], list["NaowhForever:midnight"]
-    Check(Hex(default.background) == "1a1c1f" and Hex(default.bottomFrameBG) == "1a1c1f", "NaowhUI: Panels for the window and the quest panels")
-    Check(Hex(default.dividerColor) == "2e3136" and Hex(midnight.dividerColor) == "2a3550", "the rules: NaowhUI's and Midnight's Borders & Lines")
-    Check(Hex(default.mapPins) == "0091ed" and default.tooltip == "|cff0091ed", "NaowhUI: the blue Accent")
-    Check(Hex(default.textColor) == "f0f1f3", "NaowhUI: Text")
+    Check(Hex(default.background) == "1a1c1f" and Hex(default.bottomFrameBG) == "1a1c1f", "Naowh: Panels for the window and the quest panels")
+    Check(Hex(default.dividerColor) == "2e3136" and Hex(midnight.dividerColor) == "2a3550", "the rules: Naowh's and Midnight's Borders & Lines")
+    Check(Hex(default.mapPins) == "0091ed" and default.tooltip == "|cff0091ed", "Naowh: the blue Accent")
+    Check(Hex(default.textColor) == "f0f1f3", "Naowh: Text")
     Check(Hex(midnight.background) == "151c30" and Hex(midnight.mapPins) == "5b8cff", "Midnight: Panels and Accent")
 end
 
@@ -205,7 +205,7 @@ do
         Check(Count(list) == REGISTERED, "still the same themes")
         Check(ns.THEME.accent.r ~= 0 or ns.THEME.accent.g ~= 0x91 / 255, "the player's theme is applied to the addon itself")
         Check(Hex(list["NaowhForever:default"].mapPins) == "0091ed" and Hex(list["NaowhForever:default"].background) == "1a1c1f",
-            "NaowhUI is still the default theme's colors")
+            "Naowh is still the default theme's colors")
         Check(Hex(list["NaowhForever:crimson"].mapPins) == "ef4b56", "Crimson is still Crimson")
     end
 end
@@ -221,7 +221,7 @@ do
     Check(theme and theme.name == "NaowhForever:current" and theme.displayName == "Naowh (current)"
         and theme.author == "Naowh Forever", "registered under its own name")
     Check(Hex(theme.background) == "1a1c1f" and Hex(theme.mapPins) == "0091ed" and Hex(theme.dividerColor) == "2e3136"
-        and Hex(theme.textColor) == "f0f1f3", "with Naowh's default theme: NaowhUI's colors")
+        and Hex(theme.textColor) == "f0f1f3", "with Naowh's default theme: Naowh's colors")
     Check(theme.edges.edge == BORDER and theme.texturePath == TEX .. "DarkMode/", "and the 1px black frame")
 
     local list
@@ -282,8 +282,8 @@ do
     for i, key in ipairs(KEYS) do
         if order[i + 2] ~= (key == "" and "default" or key) then inOrder = false end
     end
-    Check(inOrder and order[#order] == LAST, "the choices: RestedXP's own, the current theme, NaowhUI, then the presets in their order")
-    Check(values[""] == "RestedXP (default)" and values.current == "Current Theme" and values.default == "NaowhUI"
+    Check(inOrder and order[#order] == LAST, "the choices: RestedXP's own, the current theme, Naowh, then the presets in their order")
+    Check(values[""] == "RestedXP (default)" and values.current == "Current Theme" and values.default == "Naowh"
         and values.midnight == "Midnight" and values.rosenoir == "Rose Noir" and values.cottoncandy == "Cotton Candy",
         "the presets named as in Naowh's own Theme dropdown")
 
@@ -329,7 +329,7 @@ do
     pickedNs.SetRXPThemeChoice("slate")
     Check(rxp.settings.profile.activeTheme == "NaowhForever:slate" and #rxp.reloads == 2, "another theme: it takes over")
     pickedNs.SetRXPThemeChoice("default")
-    Check(rxp.settings.profile.activeTheme == "NaowhForever:default" and #rxp.reloads == 3, "NaowhUI too")
+    Check(rxp.settings.profile.activeTheme == "NaowhForever:default" and #rxp.reloads == 3, "Naowh too")
     pickedNs.SetRXPThemeChoice("")
     Check(rxp.settings.profile.activeTheme == "Default" and #rxp.reloads == 4 and pickedNs.RXPThemeChoice() == "",
         "RestedXP (default): RestedXP's own theme, which it knows as Default")
@@ -429,7 +429,7 @@ do
     for _, key in ipairs(KEYS) do want[#want + 1] = NameOf(key) end
     table.sort(want)
     Check(table.concat(rxp.registered, ",") == table.concat(want, ","),
-        "RestedXP up already: NaowhUI, the presets and the current theme go in through RegisterTheme")
+        "RestedXP up already: Naowh, the presets and the current theme go in through RegisterTheme")
     Check(rxp.themes["NaowhForever:crimson"].author == "Naowh Forever" and rxp.themes["NaowhForever:crimson"].mapPins,
         "as whole themes")
     Check(env.RXPGuides_Themes == nil, "and the global list is not used")
@@ -537,7 +537,7 @@ do
 
     local colors = Fonts({ rxpThemes = true }, {})
     Check(Hex(colors[NameOf("")].textColor) == "f0f1f3" and Hex(colors[NameOf("crimson")].textColor) == "f6eff0",
-        "the basic text color: NaowhUI's and Crimson's Text")
+        "the basic text color: Naowh's and Crimson's Text")
 end
 
 -- The waypoint arrow.

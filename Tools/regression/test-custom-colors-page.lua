@@ -344,8 +344,8 @@ do
     local presets = u.ns.THEME_PRESET_ORDER
     Check(#picker.order == #presets + 3 and picker.order[1] == "" and picker.order[2] == "current" and picker.order[3] == "default"
         and picker.order[#picker.order] == presets[#presets]
-        and picker.values[""] == "RestedXP (default)" and picker.values.current == "Current Theme" and picker.values.default == "NaowhUI"
-        and picker.values.crimson == "Crimson", "RestedXP (default), Current Theme, NaowhUI and every preset")
+        and picker.values[""] == "RestedXP (default)" and picker.values.current == "Current Theme" and picker.values.default == "Naowh"
+        and picker.values.crimson == "Crimson", "RestedXP (default), Current Theme, Naowh and every preset")
     Check(picker.tooltip == "The theme RestedXP uses: its own, or one of the Naowh themes.", "its tooltip is one short sentence")
     Check(picker.disabled == nil, "never greyed out: it is not shown when it does not apply")
     picker.setValue("crimson")
