@@ -14,7 +14,8 @@ end
 
 local function Fixture(char)
     local e = { char = char or "Main-Ravencrest", reapplied = 0 }
-    local env = { ns = { QueueReapply = function() e.reapplied = e.reapplied + 1 end },
+    local env = { ns = { QueueReapply = function() e.reapplied = e.reapplied + 1 end,
+            STARTER = { profile = {}, account = {} } },
         activeRoot = nil,
         CharKey = function() return e.char end,
         UnitName = function() return e.char:match("^[^-]+") end, UNKNOWNOBJECT = "Unknown" }
@@ -185,6 +186,31 @@ Case("switching already off is reported as such rather than as a change", functi
     local ok, turnedOff = e.ns.SetAccountProfile("Naowh New")
     assert(ok == true and turnedOff == false)
     assert(sv.autoSpecProfile == nil and sv.specProfile["250"] == "Old")
+end)
+
+Case("a new install starts from the starter setup in Default", function()
+    local e = Fixture("Main-Ravencrest")
+    local starter = { profile = { qol = { fastLoot = true } }, account = { windowScale = 1.1 } }
+    e.ns.STARTER = starter
+    assert(e.ns.SettingsRoot().qol.fastLoot == true)
+    local sv = e.db()
+    assert(sv.profiles.Default == starter.profile and sv.account.windowScale == 1.1)
+    assert(sv.charActive["Main-Ravencrest"] == "Default")
+end)
+
+Case("an account that already has settings never takes the starter", function()
+    local e = Fixture("Main-Ravencrest")
+    e.ns.STARTER = { profile = { qol = { fastLoot = true } }, account = { windowScale = 1.1 } }
+    _G.NaowhForeverDB = { dbVersion = 1, profiles = { Default = { qol = { fastLoot = false } } } }
+    assert(e.ns.SettingsRoot().qol.fastLoot == false and e.db().account == nil)
+end)
+
+Case("the shipped starter carries no Smart Reminders", function()
+    local env = { NaowhForever = {} }; env._G = env
+    local chunk = assert(loadfile(arg[3] or "Core/NaowhForever_Starter.lua")); setfenv(chunk, env); chunk()
+    local starter = env.NaowhForever.STARTER
+    assert(type(starter.profile) == "table" and type(starter.account) == "table")
+    assert(starter.profile.tankReminder == nil and starter.profile.customReminders == nil)
 end)
 
 -- The installer's public entry point, run against the real Core slice. InstallProfilePack and

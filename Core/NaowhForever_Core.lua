@@ -941,8 +941,9 @@ local function DB()
     if type(sv) ~= "table" then
         -- Settings from before the rename. The client only loads them when the old
         -- NaowhSmartReminders.lua SavedVariables file is copied over as NaowhForever.lua.
+        -- A new install starts from Naowh's setup (NaowhForever_Starter.lua).
         sv = type(_G.NaowhUI_SmartRemindersDB) == "table" and _G.NaowhUI_SmartRemindersDB
-            or { dbVersion = 1 }
+            or { dbVersion = 1, profiles = { Default = ns.STARTER.profile }, account = ns.STARTER.account }
         _G.NaowhForeverDB = sv
         _G.NaowhUI_SmartRemindersDB = nil
     end
