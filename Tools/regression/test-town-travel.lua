@@ -53,6 +53,8 @@ Check(map:find("ns.TownTravel[mapID]", 1, true) and map:find('S.Get("townTravel"
     "the town map draws them on their own switch")
 Check(map:find("linkedUiMapID = dock[5]", 1, true) and map:find("rightUiMapID = dock[7]", 1, true),
     "as clickable zone links, a tower's second destination on right click")
+Check(Read("QoL/NaowhForever_TownMap.xml"):find('registerForClicks="LeftButtonUp, RightButtonUp"', 1, true),
+    "and the pin takes right clicks: a Button gets only left clicks unless it asks")
 Check(map:find("elseif link.linkedUiMapID ~= self:GetMap():GetMapID() then", 1, true),
     "no click hint on a pin that opens the map you are on")
 Check(Read("QoL/NaowhForever_QoL.lua"):find("townTravel = false", 1, true), "Boats & Zeppelins starts off")
