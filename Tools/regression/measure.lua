@@ -5,13 +5,13 @@
 --
 --   local Measure = dofile("Tools/regression/measure.lua")(check)
 --   Measure("the list redrawn", 2, function() view:Redraw() end)
-local RUNS = 200
+local RUNS, WARM = 200, 10
 
 return function(check)
     return function(label, budget, fn)
         collectgarbage("collect")
         collectgarbage("stop")
-        fn()
+        for _ = 1, WARM do fn() end
         local before, start = collectgarbage("count"), os.clock()
         for _ = 1, RUNS do fn() end
         local ms = (os.clock() - start) * 1000 / RUNS
