@@ -145,7 +145,8 @@ page:Card({
               .. "that many crafts go on a shopping list, from anywhere. At the auction house the list shows "
               .. "beside it: Check Prices looks each one up and warns in red when one is well above your last "
               .. "scan, then Buy All goes through the list one material at a time, each bought only when you "
-              .. "confirm its final price." },
+              .. "confirm its final price. A material you can make for less from its parts, such as a bar from "
+              .. "ore, has its parts bought instead." },
         Group("Vendors"),
         { key = "vendorMaterials", label = "Crafts with Vendor Buys", toggle = true, needs = On,
           why = PROFESSIONS_OFF,
