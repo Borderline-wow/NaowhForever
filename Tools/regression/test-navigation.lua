@@ -68,7 +68,8 @@ function methods:CreateTexture() return New("Texture", nil, self) end
 function methods:GetObjectType() return self.kind end
 -- One unit is one screen pixel here, so ns.Hairline and ns.PixelInset keep the layout's numbers.
 function methods:GetEffectiveScale() return 1 end
-env.PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end }
+env.PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end,
+    GetNearestPixelSize = function(v) return math.floor(v + 0.5) end }
 function methods:IsVisible() return self:IsShown() end
 function methods:IsMouseOver() return false end
 function methods:CreateFontString() return New("FontString", nil, self) end
