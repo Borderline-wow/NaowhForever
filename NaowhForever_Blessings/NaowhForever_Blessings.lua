@@ -61,7 +61,7 @@ local YELLOW = { r = 1, g = 0.85, b = 0.3 }
 local BLUE = { r = 0.35, g = 0.6, b = 1 }
 local ICON_BORDER = { r = 0, g = 0, b = 0 }
 local MARK_SIZE, LABEL_SIZE, LABEL_MIN = 14, 10, 7
-local CLASS_ICONS = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+local CLASS_ICON_PATH = "Interface\\Icons\\ClassIcon_"
 local CLASS_ICON_MIN, CLASS_ICON_MAX = 12, 24
 local HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
 local AURA_TIP = "Left-click: cast your aura.\nRight-click: choose it."
@@ -757,15 +757,18 @@ local function FitLabel(label, text, width, font, outline)
     if label:GetUnboundedStringWidth() > width then label:SetWidth(width) end
 end
 
--- The class's own icon by its button, for Class Label Style: Class Icon. Made the first
--- time it is asked for, so the default Name style builds nothing extra.
+-- The class's own icon by its button, for Class Label Style: Class Icon, cropped and edged
+-- like the buttons. Made the first time it is asked for, so the default Name style builds
+-- nothing extra.
 local function ClassIcon(frame)
     local icon = frame.classIcon
     if icon then return icon end
-    icon = frame:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture(CLASS_ICONS)
-    local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[frame.class]
-    if coords then icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4]) end
+    icon = CreateFrame("Frame", nil, frame)
+    icon.tex = icon:CreateTexture(nil, "ARTWORK")
+    icon.tex:SetAllPoints()
+    icon.tex:SetTexture(CLASS_ICON_PATH .. frame.class)
+    icon.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    ns.Border(icon, ICON_BORDER)
     frame.classIcon = icon
     return icon
 end

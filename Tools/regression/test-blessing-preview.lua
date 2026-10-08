@@ -73,7 +73,7 @@ local ns = {
     Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
     AccountSettings = function() return account end,
     OpenBlessingsWindow = function() end,
-    PixelInset = function() end, Border = function() end, UIFontPath = function() return "font" end,
+    PixelInset = function() end, Border = function(f) f.bordered = true end, UIFontPath = function() return "font" end,
     Font = function(parent) return New("FontString", parent) end,
     Solid = function(parent) return New("Texture", parent) end,
     Color = function(_, text) return text end,
@@ -128,8 +128,6 @@ local env = setmetatable({
     UnitName = function() return "Glyadin" end,
     GetRealmName = function() return "Forever" end,
     LOCALIZED_CLASS_NAMES_MALE = { WARRIOR = "Warrior", PRIEST = "Priest", ROGUE = "Rogue", MAGE = "Mage" },
-    CLASS_ICON_TCOORDS = { WARRIOR = { 0, 0.25, 0, 0.25 }, PRIEST = { 0.49, 0.74, 0.25, 0.5 },
-        ROGUE = { 0.49, 0.74, 0, 0.25 }, MAGE = { 0.25, 0.49, 0, 0.25 } },
     MenuUtil = { CreateContextMenu = function(owner, generate)
         menu = Root()
         menu.owner = owner
@@ -311,8 +309,10 @@ settings.blessLabelStyle = "icon"
 studio.paint(preview, "group")
 local classIcon = warriorCell.classIcon
 check("Class Icon shows the class's icon in place of the name", classIcon and classIcon.shown
-    and not warriorCell.label.shown and classIcon.coords and classIcon.coords[2] == 0.25
-    and mageCell.classIcon.coords[1] == 0.25)
+    and not warriorCell.label.shown and classIcon.tex.texture == "Interface\\Icons\\ClassIcon_WARRIOR"
+    and mageCell.classIcon.tex.texture == "Interface\\Icons\\ClassIcon_MAGE")
+check("the icon is cropped and edged like the buttons", classIcon.tex.coords[1] == 0.08
+    and classIcon.tex.coords[2] == 0.92 and classIcon.bordered)
 check("the icon is two thirds of the button", classIcon.w == 20 and classIcon.h == 20)
 settings.blessBarSize = 70
 studio.paint(preview, "group")
