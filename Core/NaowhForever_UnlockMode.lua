@@ -1598,92 +1598,71 @@ end)
 --  hooks ns.ShowRaidReminderAnchorConfig and ns.HideRaidReminderAnchorConfig to show and
 --  hide its own frames.
 -------------------------------------------------------------------------------
--- Unlock Mode's grid, measured out from the screen's centre: faint lines in the text colour,
--- every GRID_MAJOR-th one stronger, and the centre lines in the accent with a square where
--- they cross.
-local GRID_SPACING = 32
-local GRID_MAJOR = 4
+-- Unlock Mode's grid, counted out from the screen's centre: faint lines in the text colour,
+-- every GRID_MAJOR-th one stronger, and the centre lines in the accent with a mark where they
+-- cross. Every line starts on a whole pixel and is one pixel thick.
+local GRID_STEP = 40          -- between lines, in UI units
+local GRID_MAJOR = 5
 local GRID_LINE_ALPHA = 0.08
 local GRID_MAJOR_ALPHA = 0.18
 local GRID_CENTER_ALPHA = 0.6
-local GRID_MARK = 6        -- the centre square, in pixels
-local gridOverlay
+local GRID_MARK = 5           -- the centre mark, in pixels: odd, so it sits evenly round a line
+local grid
 
-local function BuildGridOverlay()
-    if gridOverlay then return gridOverlay end
-    gridOverlay = CreateFrame("Frame", nil, UIParent)
-    gridOverlay:SetFrameStrata("BACKGROUND")
-    gridOverlay:SetFrameLevel(1)
-    gridOverlay:SetAllPoints(UIParent)
-    gridOverlay._lines = {}
-    gridOverlay:Hide()
-
-    function gridOverlay:Rebuild()
-        for i = 1, #self._lines do self._lines[i]:Hide() end
-        local w, h = UIParent:GetWidth(), UIParent:GetHeight()
-        -- One physical pixel: fractional widths blur across two pixels.
-        local mult = Pixel()
-        local spacing = GRID_SPACING * mult
-        local function Snap(v) return math.floor(v / mult + 0.5) * mult end
-        local centerX, centerY = Snap(w / 2), Snap(h / 2)
-        local idx = 0
-
-        local function Line(isVert, pos, alpha, c)
-            c = c or T.fg
-            idx = idx + 1
-            local tex = self._lines[idx]
-            if not tex then
-                tex = self:CreateTexture(nil, "BACKGROUND", nil, -7)
-                if tex.SetSnapToPixelGrid then
-                    tex:SetSnapToPixelGrid(false)
-                    tex:SetTexelSnappingBias(0)
-                end
-                self._lines[idx] = tex
-            end
-            tex:SetColorTexture(c.r, c.g, c.b, alpha)
-            tex:ClearAllPoints()
-            if isVert then
-                tex:SetSize(mult, h)
-                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", pos, 0)
-            else
-                tex:SetSize(w, mult)
-                tex:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -pos)
-            end
-            tex:Show()
+local function DrawGrid()
+    local w, h = UIParent:GetWidth(), UIParent:GetHeight()
+    local scale, px = UIParent:GetEffectiveScale(), Pixel()
+    local cx, cy = PixelUtil.GetNearestPixelSize(w / 2, scale), PixelUtil.GetNearestPixelSize(h / 2, scale)
+    local used = 0
+    -- A line `along` from the centre: rightward for an upright line, upward for a level one.
+    local function Draw(upright, along, color, alpha)
+        used = used + 1
+        local line = grid.lines[used]
+        if not line then
+            line = grid:CreateTexture(nil, "BACKGROUND")
+            grid.lines[used] = line
         end
-
-        local function Lines(isVert, center, size)
-            for dir = -1, 1, 2 do
-                local n, pos = 1, center + dir * spacing
-                while pos > 0 and pos < size do
-                    Line(isVert, Snap(pos), n % GRID_MAJOR == 0 and GRID_MAJOR_ALPHA or GRID_LINE_ALPHA)
-                    n, pos = n + 1, pos + dir * spacing
-                end
-            end
+        line:SetColorTexture(color.r, color.g, color.b, alpha)
+        line:ClearAllPoints()
+        if upright then
+            line:SetSize(px, h)
+            line:SetPoint("TOPLEFT", UIParent, "TOPLEFT", PixelUtil.GetNearestPixelSize(cx + along, scale), 0)
+        else
+            line:SetSize(w, px)
+            line:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -PixelUtil.GetNearestPixelSize(cy - along, scale))
         end
-        Lines(true, centerX, w)
-        Lines(false, centerY, h)
-        Line(true, centerX, GRID_CENTER_ALPHA, T.accent)
-        Line(false, centerY, GRID_CENTER_ALPHA, T.accent)
-
-        if not self._mark then self._mark = self:CreateTexture(nil, "BACKGROUND", nil, -6) end
-        self._mark:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
-        self._mark:SetSize(GRID_MARK * mult, GRID_MARK * mult)
-        self._mark:ClearAllPoints()
-        self._mark:SetPoint("CENTER", UIParent, "TOPLEFT", centerX, -centerY)
+        line:Show()
     end
-
-    return gridOverlay
+    for _, upright in ipairs({ true, false }) do
+        for i = 1, math.floor((upright and cx or cy) / GRID_STEP) do
+            local alpha = i % GRID_MAJOR == 0 and GRID_MAJOR_ALPHA or GRID_LINE_ALPHA
+            Draw(upright, i * GRID_STEP, T.fg, alpha)
+            Draw(upright, -i * GRID_STEP, T.fg, alpha)
+        end
+        Draw(upright, 0, T.accent, GRID_CENTER_ALPHA)
+    end
+    for i = used + 1, #grid.lines do grid.lines[i]:Hide() end
+    local inset = (GRID_MARK - 1) / 2 * px
+    grid.mark:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1)
+    grid.mark:SetSize(GRID_MARK * px, GRID_MARK * px)
+    grid.mark:ClearAllPoints()
+    grid.mark:SetPoint("TOPLEFT", UIParent, "TOPLEFT", cx - inset, -(cy - inset))
 end
 
 function ns.SetAnchorGridShown(shown)
     if not shown then
-        if gridOverlay then gridOverlay:Hide() end
+        if grid then grid:Hide() end
         return
     end
-    local g = BuildGridOverlay()
-    g:Rebuild()
-    g:Show()
+    if not grid then
+        grid = CreateFrame("Frame", nil, UIParent)
+        grid:SetFrameStrata("BACKGROUND")
+        grid:SetAllPoints()
+        grid.lines = {}
+        grid.mark = grid:CreateTexture(nil, "BORDER")
+    end
+    DrawGrid()
+    grid:Show()
 end
 
 -------------------------------------------------------------------------------

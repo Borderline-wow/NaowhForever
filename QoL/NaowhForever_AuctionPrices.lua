@@ -39,6 +39,7 @@ local function Age(seconds)
     if seconds < 86400 then return math.floor(seconds / 3600) .. "h" end
     return math.floor(seconds / 86400) .. "d"
 end
+ns.AuctionAge = Age
 
 local priced, pricedAt
 
@@ -63,6 +64,18 @@ end
 
 local function Label(text)
     if button then button.label:SetText(text) end
+end
+
+-- Beside the button: how old the last scan is, and when the next may run.
+local ageTicker
+local function ShowAge()
+    if not (button and button.age) then return end
+    local house = House()
+    if not (house and house.time) then return button.age:SetText("No scan yet") end
+    local since = time() - house.time
+    local wait = SCAN_COOLDOWN - since
+    button.age:SetText(("Last scan %s ago%s"):format(Age(since),
+        wait > 0 and (", next in %dm"):format(math.ceil(wait / 60)) or ""))
 end
 
 local events = CreateFrame("Frame")
@@ -102,6 +115,7 @@ local function Read()
         local house = House(true)
         house.prices, house.time = prices, time()
         Stop()
+        ShowAge()
         ns.Print(Tag() .. ": " .. ns.AuctionScanSummary())
         -- The profession window's crafting profit reads these prices.
         if ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
@@ -147,8 +161,13 @@ local function ShowButton()
                 .. "each item, shown on item tooltips. Blizzard allows one full scan every 15 "
                 .. "minutes.\n\n" .. ns.AuctionScanSummary()
         end)
+        button.age = ns.Font(button, 11, nil, ns.THEME.muted)
+        button.age:SetPoint("LEFT", button, "RIGHT", 8, 0)
     end
     button:SetShown(S.Get("ahPrices"))
+    ShowAge()
+    -- Kept current while the auction house is open, once a minute.
+    if S.Get("ahPrices") and not ageTicker then ageTicker = C_Timer.NewTicker(60, ShowAge) end
 end
 
 events:SetScript("OnEvent", function(_, event)
@@ -156,6 +175,10 @@ events:SetScript("OnEvent", function(_, event)
         ShowButton()
     elseif event == "AUCTION_HOUSE_CLOSED" then
         if scanning then Stop("scan stopped: the auction house closed.") end
+        if ageTicker then
+            ageTicker:Cancel()
+            ageTicker = nil
+        end
     elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
         Read()
     end

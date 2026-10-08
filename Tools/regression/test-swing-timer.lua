@@ -9,6 +9,10 @@ local function Compile(env)
     return assert(load(source, "=SwingTimer", "t", env))
 end
 
+-- The real house colours, which some bar defaults come from.
+local SHARED = {}
+dofile("Tools/regression/load_files.lua")({ "Shared/Style.lua" }, { _G = { NaowhForever = { Shared = SHARED } } })
+
 local SECRET = setmetatable({}, { __tostring = function() return "<secret>" end })
 
 -- A widget that accepts any method; the few the module's behaviour hangs on are recorded.
@@ -34,6 +38,9 @@ local function Widget(kind, log)
         return self.tex
     end
     function w:SetVertexColor(r, g, b) self.color = { r, g, b } end
+    function w:SetTextColor(r, g, b) self.textColor = { r, g, b } end
+    function w:SetText(t) self.text = t end
+    function w:SetAlpha(a) self.alpha = a end
     function w:CreateTexture() return Widget("Texture", log) end
     function w:CreateFontString() return Widget("FontString", log) end
     log.frames[#log.frames + 1] = w
@@ -62,7 +69,7 @@ local function Session(settings, opts)
         end,
         STATUS = {},
     }
-    local ns = { UI = UI, THEME = { bg = { r = 0, g = 0, b = 0 } } }
+    local ns = { UI = UI, THEME = { bg = { r = 0, g = 0, b = 0 }, fg = { r = 1, g = 1, b = 1 } } }
     function ns.Apply() end
     function ns.ShowRaidReminderAnchorConfig() end
     log.unlock = function() ns.ShowRaidReminderAnchorConfig() end
@@ -73,9 +80,15 @@ local function Session(settings, opts)
     ns.PixelInset = function(region) return region end
     ns.Font = function() return Widget("FontString", log) end
     ns.UIFontPath = function() return "font" end
-    ns.Shared = { Parts = { HudFont = function(fs, font, size, outline)
-        fs.font, fs.size, fs.outline = font, size, outline
-    end } }
+    ns.Shared = { Style = SHARED.Style, Parts = {
+        HudFont = function(fs, font, size, outline)
+            fs.font, fs.size, fs.outline = font, size, outline
+        end,
+        StopTimer = function(bar, dur, full)
+            dur:SetTimeFromStart(log.now - 1, 1)
+            bar:SetTimerDuration(dur, 0, full and 0 or 1)
+        end,
+    } }
     local speeds = opts.speeds or { 2.6, nil, nil }
     local env = setmetatable({
         _G = { NaowhForever = ns },
@@ -122,7 +135,7 @@ local function Session(settings, opts)
         end },
         C_Spell = {
             GetSpellName = function(id) return (opts.names or {})[id] or ("Spell" .. tostring(id)) end,
-            IsCurrentSpell = function() return false end,
+            IsCurrentSpell = function(name) return (opts.current or {})[name] or false end,
         },
         C_Secrets = { ShouldAurasBeSecret = function() return opts.secretAuras == true end },
         C_UnitAuras = { GetAuraDataByIndex = function(_, i) return (opts.auras or {})[i] end },
@@ -131,7 +144,7 @@ local function Session(settings, opts)
                 log.range = log.range or {}; log.range[t] = on
                 log.rangeCalls[#log.rangeCalls + 1] = on
             end,
-            IsTargetWithinSwingRange = function() return nil end,
+            IsTargetWithinSwingRange = function(t) return (opts.within or {})[t] end,
         },
         C_DurationUtil = {
             CreateDuration = function()
@@ -376,11 +389,11 @@ Case("a seal cast colors the melee bars, any rank, and a Judgement takes it away
     local _, log = Session({ enabled = true, sealColors = true }, { class = "PALADIN", names = SEAL_NAMES })
     local e = log.events.events
     assert(e.UNIT_SPELLCAST_SUCCEEDED and e.UNIT_AURA)
-    assert(BarColor(log) == "0.90 0.70 0.27", "main hand color at first: " .. BarColor(log))
+    assert(BarColor(log) == "0.40 0.85 0.94", "main hand color at first: " .. BarColor(log))
     log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20915)
     assert(BarColor(log) == "0.75 0.35 0.95", "Seal of Command, rank 2: " .. BarColor(log))
     log.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 20271)
-    assert(BarColor(log) == "0.90 0.70 0.27", "Judgement used it up: " .. BarColor(log))
+    assert(BarColor(log) == "0.40 0.85 0.94", "Judgement used it up: " .. BarColor(log))
 end)
 
 Case("a restricted spell ID changes nothing", function()
@@ -397,7 +410,7 @@ Case("out of combat the buffs say which seal is up, unless they are kept secret"
     assert(BarColor(log) == "0.75 0.35 0.95", "read at login: " .. BarColor(log))
     local _, hidden = Session({ enabled = true, sealColors = true },
         { class = "PALADIN", names = SEAL_NAMES, auras = auras, secretAuras = true })
-    assert(BarColor(hidden) == "0.90 0.70 0.27", "not read while secret: " .. BarColor(hidden))
+    assert(BarColor(hidden) == "0.40 0.85 0.94", "not read while secret: " .. BarColor(hidden))
 end)
 
 Case("Seal of Martyrdom has a color of its own", function()
@@ -414,7 +427,7 @@ Case("a seal that runs out in combat takes its color with it", function()
     log.Advance(cast + 29)
     assert(BarColor(log) == "0.75 0.35 0.95", "still up at 29s: " .. BarColor(log))
     log.Advance(cast + 30.1)
-    assert(BarColor(log) == "0.90 0.70 0.27", "gone at 30s: " .. BarColor(log))
+    assert(BarColor(log) == "0.40 0.85 0.94", "gone at 30s: " .. BarColor(log))
 end)
 
 Case("recasting a seal starts its count again, and a Judgement stops it", function()
@@ -440,7 +453,7 @@ Case("a seal buff that can be read sets how long seals last", function()
     log.Fire("UNIT_AURA", "player")
     local read = log.now
     log.Advance(read + 10.1)
-    assert(BarColor(log) == "0.90 0.70 0.27", "ran out when its buff said: " .. BarColor(log))
+    assert(BarColor(log) == "0.40 0.85 0.94", "ran out when its buff said: " .. BarColor(log))
     auras[1] = nil
     log.Fire("PLAYER_REGEN_DISABLED")
     local cast = log.now
@@ -448,7 +461,7 @@ Case("a seal buff that can be read sets how long seals last", function()
     log.Advance(cast + 32)
     assert(BarColor(log) == "0.75 0.35 0.95", "34s learned from the buff: " .. BarColor(log))
     log.Advance(cast + 34.1)
-    assert(BarColor(log) == "0.90 0.70 0.27", "gone at 34s: " .. BarColor(log))
+    assert(BarColor(log) == "0.40 0.85 0.94", "gone at 34s: " .. BarColor(log))
 end)
 
 Case("seal colors on a warrior listen to nothing", function()
@@ -467,6 +480,51 @@ Case("the bar text keeps today's look until a setting changes it", function()
     assert(tag.font == "Naowh" and tag.size == 14 and tag.outline == "")
     log.Set("texture", "Solid")
     assert(log.texture == "Solid")
+end)
+
+Case("a queued attack colours the melee bars and names itself on them", function()
+    local current = {}
+    local _, log = Session({ enabled = true }, { speeds = { 2.6, 1.8, nil }, current = current })
+    local mh, oh = log.bars[1], log.bars[2]
+    current.Spell78 = true
+    log.Fire("ACTIONBAR_UPDATE_STATE")
+    assert(BarColor(log) == "1.00 0.70 0.20", "Heroic Strike: " .. BarColor(log))
+    assert(mh.parent.tag.text == "MH - Spell78" and oh.parent.tag.text == "OH - Spell78")
+    current.Spell78, current.Spell845 = nil, true
+    log.Fire("ACTIONBAR_UPDATE_STATE")
+    assert(BarColor(log) == "0.97 0.44 0.44", "Cleave has its own: " .. BarColor(log))
+    current.Spell845 = nil
+    log.Fire("ACTIONBAR_UPDATE_STATE")
+    assert(BarColor(log) == "0.40 0.85 0.94" and mh.parent.tag.text == "MH")
+end)
+
+Case("a restricted queued answer is not a queued attack", function()
+    local _, log = Session({ enabled = true }, { current = { Spell78 = SECRET } })
+    log.Fire("ACTIONBAR_UPDATE_STATE")
+    assert(BarColor(log) == "0.40 0.85 0.94" and log.bars[1].parent.tag.text == "MH")
+end)
+
+Case("out of range fades the bar and reds its text; no answer is not out of range", function()
+    local _, log = Session({ enabled = true }, { within = { [0] = false } })
+    local mh = log.bars[1].parent
+    assert(mh.alpha == 0.4, "dimmed at login")
+    assert(mh.time.textColor[1] > 0.9 and mh.time.textColor[2] < 0.5)
+    log.Fire("PLAYER_SWING_RANGE_UPDATE", 0, true, true)
+    assert(mh.alpha == 1 and mh.time.textColor[2] == 1)
+    log.Fire("PLAYER_SWING_RANGE_UPDATE", 0, false, true)
+    assert(mh.alpha == 0.4)
+    log.Fire("PLAYER_SWING_RANGE_UPDATE", 0, false, false)
+    assert(mh.alpha == 1, "no range checked")
+    local _, none = Session({ enabled = true })
+    assert(none.bars[1].parent.alpha == 1, "nil from the API")
+end)
+
+Case("an off hand swing shows its bar while its speed reads restricted", function()
+    local _, log = Session({ enabled = true }, { speeds = { 2.6, SECRET, nil } })
+    local oh = log.bars[2]
+    assert(not oh.parent.shown)
+    log.Fire("PLAYER_SWING", 1.8, 1)
+    assert(oh.parent.shown and oh.obj.dur == 1.8)
 end)
 
 print(("%d cases passed"):format(count))

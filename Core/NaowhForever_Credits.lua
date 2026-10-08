@@ -38,6 +38,7 @@ local DATA = {
     { icon = "trophy", color = GOLD, name = "wowsrc.com", role = "Data", line = "The BiS rankings behind the BiS List." },
     { icon = "bars", color = GOLD, name = "WoWSims", role = "Data", line = "The stat weights each spec starts with." },
     { icon = "map", color = GOLD, name = "Santiago Reyes", role = "Maps", line = "For his maps of the new Forever dungeons." },
+    { icon = "map", color = GOLD, name = "tr0tsky", role = "Data", line = "The ley lines and Elemental Convergences behind Skyborne Spots, from the Skyborne Ley Line & Convergence Marker addon." },
 }
 
 local LIBRARIES = { "LibStub", "CallbackHandler-1.0", "LibDataBroker-1.1", "LibDBIcon-1.0", "LibSharedMedia-3.0",

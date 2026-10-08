@@ -111,6 +111,7 @@ local S = UI.ModuleSettings("qol", {
     townBank = true, townStable = false, townRepair = true, townSupplies = true,
     townVendors = false, townMail = true, townPinSize = 16, townMinimap = true, townTravel = false,
     mapUnexplored = true, mapUnexploredDark = 0.5,
+    mapSkyborne = false, mapSkyborneSize = 20,
     gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
     gearWindowAlpha = 1, gearBarSpacing = 4, gearBarShow = "always",
     gearPos = { point = "CENTER", relPoint = "CENTER", x = -403, y = -379 },
@@ -166,6 +167,7 @@ local S = UI.ModuleSettings("qol", {
     equipReminder = true, equipOnInstance = true, equipOnReadyCheck = true, equipAutoHide = 10,
     equipIconSize = 40, equipEnchants = true, equipEnchantRules = {},
     autoEmote = false, autoEmoteCooldown = 2, autoEmoteList = "698: prepares a ritual of summoning",
+    chatZones = false, chatZonesLevel = true, chatZonesClassColour = true, chatZonesFinder = true, chatZonesWhere = true, chatZonesMaxAge = 15, chatZonesAsk = true, chatZonesShare = false,
 
     mouseRing = false, mouseShape = "ring.tga", mouseSize = 48,
     mouseColor = { r = 1, g = 0.66, b = 0 }, mouseClassColor = false,

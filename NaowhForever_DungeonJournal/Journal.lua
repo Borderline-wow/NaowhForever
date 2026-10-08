@@ -74,6 +74,9 @@ local S = ns.UI.ModuleSettings("journal", {
     enabled = true,
     mapPanel = true,
     mapFactions = false,
+    mapEntrances = false,
+    -- The entrance pins' size, on top of each kind of map's own (UI/EntrancePins.lua).
+    mapEntranceScale = 1,
     usableOnly = true,
     myRecipes = true,
     openUnreleased = false,

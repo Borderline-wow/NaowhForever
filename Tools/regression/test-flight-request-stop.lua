@@ -146,20 +146,46 @@ do
     s.ns.HideRaidReminderAnchorConfig()
     check('leaving Unlock Mode touches nothing', s.leave.mouseCalls == 0)
 end
+-- Landing early on a timed route: the flight now ends at the first stop still ahead.
+do
+    local s = fixture({ flightEarlyLanding = true })
+    local env = s.env
+    local NAMES = { 'Southshore', 'Refuge Pointe', 'Menethil Harbor' }
+    env.GetTaxiMapID = function() return 1415 end
+    env.C_TaxiMap = { GetAllTaxiNodes = function()
+        return { { slotIndex = 1, nodeID = 1 }, { slotIndex = 2, nodeID = 2 }, { slotIndex = 3, nodeID = 3 } }
+    end }
+    env.C_Traits = { GetConfigIDByTreeID = function() return nil end }
+    env.GetNumRoutes = function() return 2 end
+    env.TaxiGetNodeSlot = function(_, hop, from) return from and hop or hop + 1 end
+    env.TaxiNodeName = function(slot) return NAMES[slot] end
+    env.NumTaxiNodes = function() return 3 end
+    env.TaxiNodeGetType = function(i) return i == 1 and 'CURRENT' or 'REACHABLE' end
+    s.ns.FLIGHT_ROUTES[10002] = 30.4 * 50
+    s.ns.FLIGHT_ROUTES[20003] = 30.4 * 50
+    env.TakeTaxiNode(3)
+    s.taxi = true
+    for _, t in ipairs(s.tickers) do if not t.cancelled then t.fn() end end
+    local to = s.text('Menethil Harbor')
+    check('a timed three-stop flight runs to its end', to ~= nil and s.text('1:40') ~= nil)
+    s.now = 20
+    env.TaxiRequestEarlyLanding()
+    check('landing early ends the flight at the next stop', to.text == 'Refuge Pointe' and s.text('0:30') ~= nil)
+end
 do
     local s = fixture({ flightEarlyLanding = true })
     s.ns.ShowRaidReminderAnchorConfig()
-    local key, name = s.text('Next'), s.text('Thorium Point')
+    local key, name = s.text('Next'), s.text('Refuge Pointe')
     check('the sample flight names its next stop', key and key.shown and name and name.shown)
     check('with the time to it', s.text('0:50') and s.text('2:30'))
     check('the sample has no Land or Games button', not s.button('Land').shown and not s.button('Games').shown)
     s.now = 60
     s.tick()
-    check('a passed stop hands over to the next one', s.text('Morgan\'s Vigil').shown and s.text('0:35'))
+    check('a passed stop hands over to the next one', s.text('Menethil Harbor').shown and s.text('0:35'))
     check('the time left counts down', s.text('1:30'))
     s.now = 160
     s.tick()
-    check('the looping sample starts its stops again', s.text('Thorium Point') and s.text('0:40'))
+    check('the looping sample starts its stops again', s.text('Refuge Pointe') and s.text('0:40'))
 end
 do
     local s = fixture({ flightEarlyLanding = true })

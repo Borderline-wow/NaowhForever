@@ -37,7 +37,6 @@ J.Style = setmetatable({
     CONTESTED = MEDIA .. "swords",          -- contested ground, in the contested gold
     FACTION_ATLAS = { Alliance = "UI-HUD-UnitFrame-Player-PVP-AllianceIcon",
                       Horde = "UI-HUD-UnitFrame-Player-PVP-HordeIcon" },
-    CHAIN = MEDIA .. "chain",               -- a quest's chain
     SKULL = MEDIA .. "skull",               -- a boss's kill count
     PEOPLE = MEDIA .. "people",             -- group members on the same quest
     -- The game's quest marks: a yellow ! to pick up, a ? to hand in.

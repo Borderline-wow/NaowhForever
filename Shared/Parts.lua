@@ -825,17 +825,18 @@ local LINE_FROM_SHARE = 0.45
 local LINE_GLOW_W, LINE_GLOW_ALPHA = 28, 0.55
 local shortTimes = {}
 
+-- Seconds up to 90, then minutes up to 90, then hours, each rounded up so a time never reads
+-- less than is left. The game formats it, since the time can be secret.
 function Parts.ShortTime(prefix)
     prefix = prefix or ""
     local formatter = shortTimes[prefix]
     if formatter then return formatter end
-    local Up, Down = Enum.NumericRuleFormatRounding.Up, Enum.NumericRuleFormatRounding.Down
+    local Up = Enum.NumericRuleFormatRounding.Up
     formatter = C_StringUtil.CreateNumericRuleFormatter()
     formatter:SetBreakpoints({
         { threshold = 0, format = prefix .. "%ds", step = 1, rounding = Up },
-        { threshold = 60, format = prefix .. "%dm", step = 1, rounding = Up, components = { { div = 60 } } },
-        { threshold = 61, format = prefix .. "%dm", step = 1, rounding = Down, components = { { div = 60 } } },
-        { threshold = 3600, format = prefix .. "%dh", step = 1, rounding = Down, components = { { div = 3600 } } },
+        { threshold = 90, format = prefix .. "%dm", step = 1, rounding = Up, components = { { div = 60 } } },
+        { threshold = 5400, format = prefix .. "%dh", step = 1, rounding = Up, components = { { div = 3600 } } },
     })
     shortTimes[prefix] = formatter
     return formatter
@@ -865,11 +866,17 @@ local function LineRun(line, start, duration, prefix)
     line.glow:Show()
 end
 
+-- Stops a status bar its timer owns, empty or full: SetValue does not repaint such a bar, but a
+-- duration that has already run out leaves it still.
+function Parts.StopTimer(bar, dur, full)
+    dur:SetTimeFromStart(GetTime() - 1, 1)
+    bar:SetTimerDuration(dur, Enum.StatusBarInterpolation.Immediate, full
+        and Enum.StatusBarTimerDirection.ElapsedTime or Enum.StatusBarTimerDirection.RemainingTime)
+end
+
 local function LineStop(line)
     if line.dur then
-        line.dur:SetTimeFromStart(GetTime() - 1, 1)
-        line:SetTimerDuration(line.dur, Enum.StatusBarInterpolation.Immediate,
-            Enum.StatusBarTimerDirection.RemainingTime)
+        Parts.StopTimer(line, line.dur)
         if line.binding then line.binding:SetEnabled(false) end
     end
     line:SetValue(0)

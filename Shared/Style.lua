@@ -86,6 +86,7 @@ Shared.Style = {
     CLOCK_ATLAS = "auctionhouse-icon-clock",
     QUEST_ATLAS = "smallquestbang",
     PIN = MEDIA .. "pin",                   -- waypoints and places
+    CHAIN = MEDIA .. "chain",               -- a quest's chain
     INFO = MEDIA .. "info",                 -- Naowh's tip
     LOGO = MEDIA .. "LogoAddon",            -- the Naowh logo, left of a window's title
     LOGO_SMALL = MEDIA .. "LogoSmall",      -- the same at text size, in a tooltip line

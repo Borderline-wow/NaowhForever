@@ -1,0 +1,58 @@
+name: badges
+
+# Daily: Badges/NaowhForever_BadgesPatrons.lua from naowh.gg's active Legendary patrons
+# (Tools/sync_badges.py). A new patron's characters are added, a lapsed one's removed; when the
+# list changed, the badge regression test runs and the commit goes straight to main with
+# RELEASE_DEPLOY_KEY (GITHUB_TOKEN can't bypass Protect main). Players get it with the next
+# release. Run workflow does the same on demand.
+
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: badges
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Write the patron list from naowh.gg
+        id: sync
+        run: echo "result=$(python3 Tools/sync_badges.py)" >> "$GITHUB_OUTPUT"
+
+      - name: Lua 5.1
+        if: steps.sync.outputs.result == 'changed'
+        run: sudo apt-get update -q && sudo apt-get install -y -q lua5.1
+
+      - name: Test and push to main
+        if: steps.sync.outputs.result == 'changed'
+        env:
+          RELEASE_DEPLOY_KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          lua5.1 Tools/regression/test-badges.lua
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "chore(badges): sync the Legendary patrons from naowh.gg" -- Badges/NaowhForever_BadgesPatrons.lua
+          key="$RUNNER_TEMP/release_deploy_key"
+          hosts="$RUNNER_TEMP/known_hosts"
+          (umask 077 && printf '%s\n' "$RELEASE_DEPLOY_KEY" > "$key")
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$hosts"
+          GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o UserKnownHostsFile=$hosts" \
+            git push "git@github.com:${GITHUB_REPOSITORY}.git" HEAD:main
+          rm -f "$key"
