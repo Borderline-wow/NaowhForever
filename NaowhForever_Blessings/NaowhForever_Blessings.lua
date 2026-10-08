@@ -759,6 +759,7 @@ function Look.Read()
     Look.size, Look.gap, Look.groupGap = S.Get("blessBarSize"), S.Get("blessSpacing"), S.Get("blessGroupSpacing")
     Look.timerSize, Look.labels = S.Get("blessTimerSize"), S.Get("blessShowLabels")
     Look.font, Look.outline = S.Get("blessFont"), S.Get("blessOutline")
+    Look.vertical = S.Get("blessLayout") == "vertical"
     if S.Get("blessThemeColors") then
         deepAccent = deepAccent or { r = T.accent.r * 0.6, g = T.accent.g * 0.6, b = T.accent.b * 0.6 }
         tints[RED], tints[YELLOW], tints[BLUE] = T.accent, T.accentSoft, deepAccent
@@ -767,6 +768,7 @@ function Look.Read()
     end
 end
 
+-- x is how far along the bar the button goes: rightwards in a row, downwards in a column.
 function Look.Place(frame, row, x)
     local size = Look.size
     frame:SetSize(size, size)
@@ -777,10 +779,22 @@ function Look.Place(frame, row, x)
     frame.mark:SetTextColor(missing.r, missing.g, missing.b)
     if frame.label then
         frame.label:SetShown(Look.labels)
-        FitLabel(frame.label, frame.labelText, size + Look.gap, font, outline)
+        -- Under the button in a row; beside it in a column, clear of the button below.
+        frame.label:ClearAllPoints()
+        if Look.vertical then
+            frame.label:SetPoint("LEFT", frame, "RIGHT", 3, 0)
+        else
+            frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -2)
+        end
+        -- Nothing sits beside a column's names, so only a row's are fitted to their button.
+        FitLabel(frame.label, frame.labelText, Look.vertical and math.huge or size + Look.gap, font, outline)
     end
     frame:ClearAllPoints()
-    frame:SetPoint("LEFT", row, "LEFT", x, 0)
+    if Look.vertical then
+        frame:SetPoint("TOP", row, "TOP", 0, 0 - x)
+    else
+        frame:SetPoint("LEFT", row, "LEFT", x, 0)
+    end
     frame:Show()
     return x + size + Look.gap
 end
@@ -792,6 +806,15 @@ end
 
 function Look.Width(x)
     return math.max(x - Look.gap, Look.size)
+end
+
+-- Sizes the bar to its buttons: a row Width wide, or a column Width tall.
+function Look.Fit(frame, x)
+    if Look.vertical then
+        frame:SetSize(Look.size, Look.Width(x))
+    else
+        frame:SetSize(Look.Width(x), Look.size)
+    end
 end
 
 function Look.Minutes(seconds)
@@ -1187,7 +1210,7 @@ function Refresh()
     ArrangeFlyout(roster)
     FillKeys(byClass)
     EndAuraMemo()
-    bar:SetSize(Look.Width(x), size)
+    Look.Fit(bar, x)
     bar:SetShown(x > 0 or bar.mover:IsShown())
 end
 

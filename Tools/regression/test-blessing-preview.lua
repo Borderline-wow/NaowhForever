@@ -38,7 +38,7 @@ function methods:SetWidth(w) self.w = w end
 function methods:SetAllPoints() self.all = true end
 function methods:GetWidth() if self.all then return self.parent:GetWidth() end return self.w end
 function methods:GetHeight() if self.all then return self.parent:GetHeight() end return self.h end
-function methods:SetPoint(_, relative, _, x) self.anchor, self.x = relative, x end
+function methods:SetPoint(point, relative, _, x, y) self.point, self.anchor, self.x, self.y = point, relative, x, y end
 function methods:GetFrameLevel() return self.level end
 function methods:SetFrameLevel(v) self.level = v end
 function methods:GetEffectiveScale() return 1 end
@@ -55,7 +55,8 @@ function methods:CreateFontString() return New("FontString", self) end
 
 local settings = {}
 local defaults = { blessings = true, blessBarSize = 30, blessSpacing = 6, blessGroupSpacing = 6,
-    blessTimerSize = 14, blessShowLabels = true, blessTimers = true, blessShowAura = true, blessShowFury = false }
+    blessTimerSize = 14, blessShowLabels = true, blessTimers = true, blessShowAura = true, blessShowFury = false,
+    blessLayout = "horizontal" }
 local sets = 0
 local S = {}
 function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end return v end
@@ -111,7 +112,7 @@ local function Pick(label)
     end
 end
 
-local shift, cursorX, templated = false, 0, 0
+local shift, cursorX, cursorY, templated = false, 0, 0, 0
 local env = setmetatable({
     NaowhForever = ns,
     CreateFrame = function(kind, _, parent, template)
@@ -132,7 +133,7 @@ local env = setmetatable({
         generate(owner, menu)
     end },
     IsShiftKeyDown = function() return shift end,
-    GetCursorPosition = function() return cursorX, 0 end,
+    GetCursorPosition = function() return cursorX, cursorY end,
 }, { __index = _G })
 env._G = env
 
@@ -224,6 +225,31 @@ grip.scripts.OnMouseUp(grip, "LeftButton")
 check("letting go stops the drag", grip.scripts.OnUpdate == nil and not grip.dragging)
 settings.blessGroupSpacing = nil
 
+-- Direction: Vertical stacks the bar top to bottom, the class labels beside the buttons and
+-- the gap after the aura dragged up or down; Horizontal puts it all back.
+settings.blessLayout = "vertical"
+studio.paint(preview, "group")
+local first, second = preview.cells[1], preview.cells[2]
+check("vertical: the class buttons stack from the top", first.point == "TOP" and second.point == "TOP"
+    and first.x == 0 and second.y == first.y - 36)
+check("vertical: the bar is a column", preview.bar.w == 30 and preview.bar.h == 216)
+check("vertical: the + sits at the top", preview.plus.point == "TOP")
+check("vertical: class labels beside their buttons", first.label.point == "LEFT" and first.label.anchor == first)
+check("vertical: the gap is a band across the column", grip.point == "TOP" and grip.w == 30 and grip.h == 12
+    and grip.y == -66 and grip.tipBody:find("up or down"))
+cursorY = 100
+grip.scripts.OnMouseDown(grip, "LeftButton")
+cursorY = 90
+grip.scripts.OnUpdate(grip)
+check("vertical: dragging down widens the gap", S.Get("blessGroupSpacing") == 16)
+grip.scripts.OnMouseUp(grip, "LeftButton")
+cursorY = 0
+check("the card's summary says vertical", cards.bar.summary(S):find(", vertical", 1, true))
+settings.blessLayout, settings.blessGroupSpacing = nil, nil
+studio.paint(preview, "group")
+check("horizontal again: a row with labels under the buttons", first.point == "LEFT" and first.label.point == "TOP"
+    and preview.bar.h == 30 and grip.point == "LEFT")
+
 -- Hovering and the wheel make no garbage.
 studio.paint(preview, "group")
 local aura = preview.aura
@@ -274,6 +300,12 @@ settings.blessBarSize, settings.blessSpacing = nil, nil
 studio.paint(preview, "group")
 check("with room again the full name comes back at its size", warriorCell.label.text == "Warrior"
     and warriorCell.label.size == 10 and mageCell.label.text == "Mage" and mageCell.label.size == 10)
+settings.blessBarSize, settings.blessSpacing, settings.blessLayout = 16, 0, "vertical"
+studio.paint(preview, "group")
+check("a column's names sit beside it with nothing to run into: never squeezed",
+    warriorCell.label.text == "Warrior" and warriorCell.label.size == 10)
+settings.blessBarSize, settings.blessSpacing, settings.blessLayout = nil, nil, nil
+studio.paint(preview, "group")
 
 -- Off: nothing in the preview edits.
 settings.blessings = false

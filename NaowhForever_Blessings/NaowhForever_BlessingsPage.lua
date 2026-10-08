@@ -206,7 +206,7 @@ local Group = Settings.Group
 
 local BLESSINGS_OFF = "Turn on Blessings"
 local St = ns.Shared.Style
-local STAGE_H, STAGE_MARGIN, LABEL_ROOM = 160, 16, 14
+local STAGE_H, STAGE_MARGIN, LABEL_ROOM, LABEL_SIDE = 160, 16, 14, 46
 local NOTE_Y, NOTE_SIZE, NOTE_LINE = 10, 11, 15
 local TEXT_ROOM = NOTE_Y + NOTE_LINE * 2
 local REMOVE_SIZE, REMOVE_ICON, REMOVE_INSET = 12, 8, 3
@@ -222,6 +222,8 @@ local ADD_TITLE = "Add a Button"
 local ADD_AURA, ADD_FURY, ADD_BOTH = "Brings back the Aura button.", "Brings back the Righteous Fury button.",
     "Choose which button to bring back."
 local GAP_TIP = "Drag left or right to change the gap between your aura and the class buttons."
+local GAP_TIP_VERTICAL = "Drag up or down to change the gap between your aura and the class buttons."
+local LAYOUT = { { horizontal = "Horizontal", vertical = "Vertical" }, { "horizontal", "vertical" } }
 local AURA_HERE = "Here: click to choose your aura. Its x hides the button."
 local SELF_HERE = "Here: its x hides the button."
 local CLASS_TIP = "On the bar, left-click blesses the next %s who needs it, missing first, skipping anyone "
@@ -322,8 +324,11 @@ local function PlusLeave(plus)
     plus.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
 end
 
+-- Right widens the gap in a row, down widens it in a column.
 local function GripUpdate(grip)
-    local value = grip.from + math.floor((GetCursorPosition() - grip.fromX) / grip.scale + 0.5)
+    local cursorX, cursorY = GetCursorPosition()
+    local moved = grip.vertical and (grip.fromY - cursorY) or (cursorX - grip.fromX)
+    local value = grip.from + math.floor(moved / grip.scale + 0.5)
     value = math.min(GROUP_SLIDER[2], math.max(GROUP_SLIDER[1], value))
     if value ~= S.Get("blessGroupSpacing") then S.Set("blessGroupSpacing", value) end
 end
@@ -338,7 +343,9 @@ end
 
 local function GripDown(grip, mouse)
     if mouse ~= "LeftButton" or not grip.preview.editable then return end
-    grip.fromX, grip.scale, grip.from = GetCursorPosition(), grip:GetEffectiveScale(), S.Get("blessGroupSpacing")
+    grip.fromX, grip.fromY = GetCursorPosition()
+    grip.scale, grip.from = grip:GetEffectiveScale(), S.Get("blessGroupSpacing")
+    grip.vertical = Look.vertical
     grip.dragging = true
     grip.preview.remove:Hide()
     grip.line:Show()
@@ -473,10 +480,13 @@ local function NewPreview(stage)
     return preview
 end
 
+-- Class labels hang under a row and beside a column; the bar is centred with them.
 local function Fit(preview)
     local bar = preview.bar
-    local below = Look.labels and LABEL_ROOM or 0
-    local w, h = bar:GetWidth(), bar:GetHeight() + below
+    local labels = Look.labels
+    local below = labels and not Look.vertical and LABEL_ROOM or 0
+    local side = labels and Look.vertical and LABEL_SIDE or 0
+    local w, h = bar:GetWidth() + side, bar:GetHeight() + below
     local roomW = preview:GetWidth() - STAGE_MARGIN * 2
     local roomH = preview:GetHeight() - STAGE_MARGIN * 2 - TEXT_ROOM
     local scale = 1
@@ -484,7 +494,7 @@ local function Fit(preview)
     if roomH > 0 and h * scale > roomH then scale = roomH / h end
     bar:SetScale(scale)
     bar:ClearAllPoints()
-    bar:SetPoint("CENTER", preview, "CENTER", 0, (TEXT_ROOM / 2 + below / 2) / scale)
+    bar:SetPoint("CENTER", preview, "CENTER", -side / 2 / scale, (TEXT_ROOM / 2 + below / 2) / scale)
 end
 
 local function Tip(button, editable)
@@ -507,9 +517,24 @@ local function PlaceGrip(grip, shown, x, bar)
     if not shown then return end
     local span = Look.gap + Look.groupGap
     local width = math.max(GRIP_MIN, span)
-    grip:SetSize(width, Look.size)
+    local at = x - Look.gap - (width - span) / 2
+    local line = grip.line
     grip:ClearAllPoints()
-    grip:SetPoint("LEFT", bar, "LEFT", x - Look.gap - (width - span) / 2, 0)
+    line:ClearAllPoints()
+    if Look.vertical then
+        grip:SetSize(Look.size, width)
+        grip:SetPoint("TOP", bar, "TOP", 0, 0 - at)
+        line:SetPoint("LEFT")
+        line:SetPoint("RIGHT")
+        line:SetHeight(GRIP_LINE)
+    else
+        grip:SetSize(width, Look.size)
+        grip:SetPoint("LEFT", bar, "LEFT", at, 0)
+        line:SetPoint("TOP")
+        line:SetPoint("BOTTOM")
+        line:SetWidth(GRIP_LINE)
+    end
+    ns.Tooltip(grip, GROUP_LABEL, Look.vertical and GAP_TIP_VERTICAL or GAP_TIP)
 end
 
 local function PaintPreview(preview, state)
@@ -524,7 +549,7 @@ local function PaintPreview(preview, state)
     if adding then
         plus:SetSize(Look.size, Look.size)
         plus:ClearAllPoints()
-        plus:SetPoint("LEFT", bar, "LEFT", 0, 0)
+        plus:SetPoint(Look.vertical and "TOP" or "LEFT", bar, Look.vertical and "TOP" or "LEFT", 0, 0)
         x = Look.size + Look.gap
         ns.Tooltip(plus, ADD_TITLE, showAura and ADD_FURY or showFury and ADD_AURA or ADD_BOTH)
     end
@@ -544,7 +569,7 @@ local function PaintPreview(preview, state)
         Tip(cell, editable)
         x = Look.Place(cell, bar, x)
     end
-    bar:SetSize(Look.Width(x), Look.size)
+    Look.Fit(bar, x)
     Fit(preview)
     preview.note:SetText(state == "group" and S.Get("blessThemeColors") and THEMED_GROUP or NOTES[state])
     preview.hint:SetText(editable and HINT or HINT_OFF)
@@ -555,8 +580,9 @@ local function PaintPreview(preview, state)
 end
 
 local function BarSummary(store)
-    return ("%d px buttons%s%s"):format(store.Get("blessBarSize"), store.Get("blessShowAura") and ", aura" or "",
-        store.Get("blessTimers") and ", minutes left" or "")
+    return ("%d px buttons%s%s%s"):format(store.Get("blessBarSize"),
+        store.Get("blessLayout") == "vertical" and ", vertical" or "",
+        store.Get("blessShowAura") and ", aura" or "", store.Get("blessTimers") and ", minutes left" or "")
 end
 
 local page = Settings.Page("Blessings/Settings", S)
@@ -584,7 +610,7 @@ page:Card({
         { key = "blessShowFury", label = FURY_LABEL, toggle = true, needs = On, why = BLESSINGS_OFF,
           help = "Casts Righteous Fury on yourself. A red ! means it is not up." },
         { key = "blessShowLabels", label = "Class Labels", toggle = true, needs = On, why = BLESSINGS_OFF,
-          help = "Each class's name under its button." },
+          help = "Each class's name under its button, or beside it when the bar is vertical." },
         { key = "blessTimers", label = "Minutes Left", toggle = true, needs = On, why = BLESSINGS_OFF,
           help = "Minutes left on each class's shortest blessing, and on each player's." },
         Group("Size"),
@@ -594,6 +620,9 @@ page:Card({
           help = "The gap between two buttons." },
         { key = "blessGroupSpacing", label = GROUP_LABEL, slider = GROUP_SLIDER, needs = On,
           why = BLESSINGS_OFF, help = "The extra gap between your aura and Righteous Fury and the class buttons." },
+        { key = "blessLayout", label = "Direction", choice = LAYOUT, needs = On, why = BLESSINGS_OFF,
+          help = "Horizontal: a row, left to right. Vertical: a column, top to bottom, with the class labels "
+              .. "beside the buttons." },
         Settings.Look("bless", { text = true, size = { 8, 24, 1 }, keys = { FontSize = "blessTimerSize" }, needs = On,
             why = BLESSINGS_OFF }),
         Group("Colours"),
