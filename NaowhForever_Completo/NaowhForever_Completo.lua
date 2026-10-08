@@ -17,7 +17,9 @@ local S = UI.ModuleSettings("completo", {
     mapPins = false, mapGrey = false, mapChainsOnly = false, mapPinSize = 18,
     -- Rares: a warning when one is near, with a raid mark on it (NaowhForever_CompletoRareAlert.lua).
     rareHideKilled = false, rareAlert = false, rareMarker = "skull", rareAlertKilled = false,
-    rareSound = true, rareSoundKey = "file:gruntlinghorn", rareAlertPos = nil, rareAlertScale = 1,
+    rareSound = true, rareSoundKey = "file:gruntlinghorn", rareAlertPosition = nil, rareAlertScale = 1,
+    rareAlertTime = 20, rareAlertFont = "", rareAlertFontSize = 13, rareAlertOutline = "",
+    rareAlertBackground = "card", rareAlertGlow = false,
     -- A star on the world map where each rare spawns (NaowhForever_CompletoRareMap.lua).
     rarePins = false, rarePinsKilled = false, rarePinSize = 18,
 })

@@ -5,11 +5,11 @@
 --
 --  A rare is seen when its nameplate comes up, when you mouse over it or target it, and
 --  where the game marks it on the minimap (a vignette, if Forever gives rares one). The
---  alert is a card with the rare's portrait, its name, level and whether you killed it, on a
---  spot of its own (drag it there); its border glows and pulses, it plays a sound and flashes
---  the game's taskbar icon. Its pin (top right) sets a waypoint to the rare; it goes after a
---  while, on a right-click, or once the rare is killed. Each rare alerts once in a while, not every time
---  its nameplate comes back.
+--  alert is a card drawn as the BiS List's drop alert: the rare's portrait, its name and raid
+--  mark, and a line with its level, kind and whether you killed it; it fades in, plays a sound
+--  and flashes the game's taskbar icon, and is moved in the HUD Editor. Its pin (top right)
+--  sets a waypoint to the rare; it fades after Stays For, goes on a right-click, or once the
+--  rare is killed. Each rare alerts once in a while, not every time its nameplate comes back.
 --
 --  The mark goes on a rare you can see as a unit (nameplate, mouseover or target, not a
 --  minimap mark), once per creature, and only where it has no mark yet and you may mark: on
@@ -21,6 +21,7 @@ local ns = _G.NaowhForever
 local T = ns.THEME
 local S = ns.CompletoSettings
 local R = ns.Completo.Rares
+local Parts, St = ns.Shared.Parts, ns.Shared.Style
 
 -- The raid marks Mark Rare offers: key, the game's index, name. "none" puts none on.
 local MARKS = {
@@ -37,13 +38,7 @@ local function Marker()
         if mark[1] == key then return mark[2] end
     end
 end
-local SHOW_FOR = 20       -- seconds the alert stays up
 local AGAIN_AFTER = 300   -- seconds before the same rare alerts again
--- The glow around the card: GLOW wide, from GLOW_ALPHA at the card's edge to nothing, in the
--- theme's accent; it breathes between PULSE_LOW and full every PULSE seconds while shown.
-local GLOW, GLOW_ALPHA = 12, 0.55
-local GLOW_CORNER = "Interface\\AddOns\\NaowhForever_Completo\\Media\\GlowCorner"
-local PULSE, PULSE_LOW = 0.9, 0.25
 
 local function On()
     return S.Get("enabled") and S.Get("rareAlert")
@@ -101,200 +96,102 @@ local function PlaySoundKey(key)
     PlayGame(Find(DEFAULT_SOUND))
 end
 
-local alert, flash, hideTimer
-local shownNpc   -- the rare the alert is about, by npcID; nil for one not in the data
-
-local CARD_W, CARD_H, PORTRAIT, PAD = 300, 78, 58, 10
+local W, H, ICON, PAD, MARK = 300, 54, 38, 8, 14
+local DETAIL_SMALLER = 2   -- the line under the name, this much under Font Size
+local PIN_ROOM = 20        -- the name stops short of the pin
+local FADE = 0.3
+local GLOW, GLOW_ALPHA = 3, 0.35
 local BLACK = { r = 0, g = 0, b = 0 }
 local STAR_ATLAS = "VignetteKill"
+local DOT = "  \194\183  "
+local TAPPED = "Tapped by someone else"
 
-local function HideAlert()
-    if not alert then return end
-    if hideTimer then hideTimer:Cancel() end
-    hideTimer = nil
-    flash:Stop()
-    alert:Hide()
-    shownNpc = nil
-end
-
--- Where the card sits: where you last dragged it, else above the middle of the screen. Kept
--- as its middle's offset from the screen's, in the screen's units, so it stays put when its
--- size changes.
-local DEFAULT_POS = { point = "CENTER", relPoint = "CENTER", x = 0, y = 260 }
-
-local function Place()
-    local pos = S.Get("rareAlertPos") or DEFAULT_POS
-    local scale = S.Get("rareAlertScale") or 1
-    alert:SetScale(scale)
-    alert:ClearAllPoints()
-    alert:SetPoint("CENTER", UIParent, "CENTER", pos.x / scale, pos.y / scale)
-end
-
-local function DragStart(card)
-    card.dragged = true
-    card:StartMoving()
-end
-
-local function DragStop(card)
-    card:StopMovingOrSizing()
-    local cx, cy = card:GetCenter()
-    local ux, uy = UIParent:GetCenter()
-    local ratio = card:GetEffectiveScale() / UIParent:GetEffectiveScale()
-    S.Set("rareAlertPos", { point = "CENTER", relPoint = "CENTER",
-        x = math.floor(cx * ratio - ux + 0.5), y = math.floor(cy * ratio - uy + 0.5) })
-    Place()
-end
-
--- Right-click puts the card away; the end of a drag is no click.
-local function CardClicked(card, button)
-    if card.dragged then
-        card.dragged = false
-        return
-    end
-    if button == "RightButton" then HideAlert() end
-end
-
--- The pin: a waypoint to the rare, where the minimap saw it, else its spawn spot or way
--- nearest you.
-local function PinClicked()
-    local spot = alert.spot
-    if spot.map then ns.PlaceWaypoint(alert.name:GetText(), spot.map, spot.x, spot.y) end
-end
-
-local function CardEnter(card)
-    GameTooltip:SetOwner(card, "ANCHOR_TOP")
-    GameTooltip:SetText(card.name:GetText() or "Rare", 1, 1, 1)
-    GameTooltip:AddLine("Drag to move it. Right-click to close it.", 0.62, 0.62, 0.62)
-    GameTooltip:Show()
-end
-
-local function CardLeave()
-    GameTooltip:Hide()
-end
+local alert, holder
+local shownNpc   -- the rare the alert is about, by npcID; nil for one not in the data
+local shownGuid  -- the creature itself; a minimap alert takes the first live one seen
+local events = CreateFrame("Frame")
 
 -- The face of the rare: its model zoomed in to the head, as a unit frame's portrait.
 local function Zoom(model)
     model:SetPortraitZoom(1)
 end
 
-local function BuildAlert()
-    alert = CreateFrame("Button", "NaowhForeverRareAlert", UIParent)
-    alert:SetSize(CARD_W, CARD_H)
-    alert:SetMovable(true)
-    alert:SetClampedToScreen(true)
-    alert:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    alert:SetScript("OnClick", CardClicked)
-    alert:RegisterForDrag("LeftButton")
-    alert:SetScript("OnDragStart", DragStart)
-    alert:SetScript("OnDragStop", DragStop)
-    alert:SetScript("OnEnter", CardEnter)
-    alert:SetScript("OnLeave", CardLeave)
-    ns.Solid(alert, "BACKGROUND", T.panel, 0.94):SetAllPoints()
-    ns.Border(alert, BLACK)
-    alert.spot = {}
-
-    local frame = CreateFrame("Frame", nil, alert)
-    frame:SetSize(PORTRAIT, PORTRAIT)
-    frame:SetPoint("LEFT", PAD, 0)
-    ns.Solid(frame, "BACKGROUND", BLACK, 1):SetAllPoints()
-    ns.Border(frame, T.accent)
-    alert.model = CreateFrame("PlayerModel", nil, frame)
-    alert.model:SetPoint("TOPLEFT", 1, -1)
-    alert.model:SetPoint("BOTTOMRIGHT", -1, 1)
-    alert.model:SetScript("OnModelLoaded", Zoom)
-    -- The rare star where there is no model to show.
-    alert.star = frame:CreateTexture(nil, "ARTWORK")
-    alert.star:SetPoint("CENTER")
-    alert.star:SetSize(PORTRAIT * 0.6, PORTRAIT * 0.6)
-    alert.star:SetAtlas(STAR_ATLAS)
-
-    local Parts, St = ns.Shared.Parts, ns.Shared.Style
-    alert.pin = Parts.IconButton(alert, PinClicked, St.PIN, 0, "Waypoint")
-    alert.pin.hint = "To the rare: where it was seen, else its nearest spot."
-    alert.pin:SetPoint("TOPRIGHT", -PAD + 2, -PAD + 2)
-
-    -- The text, its three lines in the middle of the card beside the portrait, clear of the pin.
-    local left, right = PAD + PORTRAIT + 10, -(PAD + 24)
-    alert.kicker = ns.Font(alert, 10, nil, T.accent)
-    alert.kicker:SetPoint("TOPLEFT", left, -14)
-    alert.kicker:SetText("RARE SPOTTED")
-    alert.skull = alert:CreateTexture(nil, "ARTWORK")
-    alert.skull:SetSize(14, 14)
-    alert.skull:SetPoint("LEFT", alert.kicker, "RIGHT", 6, 0)
-    alert.name = ns.Font(alert, 15, nil, T.fg)
-    alert.name:SetPoint("TOPLEFT", alert.kicker, "BOTTOMLEFT", 0, -4)
-    alert.name:SetPoint("RIGHT", right, 0)
-    alert.name:SetJustifyH("LEFT")
-    alert.name:SetWordWrap(false)
-    alert.about = ns.Font(alert, 11, nil, T.muted)
-    alert.about:SetPoint("TOPLEFT", alert.name, "BOTTOMLEFT", 0, -4)
-    alert.about:SetPoint("RIGHT", -PAD, 0)
-    alert.about:SetJustifyH("LEFT")
-    alert.about:SetWordWrap(false)
-
-    -- The glowing border: soft edges fading out from the card, and a thin line on its edge,
-    -- one frame under the card whose alpha breathes.
-    local glow = CreateFrame("Frame", nil, alert)
-    glow:SetPoint("TOPLEFT", -GLOW, GLOW)
-    glow:SetPoint("BOTTOMRIGHT", GLOW, -GLOW)
-    glow:SetFrameLevel(math.max(alert:GetFrameLevel() - 1, 0))
-    local c = T.accent
-    local edge, clear = CreateColor(c.r, c.g, c.b, GLOW_ALPHA), CreateColor(c.r, c.g, c.b, 0)
-    -- The sides: from the card's edge out, edge colour at the card and clear outside, as long
-    -- as the card. x1, y1: a side's top left from the glow's; x2, y2: its bottom right.
-    local function Side(x1, y1, x2, y2, orientation, from, to)
-        local t = glow:CreateTexture(nil, "BACKGROUND")
-        t:SetColorTexture(1, 1, 1, 1)
-        t:SetPoint("TOPLEFT", x1, y1)
-        t:SetPoint("BOTTOMRIGHT", x2, y2)
-        t:SetGradient(orientation, from, to)
-    end
-    Side(GLOW, 0, -GLOW, GLOW + CARD_H, "VERTICAL", edge, clear)                   -- top
-    Side(GLOW, -(GLOW + CARD_H), -GLOW, 0, "VERTICAL", clear, edge)                -- bottom
-    Side(0, -GLOW, -(GLOW + CARD_W), GLOW, "HORIZONTAL", clear, edge)              -- left
-    Side(GLOW + CARD_W, -GLOW, 0, GLOW, "HORIZONTAL", edge, clear)                 -- right
-    -- The corners: Media/GlowCorner.tga fades out round its bottom right (the card's corner),
-    -- turned for each corner by its texture coordinates.
-    local CORNERS = {
-        { "TOPLEFT", 0, 1, 0, 1 }, { "TOPRIGHT", 1, 0, 0, 1 },
-        { "BOTTOMLEFT", 0, 1, 1, 0 }, { "BOTTOMRIGHT", 1, 0, 1, 0 },
-    }
-    for _, corner in ipairs(CORNERS) do
-        local t = glow:CreateTexture(nil, "BACKGROUND")
-        t:SetTexture(GLOW_CORNER)
-        t:SetSize(GLOW, GLOW)
-        t:SetPoint(corner[1])
-        t:SetTexCoord(corner[2], corner[3], corner[4], corner[5])
-        t:SetVertexColor(c.r, c.g, c.b, GLOW_ALPHA)
-    end
-    local line = CreateFrame("Frame", nil, glow)
-    line:SetPoint("TOPLEFT", alert, "TOPLEFT")
-    line:SetPoint("BOTTOMRIGHT", alert, "BOTTOMRIGHT")
-    line:SetFrameLevel(alert:GetFrameLevel() + 3)
-    ns.Border(line, c)
-    alert.glow = glow
-
-    flash = glow:CreateAnimationGroup()
-    flash:SetLooping("BOUNCE")
-    local pulse = flash:CreateAnimation("Alpha")
-    pulse:SetFromAlpha(1)
-    pulse:SetToAlpha(PULSE_LOW)
-    pulse:SetDuration(PULSE)
-    pulse:SetSmoothing("IN_OUT")
-    glow.pulse = flash
-
-    alert:Hide()
-    Place()
+-- The pin: a waypoint to the rare, where the minimap saw it, else its spawn spot or way
+-- nearest you.
+local function PinClicked(button)
+    local card = button:GetParent()
+    local spot = card.spot
+    if spot.map then ns.PlaceWaypoint(card.name:GetText(), spot.map, spot.x, spot.y) end
 end
 
-local function PlayAlertSound()
-    if S.Get("rareSound") then PlaySoundKey(S.Get("rareSoundKey")) end
+-- The card, live or in its settings preview.
+local function NewCard(parent, name)
+    local f = CreateFrame("Button", name, parent)
+    f:SetSize(W, H)
+    -- The glow: a ring GLOW wide round the card, its four sides outside the card's edge.
+    f.glow = CreateFrame("Frame", nil, f)
+    f.glow:SetPoint("TOPLEFT", -GLOW, GLOW)
+    f.glow:SetPoint("BOTTOMRIGHT", GLOW, -GLOW)
+    local c = T.accent
+    local top = ns.Solid(f.glow, "BACKGROUND", c, GLOW_ALPHA)
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(GLOW)
+    local bottom = ns.Solid(f.glow, "BACKGROUND", c, GLOW_ALPHA)
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(GLOW)
+    local left = ns.Solid(f.glow, "BACKGROUND", c, GLOW_ALPHA)
+    left:SetPoint("TOPLEFT", 0, -GLOW)
+    left:SetPoint("BOTTOMLEFT", 0, GLOW)
+    left:SetWidth(GLOW)
+    local right = ns.Solid(f.glow, "BACKGROUND", c, GLOW_ALPHA)
+    right:SetPoint("TOPRIGHT", 0, -GLOW)
+    right:SetPoint("BOTTOMRIGHT", 0, GLOW)
+    right:SetWidth(GLOW)
+    f.glow.sides = { top, bottom, left, right }
+    f.backdrop = Parts.HudBackdrop(f)
+    f.spot = {}
+
+    local icon = CreateFrame("Frame", nil, f)
+    icon:SetSize(ICON, ICON)
+    icon:SetPoint("LEFT", PAD, 0)
+    ns.Solid(icon, "BACKGROUND", BLACK, 1):SetAllPoints()
+    ns.Border(icon, BLACK)
+    f.model = CreateFrame("PlayerModel", nil, icon)
+    f.model:SetPoint("TOPLEFT", 1, -1)
+    f.model:SetPoint("BOTTOMRIGHT", -1, 1)
+    f.model:SetScript("OnModelLoaded", Zoom)
+    -- The rare star where there is no model to show.
+    f.star = icon:CreateTexture(nil, "ARTWORK")
+    f.star:SetPoint("CENTER")
+    f.star:SetSize(ICON * 0.6, ICON * 0.6)
+    f.star:SetAtlas(STAR_ATLAS)
+    f.icon = icon
+
+    f.pin = Parts.IconButton(f, PinClicked, St.PIN, 0, "Waypoint")
+    f.pin.hint = "To the rare: where it was seen, else its nearest spot."
+    f.pin:SetPoint("TOPRIGHT", -PAD + 2, -PAD + 2)
+
+    f.name = ns.Font(f, 13, nil, T.fg)
+    f.name:SetPoint("TOPLEFT", icon, "TOPRIGHT", PAD, -2)
+    f.name:SetJustifyH("LEFT")
+    f.name:SetWordWrap(false)
+    f.mark = f:CreateTexture(nil, "ARTWORK")
+    f.mark:SetSize(MARK, MARK)
+    f.mark:SetPoint("LEFT", f.name, "RIGHT", 4, 0)
+    f.detail = ns.Font(f, 11, nil, T.muted)
+    f.detail:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", PAD, 2)
+    f.detail:SetPoint("RIGHT", -PAD, 0)
+    f.detail:SetJustifyH("LEFT")
+    f.detail:SetWordWrap(false)
+    return f
 end
 
 -- The portrait: the unit's own model while it is in sight, else the creature's; the rare
 -- star for a rare with neither.
-local function SetPortrait(unit, npc)
-    local model = alert.model
+local function SetPortrait(f, unit, npc)
+    local model = f.model
     model:ClearModel()
     local shown = false
     if unit and UnitExists(unit) then
@@ -306,48 +203,153 @@ local function SetPortrait(unit, npc)
     end
     model:SetShown(shown)
     if shown then Zoom(model) end
-    alert.star:SetShown(not shown)
+    f.star:SetShown(not shown)
 end
 
-local function KillNote(npc)
-    if not (npc and R.Known(npc)) then return nil end
-    local record = R.Record(npc)
-    if not record then return "not killed yet" end
-    if record.n > 1 then return ("killed %d times"):format(record.n) end
-    return "killed before"
+-- record: the rare's kill record, false for a rare in the data not killed, nil for one not in it.
+local function KillNote(record)
+    if record == nil then return nil end
+    if not record then return "Not killed yet" end
+    if record.n > 1 then return ns.Color(St.HAVE_RGB, ("Killed %d times"):format(record.n)) end
+    return ns.Color(St.HAVE_RGB, "Killed before")
 end
 
--- seen: { name, level (or nil), npc (its npcID, or nil), unit (its unit token while in sight),
--- elite, marked (the raid mark's index that went on it), map, x, y (where the minimap saw it, percent) }.
--- quiet: no sound, taskbar flash or timer (Unlock Mode's preview).
+local function Detail(seen)
+    local parts = {}
+    if seen.level and seen.level > 0 then parts[#parts + 1] = ("Level %d"):format(seen.level) end
+    parts[#parts + 1] = seen.elite and "Rare elite" or "Rare"
+    local note = seen.tapped and ns.Color(St.WARN_RGB, TAPPED) or KillNote(seen.record)
+    if note then parts[#parts + 1] = note end
+    return table.concat(parts, DOT)
+end
+
+-- Paints the card by your look settings for seen (ShowAlert's); the portrait is SetPortrait's.
+local function Paint(f, seen)
+    local mode = f.backdrop:SetMode(S.Get("rareAlertBackground"))
+    local font, size, outline = S.Get("rareAlertFont"), S.Get("rareAlertFontSize"), S.Get("rareAlertOutline")
+    Parts.HudFont(f.name, font, size, outline, mode)
+    Parts.HudFont(f.detail, font, size - DETAIL_SMALLER, outline, mode)
+    local glow = S.Get("rareAlertGlow") == true
+    f.glow:SetShown(glow)
+    if glow then
+        local c = T.accent
+        for _, side in ipairs(f.glow.sides) do side:SetColorTexture(c.r, c.g, c.b, GLOW_ALPHA) end
+    end
+    local marked = seen.marked
+    if marked then f.mark:SetTexture(MARK_ICON:format(marked)) end
+    f.mark:SetShown(marked ~= nil)
+    -- As wide as the name, so the mark sits right after it, up to the room there is.
+    local room = W - PAD * 3 - ICON - PIN_ROOM - (marked and MARK + 4 or 0)
+    f.name:SetWidth(0)
+    f.name:SetText(seen.name)
+    f.name:SetWidth(math.min(f.name:GetStringWidth() + 1, room))
+    f.detail:SetText(Detail(seen))
+    local spot = f.spot
+    spot.map, spot.x, spot.y = seen.map, seen.x, seen.y
+    if not spot.map and seen.npc and R.Known(seen.npc) then spot.map, spot.x, spot.y = R.Spot(seen.npc) end
+    f.pin:SetShown(spot.map ~= nil)
+end
+
+local function HideAlert()
+    if not alert then return end
+    alert.fade:Stop()
+    alert:Hide()
+    shownNpc, shownGuid = nil, nil
+    events:UnregisterEvent("UNIT_FLAGS")
+end
+
+-- Its spot from the HUD Editor, else above the middle of the screen. Kept in the screen's
+-- units, so Size grows it about the same spot.
+local function Place()
+    local scale = S.Get("rareAlertScale")
+    holder:SetScale(scale)
+    local pos = S.Get("rareAlertPosition")
+    holder:ClearAllPoints()
+    if pos then
+        holder:SetPoint(pos.point, UIParent, pos.relPoint, pos.x / scale, pos.y / scale)
+    else
+        holder:SetPoint("CENTER", UIParent, "CENTER", 0, 260 / scale)
+    end
+end
+
+-- Right-click puts the card away.
+local function CardClicked(_, button)
+    if button == "RightButton" then HideAlert() end
+end
+
+local function CardEnter(card)
+    GameTooltip:SetOwner(card, "ANCHOR_TOP")
+    GameTooltip:SetText(card.name:GetText() or "Rare", 1, 1, 1)
+    GameTooltip:AddLine("Right-click to close it.", T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+    GameTooltip:Show()
+end
+
+local function CardLeave()
+    GameTooltip:Hide()
+end
+
+local function BuildAlert()
+    holder = CreateFrame("Frame", "NaowhForeverRareAlertHolder", UIParent)
+    holder:SetSize(W, H)
+    holder:SetFrameStrata("HIGH")
+    holder:SetMovable(true)
+    holder:SetClampedToScreen(true)
+    -- The mover reports offsets in the holder's scaled units.
+    holder.mover = ns.UI.AttachMover(holder, "Rare Alert", function(pos)
+        local scale = holder:GetScale()
+        S.Set("rareAlertPosition", { point = pos.point, relPoint = pos.relPoint, x = pos.x * scale, y = pos.y * scale })
+    end, "Completo/Rares", "Completo/Rares:rareAlert")
+    alert = NewCard(holder, "NaowhForeverRareAlert")
+    alert:SetPoint("CENTER")
+    alert:RegisterForClicks("RightButtonUp")
+    alert:SetScript("OnClick", CardClicked)
+    alert:SetScript("OnEnter", CardEnter)
+    alert:SetScript("OnLeave", CardLeave)
+    alert.fade = alert:CreateAnimationGroup()
+    alert.fadeIn = alert.fade:CreateAnimation("Alpha")
+    alert.fadeIn:SetFromAlpha(0)
+    alert.fadeIn:SetToAlpha(1)
+    alert.fadeIn:SetDuration(FADE)
+    alert.fadeIn:SetOrder(1)
+    alert.fadeOut = alert.fade:CreateAnimation("Alpha")
+    alert.fadeOut:SetFromAlpha(1)
+    alert.fadeOut:SetToAlpha(0)
+    alert.fadeOut:SetDuration(FADE)
+    alert.fadeOut:SetOrder(2)
+    alert.fade:SetScript("OnFinished", HideAlert)
+    alert:Hide()
+    Place()
+end
+
+local function PlayAlertSound()
+    if S.Get("rareSound") then PlaySoundKey(S.Get("rareSoundKey")) end
+end
+
+-- seen: { name, level (or nil), npc (its npcID, or nil), guid and unit (the creature and its unit
+-- token while in sight), elite, tapped, marked (the raid mark's index that went on it), map, x, y (where the minimap saw
+-- it, percent) }. quiet: Unlock Mode's preview, with no fade, sound or taskbar flash. Only a
+-- real alert with Rare Alerts on follows its rare (its tap state, its kill).
 local function ShowAlert(seen, quiet)
     if not alert then BuildAlert() end
     local npc = seen.npc
-    shownNpc = npc
-    SetPortrait(seen.unit, npc)
-    alert.name:SetText(seen.name)
-    if seen.marked then alert.skull:SetTexture(MARK_ICON:format(seen.marked)) end
-    alert.skull:SetShown(seen.marked ~= nil)
-    local elite = seen.elite
-    if elite == nil and npc and R.Known(npc) then elite = R.Elite(npc) end
-    local parts = {}
-    if seen.level and seen.level > 0 then parts[#parts + 1] = ("Level %d"):format(seen.level) end
-    parts[#parts + 1] = elite and "rare elite" or "rare"
-    local note = KillNote(npc)
-    if note then parts[#parts + 1] = note end
-    local about = table.concat(parts, ", ")
-    alert.about:SetText(about:sub(1, 1):upper() .. about:sub(2))
-    -- Where the waypoint goes: where the minimap saw it, else its nearest known spot.
-    local spot = alert.spot
-    spot.map, spot.x, spot.y = seen.map, seen.x, seen.y
-    if not spot.map and npc and R.Known(npc) then spot.map, spot.x, spot.y = R.Spot(npc) end
-    alert.pin:SetShown(spot.map ~= nil)
+    local track = not quiet and On()
+    shownNpc, shownGuid = track and npc or nil, track and seen.guid or nil
+    alert.preview = quiet == true
+    if npc and R.Known(npc) then
+        if seen.elite == nil then seen.elite = R.Elite(npc) end
+        seen.record = R.Record(npc) or false
+    end
+    alert.seen = seen
+    SetPortrait(alert, seen.unit, npc)
+    Paint(alert, seen)
+    Place()
+    alert.fade:Stop()
     alert:Show()
-    flash:Play()
-    if hideTimer then hideTimer:Cancel() end
-    hideTimer = nil
+    if track then events:RegisterEvent("UNIT_FLAGS") else events:UnregisterEvent("UNIT_FLAGS") end
     if quiet then return end
-    hideTimer = C_Timer.NewTimer(SHOW_FOR, HideAlert)
+    alert.fadeIn:SetFromAlpha(0)
+    alert.fadeOut:SetStartDelay(S.Get("rareAlertTime"))
+    alert.fade:Play()
     PlayAlertSound()
     if FlashClientIcon then FlashClientIcon() end
 end
@@ -392,10 +394,10 @@ end
 
 -- Mark Rare's mark on it, once per creature, where it has no mark yet and no one else tapped
 -- it: the mark's index, or nil.
-local function Mark(unit, guid)
+local function Mark(unit, guid, denied)
     local marker = Marker()
     if not marker or marked[guid] or not MayMark() then return nil end
-    local index, denied = GetRaidTargetIndex(unit), UnitIsTapDenied(unit)
+    local index = GetRaidTargetIndex(unit)
     if Secret(index) or index or Secret(denied) or denied then return nil end
     if MarkInUse(marker, guid) then return nil end
     marked[guid] = true
@@ -415,6 +417,17 @@ local function Alert(key, seen)
     ShowAlert(seen)
 end
 
+-- The alerted creature seen while the card is up: someone tapping it after the card came up,
+-- or the rare seen at last after a minimap mark, shows on the card.
+local function Retap(unit)
+    local denied = UnitIsTapDenied(unit)
+    if Secret(denied) then return end
+    local seen = alert.seen
+    if (seen.tapped == true) == (denied == true) then return end
+    seen.tapped = denied or nil
+    Paint(alert, seen)
+end
+
 local RARE = { rare = true, rareelite = true }
 
 -- Every nameplate and mouseover comes here: the classification first, before anything that
@@ -429,12 +442,18 @@ local function Check(unit)
     if not npc then return end
     local dead, hostile = UnitIsDead(unit), UnitCanAttack("player", unit)
     if Secret(dead) or Secret(hostile) or dead or not hostile then return end
+    if npc == shownNpc then
+        shownGuid = shownGuid or guid
+        if guid == shownGuid then Retap(unit) end
+    end
     local name, level = UnitName(unit), UnitLevel(unit)
     if Secret(name) then return end
     if Secret(level) then level = nil end
     if not Due(npc, npc) then return end
-    local skull = Mark(unit, guid)
-    Alert(npc, { name = name, level = level, npc = npc, unit = unit, elite = kind == "rareelite", marked = skull })
+    local denied = UnitIsTapDenied(unit)
+    local skull = Mark(unit, guid, denied)
+    Alert(npc, { name = name, level = level, npc = npc, guid = guid, unit = unit, elite = kind == "rareelite",
+        marked = skull, tapped = not Secret(denied) and denied or nil })
 end
 
 -- A minimap mark: a rare in the data, or one the game draws as a creature to kill.
@@ -460,7 +479,7 @@ end
 -- with Mark Rare's mark on it; else about a made-up rare. Leaves the
 -- once-in-a-while memory alone, so a real rare still alerts.
 local function TestAlert()
-    local name, level, npc, skull, unit = "Mist Howler", 22, 10644, nil, nil
+    local name, level, npc, skull, unit, creature = "Mist Howler", 22, 10644, nil, nil, nil
     local guid = UnitGUID("target")
     local hostile = UnitExists("target") and UnitCanAttack("player", "target")
     if guid and not Secret(guid) and not Secret(hostile) and hostile then
@@ -469,7 +488,7 @@ local function TestAlert()
             name = targetName
             level = not Secret(targetLevel) and targetLevel or nil
             npc = R.NpcOf(guid)
-            unit = "target"
+            unit, creature = "target", guid
             local marker = Marker()
             if marker and MayMark() then
                 local index = GetRaidTargetIndex("target")
@@ -480,12 +499,17 @@ local function TestAlert()
             end
         end
     end
-    ShowAlert({ name = name, level = level, npc = npc, unit = unit, marked = skull })
+    ShowAlert({ name = name, level = level, npc = npc, guid = creature, unit = unit, marked = skull })
 end
 
-local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit, onMinimap)
-    if event == "NAME_PLATE_UNIT_ADDED" then
+    if event == "UNIT_FLAGS" then
+        if not shownGuid then return end
+        local guid = UnitGUID(unit)
+        if Secret(guid) or guid ~= shownGuid then return end
+        local dead = UnitIsDead(unit)
+        if not Secret(dead) and not dead then Retap(unit) end
+    elseif event == "NAME_PLATE_UNIT_ADDED" then
         Check(unit)
     elseif event == "PLAYER_TARGET_CHANGED" then
         Check("target")
@@ -496,7 +520,22 @@ events:SetScript("OnEvent", function(_, event, unit, onMinimap)
     end
 end)
 
+-- rareAlertPos was the card's own spot before the HUD Editor placed it: the same CENTER offset
+-- in the screen's units, so it carries over as it is.
+local function Migrate()
+    local db = S.DB()
+    local old = db.rareAlertPos
+    if old == nil then return end
+    if type(old) == "table" and db.rareAlertPosition == nil then
+        db.rareAlertPosition = { point = "CENTER", relPoint = "CENTER", x = old.x, y = old.y }
+    end
+    db.rareAlertPos = nil
+end
+
 local function Apply()
+    Migrate()
+    -- A profile switch or import can bring another spot or size.
+    if holder then Place() end
     events:UnregisterAllEvents()
     if not On() then
         HideAlert()
@@ -508,17 +547,35 @@ local function Apply()
     if C_VignetteInfo and C_VignetteInfo.GetVignetteInfo then
         events:RegisterEvent("VIGNETTE_MINIMAP_UPDATED")
     end
+    if shownNpc then events:RegisterEvent("UNIT_FLAGS") end
 end
 
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or key == "rareAlert" then Apply() end
-    if key == "rareAlertScale" and alert then Place() end
+    if key == "rareAlertScale" and holder then Place() end
+    if key == "rareAlertTime" and alert and alert.fade:IsPlaying() then
+        alert.fade:Stop()
+        alert.fadeIn:SetFromAlpha(1)
+        alert.fadeOut:SetStartDelay(S.Get("rareAlertTime"))
+        alert.fade:Play()
+    end
+    if alert and alert:IsShown() and key:find("^rareAlert") and key ~= "rareAlertPosition" then
+        Paint(alert, alert.seen)
+    end
 end)
 hooksecurefunc(ns, "Apply", Apply)
 hooksecurefunc(ns, "ShowRaidReminderAnchorConfig", function()
-    if On() then ShowAlert({ name = "Mist Howler", level = 22, npc = 10644, marked = Marker() }, true) end
+    if not On() then return end
+    if not (alert and alert:IsShown()) then
+        ShowAlert({ name = "Mist Howler", level = 22, npc = 10644, marked = Marker() }, true)
+    end
+    holder.mover:Show()
 end)
-hooksecurefunc(ns, "HideRaidReminderAnchorConfig", HideAlert)
+hooksecurefunc(ns, "HideRaidReminderAnchorConfig", function()
+    if not alert then return end
+    holder.mover:Hide()
+    if alert.preview then HideAlert() end
+end)
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
@@ -584,13 +641,65 @@ local function Summary(store)
     return "A warning when a rare is near, " .. table.concat(parts, " and ")
 end
 
+-- The preview: the card as it will look, at its size unless the stage is too narrow, in the
+-- moment picked.
+local STAGE_H = 110
+local CARD_ROOM = 32          -- the least room left beside the card when the stage is narrow
+local CARD_ROOM_V = 8         -- and above and below it, its glow ring counted in
+local FALLBACK_STAGE_W = 600  -- the stage before layout has run
+local STATES = {
+    { key = "new", label = "Not Killed", tip = "A rare you have not killed yet." },
+    { key = "killed", label = "Killed Before", tip = "A rare you have killed before." },
+    { key = "tapped", label = "Tapped", tip = "A rare someone else is fighting." },
+}
+local SAMPLE_RECORD = { n = 1 }
+
+local PREVIEW_NPC = 10644
+
+-- A model set while the stage had no size, or dropped while the settings were shut, comes back.
+local function PreviewShown(preview)
+    SetPortrait(preview.card, nil, PREVIEW_NPC)
+end
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.card = NewCard(preview)
+    preview.card:EnableMouse(false)
+    preview.card.pin:EnableMouse(false)
+    preview.seen = {}
+    preview:SetScript("OnShow", PreviewShown)
+    PreviewShown(preview)
+    return preview
+end
+
+local function PaintPreview(preview, state)
+    local seen = preview.seen
+    seen.name, seen.level, seen.npc, seen.marked = "Mist Howler", 22, PREVIEW_NPC, Marker()
+    seen.elite = R.Known(PREVIEW_NPC) and R.Elite(PREVIEW_NPC)
+    seen.record = state == "killed" and SAMPLE_RECORD or false
+    seen.tapped = state == "tapped" or nil
+    seen.map, seen.x, seen.y = 1440, 50, 40
+    local card = preview.card
+    if not card.model:GetModelFileID() then PreviewShown(preview) end
+    Paint(card, seen)
+    local w, h = preview:GetWidth(), preview:GetHeight()
+    if not w or w <= 0 then w = FALLBACK_STAGE_W end
+    if not h or h <= 0 then h = STAGE_H end
+    card:SetScale(math.min(S.Get("rareAlertScale"), (w - CARD_ROOM) / W, (h - CARD_ROOM_V) / (H + GLOW * 2)))
+    card:ClearAllPoints()
+    card:SetPoint("CENTER", preview, "CENTER", 0, 0)
+end
+
 Settings.Page("Completo/Rares", S):Card({
     id = "rareAlert", name = "Rare Alerts", order = 20, switch = "rareAlert",
     help = "A warning when a rare is near you: when its nameplate comes up, you mouse over it or target "
-        .. "it. A card with its portrait: drag it where you want it, right-click it to close it, and its "
-        .. "pin sets a waypoint to the rare.",
+        .. "it. A card with its portrait: right-click it to close it, and its pin sets a waypoint to the "
+        .. "rare. Move it in the HUD Editor.",
     summary = Summary,
+    studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
+        Settings.Group("Alert"),
         { key = "rareMarker", label = "Mark Rare", choice = MarkChoices, needs = Enabled, why = OFF,
           help = "The raid mark put on the rare, if it has no mark yet, or None. In a raid only as its "
               .. "leader or an assistant." },
@@ -608,16 +717,22 @@ Settings.Page("Completo/Rares", S):Card({
               S.Set("rareSoundKey", key)
               PlaySoundKey(key)
           end },
-        { key = "rareAlertScale", label = "Card Size", slider = { 50, 200, 5 }, unit = "%", scale = 0.01,
-          needs = Enabled, why = OFF, help = "How big the card is. Test Alert shows it while you set it." },
-        { label = "Card Position", buttonText = "Reset", needs = Enabled, why = OFF,
+        { key = "rareAlertTime", label = "Stays For", slider = { 5, 60, 1 }, unit = "s", needs = Enabled, why = OFF,
+          help = "Seconds before it fades." },
+        { key = "rareAlertScale", label = "Size", slider = { 50, 200, 5 }, unit = "%", scale = 0.01,
+          needs = Enabled, why = OFF, help = "How big the card is." },
+        { label = "Reset Position", buttonText = "Reset", needs = Enabled, why = OFF,
           button = function()
-              S.Set("rareAlertPos", nil)
-              if alert then Place() end
+              S.Set("rareAlertPosition", nil)
+              if holder then Place() end
           end,
-          help = "Puts the card back above the middle of the screen." },
+          help = "Puts the card back above the middle of the screen, where it starts." },
         { label = "Test Alert", buttonText = "Test", button = TestAlert, needs = Enabled, why = OFF,
-          help = "Shows the warning with its sound. With something you can attack targeted, it is about "
-              .. "that, with Mark Rare's mark on it. Drag the card to where you want it." },
+          help = "Shows the warning on screen with its sound. With something you can attack targeted, it is "
+              .. "about that, with Mark Rare's mark on it." },
+        Settings.Look("rareAlert", { text = true, size = { 10, 20, 1 }, background = "card", needs = Enabled,
+            why = OFF }),
+        { key = "rareAlertGlow", label = "Glow", toggle = true, needs = Enabled, why = OFF,
+          help = "A soft glow round it in your accent colour." },
     },
 })

@@ -207,7 +207,7 @@ local UI = ns.UI
 ns.BuildQoLInterfacePage = function(parent, y) return y end
 for _, name in ipairs({ "JournalSettings", "DiscoverySettings", "ProfessionSettings", "MacroSettings", "AuraBuffSettings",
     "ThreatMeterSettings", "SwingTimerSettings", "TopBarSettings", "ActionBarSettings", "TrainingSettings",
-    "CompletoSettings" }) do
+    "CompletoSettings", "PvPSettings" }) do
     ns[name] = UI.ModuleSettings(name, { enabled = false })
 end
 ns.DB = function() return settings end

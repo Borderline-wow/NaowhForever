@@ -80,6 +80,7 @@ QoL\NaowhForever_GroupButtons.lua
 QoL\NaowhForever_LootConfirm.lua
 QoL\NaowhForever_CursorClip.lua
 QoL\NaowhForever_CombatTimer.lua
+QoL\NaowhForever_CursorCooldown.lua
 QoL\NaowhForever_CombatLogger.lua
 QoL\NaowhForever_GlobalCopy.lua
 QoL\NaowhForever_SlashCommands.lua

@@ -12,7 +12,8 @@
 --  and mouseover, and every player whose nameplate shows) are read a step at a time, on their
 --  own events; while one not known yet is out of inspect range the walk looks again RETRY
 --  later, and stops once none is left. A tooltip shows "..." until the gear comes, and fills in
---  when it does. On by default (QoL > Naowh Score); turned off, its events go quiet and its hook
+--  when it does. The player you hover goes first: while the inspect is busy they wait at the
+--  front of the walk, asked as soon as it is free, for as long as you still hover them. On by default (QoL > Naowh Score); turned off, its events go quiet and its hook
 --  does nothing. Group Inspect asks through the same one-at-a-time queue (Score.InspectQueue:
 --  Request, Pending, Wait, InRange), and while its window is open it claims it (Claim): its walk goes
 --  first and ours waits, and its request is read on INSPECT_READY before the inspect is let go.
@@ -31,6 +32,7 @@ local MAX_KEPT = 300       -- players kept at most; the oldest goes first
 local SAVED_MAX = 500      -- guildmates' scores saved for the guild list at most; the oldest goes first
 local SAVED_DAYS = 30      -- a saved score older than this is dropped
 local LOAD_SETTLE = 0.2
+local WANTED_MIN = 0.1     -- the soonest a hovered player waiting their turn is looked at again
 
 -- In Naowh's blue, without the logo: that stays with the badge line (Badges), which says who
 -- someone is, so the two never stack logos.
@@ -255,11 +257,29 @@ end
 --  the next INSPECT_GAP later, until none is left
 -------------------------------------------------------------------------------
 local scanQueued = false
+local wantedQueued = false
+local wantedUnit, wantedGUID   -- the player hovered, waiting for the inspect to come free
 local Scan
 
 local function ScanDue()
     scanQueued = false
     Scan()
+end
+
+local function WantedDue()
+    wantedQueued = false
+    Scan()
+end
+
+-- The hovered player, while they are still the one that unit is and not known yet.
+local function Wanted()
+    if not wantedGUID then return nil end
+    local now = UnitExists(wantedUnit) and UnitGUID(wantedUnit)
+    if not Readable(now) or now ~= wantedGUID or Score.Known(wantedGUID) then
+        wantedUnit, wantedGUID = nil, nil
+        return nil
+    end
+    return wantedUnit
 end
 
 local function ScanSoon(delay)
@@ -314,6 +334,8 @@ end
 function Scan()
     if InCombatLockdown() or claimed then return end
     far = false
+    local wanted = Wanted()
+    if wanted and Step(wanted) then return end
     if ScanOn() then
         local raid = IsInRaid()
         local units = raid and RAID or PARTY
@@ -339,7 +361,7 @@ Score.Scan = Scan
 -------------------------------------------------------------------------------
 events:SetScript("OnEvent", function(_, event, arg)
     if event == "INSPECT_READY" then
-        if Readable(arg) and Ready(arg) and ScanOn() then ScanSoon(INSPECT_GAP) end
+        if Readable(arg) and Ready(arg) and (ScanOn() or wantedGUID) then ScanSoon(INSPECT_GAP) end
     elseif event == "GET_ITEM_INFO_RECEIVED" then
         QueueItemsLoaded()
     elseif event == "NAME_PLATE_UNIT_ADDED" then
@@ -382,7 +404,15 @@ local function OnUnit(tooltip)
             value = Score.Tooltip(entry.score, level)
         else
             value = WAITING
-            if CanAsk(unit) then Ask(unit, guid) end
+            if CanAsk(unit) then
+                Ask(unit, guid)
+            elseif pending.guid ~= guid then
+                wantedUnit, wantedGUID = unit, guid
+                if not wantedQueued then
+                    wantedQueued = true
+                    C_Timer.After(math.max(WANTED_MIN, INSPECT_GAP - (GetTime() - lastAsked)), WantedDue)
+                end
+            end
         end
     end
     tooltip:AddDoubleLine(LABEL, value, T.accent.r, T.accent.g, T.accent.b, 1, 1, 1)
