@@ -7,7 +7,8 @@ local S = ns.QoLSettings
 local UI = ns.UI
 local Parts = ns.Shared.Parts
 
--- Card is the black panel the old Show Background toggle drew; on and off are saved as Card and None.
+-- Card is the panel the old Show Background toggle drew, black or the theme's Background; on and
+-- off are saved as Card and None.
 local CARD_COLOR, CARD_ALPHA = { r = 0, g = 0, b = 0 }, 0.8
 local OLD_BACKGROUNDS = { [true] = "card", [false] = "none" }
 
@@ -79,7 +80,8 @@ local function Build()
     frame = CreateFrame("Frame", "NaowhForeverCombatTimer", UIParent)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
-    frame.backdrop = Parts.HudBackdrop(frame, { color = CARD_COLOR, alpha = CARD_ALPHA, mode = "none" })
+    frame.backdrop = Parts.HudBackdrop(frame, { color = ns.ThemeTint("bg", CARD_COLOR), alpha = CARD_ALPHA,
+        mode = "none" })
     frame.text = ns.Font(frame, 32, "OUTLINE")
     frame.text:SetPoint("CENTER")
     frame.mover = UI.AttachMover(frame, "Combat Timer", function(pos) S.Set("combatTimerPos", pos) end, "QoL/Combat", "QoL/Combat:combatTimer")

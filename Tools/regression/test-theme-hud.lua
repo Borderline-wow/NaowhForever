@@ -59,7 +59,7 @@ local PICKS = { themePreset = "custom", themeColors = {
 local files = { "NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua", "TopBar/NaowhForever_TopBar.lua",
     "NaowhForever_AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua",
     "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryMap.lua",
-    "QoL/NaowhForever_TownMap.lua" }
+    "QoL/NaowhForever_TownMap.lua", "QoL/NaowhForever_CombatTimer.lua" }
 for _, path in ipairs(files) do
     local source = Read(path)
     local count = 0
@@ -494,6 +494,31 @@ do
     got = Bar(ACCENT_PRESET, "queueColor", true)
     Check(Same(got, { 1, 0.7, 0.2, 1 }), "swing timer: the queued attack color is not themed")
     Check(source:find('{ key = "themeColors", label = "Apply Theme to Bar Colours"', 1, true), "swing timer: the switch with the bar colours")
+end
+
+-- The Combat Timer's card used to be a fixed black: the Background of the theme now, the same
+-- fill and opacity with the default theme.
+local BG_PRESET = { themePreset = "midnight" }
+local MIDNIGHT_BG = { r = 0x0b / 255, g = 0x10 / 255, b = 0x20 / 255 }
+
+-- Runs the statement that builds the backdrop and returns the color and alpha it was given.
+local function BackdropOf(stmt, account, env)
+    local got
+    env.ns = LoadCore(account)
+    env.Parts = { HudBackdrop = function(_, opts) got = { opts.color.r, opts.color.g, opts.color.b, opts.alpha } end }
+    Run(stmt, env)
+    return got
+end
+
+do
+    local source = Read("QoL/NaowhForever_CombatTimer.lua")
+    local color, alpha = source:match("\nlocal CARD_COLOR, CARD_ALPHA = (%b{}), ([%d%.]+)")
+    local env = { frame = {}, CARD_COLOR = assert(loadstring("return " .. color))(), CARD_ALPHA = tonumber(alpha) }
+    local stmt = assert(source:match('(frame%.backdrop = Parts%.HudBackdrop%(frame, { color = ns%.ThemeTint%("bg", '
+        .. 'CARD_COLOR%), alpha = CARD_ALPHA,%s+mode = "none" }%))'))
+    Check(Same(BackdropOf(stmt, {}, env), { 0, 0, 0, 0.8 }), "combat timer: black at 80% by default")
+    Check(Same(BackdropOf(stmt, BG_PRESET, env), { MIDNIGHT_BG.r, MIDNIGHT_BG.g, MIDNIGHT_BG.b, 0.8 }),
+        "combat timer: the Background")
 end
 
 print("PASS theme HUD: " .. cases .. " checks")
