@@ -300,6 +300,12 @@ settings.blessBarSize, settings.blessSpacing = nil, nil
 studio.paint(preview, "group")
 check("with room again the full name comes back at its size", warriorCell.label.text == "Warrior"
     and warriorCell.label.size == 10 and mageCell.label.text == "Mage" and mageCell.label.size == 10)
+settings.blessBarSize, settings.blessSpacing, settings.blessLayout = 16, 0, "vertical"
+studio.paint(preview, "group")
+check("a column's names sit beside it with nothing to run into: never squeezed",
+    warriorCell.label.text == "Warrior" and warriorCell.label.size == 10)
+settings.blessBarSize, settings.blessSpacing, settings.blessLayout = nil, nil, nil
+studio.paint(preview, "group")
 
 -- Off: nothing in the preview edits.
 settings.blessings = false
