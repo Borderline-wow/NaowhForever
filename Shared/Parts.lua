@@ -866,11 +866,17 @@ local function LineRun(line, start, duration, prefix)
     line.glow:Show()
 end
 
+-- Stops a status bar its timer owns, empty or full: SetValue does not repaint such a bar, but a
+-- duration that has already run out leaves it still.
+function Parts.StopTimer(bar, dur, full)
+    dur:SetTimeFromStart(GetTime() - 1, 1)
+    bar:SetTimerDuration(dur, Enum.StatusBarInterpolation.Immediate, full
+        and Enum.StatusBarTimerDirection.ElapsedTime or Enum.StatusBarTimerDirection.RemainingTime)
+end
+
 local function LineStop(line)
     if line.dur then
-        line.dur:SetTimeFromStart(GetTime() - 1, 1)
-        line:SetTimerDuration(line.dur, Enum.StatusBarInterpolation.Immediate,
-            Enum.StatusBarTimerDirection.RemainingTime)
+        Parts.StopTimer(line, line.dur)
         if line.binding then line.binding:SetEnabled(false) end
     end
     line:SetValue(0)

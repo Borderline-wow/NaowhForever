@@ -26,7 +26,7 @@ Shared/
                money with its coins (Parts.Coins, made once each; compact, its largest coin only),
                an atlas badge on an icon's top corner (Parts.ItemBadge, Bag Space's clock and quest "!"), a short label
                in a pill of its color (Parts.Pill and Parts.SetPill, Group Inspect's "NF"), a timer line the client runs
-               down by itself (Parts.TimerLine), a row of labels spread evenly (Parts.LabelRow), a HUD
+               down by itself (Parts.TimerLine, and Parts.StopTimer to stop any timer bar), a row of labels spread evenly (Parts.LabelRow), a HUD
                card's background: the card, a soft fade or none (Parts.HudBackdrop), and a HUD line's
                font, size and outline (Parts.HudFont)
   Window.lua   a window: the frame, title bar, icons, opacity slider, switch, search, footer,
