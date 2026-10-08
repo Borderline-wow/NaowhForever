@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Swing Timer
 ## Notes: Melee and ranged swing bars.
 ## Author: Naowh
-## Version: 1.0.5
+## Version: 1.0.6
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga

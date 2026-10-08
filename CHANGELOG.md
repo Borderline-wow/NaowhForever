@@ -1,6 +1,90 @@
 # Changelog
 
-## Unreleased
+## 1.0.6
+
+### Added
+- Dungeon Journal: Naowh's tips for the four Excavation Site bosses.
+- Dungeon Journal: dungeon and raid entrances on the world map, on zone, continent and world maps
+  (Settings > Dungeon Journal > Map > Dungeon and Raid Entrances). Hover for the levels, click for a
+  waypoint; Icon Size sets how big they are.
+- QoL > Interface > Skyborne Spots: Skyborne characters see the ley lines (Alliance) or Elemental
+  Convergences (Horde) on the world map, and each new one they cast their racial on is saved.
+- Completo, a new module (Settings > Modules): every quest of every zone for your character, your
+  progress per zone, and every quest chain with the step you are on. Open it with /nfcompleto or
+  Shift-L.
+- Completo: search every zone's quests by name or quest giver.
+- Completo: Map Pins (off by default) mark quest givers with a quest you can pick up, blue for
+  repeatable ones, grey for low level ones with Low Level Quests, and the mobs whose drop begins a
+  quest. Chains Only leaves just quest chains.
+- Completo learns from the quest givers you speak to which quests they really offer you.
+- Completo's window can be sized by dragging its corner, and has its own scale and opacity.
+- QoL > Interface > Chat Zones: the zone and level of whoever talks in chat channels, guild chat and
+  whispers, in front of their message, plus a [Where?] link on whispers from unknown players.
+- Chat Zones: the leader's zone on each Group Finder listing, and members' zones in its tooltip
+  where known.
+- Shopping List: - and + beside each craft change how many crafts it is for.
+- Shopping List: materials you can make for less from their parts (a bar from ore, say) have their
+  parts bought instead, with what is made first and what it saves under Make First.
+- Shopping List: the estimate says how long ago your last auction house scan was.
+- Auction Prices: the last scan's age, and when the next scan may run, beside the Scan Prices
+  button.
+- Completo: a Rares tab with every rare of every zone and which ones you have killed. Click a rare
+  for its special drops (rare and epic items, recipes, new Forever loot), ticked once it dropped
+  them for you.
+- Completo: Rare Alerts (off by default): a card with the rare's portrait, a sound, and a raid mark
+  of your choice on it when a rare is near you. Drag the card where you want it.
+- Completo: rare Map Pins (off by default): a star per rare on the world map; hover for its other
+  spawn spots and patrol route, click for a panel of its drops, right-click for a waypoint.
+- PvP: a new module. PvP Auras shows your target's short buffs, the crowd control on them and the
+  debuffs you pick, with the time left and their shields, and a focus panel to keep a Sap or
+  Polymorph timer on a second enemy. Pick each crowd control and debuff in its icon grid.
+- Cooldown at Cursor (QoL > Combat): press something still on cooldown and its icon, name and time
+  left show by your mouse.
+- Healer Mana (QoL > Combat): your group's healers and their mana, lowest first, with a cup by
+  anyone drinking. Off by default.
+- Buff Thank You Message (QoL > Questing & Group, off by default): whispers thanks when a player
+  gives you a class buff in the open world, with optional lines per buff and an /emote when the game
+  can't name them.
+- Dungeon Journal: the Dungeon Quest Tracker has its own Window Scale, under Quest Tracker > Window.
+- Blessings > Blessing Bar: a Direction setting (Horizontal or Vertical) to stack the bar in a
+  column, with class labels beside the buttons.
+- Blessings: Class Label Style under Blessing Bar > Buttons shows each class's icon under its button
+  instead of its name.
+
+### Changed
+- Settings tooltips show down and right of the cursor, sized to their text.
+- Short timers read in seconds up to 90, then minutes up to 90, then hours (co-tank debuffs, and
+  timed lines such as the campfire's).
+- Layout Mode: the grid's lines are 40 apart, with every fifth one stronger.
+- Threat Meter: the pull line is called the Aggro Line (the bar and its settings), and with Tank
+  Threat percent it also shows when someone outside your group holds the mob.
+- Threat Meter: new default colours (your bar red, tank green, aggro line orange); colours you
+  picked are kept.
+- Flight Timer: Land Early's tooltip and the Layout Mode sample flight have new wording and stops.
+- Swing Timer: new default bar colours (main hand cyan, off hand silver, ranged green, Cleave red)
+  and a softer red for out-of-range text. Colours you picked are kept.
+- Naowh Score: the player you hover is read first, so their score shows sooner.
+- Completo: Rare Alerts now look like the other alerts, with font, size, background and glow
+  options, a Stays For slider, a live preview in the settings, and move in the HUD Editor.
+- Completo: click a rare's star on the map for a waypoint, right-click it to keep its route shown
+  with a panel of its drops, a waypoint button and a button to open it in Completo.
+- PvP Auras: the shield number has a small shield icon on both the target and the focus panel.
+- PvP Auras: the focus panel fades while your focus is also your target, so the two no longer show
+  the same.
+- Options window: a soft shadow round it.
+
+### Fixed
+- Dungeon Journal: on the Excavation Site's map, the bosses and the entrance sit in the right places
+  again.
+- Blessings: class names under the Blessing Bar no longer overlap when the buttons are small or
+  close together; they shrink, then shorten to three letters, when the full name does not fit.
+- Closing or switching the Professions window in combat no longer causes a blocked action error
+  after the window has been moved.
+- Co-Tank: debuffs that are no danger to a tank (Weakened Soul, Recently Bandaged, Resurrection
+  Sickness, Forbearance) are left off its debuff row.
+- A moved Professions window now closes properly in combat instead of staying behind invisibly.
+- Themes: the Combat Timer's background follows your theme's Background instead of staying black.
+  Looks the same with the default theme.
 
 ## 1.0.5
 
