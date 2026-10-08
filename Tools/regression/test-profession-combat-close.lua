@@ -1,6 +1,7 @@
--- Run with Lua 5.1 from the repository root: closing the Professions overview in combat. Docked,
--- our window holds Blizzard's secure profession buttons, so it is not hidden or re-laid out
--- until combat ends (that would be a blocked action); it goes transparent instead.
+-- Run with Lua 5.1 from the repository root: closing the Professions window in combat. With the
+-- overview docked our window holds Blizzard's secure profession buttons, and once dragged it has
+-- Blizzard's window pinned under it. Either makes it protected, so it is not hidden or re-laid
+-- out until combat ends (that would be a blocked action); it goes transparent instead.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -13,13 +14,14 @@ end
 local source = Read("NaowhForever_Professions/NaowhForever_Professions.lua")
 local first = assert(source:find("local function Deactivate()", 1, true))
 local last = assert(source:find("\nend\n", first, true))
-local chunk = "local win, bookDocked\n" .. source:sub(first, last + 4)
-    .. "return function(w, docked) win, bookDocked = w, docked end, Deactivate"
+local chunk = "local win\n" .. source:sub(first, last + 4)
+    .. "return function(w) win = w end, Deactivate"
 
 local combat = false
 local calls = {}
-local function Frame()
+local function Frame(protected)
     local f = { shown = true, alpha = 1 }
+    function f:IsProtected() return protected end
     function f:Hide() self.shown = false end
     function f:SetAlpha(a) self.alpha = a end
     return f
@@ -38,23 +40,23 @@ local fn = assert(loadstring(chunk))
 setfenv(fn, setmetatable(env, { __index = _G }))
 local Set, Deactivate = fn()
 
-local win = Frame()
-Set(win, true)
+local win = Frame(true)
+Set(win)
 Deactivate()
 check("out of combat the window hides", not win.shown)
 
-win = Frame()
+win = Frame(true)
 combat = true
-Set(win, true)
+Set(win)
 Deactivate()
-check("docked in combat the window is not hidden", win.shown)
-check("docked in combat the window goes transparent", win.alpha == 0)
+check("protected in combat the window is not hidden", win.shown)
+check("protected in combat the window goes transparent", win.alpha == 0)
 check("the book is still asked to undock (it waits for combat itself)", calls[#calls] == "book:false")
 
-win = Frame()
-Set(win, false)
+win = Frame(false)
+Set(win)
 Deactivate()
-check("not docked, the window hides in combat too", not win.shown)
+check("not protected, the window hides in combat too", not win.shown)
 
 local activate = assert(source:find("local function Activate(mode)", 1, true))
 local activateEnd = assert(source:find("\nend\n", activate, true))

@@ -3469,7 +3469,7 @@ end
 local function Deactivate()
     wipe(Reuse.waiting)
     ns.ProfBagChanges = ns.ProfBagChanges + 1
-    if win and bookDocked and InCombatLockdown() then
+    if win and InCombatLockdown() and win:IsProtected() then
         win:SetAlpha(0)
     elseif win then
         win:Hide()
