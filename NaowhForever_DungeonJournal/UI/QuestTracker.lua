@@ -136,8 +136,6 @@ local function Opacity()
     return S.Get("trackerAlpha") or 1
 end
 
-
-
 local function Paint()
     panel:Paint()
 end
