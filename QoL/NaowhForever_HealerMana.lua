@@ -2,6 +2,9 @@
 --  NaowhForever_HealerMana.lua -- the QoL healer mana list: every healer in your group and
 --  their mana, lowest first, with a cup by anyone drinking. Read from the units themselves, so
 --  nobody else needs the addon. A healer has the healer role, or no role and a healing class.
+--  Each healer has a frame of its own listening to that unit only, so the rest of the raid's
+--  power and aura events never reach here; drinking is read from each aura event's own
+--  changes; a burst of roster events is one rebuild.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -27,9 +30,14 @@ local PLACE = { point = "LEFT", relPoint = "LEFT", x = 40, y = -120 }
 local UNIT_EVENTS = { "UNIT_POWER_UPDATE", "UNIT_MAXPOWER", "UNIT_DISPLAYPOWER", "UNIT_CONNECTION", "UNIT_AURA" }
 local GROUP_EVENTS = { "GROUP_ROSTER_UPDATE", "PLAYER_ROLES_ASSIGNED", "PLAYER_ENTERING_WORLD" }
 
-local frame, unlocked, pending, drinkName, shareCurve
+local frame, unlocked, pending, rosterPending, drinkName, shareCurve
 local look = 0                      -- bumped by a look setting, so rows restyle once
-local rows, members, list, tracked, rank, units = {}, {}, {}, {}, {}, {}
+local rows, members, list, tracked, rank, units, watchers = {}, {}, {}, {}, {}, {}, {}
+
+-- The unit names walked, made once: a roster pass makes no strings of its own.
+local RAID, PARTY = {}, {}
+for i = 1, 40 do RAID[i] = "raid" .. i end
+for i = 1, 4 do PARTY[i] = "party" .. i end
 local backdrops = setmetatable({}, { __mode = "k" })  -- each owner's card: the list's and the preview's
 
 local function On()
@@ -61,13 +69,13 @@ local function Units()
     wipe(units)
     if S.Get("healerManaShowSelf") then units[1] = "player" end
     if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
-            local unit = "raid" .. i
+        for i = 1, math.min(GetNumGroupMembers(), #RAID) do
+            local unit = RAID[i]
             local me = UnitIsUnit(unit, "player")
             if not Secret(me) and not me then units[#units + 1] = unit end
         end
     else
-        for i = 1, GetNumSubgroupMembers() do units[#units + 1] = "party" .. i end
+        for i = 1, math.min(GetNumSubgroupMembers(), #PARTY) do units[#units + 1] = PARTY[i] end
     end
     return units
 end
@@ -92,11 +100,44 @@ local function Roster()
 end
 
 -- Auras go secret during boss pulls; the last answer stands until they clear.
-local function Drinking(m)
-    if not S.Get("healerManaDrinking") or C_Secrets.ShouldAurasBeSecret() then return end
+local function CanReadDrink()
+    if not S.Get("healerManaDrinking") or C_Secrets.ShouldAurasBeSecret() then return false end
     drinkName = drinkName or C_Spell.GetSpellName(DRINK_SPELL)
-    if not (drinkName and C_UnitAuras.GetAuraDataBySpellName) then return end
-    m.drinking = C_UnitAuras.GetAuraDataBySpellName(m.unit, drinkName, "HELPFUL") ~= nil
+    return drinkName ~= nil
+end
+
+-- A full look, on a roster change or a full aura update.
+local function Drinking(m)
+    if not (CanReadDrink() and C_UnitAuras.GetAuraDataBySpellName) then return end
+    local aura = C_UnitAuras.GetAuraDataBySpellName(m.unit, drinkName, "HELPFUL")
+    m.drinking = aura ~= nil
+    m.drinkID = aura and aura.auraInstanceID or nil
+end
+
+-- From an aura event's own changes: Drink added, or the Drink seen removed. true if it changed.
+local function DrinkChanged(m, info)
+    if not CanReadDrink() then return false end
+    local was = m.drinking
+    if not info or info.isFullUpdate then
+        Drinking(m)
+        return m.drinking ~= was
+    end
+    local added = info.addedAuras
+    if added then
+        for i = 1, #added do
+            local name = added[i].name
+            if not Secret(name) and name == drinkName then
+                m.drinking, m.drinkID = true, added[i].auraInstanceID
+            end
+        end
+    end
+    local removed, id = info.removedAuraInstanceIDs, m.drinkID
+    if removed and id then
+        for i = 1, #removed do
+            if removed[i] == id then m.drinking, m.drinkID = false, nil end
+        end
+    end
+    return m.drinking ~= was
 end
 
 -- A druid in a form keeps the last share it showed.
@@ -147,9 +188,9 @@ local function ManaColour(pct)
     return St.TIME_OK_RGB
 end
 
--- A secret share is turned into 0 to 100 and written by the client. UnitPowerPercent is newer
--- than the rest, so this reports whether it could, and is called through pcall: a client that
--- refuses the secret shows "--" rather than a Lua error in a boss fight.
+-- A secret share is turned into 0 to 100 and written by the client: UnitPowerPercent takes the
+-- unit, power type and curve as given (none of them secret) and hands back the share, secret
+-- or not, which SetFormattedText shows. false where the client has no UnitPowerPercent.
 local function SecretShare(fs, unit)
     if not (UnitPowerPercent and C_CurveUtil) then return false end
     if not shareCurve then
@@ -200,16 +241,22 @@ function Look.Paint(row, m, drinks)
     Colour(row.name, RAID_CLASS_COLORS[m.class] or T.fg)
     row.icon:SetShown(drinks and m.drinking == true)
     if m.state then
+        row.shownPct = nil
         row.pct:SetText(m.state)
         Colour(row.pct, m.state == DEAD and St.RED_RGB or T.muted)
     elseif m.secret then
         Colour(row.pct, T.fg)
-        local ok, shown = pcall(SecretShare, row.pct, m.unit)
-        if not (ok and shown) then row.pct:SetText(UNKNOWN) end
+        row.shownPct = nil
+        if not SecretShare(row.pct, m.unit) then row.pct:SetText(UNKNOWN) end
     elseif m.pct then
-        row.pct:SetText(PCT_FORMAT:format(m.pct * 100))
+        local shown = math.floor(m.pct * 1000 + 0.5)
+        if row.shownPct ~= shown then
+            row.shownPct = shown
+            row.pct:SetText(PCT_FORMAT:format(shown / 10))
+        end
         Colour(row.pct, ManaColour(m.pct))
     else
+        row.shownPct = nil
         row.pct:SetText(UNKNOWN)
         Colour(row.pct, T.muted)
     end
@@ -223,8 +270,11 @@ function Look.Rows(owner, pool, entries)
     local step = size + ROW_PAD
     local backdrop = backdrops[owner] or Parts.HudBackdrop(owner)
     backdrops[owner] = backdrop
-    backdrop:SetMode(S.Get("healerManaBackground"))
-    owner:SetSize(S.Get("healerManaWidth"), #entries * step + 2 * PAD)
+    if owner.look ~= look or owner.count ~= #entries then
+        owner.look, owner.count = look, #entries
+        backdrop:SetMode(S.Get("healerManaBackground"))
+        owner:SetSize(S.Get("healerManaWidth"), #entries * step + 2 * PAD)
+    end
     for i, m in ipairs(entries) do
         local row = pool[i]
         if not row then
@@ -232,6 +282,7 @@ function Look.Rows(owner, pool, entries)
             pool[i] = row
         end
         if row.look ~= look then
+            row.shownPct = nil
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", PAD, -PAD - (i - 1) * step)
             row:SetPoint("TOPRIGHT", -PAD, -PAD - (i - 1) * step)
@@ -284,7 +335,38 @@ local function Place()
 end
 
 local events = CreateFrame("Frame")
-local Apply
+local Apply, OnUnitEvent
+
+-- One frame per healer, listening to that unit only.
+local function Watch()
+    for i, m in ipairs(list) do
+        local w = watchers[i]
+        if not w then
+            w = CreateFrame("Frame")
+            w:SetScript("OnEvent", OnUnitEvent)
+            watchers[i] = w
+        end
+        if w.unit ~= m.unit then
+            w.unit = m.unit
+            for _, event in ipairs(UNIT_EVENTS) do w:RegisterUnitEvent(event, m.unit) end
+        end
+    end
+    for i = #list + 1, #watchers do
+        watchers[i]:UnregisterAllEvents()
+        watchers[i].unit = nil
+    end
+end
+
+local function RosterDue()
+    rosterPending = false
+    Apply()
+end
+
+local function RosterSoon()
+    if rosterPending then return end
+    rosterPending = true
+    C_Timer.After(UPDATE_DELAY, RosterDue)
+end
 
 -- Unit events are heard only while the list shows, roster events while it is on.
 function Apply()
@@ -292,6 +374,7 @@ function Apply()
         events:UnregisterAllEvents()
         wipe(list)
         wipe(tracked)
+        Watch()
         if frame then frame:Hide() end
         return
     end
@@ -303,38 +386,34 @@ function Apply()
             "QoL/Combat", "QoL/Combat:healerMana")
     end
     for _, event in ipairs(GROUP_EVENTS) do events:RegisterEvent(event) end
-    local here = Here()
-    for _, event in ipairs(UNIT_EVENTS) do
-        if here then events:RegisterEvent(event) else events:UnregisterEvent(event) end
-    end
     wipe(list)
     wipe(tracked)
-    if here then
+    if Here() then
         Roster()
         for i = 1, #list do Drinking(list[i]) end
     end
+    Watch()
     Place()
     frame.mover:SetShown(unlocked == true)
     Redraw()
 end
 
-events:SetScript("OnEvent", function(_, event, unit, powerType)
-    if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ROLES_ASSIGNED" or event == "PLAYER_ENTERING_WORLD" then
+events:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_ENTERING_WORLD" then
         Apply()
-        return
+    else
+        RosterSoon()
     end
-    if Secret(unit) then return end
-    local m = tracked[unit]
-    if not m then return end
-    if event == "UNIT_AURA" then
-        local was = m.drinking
-        Drinking(m)
-        if m.drinking == was then return end
-    elseif event == "UNIT_POWER_UPDATE" and (Secret(powerType) or powerType ~= MANA_TOKEN) then
-        return
-    end
-    Soon()
 end)
+
+-- A healer's own event: mana ticks of other powers and auras that are not Drink end here.
+function OnUnitEvent(watcher, event, unit, arg)
+    if event == "UNIT_POWER_UPDATE" and (Secret(arg) or arg ~= MANA_TOKEN) then return end
+    local m = tracked[watcher.unit]
+    if not m then return end
+    if event == "UNIT_AURA" and not DrinkChanged(m, arg) then return end
+    Soon()
+end
 
 hooksecurefunc(S, "Set", function(key)
     if key == "enabled" or (key:find("^healerMana") and key ~= "healerManaPos") then

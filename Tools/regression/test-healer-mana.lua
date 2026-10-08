@@ -27,6 +27,7 @@ local function boot(settings, units)
         setmetatable(f, NOOP_META)
         function f:SetScript(k, fn) self.scripts[k] = fn end
         function f:RegisterEvent(k) self.events[k] = true end
+        function f:RegisterUnitEvent(k, u) self.events[k] = u end
         function f:UnregisterEvent(k) self.events[k] = nil end
         function f:UnregisterAllEvents() self.events = {} end
         function f:Show() self.shown = true end
@@ -101,7 +102,8 @@ local function boot(settings, units)
         C_Secrets = { ShouldAurasBeSecret = function() return s.secretAuras end },
         C_Spell = { GetSpellName = function(id) return id == 430 and "Drink" or nil end },
         C_UnitAuras = { GetAuraDataBySpellName = function(u, name, filter)
-            if name == "Drink" and filter == "HELPFUL" and unit(u).drinking then return {} end
+            s.fullLooks = (s.fullLooks or 0) + 1
+            if name == "Drink" and filter == "HELPFUL" and unit(u).drinking then return { auraInstanceID = 70 } end
         end },
         C_Timer = { After = function(delay, fn) s.timers[#s.timers + 1] = { at = s.now + delay, fn = fn } end },
         hooksecurefunc = function(t, k, fn)
@@ -116,7 +118,14 @@ local function boot(settings, units)
     local events, bootFrame = s.created[1], s.created[2]
     s.events = events
     s.S = ns.QoLSettings
-    function s.fire(event, ...) events.scripts.OnEvent(events, event, ...) end
+    -- A unit event reaches only the frames listening to that unit, as RegisterUnitEvent does.
+    function s.fire(event, u, ...)
+        if not event:find("^UNIT_") then return events.scripts.OnEvent(events, event, u, ...) end
+        for i = 1, #s.created do
+            local w = s.created[i]
+            if w.events[event] == u then w.scripts.OnEvent(w, event, u, ...) end
+        end
+    end
     function s.run(seconds)
         s.now = s.now + seconds
         local due = {}
@@ -154,19 +163,21 @@ end
 
 local function same(fs, ref) return fs.r == ref.r and fs.g == ref.g and fs.b == ref.b end
 
-local function listens(s, list)
-    for _, e in ipairs(list) do
-        if not s.events.events[e] then return false end
+-- The units something listens to for these events, sorted: "party1 party4 player".
+local function listening(s, list)
+    local seen, out = {}, {}
+    for _, f in ipairs(s.created) do
+        for _, e in ipairs(list) do
+            local u = f.events[e]
+            if u == true then out[#out + 1] = "everyone" end
+            if type(u) == "string" and not seen[u] then seen[u] = true; out[#out + 1] = u end
+        end
     end
-    return true
+    table.sort(out)
+    return table.concat(out, " ")
 end
 
-local function hearsNone(s, list)
-    for _, e in ipairs(list) do
-        if s.events.events[e] then return false end
-    end
-    return true
-end
+local function hearsNone(s, list) return listening(s, list) == "" end
 
 do -- off: nothing built and nothing heard
     local s = boot({ healerMana = false })
@@ -182,7 +193,8 @@ do -- who shows, and in what order
     local s = boot()
     check("healers only, lowest mana first: role healer and healing classes, not a damage paladin",
         s.rows() == "Holy 20.0% | Tree 50.0% | Shammy 90.0%")
-    check("listens to unit events in a dungeon", listens(s, UNIT_EVENTS))
+    check("in a dungeon each healer's own events are heard, nobody else's",
+        listening(s, UNIT_EVENTS) == "party1 party4 player")
     check("mana colours: out, low, plenty", same(s.row(1).fonts[1], RED) and same(s.row(2).fonts[1], YELLOW)
         and same(s.row(3).fonts[1], GREEN))
     check("names in class colour", s.row(3).fonts[2].b == 0.9)
@@ -199,8 +211,27 @@ do -- a burst of mana ticks is one redraw, and only mana on a healer counts
     s.fire("UNIT_POWER_UPDATE", "party1", "RAGE")
     s.fire("UNIT_POWER_UPDATE", "party2", "MANA")
     s.fire("UNIT_POWER_UPDATE", "target", "MANA")
-    s.fire("UNIT_POWER_UPDATE", SECRET, "MANA")
-    check("other powers, non-healers, other units and a secret unit queue nothing", #s.timers == 0)
+    s.fire("UNIT_POWER_UPDATE", "party1", SECRET)
+    check("other powers, a secret power, non-healers and other units queue nothing", #s.timers == 0)
+end
+
+do -- a burst of roster events is one rebuild, and the listeners follow the healers
+    local s = boot()
+    for _ = 1, 10 do s.fire("GROUP_ROSTER_UPDATE") end
+    check("one rebuild queued for a roster burst", #s.timers == 1)
+    s.units.party3.role = "HEALER"
+    s.fire("PLAYER_ROLES_ASSIGNED")
+    s.run(0.25)
+    check("rebuilt once it runs", s.rows() == "Ret 10.0% | Holy 20.0% | Tree 50.0% | Shammy 90.0%")
+    check("the new healer is heard", listening(s, UNIT_EVENTS) == "party1 party3 party4 player")
+    s.units.party3.role = "DAMAGER"
+    s.fire("GROUP_ROSTER_UPDATE")
+    s.run(0.25)
+    check("and stops being heard once not a healer", listening(s, UNIT_EVENTS) == "party1 party4 player")
+    local made = #s.created
+    s.fire("GROUP_ROSTER_UPDATE")
+    s.run(0.25)
+    check("a rebuild with the same healers makes no frames", #s.created == made)
 end
 
 do -- where it shows
@@ -214,6 +245,7 @@ do -- where it shows
     s.group = false
     s.units = { player = s.units.player }
     s.fire("GROUP_ROSTER_UPDATE")
+    s.run(0.25)
     check("hidden solo", not s.display.shown and hearsNone(s, UNIT_EVENTS))
 end
 
@@ -249,6 +281,31 @@ do -- drinking
     check("Mark Drinking off shows no cup", s.rows() == "Holy 20.0% | Tree 50.0% | Shammy 90.0%")
 end
 
+do -- drinking from the aura event's own changes, with no full look
+    local s = boot()
+    s.fullLooks = 0
+    s.fire("UNIT_AURA", "party4", { addedAuras = { { name = "Renew", auraInstanceID = 5 } } })
+    check("an added aura that is not Drink queues nothing", #s.timers == 0)
+    s.fire("UNIT_AURA", "party4", { addedAuras = { { name = SECRET, auraInstanceID = 6 } } })
+    check("a secret aura name is not read", #s.timers == 0)
+    s.fire("UNIT_AURA", "party4", { addedAuras = { { name = "Drink", auraInstanceID = 7 } } })
+    s.run(0.25)
+    check("Drink added shows the cup", s.rows() == "Holy 20.0% | +cup Tree 50.0% | Shammy 90.0%")
+    s.fire("UNIT_AURA", "party4", { removedAuraInstanceIDs = { 5 } })
+    check("another aura removed leaves it", #s.timers == 0)
+    s.fire("UNIT_AURA", "party4", { removedAuraInstanceIDs = { 7 } })
+    s.run(0.25)
+    check("that Drink removed clears it", s.rows() == "Holy 20.0% | Tree 50.0% | Shammy 90.0%")
+    check("none of it looked the auras up", s.fullLooks == 0)
+    s.units.party4.drinking = true
+    s.fire("UNIT_AURA", "party4", { isFullUpdate = true })
+    s.run(0.25)
+    check("a full update looks once", s.fullLooks == 1 and s.rows():find("+cup Tree", 1, true) ~= nil)
+    s.fire("UNIT_AURA", "party4", { removedAuraInstanceIDs = { 70 } })
+    s.run(0.25)
+    check("and the Drink it found clears by its ID", s.rows() == "Holy 20.0% | Tree 50.0% | Shammy 90.0%")
+end
+
 do -- secret mana: the order holds, the client writes the share, or "--" without the API
     local s = boot()
     s.units.party1.mana = SECRET
@@ -264,10 +321,6 @@ do -- secret mana: the order holds, the client writes the share, or "--" without
     s.fire("UNIT_POWER_UPDATE", "party1", "MANA")
     s.run(0.25)
     check("with it the client's share shows, order still held", s.rows() == "Holy 99.0% | Tree 50.0% | Shammy 12.5%")
-    s.env.UnitPowerPercent = function() error("secret refused") end
-    s.fire("UNIT_POWER_UPDATE", "party1", "MANA")
-    s.run(0.25)
-    check("a client that refuses it shows -- with no error", s.rows() == "Holy -- | Tree 50.0% | Shammy --")
     s.units.party1.mana, s.units.player.mana = 990, 50
     s.fire("UNIT_POWER_UPDATE", "party1", "MANA")
     s.run(0.25)
@@ -296,6 +349,7 @@ do -- Show Yourself off drops your row; a raid lists you once
     r.env.UnitIsUnit = function(a, b) return (a == "raid1" or a == "player") and b == "player" end
     r.env.GetNumGroupMembers = function() return 2 end
     r.fire("GROUP_ROSTER_UPDATE")
+    r.run(0.25)
     check("a raid lists you once", r.rows() == "Holy 20.0% | Shammy 90.0%")
 end
 
@@ -312,6 +366,27 @@ do -- the look: options apply, a bigger font makes taller rows
     check("Background, Font, Outline, Size and Width apply", s.backdrops[s.display].mode == "soft"
         and s.row(1).fonts[2].font == "Arial 16 " and s.row(1).fonts[1].font == "Arial 16 "
         and s.display.w == 200 and s.display.h == 3 * 20 + 12)
+    local sets = 0
+    s.backdrops[s.display].SetMode = function(b, mode) b.mode = mode; sets = sets + 1 end
+    s.units.party1.mana = 300
+    s.fire("UNIT_POWER_UPDATE", "party1", "MANA")
+    s.run(0.25)
+    check("a mana tick does not restyle the card", sets == 0 and s.rows() == "Holy 30.0% | Tree 50.0% | Shammy 90.0%")
+end
+
+do -- a share that did not move is not written again
+    local s = boot()
+    local writes = 0
+    local pct = s.row(1).fonts[1]
+    pct.SetText = function(fs, v) fs.text = v; writes = writes + 1 end
+    s.units.party1.mana = 200.4
+    s.fire("UNIT_POWER_UPDATE", "party1", "MANA")
+    s.run(0.25)
+    check("the same 20.0% is not formatted again", writes == 0 and s.rows():find("Holy 20.0%", 1, true) == 1)
+    s.units.party1.mana = 210
+    s.fire("UNIT_POWER_UPDATE", "party1", "MANA")
+    s.run(0.25)
+    check("a new share is", writes == 1 and s.rows():find("Holy 21.0%", 1, true) == 1)
 end
 
 do -- cost: a mana tick redraw makes no garbage
