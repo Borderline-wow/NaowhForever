@@ -206,6 +206,8 @@ tracker:Card({
     rows = {
         { key = "trackerAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
           help = "How solid the Dungeon Quest Tracker is." },
+        { key = "trackerScale", label = "Window Scale", slider = { 50, 150, 5 }, unit = "%", scale = 0.01,
+          help = "How big the Dungeon Quest Tracker is." },
     },
 })
 

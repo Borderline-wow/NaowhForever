@@ -94,6 +94,7 @@ local S = ns.UI.ModuleSettings("journal", {
     -- map window, the Journal beside the world map and Boss Loot at Cursor.
     windowAlpha = 1,
     trackerAlpha = 1,
+    trackerScale = 1,
     mapAlpha = 1,
     listHidden = false,
     closedGroup1 = false,
