@@ -181,6 +181,13 @@ local MODULES = {
       tabs = {
           { name = "Settings", reuse = true },
       } },
+    { name = "PvP", group = "COMBAT", navIcon = "swords", settings = "PvPSettings",
+      addon = "NaowhForever_PvP",
+      command = "pvp", short = "PvP", icon = "Interface\\Icons\\INV_Sword_27",
+      subtitle = "What your target is doing in a fight: their short buffs and the crowd control on them.",
+      tabs = {
+          { name = "Auras", reuse = true },
+      } },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
       addon = "NaowhForever_SwingTimer",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
@@ -361,7 +368,7 @@ local function ActiveNav()
     return page.module and page.module.name or page.key
 end
 
-local NAV_ROW, NAV_OFF_ALPHA = 32, 0.45
+local NAV_ROW, NAV_OFF_ALPHA = 30, 0.45
 local MISS_ALPHA = 0.3     -- a page, tab or module without a match for the sidebar's search
 local NO_TABS = {}
 
@@ -1128,7 +1135,7 @@ local function NavigationButton(parent, label, y, onClick, icon)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetPoint("TOPLEFT", NAV_INSET, y)
     btn:SetPoint("TOPRIGHT", -NAV_INSET, y)
-    btn:SetHeight(38)
+    btn:SetHeight(NAV_ROW + 6)
     btn.fill = ns.Solid(btn, "BACKGROUND", T.accent, 0.16)
     btn.fill:SetAllPoints()
     btn.fill:Hide()

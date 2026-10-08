@@ -40,6 +40,7 @@ local S = UI.ModuleSettings("qol", {
     combatTimerSticky = false, combatTimerHidePrefix = false, combatTimerBackground = "none",
     combatTimerColor = { r = 1, g = 1, b = 1 }, combatTimerClassColor = false,
     combatTimerFont = "", combatTimerFontSize = 32, combatTimerOutline = "OUTLINE",
+    cursorCooldown = false, cursorCooldownSize = 29, cursorCooldownTime = 0.75,
     combatLogger = false, combatLogRaids = "ask", combatLogDungeons = "never",
     combatLogStopOnLeave = true, combatLogChat = false, combatLogAclPrompt = true,
     globalCopy = false, copyTooltipIds = true, copyModifier = "CTRL-SHIFT", copyKey = "C", copyShortcutSynced = false,

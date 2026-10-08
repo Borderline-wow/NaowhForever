@@ -17,6 +17,7 @@ move-folders:
   NaowhForever/NaowhForever_AuraBuffs: NaowhForever_AuraBuffs
   NaowhForever/NaowhForever_ThreatMeter: NaowhForever_ThreatMeter
   NaowhForever/NaowhForever_SwingTimer: NaowhForever_SwingTimer
+  NaowhForever/NaowhForever_PvP: NaowhForever_PvP
 
 externals:
   Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1
