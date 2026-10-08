@@ -3481,31 +3481,31 @@ local function Deactivate()
     end
 end
 
--- Once the window has been dragged it stays where it was put, and Blizzard's window is pinned
--- under it so none of it is left clickable elsewhere. The overview's secure buttons hang off
--- both windows, so neither may move in combat. One table: the file is at Lua's local limit.
+-- Once the window has been dragged, Blizzard's window is moved to where it was put and this one
+-- stays on top of it, so none of Blizzard's is left clickable elsewhere. Blizzard's window holds
+-- secure buttons, so it only moves out of combat. Anchoring it to this window instead would make
+-- this one protected, and then it could not be hidden in combat. One table: the file is at Lua's
+-- local limit.
 local Drag = {}
 
 function Drag.Follow()
-    if not (win and win:IsShown() and S.Get("windowPos")) then return end
+    local pos = S.Get("windowPos")
+    if not (win and win:IsShown() and pos) then return end
     if InCombatLockdown() then
         Drag.pending = true
         return
     end
     Drag.pending, Drag.following = nil, true
+    local scale = win:GetEffectiveScale() / ProfessionsFrame:GetEffectiveScale()
     ProfessionsFrame:ClearAllPoints()
-    ProfessionsFrame:SetPoint("TOPLEFT", win, "TOPLEFT", 0, 0)
+    ProfessionsFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos.x * scale, pos.y * scale)
     Drag.following = false
+    Drag.Place()
 end
 
 function Drag.Place()
-    local pos = S.Get("windowPos")
     win:ClearAllPoints()
-    if pos then
-        win:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos.x, pos.y)
-    else
-        win:SetPoint("TOPLEFT", ProfessionsFrame, "TOPLEFT", 0, 0)
-    end
+    win:SetPoint("TOPLEFT", ProfessionsFrame, "TOPLEFT", 0, 0)
 end
 
 function Drag.Save()
@@ -3526,16 +3526,16 @@ local function Activate(mode)
         win:RegisterForDrag("LeftButton")
         win:SetScript("OnDragStart", function(self)
             if InCombatLockdown() then return end
-            -- Off Blizzard's window first, or pinning that one under this would anchor in a loop.
-            Drag.Save()
-            Drag.Place()
-            Drag.Follow()
+            local x, y = self:GetLeft(), self:GetTop()
+            self:ClearAllPoints()
+            self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
             self:StartMoving()
         end)
+        -- Dropped in combat, it stays where it was dropped until Blizzard's window can follow.
         win:SetScript("OnDragStop", function(self)
             self:StopMovingOrSizing()
             Drag.Save()
-            Drag.Place()
+            Drag.Follow()
         end)
         Drag.Place()
     end

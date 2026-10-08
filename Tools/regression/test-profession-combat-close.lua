@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: closing the Professions window in combat. With the
--- overview docked our window holds Blizzard's secure profession buttons, and once dragged it has
--- Blizzard's window pinned under it. Either makes it protected, so it is not hidden or re-laid
--- out until combat ends (that would be a blocked action); it goes transparent instead.
+-- overview docked our window holds Blizzard's secure profession buttons, which makes it
+-- protected, so it is not hidden or re-laid out until combat ends (that would be a blocked
+-- action); it goes transparent instead.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
