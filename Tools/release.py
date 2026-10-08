@@ -29,6 +29,7 @@ far. Needs gh, signed in.
 check-body: a pull request description on stdin has at least one changelog line, for CI.
 """
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -49,6 +50,11 @@ KINDS = ("Added", "Changed", "Fixed")
 ENTRY = re.compile(r"(?:[-*] +)?(added|changed|fixed):[ \t]*(.*)", re.IGNORECASE)
 # A squash merge ends the subject with the pull request's number.
 PR_NUMBER = re.compile(r"\(#(\d+)\)$")
+NO_CHANGELOG = "no changelog"
+# A Discord embed's description holds 4096 characters; the purple of the release posts.
+DISCORD_LIMIT, DISCORD_COLOR = 4096, 10181046
+# A hard-wrapped list item's next line: indented, and not a new item.
+CONTINUED = re.compile(r" +[^ -]")
 
 
 class ReleaseError(Exception):
@@ -142,12 +148,20 @@ def body_entries(body):
     return [(kind, text.strip()) for kind, text in entries if text.strip()]
 
 
+def changelog_body(view):
+    """A pull request's description from gh pr view's body and labels, or "" when it is
+    labelled "no changelog": as the PR rules take it, nothing in it is for players."""
+    if any(label.get("name") == NO_CHANGELOG for label in view.get("labels") or []):
+        return ""
+    return view.get("body") or ""
+
+
 def pr_body(root, number):
-    result = subprocess.run(["gh", "pr", "view", number, "--json", "body", "--jq", ".body"],
+    result = subprocess.run(["gh", "pr", "view", number, "--json", "body,labels"],
                             cwd=root, capture_output=True, text=True)
     if result.returncode != 0:
         raise ReleaseError(f"gh pr view {number}: {result.stderr.strip()}")
-    return result.stdout
+    return changelog_body(json.loads(result.stdout))
 
 
 def merged_entries(root, since, fetch_body):
@@ -303,6 +317,61 @@ def notes(root, tag):
     return "\n".join(out)
 
 
+def discord_payloads(changelog, tag, limit=DISCORD_LIMIT):
+    """The Discord webhook messages for a release's CHANGELOG.md section: one embed each, its
+    headings in bold and hard-wrapped items joined. Notes past an embed's limit are split at
+    a heading, or a line when one heading's list is too long, as "(1/2)", "(2/2)" and on."""
+    lines = section(changelog.replace("\r", ""), tag)
+    if lines is None:
+        raise ReleaseError(f"no '## {tag}' section in {CHANGELOG}")
+    joined = []
+    for line in lines:
+        if line.startswith("### "):
+            line = f"**{line[4:]}**"
+        elif CONTINUED.match(line) and joined:
+            joined[-1] += " " + line.strip()
+            continue
+        joined.append(line)
+    blocks, block = [], []
+    for line in joined + [""]:
+        if line.strip():
+            block.append(line)
+        elif block:
+            blocks.append(block)
+            block = []
+    if not blocks:
+        raise ReleaseError(f"the '## {tag}' section in {CHANGELOG} is empty")
+
+    posts, post = [], []
+
+    def fits(extra):
+        return len("\n".join(post + extra)) <= limit
+
+    for block in blocks:
+        gap = [""] if post else []
+        if fits(gap + block):
+            post += gap + block
+            continue
+        if post:
+            posts.append(post)
+            post = []
+        # Its heading starts the next post too, so a list carries on under its name.
+        heading = block[0] if block[0].startswith("**") else None
+        for line in block:
+            if len(f"{heading}\n{line}" if heading else line) > limit:
+                raise ReleaseError(f"a changelog line is over Discord's {limit} characters")
+            if not fits([line]):
+                posts.append(post)
+                post = [heading] if heading else []
+            post.append(line)
+    posts.append(post)
+
+    title = f"Naowh Forever {tag}"
+    return [{"embeds": [{"title": title if len(posts) == 1 else f"{title} ({i}/{len(posts)})",
+                         "description": "\n".join(post), "color": DISCORD_COLOR}]}
+            for i, post in enumerate(posts, 1)]
+
+
 def pending(root, fetch_body=pr_body):
     tag = newest_tag(root)
     if not tag:
@@ -339,6 +408,7 @@ def main(argv=None):
     prepare_args.add_argument("--beta", action=argparse.BooleanOptionalAction, default=None)
     prepare_args.add_argument("--version")
     commands.add_parser("notes").add_argument("tag")
+    commands.add_parser("discord").add_argument("tag")
     commands.add_parser("start-next")
     commands.add_parser("pending")
     commands.add_parser("check-body")
@@ -348,6 +418,9 @@ def main(argv=None):
             print(prepare(".", args.version, args.bump, args.beta))
         elif args.command == "notes":
             print(notes(".", args.tag))
+        elif args.command == "discord":
+            for payload in discord_payloads(read(".", CHANGELOG), args.tag):
+                print(json.dumps(payload))
         elif args.command == "pending":
             print(pending("."))
         elif args.command == "check-body":

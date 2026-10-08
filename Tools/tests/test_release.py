@@ -257,6 +257,46 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(release.body_entries("## Changelog\n* CHANGED:  A\nb\n\nFixed: C"),
                          [("Changed", "A b"), ("Fixed", "C")])
 
+    def test_changelog_body(self):
+        dev = {"body": "## Changelog\nDev-only: the workflow.\n", "labels": [{"name": "no changelog"}]}
+        self.assertEqual(release.changelog_body(dev), "")
+        self.assertEqual(release.body_entries(release.changelog_body(dev)), None)
+        player = {"body": "## Changelog\nFixed: Loot Feed.\n", "labels": [{"name": "bug"}]}
+        self.assertEqual(release.body_entries(release.changelog_body(player)), [("Fixed", "Loot Feed.")])
+        self.assertEqual(release.changelog_body({"body": None, "labels": None}), "")
+
+    def test_discord_payloads(self):
+        changelog = ("## Unreleased\r\n\r\n## 1.0.7\r\n\r\n### Added\r\n- Healer Mana: a cup by\r\n"
+                     "  anyone drinking.\r\n- Chat Zones.\r\n\r\n### Fixed\r\n- Co-Tank.\r\n\r\n## 1.0.6\r\n- Old.\r\n")
+        posts = release.discord_payloads(changelog, "1.0.7")
+        self.assertEqual(len(posts), 1)
+        embed = posts[0]["embeds"][0]
+        self.assertEqual(embed["title"], "Naowh Forever 1.0.7")
+        self.assertEqual(embed["description"],
+                         "**Added**\n- Healer Mana: a cup by anyone drinking.\n- Chat Zones.\n\n**Fixed**\n- Co-Tank.")
+        self.assertEqual(embed["color"], 10181046)
+
+        # Past the limit: split at a heading, numbered, nothing lost or reordered.
+        posts = release.discord_payloads(changelog, "1.0.7", limit=70)
+        self.assertEqual([p["embeds"][0]["title"] for p in posts],
+                         ["Naowh Forever 1.0.7 (1/2)", "Naowh Forever 1.0.7 (2/2)"])
+        texts = [p["embeds"][0]["description"] for p in posts]
+        self.assertTrue(all(len(text) <= 70 for text in texts))
+        self.assertEqual(texts[1], "**Fixed**\n- Co-Tank.")
+        self.assertEqual("\n\n".join(texts), embed["description"])
+
+        # One heading's list too long for a post: split between its lines, under its heading again.
+        posts = release.discord_payloads(changelog, "1.0.7", limit=55)
+        texts = [p["embeds"][0]["description"] for p in posts]
+        self.assertTrue(all(len(text) <= 55 for text in texts))
+        self.assertEqual(texts, ["**Added**\n- Healer Mana: a cup by anyone drinking.",
+                                 "**Added**\n- Chat Zones.\n\n**Fixed**\n- Co-Tank."])
+
+        with self.assertRaises(release.ReleaseError):
+            release.discord_payloads(changelog, "9.9.9")
+        with self.assertRaises(release.ReleaseError):
+            release.discord_payloads(changelog, "1.0.7", limit=20)
+
     def test_prepare_with_bump_and_no_beta(self):
         self.assertEqual(release.prepare(self.root, bump="major", beta=False), "1.0.0")
         self.assertIn("## Version: 1.0.0\r\n", self.read(release.TOC))

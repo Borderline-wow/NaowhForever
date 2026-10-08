@@ -131,27 +131,12 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_CHANGELOG_WEBHOOK }}
         run: |
-          # CHANGELOG.md hard-wraps list items; join them so Discord doesn't break mid-sentence.
-          # The repo stores CRLF (.gitattributes -text), and the runner's awk keeps the CR.
-          notes=$(awk -v v="## ${TAG}" '
-            {sub(/\r$/, "")}
-            $0 == v && !done {f = 1; done = 1; next}
-            /^## / {f = 0}
-            !f {next}
-            /^### / {sub(/^### /, ""); $0 = "**" $0 "**"}
-            /^ +[^ -]/ && out != "" {sub(/^ +/, ""); out = out " " $0; next}
-            {out = out (out == "" ? "" : "\n") $0}
-            END {print out}' CHANGELOG.md)
-          if [ -z "$notes" ]; then
-            echo "No '## ${TAG}' section in CHANGELOG.md"
-            exit 1
-          fi
-          # An embed description holds 4096 characters; a longer section is posted by hand
-          # rather than cut off mid-list.
-          if [ ${#notes} -gt 4096 ]; then
-            echo "::warning::${TAG} notes are ${#notes} characters, over Discord's 4096. Post them by hand."
-            exit 0
-          fi
-          jq -n --arg title "Naowh Forever ${TAG}" --arg notes "$notes" \
-            '{embeds: [{title: $title, description: $notes, color: 10181046}]}' |
-            curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
+          # One message per line, made before any is sent; notes past an embed's 4096
+          # characters come as "(1/2)", "(2/2)", split at a heading. A second apart, in order.
+          python3 Tools/release.py discord "$TAG" > discord.jsonl
+          first=1
+          while IFS= read -r payload; do
+            [ -n "$first" ] || sleep 1
+            first=
+            printf '%s' "$payload" | curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
+          done < discord.jsonl
