@@ -375,6 +375,45 @@ do
     check("Scan Your Group off: no roster listened to", not state.frames[1].events.GROUP_ROSTER_UPDATE)
 end
 
+-------------------------------------------------------------------------------
+--  The player you hover goes first
+-------------------------------------------------------------------------------
+do
+    local ns, state = Fixture()
+    state.members = 2
+    state.gear.party1, state.gear.party2 = Set(10, 4), Set(20, 4)
+    ns.QoLSettings.Set("naowhScore", true)
+    state.RunTimers()
+    check("the walk is reading a group member", state.inspected[1] == "party1" and #state.inspected == 1)
+    local OnUnit = state.postCalls[1]
+    state.gear.mouseover, state.hovered = Set(30, 4), "mouseover"
+    OnUnit(state.tooltip)
+    check("hovered while the inspect is busy: '...', not asked over it", #state.inspected == 1)
+    state.Fire("INSPECT_READY", "Player-1-19")
+    state.now = state.now + 2
+    state.RunTimers()
+    check("asked next, ahead of the rest of the group", state.inspected[2] == "mouseover")
+    state.Fire("INSPECT_READY", "Player-1-9")
+    state.now = state.now + 2
+    state.RunTimers()
+    check("then the group's walk goes on", state.inspected[3] == "party2")
+end
+
+do
+    local ns, state = Fixture()
+    state.members = 2
+    state.gear.party1, state.gear.party2 = Set(10, 4), Set(20, 4)
+    ns.QoLSettings.Set("naowhScore", true)
+    state.RunTimers()
+    state.gear.mouseover, state.hovered = Set(30, 4), "mouseover"
+    state.postCalls[1](state.tooltip)
+    state.gear.mouseover = nil
+    state.Fire("INSPECT_READY", "Player-1-19")
+    state.now = state.now + 2
+    state.RunTimers()
+    check("moved off them before their turn: the group goes on", state.inspected[2] == "party2")
+end
+
 do
     local ns, state = Fixture()
     local S = ns.QoLSettings
