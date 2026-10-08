@@ -436,8 +436,8 @@ do
     local path = "NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua"
     local source = Read(path)
     local helper = assert(source:match("(local yourShade\nlocal function ThemedColor%(key%).-\nend\n\n%-%- The color a bar setting.-\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
-    local PICKED = { playerColor = { r = 0.8, g = 0.1, b = 0.1 }, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
-        pullColor = { r = 0, g = 0.55, b = 0 } }
+    local PICKED = { playerColor = { r = 0.97, g = 0.44, b = 0.44 }, tankColor = { r = 0.3, g = 0.82, b = 0.48 },
+        pullColor = { r = 0.98, g = 0.57, b = 0.24 } }
     local function Bar(account, key, themed)
         local core = LoadCore(account)
         local env = { T = core.THEME, S = { Get = function(k)
@@ -461,7 +461,7 @@ do
         Check(1.05 / (lum + 0.05) >= 3, "threat meter: white text reads on " .. preset)
     end
     Check(source:find('{ key = "themeColors", label = "Apply Theme to Your Bar"', 1, true), "threat meter: the switch is in the Colours section")
-    Check(source:find('if e.pull then return BarColor("pullColor") end', 1, true), "threat meter: the bars paint through BarColor")
+    Check(source:find('if e.isLine then return BarColor("pullColor") end', 1, true), "threat meter: the bars paint through BarColor")
 end
 
 -- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's

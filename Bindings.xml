@@ -7,5 +7,6 @@
     <Binding name="NAOWHFOREVER_JOURNAL" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleJournal()</Binding>
     <Binding name="NAOWHFOREVER_BIS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleBis()</Binding>
     <Binding name="NAOWHFOREVER_GROUPINSPECT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleGroupInspect()</Binding>
+    <Binding name="NAOWHFOREVER_COMPLETO" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleCompleto()</Binding>
     <Binding name="NAOWHFOREVER_BOSSLOOT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BossLoot()</Binding>
 </Bindings>

@@ -72,6 +72,11 @@ ns.Journal.Tips = {
     [1716] = "Comes with two guards, so separate them if you can; his Smoke Bomb stuns everyone close.",  -- Bazil Thredd
     [1663] = "Clear the nearby cells first; his fear shout can send people running into more prisoners.",  -- Dextren Ward
     [1720] = "Rare in one of the cells; /target Bruegal from the middle of the prison to see if he is up.",  -- Bruegal Ironknuckle
+    -- Excavation Site: Wetlands
+    [260322] = "Simple tank and spank boss.",  -- Saltspine
+    [260325] = "Terrifying Roar fears: Shamans drop Tremor Totem, Priests Fear Ward the tank before the pull, Warriors use Berserker Rage, Undead use Will of the Forsaken. Don't drag him into the water or he resets.",  -- Shadetooth
+    [260808] = "Kite it into the campfire to set it on fire.",  -- Highland Horror
+    [260326] = "Tank him against a pillar for Knock Away; he hits hard but is slow, so kite him if needed.",  -- Relic Guardian
     -- Gnomeregan
     [7361] = "Talk to Emi Shortfuse to start it, and hold the trogg waves off her until Grubbis arrives.",  -- Grubbis
     [7079] = "Toxic Volley poisons everyone near him for 15 sec; cure poison and keep the whole group topped up.",  -- Viscous Fallout

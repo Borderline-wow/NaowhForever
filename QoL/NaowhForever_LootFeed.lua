@@ -409,7 +409,7 @@ local EVENTS = { "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "CHAT_MSG_COMBAT_XP_GAIN",
     "CHAT_MSG_COMBAT_FACTION_CHANGE", "QUEST_TURNED_IN", "BAG_UPDATE_DELAYED" }
 
 -- Quick loot with Blizzard's loot window kept out of sight. Every slot is taken on
--- LOOT_READY, a slot per 0.05s as EUI's quick loot does on Forever. The window still opens
+-- LOOT_READY, one every 0.05s. The window still opens
 -- and closes as normal (hiding it would close the loot), shrunk to nothing instead: its open
 -- and close animations both drive alpha, so alpha cannot hide it, and it is clamped to the
 -- screen, so it cannot be moved off it. It stays full size whenever something would be left

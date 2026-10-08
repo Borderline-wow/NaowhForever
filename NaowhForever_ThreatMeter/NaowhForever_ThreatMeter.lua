@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 --  NaowhForever_ThreatMeter.lua -- threat on your target for everyone in the group, one
---  bar each, sorted, with an optional pull aggro bar and a warning sound. Forever hands
+--  bar each, sorted, with an optional aggro line and a warning sound. Forever hands
 --  the threat API over readable; a value that does come back secret skips that unit. The
 --  Meter card's preview edits in place: its corner, wheel, clicks and row menu set the settings.
 -------------------------------------------------------------------------------
@@ -8,21 +8,26 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
 local Parts = ns.Shared.Parts
+local St = ns.Shared.Style
+
+-- Defaults take a copy, so a saved colour never writes into the shared style.
+local function Copy(c) return { r = c.r, g = c.g, b = c.b } end
 
 local S = UI.ModuleSettings("threatMeter", {
-    enabled = false,
-    width = 280, height = 240, barHeight = 24, maxBars = 40,
+    enabled = true,
+    width = 301, height = 206, barHeight = 22, maxBars = 40,
     source = "target", focusEnabled = false, visibility = "threat",
-    locked = true, barSpacing = 3, fontSize = 12, font = "", outline = "OUTLINE",
+    locked = false, barSpacing = 3, fontSize = 11, font = "", outline = "OUTLINE",
     showIcons = true, showRanks = true, highlightPlayer = true,
     backgroundAlpha = 0.94, backgroundColor = false, barAlpha = 0.72, texture = "", percentMode = "pull",
-    growUp = false, showHeader = true, ignorePets = false, statusPos = "bottom",
+    growUp = false, showHeader = true, ignorePets = false, statusPos = "top",
     showValue = true, showPercent = true,
-    playerColorOn = false, playerColor = { r = 0.8, g = 0.1, b = 0.1 },
-    tankColorOn = false, tankColor = { r = 0.1, g = 0.6, b = 0.1 },
-    pullBar = true, pullColor = { r = 0.0, g = 0.55, b = 0.0 },
+    playerColorOn = false, playerColor = Copy(St.RED_RGB),
+    tankColorOn = false, tankColor = Copy(St.HAVE_RGB),
+    pullBar = true, pullColor = Copy(St.WARN_RGB),
     themeColors = false,
     warnSound = false, warnSoundKey = "none", warnAt = 80, warnSkipTank = true,
+    threatPos = { point = "BOTTOM", relPoint = "BOTTOM", x = 393, y = 0 },
 })
 ns.ThreatMeterSettings = S
 
@@ -33,10 +38,15 @@ local INSET, FOOTER = 8, 24
 local MIN_WIDTH, MIN_HEIGHT = 160, 50
 local Update, RequestUpdate, RenderSample, Render
 local renderedTitle, renderedPlayer
-local offset, currentMob, warnedMob, preview = 0, nil, nil, false
+local offset, currentMob, mobGUID, preview = 0, nil, nil, false
 local updateGeneration = 0
-local threatEventsOn = false
+local listening = false
+local watched = "target"
 local events
+local LINE_NAME = "Aggro Line"
+local THREAT_EVENTS = { "UNIT_THREAT_LIST_UPDATE", "UNIT_THREAT_SITUATION_UPDATE" }
+-- Shapeshift form IDs: Bear Form, Dire Bear Form, Defensive Stance.
+local TANK_FORMS = { [5] = true, [8] = true, [18] = true }
 
 local FALLBACK_COLOR = { r = 0.6, g = 0.6, b = 0.6 }
 local GRADIENT_TEX = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
@@ -81,7 +91,8 @@ function Look.New(frame)
     frame.empty:SetPoint("CENTER", 0, -10); frame.empty:SetText("Waiting for threat")
 end
 
-local frame, pendingUpdate, followTicker, unlocked, warned
+local frame, pendingUpdate, followTicker, unlocked
+local armed = true      -- the warning sounds the next time you cross the threshold
 local entries = {}      -- reused threat entries, one per unit seen
 local list = {}         -- the entries shown this update, sorted
 local count = 0
@@ -101,10 +112,9 @@ local function ShortThreat(v)
     return tostring(math.floor(v + 0.5))
 end
 
--- The mob whose threat table is shown: your target when you can attack it, otherwise what
--- your friendly target is fighting (a healer targeting the tank).
-local function TrackedUnit()
-    return S.Get("focusEnabled") and S.Get("source") == "focus" and "focus" or "target"
+-- The saved source stays "focus" after Focus Tracking is turned off; the meter goes back to the target.
+local function Rewatch()
+    watched = S.Get("focusEnabled") and S.Get("source") or "target"
 end
 
 local function Attackable(unit)
@@ -112,19 +122,17 @@ local function Attackable(unit)
     return Readable(exists) and exists and Readable(hostile) and hostile
 end
 
+-- The watched unit when you can attack it, else the enemy a friendly one is fighting (a healer
+-- targeting the tank).
 local function ThreatMob()
-    local tracked = TrackedUnit()
-    if Attackable(tracked) then return tracked end
-    local other = tracked == "focus" and "focustarget" or "targettarget"
-    if Attackable(other) then return other end
+    if Attackable(watched) then return watched end
+    local enemy = watched .. "target"
+    if Attackable(enemy) then return enemy end
 end
 
--- A tank does not want to be warned about holding aggro: tank role, Bear or Dire Bear
--- Form, or Defensive Stance.
-local function PlayerIsTank()
-    if UnitGroupRolesAssigned("player") == "TANK" then return true end
-    local form = GetShapeshiftFormID()
-    return form == 5 or form == 8 or form == 18
+local function TankSkipsWarning()
+    if not S.Get("warnSkipTank") then return false end
+    return UnitGroupRolesAssigned("player") == "TANK" or TANK_FORMS[GetShapeshiftFormID()] == true
 end
 
 -------------------------------------------------------------------------------
@@ -256,7 +264,7 @@ local function Layout()
     frame:SetResizeBounds(MIN_WIDTH, math.max(MIN_HEIGHT, HeaderHeight() + FOOTER + 2 * INSET + bh), 520, 700)
     local shown
     shown, offset = Look.Layout(frame, math.min(#list, S.Get("maxBars")), offset, bh, gap, fontSize)
-    frame.source.label:SetText(TrackedUnit() == "focus" and "Focus" or "Target")
+    frame.source.label:SetText(watched == "focus" and "Focus" or "Target")
     frame.source:SetShown(S.Get("focusEnabled"))
     frame.lock.label:SetText(S.Get("locked") and "L" or "U")
     local statusTop = S.Get("statusPos") == "top"
@@ -288,7 +296,7 @@ local function Build()
     frame:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT, 520, 700)
     Look.New(frame)
     frame.source = ns.Button(frame.header, "Target", 58, 18, function()
-        S.Set("source", TrackedUnit() == "focus" and "target" or "focus")
+        S.Set("source", watched == "focus" and "target" or "focus")
     end)
     frame.source:SetPoint("TOPRIGHT", -8, -5)
     ns.Tooltip(frame.source, "Threat Source", "Click to switch between your target and focus.")
@@ -359,75 +367,80 @@ local function Clear()
     for i = #list, 1, -1 do list[i] = nil end
 end
 
-local RAID, RAID_PETS, PARTY, PARTY_PETS = {}, {}, {}, {}
-local OWNER, GROUP_UNIT = { player = "player", pet = "player" }, { player = true, pet = true }
-for i = 1, MAX_RAID_MEMBERS do RAID[i], RAID_PETS[i] = "raid" .. i, "raidpet" .. i end
-for i = 1, MAX_PARTY_MEMBERS do PARTY[i], PARTY_PETS[i] = "party" .. i, "partypet" .. i end
-for _, pair in ipairs({ { RAID, RAID_PETS }, { PARTY, PARTY_PETS } }) do
-    for i, unit in ipairs(pair[1]) do
-        local pet = pair[2][i]
-        OWNER[unit], OWNER[pet] = unit, unit
-        GROUP_UNIT[unit], GROUP_UNIT[pet] = true, true
+-- Each member token followed by its pet's, so every odd slot is a member.
+local PARTY_UNITS, RAID_UNITS = { "player", "pet" }, {}
+for i = 1, MAX_PARTY_MEMBERS do
+    PARTY_UNITS[#PARTY_UNITS + 1] = "party" .. i
+    PARTY_UNITS[#PARTY_UNITS + 1] = "partypet" .. i
+end
+for i = 1, MAX_RAID_MEMBERS do
+    RAID_UNITS[#RAID_UNITS + 1] = "raid" .. i
+    RAID_UNITS[#RAID_UNITS + 1] = "raidpet" .. i
+end
+local OWNER, IN_GROUP = {}, {}
+for _, units in ipairs({ PARTY_UNITS, RAID_UNITS }) do
+    for i = 1, #units, 2 do
+        local member, pet = units[i], units[i + 1]
+        OWNER[member], OWNER[pet] = member, member
+        IN_GROUP[member], IN_GROUP[pet] = true, true
     end
 end
 
-local function Add(unit, mob)
+-- pullPct is how close the unit is to pulling aggro (100 takes it), tankPct its share of the
+-- tank's threat.
+local function Read(unit, mob)
     if not UnitExists(unit) then return end
-    local tanking, _, scaled, rawPct, raw = UnitDetailedThreatSituation(unit, mob)
-    if not (Readable(raw) and Readable(scaled) and Readable(tanking)) or raw <= 0 then return end
-    local e = NextEntry()
-    e.unit, e.name, e.raw, e.scaled, e.tanking = unit, UnitName(unit), raw, scaled, tanking
-    local own = UnitIsUnit(unit, "player")
-    e.isPlayer, e.pull = Readable(own) and own, nil
-    e.rawPct = Readable(rawPct) and rawPct or nil
-    e.order, e.class = count, nil
+    local tanking, _, pullPct, tankPct, threat = UnitDetailedThreatSituation(unit, mob)
+    if not (Readable(threat) and Readable(pullPct) and Readable(tanking)) or threat <= 0 then return end
+    local isPlayer = UnitIsUnit(unit, "player")
     local owner = OWNER[unit]
-    e.isPet = owner ~= unit
     local _, class = UnitClass(owner)
-    if Readable(class) then e.class = class end
+    local e = NextEntry()
+    e.unit, e.name, e.seq = unit, UnitName(unit), count
+    e.threat, e.pullPct, e.tankPct = threat, pullPct, Readable(tankPct) and tankPct or nil
+    e.tanking, e.isPlayer, e.isLine = tanking, Readable(isPlayer) and isPlayer, false
+    e.isPet, e.class = owner ~= unit, Readable(class) and class or nil
+    return e
 end
 
+-- Your threat over how close you are to pulling is the threat that pulls.
+local function FillLine(e, me)
+    e.unit, e.name, e.class, e.seq = nil, LINE_NAME, nil, 0
+    e.threat, e.pullPct = me.threat * 100 / me.pullPct, 100
+    e.tankPct = me.tankPct and me.tankPct * 100 / me.pullPct
+    e.tanking, e.isPlayer, e.isLine, e.isPet = false, false, true, false
+end
+
+local function LineFor(me)
+    return S.Get("pullBar") and me and not me.tanking and me.pullPct > 0
+end
+
+-- Equal threat keeps the read order, so rows do not swap places between updates.
+local function MoreThreat(a, b)
+    return a.threat > b.threat or a.threat == b.threat and a.seq < b.seq
+end
+
+-- Reads the group's threat on mob into list, sorted, and returns your own entry.
 local function Collect(mob)
     Clear()
-    local pets = not S.Get("ignorePets")
-    if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
-            Add(RAID[i], mob)
-            if pets then Add(RAID_PETS[i], mob) end
-        end
-    else
-        Add("player", mob)
-        if pets then Add("pet", mob) end
-        for i = 1, GetNumSubgroupMembers() do
-            Add(PARTY[i], mob)
-            if pets then Add(PARTY_PETS[i], mob) end
-        end
+    local units, members = PARTY_UNITS, GetNumSubgroupMembers() + 1
+    if IsInRaid() then units, members = RAID_UNITS, GetNumGroupMembers() end
+    local step = S.Get("ignorePets") and 2 or 1
+    local me
+    for i = 1, members * 2, step do
+        local e = Read(units[i], mob)
+        if e and e.isPlayer then me = e end
     end
-end
-
-local function ByThreat(a, b)
-    if a.raw == b.raw then return a.order < b.order end
-    return a.raw > b.raw
-end
-
--- Where you pull aggro: scaled percent is threat against your own pull line (100 = you
--- take it), so the line is your threat scaled up to 100.
-local function FillPull(e, me, tankRaw)
-    e.unit, e.name, e.raw, e.scaled, e.tanking = nil, "Pull Aggro", me.raw * 100 / me.scaled, 100, false
-    e.isPlayer, e.pull, e.isPet, e.class, e.order = false, true, false, nil, 0
-    e.rawPct = tankRaw and tankRaw > 0 and e.raw * 100 / tankRaw or nil
-end
-
-local function AddPullEntry(me, tankRaw)
-    if not (me and not me.tanking and me.scaled > 0) then return end
-    FillPull(NextEntry(), me, tankRaw)
+    if LineFor(me) then FillLine(NextEntry(), me) end
+    table.sort(list, MoreThreat)
+    return me
 end
 
 -------------------------------------------------------------------------------
 --  Display
 -------------------------------------------------------------------------------
 -- Apply Theme to Your Bar: your bar in a darker shade of the theme's Accent, so the white names
--- and numbers stay readable on it. The tank and pull aggro bars keep their own colors, which
+-- and numbers stay readable on it. The tank bar and the aggro line keep their own colors, which
 -- tell the roles apart. The shade is built once, on first use, after the theme is applied.
 local yourShade
 local function ThemedColor(key)
@@ -442,7 +455,7 @@ local function BarColor(key)
 end
 
 local function RowColor(e)
-    if e.pull then return BarColor("pullColor") end
+    if e.isLine then return BarColor("pullColor") end
     if e.isPlayer and S.Get("playerColorOn") then return BarColor("playerColor") end
     if e.tanking and S.Get("tankColorOn") then return BarColor("tankColor") end
     return e.class and RAID_CLASS_COLORS[e.class] or FALLBACK_COLOR
@@ -450,7 +463,7 @@ end
 
 function Look.State(me)
     if me and me.tanking then return "HOLDING AGGRO" end
-    if me then return ("YOU %.0f%% TO PULL"):format(me.scaled) end
+    if me then return ("YOU %.0f%% TO PULL"):format(me.pullPct) end
     return "NO PLAYER THREAT"
 end
 
@@ -462,16 +475,16 @@ local function ClassIcon(class)
 end
 
 function Look.Paint(f, shownList, first, shown, title, state)
-    local top = shownList[1] and shownList[1].raw or 0
+    local top = shownList[1] and shownList[1].threat or 0
     f.header.text:SetText(title)
     local rank = 0
     for _, e in ipairs(shownList) do
-        if not e.pull then rank = rank + 1 end
+        if not e.isLine then rank = rank + 1 end
         e.rank = rank
     end
     local rowBg = ns.ThemeTint("panel", ROW_BG)
     local showValue, showPercent = S.Get("showValue"), S.Get("showPercent")
-    local tankPercent = S.Get("percentMode") == "tank"
+    local share = S.Get("percentMode") == "tank" and "tankPct" or "pullPct"
     for i = 1, shown do
         local e, row = shownList[first + i], f.rows[i]
         local c = RowColor(e)
@@ -479,8 +492,8 @@ function Look.Paint(f, shownList, first, shown, title, state)
         row.bg:SetColorTexture(rowBg.r, rowBg.g, rowBg.b, 1)
         local own = e.isPlayer and S.Get("highlightPlayer")
         row.edge:SetColorTexture(own and T.accent.r or c.r, own and T.accent.g or c.g, own and T.accent.b or c.b, 1)
-        row:SetValue(top > 0 and e.raw / top or 0)
-        row.rank:SetText(e.pull and "-" or tostring(e.rank))
+        row:SetValue(top > 0 and e.threat / top or 0)
+        row.rank:SetText(e.isLine and "-" or tostring(e.rank))
         row.name:SetText(e.name)
         row.name:SetTextColor(1, 1, 1)
         if own then
@@ -488,22 +501,20 @@ function Look.Paint(f, shownList, first, shown, title, state)
             if mark then row.bg:SetColorTexture(mark.r * 0.27, mark.g * 0.27, mark.b * 0.27, 1)
             else row.bg:SetColorTexture(0.04, 0.19, 0.25, 1) end
         end
-        row.icon:SetTexture(e.pull and "Interface\\Icons\\Ability_Warrior_Challange"
+        row.icon:SetTexture(e.isLine and "Interface\\Icons\\Ability_Warrior_Challange"
             or e.class and ClassIcon(e.class) or "Interface\\Icons\\Ability_Hunter_BeastCall")
         row.icon:SetDesaturated(e.isPet == true)
-        local value = showValue and e.raw or false
+        local value = showValue and e.threat or false
         if row.shownValue ~= value then
             row.shownValue = value
             row.value:SetText(value and ShortThreat(value) or "")
         end
-        local percent = e.scaled
-        if tankPercent then percent = e.rawPct end
-        percent = showPercent and percent or false
+        local percent = showPercent and e[share] or false
         if row.shownPercent ~= percent then
             row.shownPercent = percent
             row.percent:SetText(percent and ("%.0f%%"):format(percent) or "")
         end
-        local danger = not e.pull and not e.tanking and e.scaled >= S.Get("warnAt")
+        local danger = not e.isLine and not e.tanking and e.pullPct >= S.Get("warnAt")
         row.percent:SetTextColor(1, danger and 0.35 or 1, danger and 0.25 or 1)
     end
     f.footer.state:SetText(state)
@@ -515,30 +526,71 @@ function Render(title, me)
     Look.Paint(frame, list, offset, shown, title, (preview or unlocked) and "PREVIEW" or Look.State(me))
 end
 
-local function CheckWarning(me)
-    if not S.Get("warnSound") then warned = false; return end
-    local over = me and not me.tanking and me.scaled >= S.Get("warnAt")
-        and not (S.Get("warnSkipTank") and PlayerIsTank())
-    if over and not warned then UI._PlayLSMSound(UI.SoundPathFor(S.Get("warnSoundKey"))) end
-    warned = over
+-- The previews' groups, your own row first. Each has someone holding aggro.
+local SAMPLES = {
+    solo = { title = "Defias Pillager",
+        { you = true, threat = 1850, pullPct = 100, tanking = true } },
+    tanking = { title = "Edwin VanCleef",
+        { you = true, threat = 12400, pullPct = 100, tanking = true },
+        { name = "Vashtir", class = "ROGUE", threat = 9100, pullPct = 67 },
+        { name = "Elowen", class = "MAGE", threat = 7300, pullPct = 45 },
+        { name = "Wolf", class = "HUNTER", pet = true, threat = 4200, pullPct = 31 },
+        { name = "Aldric", class = "PRIEST", threat = 3100, pullPct = 19 } },
+    pulling = { title = "Edwin VanCleef",
+        { you = true, threat = 10560, pullPct = 96 },
+        { name = "Gorrak", class = "WARRIOR", threat = 10000, pullPct = 100, tanking = true },
+        { name = "Maren", class = "PRIEST", threat = 4400, pullPct = 34 },
+        { name = "Talwyn", class = "HUNTER", threat = 3900, pullPct = 30 } },
+}
+
+-- Fills out with a sample group from pool's entries, sorted, and returns your own entry.
+local function FillSample(sample, out, pool)
+    wipe(out)
+    local tankThreat
+    for _, s in ipairs(sample) do
+        if s.tanking then tankThreat = s.threat end
+    end
+    local _, class = UnitClass("player")
+    local me
+    for i, s in ipairs(sample) do
+        if not (s.pet and S.Get("ignorePets")) then
+            local e = pool[i] or {}
+            pool[i] = e
+            e.unit, e.name, e.seq = nil, s.you and (UnitName("player") or "You") or s.name, i
+            e.threat, e.pullPct, e.tankPct = s.threat, s.pullPct, s.threat * 100 / tankThreat
+            e.tanking, e.isPlayer, e.isLine, e.isPet = s.tanking == true, s.you == true, false, s.pet == true
+            e.class = s.you and class or s.class
+            if e.isPlayer then me = e end
+            out[#out + 1] = e
+        end
+    end
+    if LineFor(me) then
+        local e = pool[#sample + 1] or {}
+        pool[#sample + 1] = e
+        FillLine(e, me)
+        out[#out + 1] = e
+    end
+    table.sort(out, MoreThreat)
+    return me
+end
+
+-- Sounds when your threat crosses the threshold; rearms below it, and for each new mob.
+local function Warn(me)
+    local due = S.Get("warnSound") and me and not me.tanking and me.pullPct >= S.Get("warnAt")
+        and not TankSkipsWarning()
+    if not due then
+        armed = true
+    elseif armed then
+        armed = false
+        UI._PlayLSMSound(UI.SoundPathFor(S.Get("warnSoundKey")))
+    end
 end
 
 function RenderSample()
-    Clear()
-    local samples = { { "Tank", 10000, 100, true }, { UnitName("player"), 8200, 82 },
-        { "Healer", 6100, 61 }, { "Hunter", 3400, 34 } }
-    for i, s in ipairs(samples) do
-        local e = NextEntry()
-        e.unit, e.name, e.raw, e.scaled, e.tanking = "player", s[1], s[2], s[3], s[4] == true
-        e.isPlayer, e.pull = i == 2, false
-    end
-    local classes = { "WARRIOR", "PALADIN", "PRIEST", "HUNTER" }
-    for i, e in ipairs(list) do e.class, e.isPet, e.order, e.rawPct = classes[i], false, i, e.scaled end
-    if S.Get("pullBar") then AddPullEntry(list[2], 10000) end
-    table.sort(list, ByThreat)
-    Render("Training Dummy")
+    local sample = SAMPLES.pulling
+    FillSample(sample, list, entries)
+    Render(sample.title)
 end
-
 
 -- UNIT_THREAT_LIST_UPDATE names a real unit token (target, a nameplate, a boss), never
 -- targettarget, so while the meter follows a friendly target's enemy nothing reports that
@@ -552,15 +604,11 @@ local function SetFollow(on)
     end
 end
 
-local function SetThreatEvents(on)
-    if threatEventsOn == on then return end
-    threatEventsOn = on
-    if on then
-        events:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
-        events:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
-    else
-        events:UnregisterEvent("UNIT_THREAT_LIST_UPDATE")
-        events:UnregisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+local function ListenForThreat(on)
+    if on == listening then return end
+    listening = on
+    for _, event in ipairs(THREAT_EVENTS) do
+        if on then events:RegisterEvent(event) else events:UnregisterEvent(event) end
     end
 end
 
@@ -568,39 +616,30 @@ function Update()
     pendingUpdate = false
     if not frame then return end
     if not On() then SetFollow(false); frame:Hide(); return end
-    if unlocked or preview then
-        SetThreatEvents(false); SetFollow(false); RenderSample(); frame:Show(); return
-    end
-    local mob = ThreatMob()
+    local sample = unlocked or preview
+    local mob = not sample and ThreatMob() or nil
     currentMob = mob
-    SetThreatEvents(mob ~= nil)
-    local visible = S.Get("visibility")
-    local combat = InCombatLockdown()
-    if mob then
-        local fighting = UnitAffectingCombat(mob)
-        combat = combat or Readable(fighting) and fighting
-    end
-    if visible == "combat" and not combat or visible == "group" and not IsInGroup() then
+    ListenForThreat(mob ~= nil)
+    if sample then SetFollow(false); RenderSample(); frame:Show(); return end
+    local guid = mob and UnitGUID(mob)
+    if Readable(guid) and guid ~= mobGUID then mobGUID, armed, offset = guid, true, 0 end
+    local fighting = mob and UnitAffectingCombat(mob)
+    local combat = InCombatLockdown() or Readable(fighting) and fighting
+    local mode = S.Get("visibility")
+    if mode == "combat" and not combat or mode == "group" and not IsInGroup() then
         SetFollow(false); frame:Hide(); return
     end
-    SetFollow(mob ~= nil and mob ~= TrackedUnit() and combat)
-    if mob then Collect(mob) else Clear() end
-    if #list == 0 then
-        warned, warnedMob = false, nil
-        if visible == "threat" then frame:Hide(); return end
-        Render(mob and UnitName(mob) or "No target"); frame:Show(); return
+    SetFollow(mob ~= nil and mob ~= watched and combat)
+    local me
+    if mob then me = Collect(mob) else Clear() end
+    if #list > 0 then
+        Warn(me)
+    else
+        armed = true
+        if mode == "threat" then frame:Hide(); return end
     end
-    local me, tankRaw
-    for _, e in ipairs(list) do
-        if e.isPlayer then me = e end
-        if e.tanking then tankRaw = e.raw end
-    end
-    local guid = UnitGUID(mob)
-    if Readable(guid) and guid ~= warnedMob then warned, warnedMob, offset = false, guid, 0 end
-    CheckWarning(me)
-    if S.Get("pullBar") then AddPullEntry(me, tankRaw) end
-    table.sort(list, ByThreat)
-    Render(UnitName(mob), me); frame:Show()
+    Render(mob and UnitName(mob) or "No target", me)
+    frame:Show()
 end
 
 function RequestUpdate()
@@ -610,20 +649,23 @@ function RequestUpdate()
     C_Timer.After(UPDATE_DELAY, function() if generation == updateGeneration then Update() end end)
 end
 
+local SWITCHED = { PLAYER_TARGET_CHANGED = "target", PLAYER_FOCUS_CHANGED = "focus" }
+
 events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit)
-    if event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_FOCUS_CHANGED" then
-        if (event == "PLAYER_FOCUS_CHANGED") ~= (TrackedUnit() == "focus") then return end
-        warned, warnedMob, offset = false, nil, 0
+    if SWITCHED[event] then
+        if SWITCHED[event] ~= watched then return end
+        armed, mobGUID, offset = true, nil, 0
     elseif event == "PLAYER_REGEN_DISABLED" then
         preview = false
         if frame and (frame.sizing or frame.moving) then frame:StopMovingOrSizing(); frame.sizing, frame.moving = false, false end
     elseif event == "UNIT_THREAT_LIST_UPDATE" then
-        if not Readable(unit) or not currentMob then return end
+        if not (currentMob and Readable(unit)) then return end
+        -- A secret answer may still be the shown mob, so only a readable "no" skips it.
         local same = UnitIsUnit(unit, currentMob)
         if Readable(same) and not same then return end
     elseif event == "UNIT_THREAT_SITUATION_UPDATE" or event == "UNIT_PET" then
-        if not Readable(unit) or not GROUP_UNIT[unit] then return end
+        if not (Readable(unit) and IN_GROUP[unit]) then return end
     end
     RequestUpdate()
 end)
@@ -658,12 +700,13 @@ end
 local function Apply()
     MigrateVisibility()
     MigrateTexture()
+    Rewatch()
     events:UnregisterAllEvents()
-    threatEventsOn = false
+    listening = false
     updateGeneration = updateGeneration + 1; pendingUpdate = false
     if not (On() or unlocked) then
         SetFollow(false)
-        warned = false
+        armed = true
         if frame then frame:Hide() end
         return
     end
@@ -699,7 +742,10 @@ end
 
 hooksecurefunc(S, "Set", function(key)
     if key == "threatPos" then return end
-    if key == "source" or key == "focusEnabled" then offset, warned, warnedMob = 0, false, nil end
+    if key == "source" or key == "focusEnabled" then
+        Rewatch()
+        offset, armed, mobGUID = 0, true, nil
+    end
     if key == "enabled" then previewGeneration = previewGeneration + 1; preview = false; Apply() else RequestUpdate() end
 end)
 hooksecurefunc(ns, "Apply", Apply)
@@ -732,21 +778,6 @@ local GRIP_SIZE, GRIP_INSET = 16, 2
 local HEADER_STUB = 8
 local WIDTH_RANGE, HEIGHT_RANGE = { MIN_WIDTH, 520, 1 }, { MIN_HEIGHT, 700, 1 }
 local ROW_H_RANGE, SPACING_RANGE, TEXT_RANGE = { 12, 72, 1 }, { 0, 16, 1 }, { 8, 24, 1 }
-local SAMPLES = {
-    solo = { title = "Defias Pillager",
-        { you = true, raw = 1850, scaled = 100, tanking = true } },
-    tanking = { title = "Edwin VanCleef",
-        { you = true, raw = 12400, scaled = 100, tanking = true },
-        { name = "Rogue", class = "ROGUE", raw = 9100, scaled = 67 },
-        { name = "Mage", class = "MAGE", raw = 7300, scaled = 45 },
-        { name = "Wolf", class = "HUNTER", pet = true, raw = 4200, scaled = 31 },
-        { name = "Priest", class = "PRIEST", raw = 3100, scaled = 19 } },
-    pulling = { title = "Edwin VanCleef",
-        { you = true, raw = 10560, scaled = 96 },
-        { name = "Tank", class = "WARRIOR", raw = 10000, scaled = 100, tanking = true },
-        { name = "Healer", class = "PRIEST", raw = 4400, scaled = 34 },
-        { name = "Hunter", class = "HUNTER", raw = 3900, scaled = 30 } },
-}
 local STATES = {
     { key = "solo", label = "Solo", tip = "On your own, holding the mob." },
     { key = "tanking", label = "Tanking", tip = "Your group on a boss you are tanking." },
@@ -755,7 +786,7 @@ local STATES = {
 local VISIBILITY = { always = "Always", threat = "With Threat", combat = "In Combat", group = "In a Group" }
 local SHOW = { VISIBILITY, { "always", "threat", "combat", "group" } }
 local SOURCE = { { target = "Target", focus = "Focus" }, { "target", "focus" } }
-local PERCENT = { { pull = "Pull Aggro", tank = "Tank Threat" }, { "pull", "tank" } }
+local PERCENT = { { pull = "Aggro Line", tank = "Tank Threat" }, { "pull", "tank" } }
 local STATUS = { { bottom = "Bottom", top = "Top" }, { "bottom", "top" } }
 local ROW_TOGGLES = {
     { "showValue", "Show Threat" },
@@ -787,36 +818,6 @@ end
 
 local function Picked(key)
     return function(r, g, b) S.Set(key, { r = r, g = g, b = b }) end
-end
-
-local function SampleList(shot, state)
-    local sample = SAMPLES[state]
-    local out, pool = shot.list, shot.pool
-    wipe(out)
-    local _, class = UnitClass("player")
-    local me, tankRaw
-    for i, s in ipairs(sample) do
-        if not (s.pet and S.Get("ignorePets")) then
-            local e = pool[i]
-            if not e then e = {}; pool[i] = e end
-            e.unit, e.name = nil, s.you and (UnitName("player") or "You") or s.name
-            e.raw, e.scaled, e.tanking = s.raw, s.scaled, s.tanking == true
-            e.isPlayer, e.pull, e.isPet, e.order = s.you == true, false, s.pet == true, i
-            e.class = s.you and class or s.class
-            if e.tanking then tankRaw = e.raw end
-            if e.isPlayer then me = e end
-            out[#out + 1] = e
-        end
-    end
-    for _, e in ipairs(out) do e.rawPct = tankRaw and e.raw * 100 / tankRaw or nil end
-    if S.Get("pullBar") and me and not me.tanking then
-        local e = pool[#sample + 1]
-        if not e then e = {}; pool[#sample + 1] = e end
-        FillPull(e, me, tankRaw)
-        out[#out + 1] = e
-    end
-    table.sort(out, ByThreat)
-    return sample.title, me
 end
 
 local function Snap(v, range)
@@ -1057,7 +1058,8 @@ end
 local function PaintPreview(shot, state)
     EndSize(shot)
     local f = shot.meter
-    local title, me = SampleList(shot, state)
+    local me = FillSample(SAMPLES[state], shot.list, shot.pool)
+    local title = SAMPLES[state].title
     local total = math.min(#shot.list, S.Get("maxBars"))
     local shown = Look.Layout(f, total, 0, S.Get("barHeight"), S.Get("barSpacing"), S.Get("fontSize"))
     local status = Look.State(me)
@@ -1081,7 +1083,7 @@ end
 
 local function Headline()
     if not On() then return "Threat Meter is off" end
-    return TrackedUnit() == "focus" and "Tracking threat on your focus" or "Tracking threat on your target"
+    return watched == "focus" and "Tracking threat on your focus" or "Tracking threat on your target"
 end
 
 local function Detail()
@@ -1122,7 +1124,7 @@ page:Card({
         { key = "visibility", label = "Show", choice = SHOW, needs = Enabled, why = OFF,
           help = "With Threat: hidden until someone in your group has threat on the mob." },
         { key = "percentMode", label = "Percent Of", choice = PERCENT, needs = Enabled, why = OFF,
-          help = "Pull Aggro: 100% takes aggro. Tank Threat: 100% equals the current tank's threat." },
+          help = "Aggro Line: 100% takes aggro. Tank Threat: 100% equals the current tank's threat." },
         { key = "ignorePets", label = "Ignore Pets", toggle = true, needs = Enabled, why = OFF,
           help = "Leave hunter and warlock pets off the meter." },
         { key = "maxBars", label = "Maximum Entries", slider = { 1, 80, 1 }, needs = Enabled, why = OFF },
@@ -1152,7 +1154,7 @@ page:Card({
         { key = "barSpacing", label = "Row Spacing", slider = SPACING_RANGE, needs = Enabled, why = OFF },
         { key = "showValue", label = "Show Threat", toggle = true, needs = Enabled, why = OFF },
         { key = "showPercent", label = "Show Percent", toggle = true, needs = Enabled, why = OFF,
-          help = "Uses the Percent Of setting: Pull Aggro or Tank Threat." },
+          help = "Uses the Percent Of setting: Aggro Line or Tank Threat." },
         { key = "showIcons", label = "Class Icons", toggle = true, needs = Enabled, why = OFF,
           help = "Pets use their owner's class icon, desaturated." },
         { key = "showRanks", label = "Rank Numbers", toggle = true, needs = Enabled, why = OFF },
@@ -1168,15 +1170,15 @@ page:Card({
         { key = "themeColors", label = "Apply Theme to Your Bar", toggle = true, needs = Needs("playerColorOn"),
           why = "Needs Colour Your Bar",
           help = "Your bar in a darker shade of your theme's Accent instead of the colour picked above. The "
-              .. "tank and pull aggro colours stay as picked." },
+              .. "tank and aggro line colours stay as picked." },
         { key = "tankColorOn", label = "Colour the Tank", toggle = true, needs = Enabled, why = OFF,
           help = "Whoever holds aggro in one colour." },
         { key = "tankColor", label = "Tank Colour", colour = true, needs = Needs("tankColorOn"),
           why = "Needs Colour the Tank" },
-        { key = "pullBar", label = "Pull Aggro Bar", toggle = true, needs = Enabled, why = OFF,
+        { key = "pullBar", label = "Aggro Line", toggle = true, needs = Enabled, why = OFF,
           help = "A bar at the threat where you would pull aggro, so the gap to it is easy to read." },
-        { key = "pullColor", label = "Pull Aggro Colour", colour = true, needs = Needs("pullBar"),
-          why = "Needs Pull Aggro Bar" },
+        { key = "pullColor", label = "Aggro Line Colour", colour = true, needs = Needs("pullBar"),
+          why = "Needs Aggro Line" },
         { label = "Show It on Screen", buttonText = "Preview", needs = Enabled, why = OFF,
           button = function() ns.PreviewThreatMeter() end,
           help = "Shows the meter with sample bars where it sits on your screen, for ten seconds. Out of "

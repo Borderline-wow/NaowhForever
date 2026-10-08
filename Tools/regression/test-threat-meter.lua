@@ -59,7 +59,10 @@ local function fixture(settings, withSettings)
             TexturePath=function(name,fallback) if name=='Solid' then return 'solid' end return fallback end,
             SoundPathFor=function() return 'sound' end,_PlayLSMSound=function() s.sounds=s.sounds+1 end},
     }
-    ns.UI.ModuleSettings=function(_, defaults)
+    ns.UI.ModuleSettings=function(_, given)
+        -- Written against the meter's original defaults.
+        local defaults=setmetatable({enabled=false,width=280,height=240,barHeight=24,locked=true,fontSize=12,
+            statusPos='bottom'},{__index=given})
         return {Get=function(k) if s.settings[k]~=nil then return s.settings[k] end return defaults[k] end,
             Set=function(k,v) s.settings[k]=v end, DB=function() return s.settings end}
     end
@@ -82,7 +85,7 @@ local function fixture(settings, withSettings)
         GetNumGroupMembers=function() return s.raid and 12 or 3 end,
         GetNumSubgroupMembers=function() return s.group and 2 or 0 end,
         UnitGroupRolesAssigned=function() return s.role or 'DAMAGER' end,
-        GetShapeshiftFormID=function() return nil end,
+        GetShapeshiftFormID=function() return s.form end,
         issecretvalue=function(v) return type(v)=='table' and v.secret==true end,
         C_Timer={After=function(delay,fn) s.timers[#s.timers+1]={at=s.now+delay,fn=fn} end,
             NewTicker=function(delay,fn) local t={fn=fn,cancelled=false};function t:Cancel() self.cancelled=true end;s.tickers[#s.tickers+1]=t;return t end},
@@ -96,7 +99,8 @@ local function fixture(settings, withSettings)
     env.GameTooltip=frame('Tooltip')
     function env.GameTooltip:SetOwner(o) self.owner=o end
     function env.GameTooltip:GetOwner() return self.owner end
-    ns.Shared={Parts={HudFont=function(fs,font,size,outline) fs:SetFont('font.ttf',size,outline);fs.shadowFor=outline=='' end}}
+    ns.Shared={Parts={HudFont=function(fs,font,size,outline) fs:SetFont('font.ttf',size,outline);fs.shadowFor=outline=='' end},
+        Style={RED_RGB={r=0.97,g=0.44,b=0.44},HAVE_RGB={r=0.3,g=0.82,b=0.48},WARN_RGB={r=0.98,g=0.57,b=0.24}}}
     if withSettings then
         ns.Shared.Settings={Group=function(name) return {group=name} end,Look=function(_,opts) s.look=opts;return {} end,
             Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}
@@ -135,10 +139,11 @@ end
 do
  local s=fixture({enabled=true})
  check('target resolves',s.readMob=='target')
- check('pull line sorts before tank',s.bars()[1].name.text=='Pull Aggro')
+ check('pull line sorts before tank',s.bars()[1].name.text=='Aggro Line')
  check('pull line does not consume a rank',s.bar('Tank').rank.text=='1')
  check('player percent uses pull threshold',s.bar('You').percent.text=='82%')
  s.set('percentMode','tank');check('tank-relative percent is distinct',s.bar('You').percent.text=='90%')
+ check('pull line shows its share of the tank threat',s.bar('Aggro Line').percent.text=='110%')
  check('pet inherits owner class icon',s.bar('Pet').icon.texture:find('PALADIN',1,true)~=nil)
  check('pet icon is desaturated',s.bar('Pet').icon.desaturated)
  s.set('ignorePets',true);check('pet filter removes row',not s.bar('Pet'))
@@ -164,6 +169,10 @@ do
  check('dropping below threshold rearms warning',s.sounds==3)
  s.role='TANK';s.units.target.guid='third-mob';s.fire('PLAYER_TARGET_CHANGED');s.advance(0.21)
  check('tank role suppresses warning',s.sounds==3)
+ s.role=nil;s.form=8;s.units.target.guid='fourth-mob';s.fire('PLAYER_TARGET_CHANGED');s.advance(0.21)
+ check('tank form suppresses warning',s.sounds==3)
+ s.settings.warnSkipTank=false;s.units.target.guid='fifth-mob';s.fire('PLAYER_TARGET_CHANGED');s.advance(0.21)
+ check('tank forms warn with Not While Tanking off',s.sounds==4)
 end
 do
  local s=fixture({enabled=true});local reads=s.reads
@@ -192,7 +201,7 @@ do
  s.set('locked',true)
  s.set('statusPos','bottom');check('status line returns to the bottom',s.window.footer.point[1]=='BOTTOMRIGHT')
  s.set('growUp',true);check('grow up anchors rows above footer',s.bars()[1].point[1]=='BOTTOMLEFT')
- s.ns.PreviewThreatMeter();check('preview displays synthetic title',s.window.header.text.text=='Training Dummy')
+ s.ns.PreviewThreatMeter();check('preview displays synthetic title',s.window.header.text.text=='Edwin VanCleef')
  s.advance(10);check('preview returns to live target',s.window.header.text.text=='Target')
  s.fire('UNIT_THREAT_LIST_UPDATE','target');s.set('enabled',false);s.advance(1)
  check('stale queued update cannot reshow disabled meter',not s.window.shown)
@@ -376,5 +385,23 @@ end
 do
  local s=fixture({enabled=true},true)
  check('the meter card takes the shared text and bar rows',s.look and s.look.text and s.look.bar=='Naowh Gradient')
+end
+do
+ local s=fixture({enabled=true,source='focus'})
+ check('saved focus source waits for Focus Tracking',s.readMob=='target' and s.window.source.label.text=='Target')
+ s.set('focusEnabled',true);check('Focus Tracking brings the saved source back',s.readMob=='focus')
+end
+do
+ local s=fixture({enabled=true,tankColorOn=true})
+ local line,tank=s.bar('Aggro Line').color,s.bar('Tank').color
+ check('pull line takes the house warning colour',line[1]==0.98 and line[2]==0.57 and line[3]==0.24)
+ check('tank bar takes the house have colour',tank[1]==0.3 and tank[2]==0.82 and tank[3]==0.48)
+ s.set('playerColorOn',true);local own=s.bar('You').color
+ check('your bar takes the house red',own[1]==0.97 and own[2]==0.44 and own[3]==0.44)
+end
+do
+ local s=fixture({enabled=true})
+ s.units.party1.threat[5]=900;s.units.player.threat[5]=900;s.fire('UNIT_THREAT_LIST_UPDATE','target');s.advance(0.21)
+ check('equal threat keeps the read order',s.bar('You').rank.text=='1' and s.bar('Tank').rank.text=='2')
 end
 print(checks..' threat-meter checks passed')

@@ -78,6 +78,10 @@ local ns = {
     Font = function(parent) return parent:CreateFontString() end,
     Solid = function(parent) return parent:CreateTexture() end,
     Print = function(msg) printed[#printed + 1] = msg end,
+    ClearWaypoint = function()
+        userWaypoint = nil
+        cleared, superCleared = cleared + 1, superCleared + 1
+    end,
     Apply = NOOP, ShowRaidReminderAnchorConfig = NOOP, HideRaidReminderAnchorConfig = NOOP,
     UI = {
         AttachMover = function(frame) return NewFrame("Mover", frame) end,
@@ -123,6 +127,7 @@ local env = setmetatable({
     Enum = { SuperTrackingType = { Quest = 0, UserWaypoint = 1, Corpse = 2 } },
     SuperTrackedFrame = gameMarker,
     GetUnitSpeed = function() return speed end,
+    issecretvalue = function(v) return v == "secret" end,
     GetTime = function() return 0 end,
     BreakUpLargeNumbers = function(n)
         local s = tostring(n)
@@ -176,12 +181,20 @@ ns.placedWaypoint = { title = "Mage Trainer", map = 88, x = 46.2, y = 49.8 }
 userWaypoint = { uiMapID = 88, position = { x = 0.462, y = 0.498 } }
 nav.frame = navFrame
 events.scripts.OnEvent(events, "NAVIGATION_FRAME_CREATED")
-Check(pin:IsShown() and pin.point[2] == navFrame, "the pin sits on the navigation frame")
+Check(pin:IsShown() and pin.point[2] == navFrame and pin.point[5] == 36 / 2 + 80,
+    "the pin stands its line's length above the navigation point, the ring on the spot")
+S.Set("waypointBeam", false)
+Check(pin.point[2] == navFrame and pin.point[5] == 0, "with no line it sits on the spot")
+S.Set("waypointBeam", nil)
 Check(pin.card.name.text == "Mage Trainer" and pin.card.dist.text == "312 yd", "named as placed, with its distance")
 Check(pin.card.time.text == "about 0:45", "standing still, the walking time is at running pace")
 speed = 14
 driver.scripts.OnUpdate(driver, 0)
 Check(pin.card.time.text == "about 0:22", "moving, at your own speed")
+speed = "secret"
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:22", "a speed that reads secret keeps the last readable one")
+speed = 14
 Check(navBar:IsShown() and navBar.name.text == "Mage Trainer" and navBar.sub.text == "Thunder Bluff",
     "the navigator names it and its zone")
 Check(navBar.dist.text == "312 yd" and pin.scale < 1 and pin.scale > 0.65, "and shrinks the pin with distance")
@@ -244,6 +257,7 @@ local timersBefore = #timers
 events.scripts.OnEvent(events, "NAVIGATION_DESTINATION_REACHED", true)
 driver.scripts.OnUpdate(driver, 0)
 Check(pin.card.dist.text ~= "Arrived" and #timers == timersBefore and #played == 0, "a stop on the way is not an arrival")
+local stoodScale = pin.scale
 
 -- Reaching a waypoint you set: the game clears its tracking and the frame goes before the
 -- event reaches us. The arrival still shows, named, where the pin stood, then goes.
@@ -254,7 +268,8 @@ events.scripts.OnEvent(events, "NAVIGATION_FRAME_DESTROYED")
 events.scripts.OnEvent(events, "NAVIGATION_DESTINATION_REACHED", false)
 Check(pin:IsShown() and pin.card.dist.text == "Arrived" and pin.check.shown and pin.card.name.text == "Mage Trainer",
     "the arrival shows, still named, after the game cleared it")
-Check(pin.point[2] == UIParent and pin.point[3] == "BOTTOMLEFT" and pin.point[4] == 1100 and pin.point[5] == 700,
+Check(pin.point[2] == UIParent and pin.point[3] == "BOTTOMLEFT" and pin.point[4] == 1100
+    and math.abs(pin.point[5] - (700 + (36 / 2 + 80) * stoodScale)) < 1e-6,
     "where the pin stood")
 Check(navBar:IsShown() and navBar.dist.text == "Arrived" and played[#played] == "sound:naowh", "on the bar too, with the sound")
 timers[#timers].fn()
@@ -321,6 +336,14 @@ Check(driver.scripts.OnUpdate ~= nil, "and its timer does nothing")
 -- The navigator's clear button clears the waypoint and the game's tracking.
 navBar.clear.click()
 Check(cleared == 1 and superCleared == 1, "the navigator clears the waypoint")
+-- The game can keep its navigation frame after a clear and send no NAVIGATION_FRAME_DESTROYED.
+tracking = nil
+events.scripts.OnEvent(events, "SUPER_TRACKING_CHANGED")
+Check(not navBar:IsShown() and not pin:IsShown() and driver.scripts.OnUpdate == nil,
+    "with nothing tracked the navigator goes, though the frame stayed")
+tracking = 1
+events.scripts.OnEvent(events, "SUPER_TRACKING_CHANGED")
+Check(navBar:IsShown() and driver.scripts.OnUpdate ~= nil, "tracking again on that frame brings it back")
 
 -- Off again: idle, and the game's marker back.
 S.Set("waypoints", false)

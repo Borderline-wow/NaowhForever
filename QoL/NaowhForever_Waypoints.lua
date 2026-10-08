@@ -230,6 +230,7 @@ local arrived, arrivals = false, 0
 local lastX, lastY   -- where the pin last stood, in UIParent units, for an arrival
 local shown = {}
 local painted   -- what the texts and look were last drawn for; the place and arrows move every frame
+local knownSpeed = 0   -- your last readable speed: it reads secret at times, as in restricted content
 local NavSample = { name = "Mage Trainer", sub = "Thunder Bluff", yards = 312, mode = "world", angle = math.pi / 2 }
 
 -- A placed spot's note as a line of its own: " (entrance)" is "Entrance".
@@ -268,15 +269,12 @@ local function Build()
     pin:SetFrameStrata("LOW")
     pin:Hide()
     -- Clearing the waypoint also ends a route it is on.
-    nav = Look.NewNav(UIParent, function()
-        C_Map.ClearUserWaypoint()
-        C_SuperTrack.ClearAllSuperTracked()
-    end)
+    nav = Look.NewNav(UIParent, ns.ClearWaypoint)
     nav:SetFrameStrata("MEDIUM")
     nav:SetClampedToScreen(true)
     nav.mover = ns.UI.AttachMover(nav, "Waypoint Navigator", function(pos)
         S.Set("waypointNavPos", { point = pos.point, relPoint = pos.relPoint, x = pos.x, y = pos.y })
-    end, "QoL/Travel", "QoL/Travel:waypoints")
+    end, "QoL/Interface", "QoL/Interface:waypoints")
     nav:Hide()
     cue = CreateFrame("Frame", nil, UIParent)
     cue:SetSize(NAV_W, BEHIND_Y)
@@ -339,18 +337,22 @@ local function Update()
         side = math.abs(dx) >= math.abs(dy) and (dx > 0 and "right" or "left") or (dy > 0 and "top" or "bottom")
         lastX, lastY = cx + dx * t, cy + dy * t
     else
+        -- The navigation point is the spot on the ground: the ring at the line's foot goes there and
+        -- the pin stands above it.
+        local lift = S.Get("waypointBeam") and PIN / 2 + BEAM_H or 0
         if not pin.onNav then
             pin:ClearAllPoints()
-            pin:SetPoint("CENTER", navFrame, "CENTER")
+            pin:SetPoint("CENTER", navFrame, "CENTER", 0, lift)
             pin.onNav = true
         end
-        lastX, lastY = nx, ny
+        lastX, lastY = nx, ny + lift * scale
     end
     pin:SetShown(not behind and (mode ~= "edge" or S.Get("waypointEdge")))
     cue:SetShown(behind and S.Get("waypointEdge"))
 
     local speed = GetUnitSpeed("player")
-    local seconds = S.Get("waypointTime") and yards / (speed > 0 and speed or RUN_SPEED) or nil
+    if not (issecretvalue and issecretvalue(speed)) then knownSpeed = speed end
+    local seconds = S.Get("waypointTime") and yards / (knownSpeed > 0 and knownSpeed or RUN_SPEED) or nil
     shown.angle = angle
     local key = ("%s %s %d %d"):format(mode, side or "", yards + 0.5, (seconds or -1) + 0.5)
     if key ~= painted then
@@ -456,8 +458,14 @@ events:SetScript("OnEvent", function(_, event, isWaypoint)
     elseif event == "NAVIGATION_DESTINATION_REACHED" then
         -- isWaypoint: a stop on the way there (a zone's exit), not the spot itself.
         if not isWaypoint then Arrived() end
-    -- Nothing tracked: the game cleared it on arrival, and the name stays for the arrival.
-    elseif navFrame and not arrived and C_SuperTrack.GetHighestPrioritySuperTrackingType() then
+    -- Nothing tracked: cleared, or reached. A clear can leave the navigation frame up with no
+    -- NAVIGATION_FRAME_DESTROYED, which left the navigator showing; the name stays for an arrival.
+    elseif not C_SuperTrack.GetHighestPrioritySuperTrackingType() then
+        if navFrame then Detach() end
+    -- Tracking again on a frame that stayed: it is not created again.
+    elseif not navFrame then
+        if C_Navigation.GetFrame() then Attach() end
+    elseif not arrived then
         Retitle()
     end
 end)
@@ -556,8 +564,8 @@ end
 
 local SHAPE_CHOICES = { { hex = "Hex", diamond = "Diamond", dot = "Dot" }, { "hex", "diamond", "dot" } }
 
-Settings.Page("QoL/Travel", S):Card({
-    id = "waypoints", name = "Waypoint Pin", order = 20, switch = "waypoints",
+Settings.Page("QoL/Interface", S):Card({
+    id = "waypoints", name = "Waypoint Pin", order = 42, switch = "waypoints",
     help = "Marks the spot you are heading to in the world, with its distance.",
     summary = function(store) return SHAPE_CHOICES[1][store.Get("waypointShape")] .. " pin" end,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },

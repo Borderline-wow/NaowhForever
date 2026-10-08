@@ -60,7 +60,7 @@ local RED = { r = 0.97, g = 0.27, b = 0.27 }
 local YELLOW = { r = 1, g = 0.85, b = 0.3 }
 local BLUE = { r = 0.35, g = 0.6, b = 1 }
 local ICON_BORDER = { r = 0, g = 0, b = 0 }
-local MARK_SIZE, LABEL_SIZE = 14, 10
+local MARK_SIZE, LABEL_SIZE, LABEL_MIN = 14, 10, 7
 local HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
 local AURA_TIP = "Left-click: cast your aura.\nRight-click: choose it."
 local FURY_TIP = "Left-click: cast it on yourself."
@@ -724,7 +724,35 @@ end
 function Look.Label(cell, class)
     cell.label = ns.Font(cell, LABEL_SIZE, "OUTLINE")
     cell.label:SetPoint("TOP", cell, "BOTTOM", 0, -2)
-    cell.label:SetText(ClassName(class))
+    cell.label:SetWordWrap(false)
+    cell.labelText = ClassName(class)
+    cell.label:SetText(cell.labelText)
+end
+
+-- The first n letters of a name, in whole UTF-8 characters so a localized name never splits.
+local function Shorten(text, n)
+    local count = 0
+    for at in text:gmatch("()[^\128-\191]") do
+        count = count + 1
+        if count > n then return text:sub(1, at - 1) end
+    end
+    return text
+end
+
+-- Each name gets its own slot under the bar, the button plus the gap after it. A name too
+-- long for it first shrinks, down to LABEL_MIN, then drops to its first three letters at
+-- that size, and is cut off if even that is too long, so neighbours never run into each other.
+local function FitLabel(label, text, width, font, outline)
+    Parts.HudFont(label, font, LABEL_SIZE, outline)
+    label:SetWidth(0)
+    label:SetText(text)
+    local full = label:GetUnboundedStringWidth()
+    if full <= width then return end
+    -- Text width grows with the font size, so this is the size the name just fits at.
+    Parts.HudFont(label, font, math.max(LABEL_MIN, math.floor(LABEL_SIZE * width / full)), outline)
+    if label:GetUnboundedStringWidth() <= width then return end
+    label:SetText(Shorten(text, 3))
+    if label:GetUnboundedStringWidth() > width then label:SetWidth(width) end
 end
 
 function Look.Read()
@@ -750,7 +778,6 @@ function Look.Place(frame, row, x)
     Parts.HudFont(frame.mark, font, MARK_SIZE, outline)
     frame.mark:SetTextColor(missing.r, missing.g, missing.b)
     if frame.label then
-        Parts.HudFont(frame.label, font, LABEL_SIZE, outline)
         frame.label:SetShown(Look.labels)
         -- Under the button in a row; beside it in a column, clear of the button below.
         frame.label:ClearAllPoints()
@@ -759,6 +786,8 @@ function Look.Place(frame, row, x)
         else
             frame.label:SetPoint("TOP", frame, "BOTTOM", 0, -2)
         end
+        -- Nothing sits beside a column's names, so only a row's are fitted to their button.
+        FitLabel(frame.label, frame.labelText, Look.vertical and math.huge or size + Look.gap, font, outline)
     end
     frame:ClearAllPoints()
     if Look.vertical then

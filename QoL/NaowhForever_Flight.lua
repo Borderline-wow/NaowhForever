@@ -3,7 +3,8 @@
 --  track you ride along with the stops marked on it, the next stop, and Land Early and Games.
 --  Also Flight Games (flightGame): the one choice of what opens by itself when a flight starts,
 --  the button only, the Quiz or the Aim Trainer (Off hides the button), migrated once from the old
---  quizFlight and aimAutoFlight.
+--  quizFlight and aimAutoFlight. And the flight time to each destination in the tooltip on the
+--  flight master's map (flightTimerMapTime).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local S = ns.QoLSettings
@@ -75,27 +76,59 @@ local function SpeedMultiplier()
     return node and node.activeRank > 0 and 1.2 or 1
 end
 
--- Every node on the way to the map's slot, start first, each with the seconds it takes to
--- reach it. From the first hop missing from the route data on, `at` is nil, and the
--- learned time for the route stands in for the whole flight.
+-- The flight to the map's slot as its stops, start first, each with the seconds to reach it.
+-- Once a hop is missing from the route data, `at` is nil from there on and the learned time
+-- for the route stands in for the whole flight.
 local function Route(slot)
-    local idBySlot = {}
+    local nodeAt = {}
     for _, node in ipairs(C_TaxiMap.GetAllTaxiNodes(GetTaxiMapID())) do
-        idBySlot[node.slotIndex] = node.nodeID
+        nodeAt[node.slotIndex] = node.nodeID
     end
     local speed = FLIGHT_SPEED * SpeedMultiplier()
-    local points = { { name = TaxiNodeName(TaxiGetNodeSlot(slot, 1, true)), at = 0 } }
-    local yards = 0
+    local stops = { { name = TaxiNodeName(TaxiGetNodeSlot(slot, 1, true)), at = 0 } }
+    local seconds = 0
     for hop = 1, GetNumRoutes(slot) do
-        local toSlot = TaxiGetNodeSlot(slot, hop, false)
-        local from = idBySlot[TaxiGetNodeSlot(slot, hop, true)]
-        local to = idBySlot[toSlot]
-        local hopYards = from and to and ns.FLIGHT_ROUTES[from * 10000 + to]
-        yards = yards and hopYards and yards + hopYards
-        points[#points + 1] = { name = TaxiNodeName(toSlot), at = yards and yards / speed }
+        local stopSlot = TaxiGetNodeSlot(slot, hop, false)
+        local leg = nodeAt[TaxiGetNodeSlot(slot, hop, true)]
+        leg = leg and nodeAt[stopSlot] and ns.FLIGHT_ROUTES[leg * 10000 + nodeAt[stopSlot]]
+        seconds = seconds and leg and seconds + leg / speed or nil
+        stops[hop + 1] = { name = TaxiNodeName(stopSlot), at = seconds }
     end
-    local last = points[#points].at
-    return points, last and last > 0 and last or nil
+    local total = stops[#stops].at
+    return stops, total and total > 0 and total or nil
+end
+
+-------------------------------------------------------------------------------
+--  Flight time on the flight master's map
+-------------------------------------------------------------------------------
+-- The same time the timer starts from when the flight is bought: the route data's, else the
+-- time learned on that route. Only for a destination the flight master can fly you to.
+local function AddMapTime(slot)
+    if not (On() and S.Get("flightTimerMapTime")) or TaxiNodeGetType(slot) ~= "REACHABLE" then return end
+    local _, estimate = Route(slot)
+    local seconds = estimate or Times()[RouteKey(CurrentNodeName(), TaxiNodeName(slot))]
+    if not seconds then return end
+    GameTooltip:AddDoubleLine("Flight Time", Clock(seconds), 1, 0.82, 0, 1, 1, 1)
+    GameTooltip:Show()
+end
+
+-- Hooked the first time the setting is on, never before. The classic flight map's buttons share
+-- one global OnEnter; the newer Flight Map's pins take theirs from a mixin that exists once
+-- Blizzard_FlightMap loads (pins made before the hook keep the old one until a reload).
+local mapHooked = false
+local function HookMap()
+    if mapHooked or not (On() and S.Get("flightTimerMapTime")) then return end
+    mapHooked = true
+    if TaxiNodeOnButtonEnter then
+        hooksecurefunc("TaxiNodeOnButtonEnter", function(button) AddMapTime(button:GetID()) end)
+    end
+    if EventUtil and EventUtil.ContinueOnAddOnLoaded then
+        EventUtil.ContinueOnAddOnLoaded("Blizzard_FlightMap", function()
+            hooksecurefunc(FlightMap_FlightPointPinMixin, "OnMouseEnter", function(pin)
+                AddMapTime(pin.taxiNodeData.slotIndex)
+            end)
+        end)
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -554,15 +587,15 @@ local function Board(route)
     OfferGame()
 end
 
--- Landing early stops at the next node on the way, so the route and the time end there.
+-- Landing early comes down at the first stop still ahead, so the flight now ends there.
 local function Retarget()
     if not flight or flight.early or flight.sample then return end
     flight.early = true
-    local points, elapsed = flight.points, GetTime() - flight.start
-    for i, p in ipairs(points or {}) do
-        if p.at and p.at > elapsed then
-            for j = #points, i + 1, -1 do points[j] = nil end
-            flight.known = p.at
+    local elapsed, kept = GetTime() - flight.start, {}
+    for _, stop in ipairs(flight.points or {}) do
+        kept[#kept + 1] = stop
+        if stop.at and stop.at > elapsed then
+            flight.points, flight.known = kept, stop.at
             break
         end
     end
@@ -596,7 +629,7 @@ local function Build()
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
     bar.land._onClick = function() TaxiRequestEarlyLanding() end
-    ns.Tooltip(bar.land, "Land Early", "Land at the next flight point.")
+    ns.Tooltip(bar.land, "Land Early", "Come down at the next stop on the way.")
     bar.games._onClick = PlayClicked
     ns.Tooltip(bar.games, "Games", "A game to pass the flight: the Quiz or the Aim Trainer. It closes when you land.")
 
@@ -656,12 +689,13 @@ function FadeBlizzardStop()
     MainMenuBarVehicleLeaveButton:EnableMouse(not fade)
 end
 
--- A two-stop route to place and size the display by in Unlock Mode, looping.
-local SAMPLE = { { name = "Ironforge", at = 0 }, { name = "Thorium Point", at = 50 },
-    { name = "Morgan's Vigil", at = 95 }, { name = "Lakeshire", at = 150 } }
+-- A route to place and size the display by in Layout Mode, looping.
+local SAMPLE = { { name = "Southshore", at = 0 }, { name = "Refuge Pointe", at = 50 },
+    { name = "Menethil Harbor", at = 95 }, { name = "Thelsamar", at = 150 } }
 
 function Apply()
     MigrateGame()
+    HookMap()
     if not bar then Build() end
     bar:SetScale(S.Get("flightTimerScale"))
     Look.Style(bar)
@@ -757,7 +791,9 @@ Settings.Page("QoL/Travel", S):Card({
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },
     rows = {
         { key = "flightEarlyLanding", label = "Land Early Button", toggle = true,
-          help = "A Land button that lands you at the next flight point." },
+          help = "Adds a Land button to come down at the next stop on the way." },
+        { key = "flightTimerMapTime", label = "Flight Time on Map", toggle = true,
+          help = "The flight time to each destination when you hover it on the flight master's map." },
         Settings.Group("Size"),
         { key = "flightTimerScale", label = "Scale", slider = { 50, 200, 5 }, unit = "%", scale = 0.01 },
         Settings.Look("flightTimer", { text = true, bar = "Flat", background = "alpha",

@@ -63,16 +63,13 @@ end)
 
 ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
     id = "looting", name = "Looting", order = 10,
-    help = "Fewer clicks around loot and items: the delete confirmation filled in, auto loot that "
-        .. "keeps the loot window, and enchants that replace the old one without asking.",
+    help = "Fewer clicks around loot and items: the delete confirmation filled in, and auto loot that "
+        .. "keeps the loot window.",
     rows = {
         { key = "deleteConfirm", label = "Type DELETE For You", toggle = true,
           help = "Types DELETE into the confirmation box for you, and names the item in the dialog as a "
               .. "link you can hover for its tooltip." },
         { key = "fastLoot", label = "Faster Auto Loot", toggle = true,
           help = "Loots automatically without hiding the loot window. Hold Shift to loot manually." },
-        { key = "enchantReplace", label = "Auto-Replace Enchants", toggle = true,
-          help = "Says yes when an enchant would replace the one already on the item, instead of asking. "
-              .. "Hold Shift while applying it to be asked." },
     },
 })

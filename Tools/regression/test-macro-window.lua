@@ -365,7 +365,7 @@ local health
 for _, c in ipairs(cards) do if c.key == "health" then health = c end end
 check("the health card says what it will use", health.uses[1].text.text == "Item 5509")
 Click(health.toggle)
-check("its switch turns the macro on", settings.health == true)
+check("its switch turns the macro off, on by default", settings.health == false)
 
 window.switch.onPick("lib")
 check("the Library starts empty, with nothing but the class name", not window.lib.lead:IsShown()

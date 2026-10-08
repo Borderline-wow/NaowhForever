@@ -21,8 +21,13 @@ local MIN_W, MAX_W = 420, 640   -- it widens to show its longest quest name in f
 -- Taller than this it scrolls: 70% of the screen's height, at the window's scale, and 420 at
 -- the least.
 local MIN_MAX_H, SCREEN_SHARE = 420, 0.7
+
+-- The add-on's Window Scale, times the tracker's own Scale (trackerScale).
+local function Scale()
+    return ns.UIScale() * (S.Get("trackerScale") or 1)
+end
 local function MaxH()
-    local screen = (UIParent:GetHeight() or 0) * SCREEN_SHARE / ns.UIScale()
+    local screen = (UIParent:GetHeight() or 0) * SCREEN_SHARE / Scale()
     return math.max(MIN_MAX_H, math.floor(screen))
 end
 local NAME_SIZE = 13      -- a quest row's title font (View/QuestRows.lua)
@@ -205,7 +210,7 @@ end
 
 local function Show(dungeon)
     if not panel then Build() end
-    panel:SetScale(ns.UIScale())
+    panel:SetScale(Scale())
     Paint()
     panel:Place()
     panel:Show()
@@ -317,7 +322,8 @@ local function SyncAuto()
 end
 hooksecurefunc(ns, "Apply", SyncAuto)
 
--- The Journal switched off: the tracker goes with it. Its own Opacity (trackerAlpha): it follows.
+-- The Journal switched off: the tracker goes with it. Its own Opacity (trackerAlpha) and
+-- Scale (trackerScale): they follow.
 S.OnChange(function(key)
     if key == "enabled" or key == "trackerAuto" or key == "trackerOutside" then SyncAuto() end
     if key == "enabled" or key == "hideGameTracker" then SyncGameTracker() end
@@ -326,5 +332,8 @@ S.OnChange(function(key)
         panel:Hide()
     elseif key == "trackerAlpha" then
         Paint()
+    elseif key == "trackerScale" then
+        panel:SetScale(Scale())
+        Redraw()
     end
 end)

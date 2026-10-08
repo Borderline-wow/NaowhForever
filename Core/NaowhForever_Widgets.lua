@@ -19,82 +19,60 @@ UI.COGS_ICON = "Interface\\AddOns\\NaowhForever\\Media\\cog.tga"
 function UI.L(text) return ns.L(text) end
 
 -------------------------------------------------------------------------------
---  Tooltip
+--  Tooltip: the house help card, a dark panel with a black edge, its text wrapped at TIP_W,
+--  down and right of the cursor or centred over the frame it is for.
 -------------------------------------------------------------------------------
-local tooltipFrame
+local TIP_W, TIP_PAD, TIP_SIZE, TIP_SPACING = 240, 8, 10, 3
+local TIP_GAP = 4                           -- over the frame it is for
+local TIP_CURSOR_X, TIP_CURSOR_Y = 16, -12  -- clear of the pointer, down and right of its tip
+local card
 
-local function GetTooltipFrame()
-    if tooltipFrame then return tooltipFrame end
-    tooltipFrame = CreateFrame("Frame", nil, UIParent)
-    tooltipFrame:SetFrameStrata("TOOLTIP")
-    tooltipFrame:SetClampedToScreen(true)
-    tooltipFrame:SetSize(250, 40)
-    local bg = ns.Solid(tooltipFrame, "BACKGROUND", T.panel, 0.98)
-    bg:SetAllPoints()
-    ns.Border(tooltipFrame)
-    tooltipFrame.text = ns.Font(tooltipFrame, 10, nil)
-    tooltipFrame.text:SetPoint("TOPLEFT", 8, -8)
-    tooltipFrame.text:SetPoint("TOPRIGHT", -8, -8)
-    tooltipFrame.text:SetWordWrap(true)
-    tooltipFrame.text:SetSpacing(3)
-    tooltipFrame:Hide()
-    return tooltipFrame
+local function Card()
+    if card then return card end
+    card = CreateFrame("Frame", nil, UIParent)
+    card:SetFrameStrata("TOOLTIP")
+    card:SetClampedToScreen(true)
+    ns.Solid(card, "BACKGROUND", T.panel, 0.98):SetAllPoints()
+    ns.Border(card, BLACK)
+    card.text = ns.Font(card, TIP_SIZE, nil)
+    card.text:SetPoint("TOPLEFT", TIP_PAD, -TIP_PAD)
+    card.text:SetSpacing(TIP_SPACING)
+    card:Hide()
+    return card
 end
 
--- opts (optional): { anchor = "cursor"|"below"|"left"|"right", justify, width, force }
-function UI.ShowWidgetTooltip(label, text, opts)
-    -- Suppress in M+/raid/PvP combat: frame APIs return secret values in tainted
-    -- execution; opts.force bypasses.
-    if not (opts and opts.force) then
-        local _, iType = IsInInstance()
-        if iType == "party" and C_ChallengeMode and C_ChallengeMode.IsChallengeModeActive
-           and C_ChallengeMode.IsChallengeModeActive() then return end
-        if (iType == "raid" or iType == "pvp" or iType == "arena") and InCombatLockdown() then return end
-    end
-    -- text may be a function for dynamic content; resolved after the suppression checks
-    -- so it is never called when nothing will show.
+-- In restricted content the client can hand back a secret for a string's size.
+local function Usable(v) return not (issecretvalue and issecretvalue(v)) end
+
+--- A help card for owner. text may be a function, called only when the card shows.
+--- opts (optional): anchor = "cursor" puts it by the cursor; justify, as SetJustifyH.
+function UI.ShowWidgetTooltip(owner, text, opts)
     if type(text) == "function" then text = text() end
     if not text or text == "" then return end
-    local tt = GetTooltipFrame()
-    local MAX_W = 250
-    tt:SetWidth((opts and opts.width) or MAX_W)
-    tt.text:SetJustifyH((opts and opts.justify) or "CENTER")
-    tt.text:SetText(text)
-    tt:ClearAllPoints()
+    local t = Card()
+    local fs = t.text
+    fs:SetJustifyH(opts and opts.justify or "CENTER")
+    fs:SetWidth(TIP_W - 2 * TIP_PAD)
+    fs:SetText(text)
+    t:ClearAllPoints()
     if opts and opts.anchor == "cursor" then
-        local scale = tt:GetEffectiveScale()
-        local cx, cy = GetCursorPosition()
-        tt:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", cx / scale, cy / scale + 4)
-    elseif opts and opts.anchor == "below" then
-        tt:SetPoint("TOP", label, "BOTTOM", 0, -4)
-    elseif opts and opts.anchor == "left" then
-        tt:SetPoint("RIGHT", label, "LEFT", -4, 0)
-    elseif opts and opts.anchor == "right" then
-        tt:SetPoint("LEFT", label, "RIGHT", 4, 0)
+        local scale = UIParent:GetEffectiveScale()
+        local x, y = GetCursorPosition()
+        t:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale + TIP_CURSOR_X, y / scale + TIP_CURSOR_Y)
     else
-        tt:SetPoint("BOTTOM", label, "TOP", 0, 4)
+        t:SetPoint("BOTTOM", owner, "TOP", 0, TIP_GAP)
     end
-    -- Shown BEFORE measuring: font geometry is wrong on hidden frames. Width shrinks to
-    -- the natural single line when it fits; string metrics can be secret in restricted
-    -- content, in which case the caps stand.
-    tt:Show()
-    if not (opts and opts.width) then
-        local sw = tt.text:GetStringWidth()
-        if not (issecretvalue and issecretvalue(sw)) then
-            tt:SetWidth(math.min(sw + 16, MAX_W))
-        end
-    end
-    tt:SetHeight(10)
-    local textH = tt.text:GetStringHeight()
-    if issecretvalue and issecretvalue(textH) then
-        tt:SetHeight(26)
-    else
-        tt:SetHeight(textH + 16)
-    end
+    -- Sized once shown: a hidden frame's text reports the wrong size. A short line narrows the
+    -- card to fit it.
+    t:Show()
+    local w, h = fs:GetStringWidth(), fs:GetStringHeight()
+    if Usable(w) and w < TIP_W - 2 * TIP_PAD then fs:SetWidth(math.ceil(w)) end
+    if not Usable(h) then h = TIP_SIZE end
+    t:SetSize(fs:GetWidth() + 2 * TIP_PAD, h + 2 * TIP_PAD)
 end
 
 function UI.HideWidgetTooltip()
-    if tooltipFrame then tooltipFrame:Hide() end
+    if card then card:Hide() end
 end
 
 -------------------------------------------------------------------------------
@@ -1397,7 +1375,7 @@ function ns.ImportModuleSettings(root, modules)
 end
 
 function UI.ModuleSettings(key, defaults)
-    local S = {}
+    local S = { key = key }
     local listeners = {}
     local known = moduleDefaults[key]
     if known then
@@ -1462,8 +1440,8 @@ function UI.ModuleSettings(key, defaults)
     return S
 end
 
-ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { anchoredTo = {}, guides = true, hidden = {}, locked = {},
-    elementsPanel = true })
+ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { guides = true, hidden = {}, locked = {},
+    elementsPanel = true, anchoredTo = { ["Loot Feed"] = { target = "Alerts", side = "RIGHT", x = -300, y = 206 } } })
 
 -------------------------------------------------------------------------------
 --  Sounds

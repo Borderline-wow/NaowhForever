@@ -201,6 +201,7 @@ do
     check('item alone rejected', not parse('food', '123'))
     check('invalid category rejected', not parse('other', '123 456'))
     check('invalid IDs rejected', not parse('food', '123, x') and not parse('food', '0, 1'))
+    s.S.Set('campShowUnder', false)
     s.load('NaowhForever_AuraBuffs/NaowhForever_Campfire.lua'); s.fire('PLAYER_LOGIN')
     local icon = s.named.NaowhForeverCampfire
     check('no icon swipe', icon.timer.swipe == false)

@@ -386,7 +386,7 @@ local function TownSummary(store)
 end
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
-    id = "townMap", name = "Town Map Pins", order = 40, switch = "townMap",
+    id = "townMap", name = "Map Pins", order = 40, switch = "townMap",
     help = "Trainers, vendors, innkeepers, flight masters and more pinned on the world map for "
         .. "your faction, with their name and title on hover. No more asking a guard.",
     summary = TownSummary,

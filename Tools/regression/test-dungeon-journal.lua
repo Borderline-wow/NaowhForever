@@ -423,7 +423,26 @@ local function fixture(settings)
             GetSpellTexture = function() return 136243 end,
             GetSpellDescription = function(id) return state.spellText and state.spellText[id] or "Hits the tank." end,
             IsSpellDataCached = function() return true end },
+        -- The world map's pin kit, for the entrance pins: a provider's map is the world map.
+        CreateFromMixins = function(...)
+            local t = {}
+            for i = 1, select("#", ...) do
+                for k, v in pairs((select(i, ...))) do t[k] = v end
+            end
+            return t
+        end,
+        MapCanvasPinMixin = {},
+        MapCanvasDataProviderMixin = { GetMap = function() return state.worldMap end },
+        CreateVector2D = function(x, y) return { x = x, y = y, GetXY = function(v) return v.x, v.y end } end,
         C_Map = { OpenWorldMap = function(map) state.mapOpened = map end,
+            -- A spot on a zone's map, and where it falls on another map: state.onMap scales
+            -- the zone's spot onto the map shown (none for a map it is not on).
+            GetWorldPosFromMapPos = function(map, pos) return 0, { x = pos.x, y = pos.y, map = map } end,
+            GetMapPosFromWorldPos = function(_, world, map)
+                local scale = state.onMap and state.onMap[map]
+                if not scale then return nil end
+                return 0, { GetXY = function() return world.x * scale, world.y * scale end }
+            end,
             GetMapInfo = function(map)
                 return state.mapInfo and state.mapInfo[map] or map == 52 and { name = "Westfall" } or nil
             end,
@@ -524,6 +543,8 @@ local function fixture(settings)
     }
     setmetatable(env, { __index = _G })
     state.G = env._G
+    state.worldMap = env.WorldMapFrame
+    state.env = env
     local senders = assert(loadfile("Core/NaowhForever_Senders.lua"))
     setfenv(senders, env)
     senders()
@@ -1788,6 +1809,9 @@ do
     J.View.CloseBossLoot()
 
     local excavation = J.Get("ExcavationSite")
+    -- Saltspine's tip taken away for a while, for a boss with none.
+    local saltTip = J.Tips[260322]
+    J.Tips[260322] = nil
     J.OpenDungeonMap(excavation)
     local horror, guardian = RowFor("Highland Horror"), RowFor("Relic Guardian")
     check("Highland Horror is a quest boss", horror.boss.quest == true and not J.Numbered(horror.boss))
@@ -1804,6 +1828,7 @@ do
     end) == nil)
     check("and no gap for one: its columns right under its name",
         Section(pageView, "LOOT").top == saltTitle.top + saltTitle.h + 6)
+    J.Tips[260322] = saltTip
     horror.scripts.OnClick(horror)
     local quests = PageRow(pageView, function(made) return rawget(made, "chips") and rawget(made, "label") end)
     local horrorAbilities = Section(pageView, "ABILITIES")
@@ -3663,6 +3688,91 @@ do
     for _ in pairs(refused) do kept = kept + 1 end
     check("every item the Journal lists is answered", kept == all)
     check("done, it listens to nothing", next(probe.events) == nil)
+end
+
+-------------------------------------------------------------------------------
+--  The entrances on the world map
+-------------------------------------------------------------------------------
+do
+    local ns, state, S = fixture({ enabled = true })
+    local J, map = ns.Journal, state.worldMap
+    local pins, providers, shownMap = {}, {}, 1420   -- Tirisfal Glades
+    map.AddDataProvider = function(_, provider) providers[#providers + 1] = provider end
+    map.GetMapID = function() return shownMap end
+    map.AcquirePin = function(_, template, group) pins[#pins + 1] = group; state.pinTemplate = template end
+    map.RemoveAllPinsByTemplate = function() for i = #pins, 1, -1 do pins[i] = nil end end
+    check("Entrances on the World Map is off until switched on", not S.Get("mapEntrances"))
+    ns.Apply()   -- the rest of the Journal makes its frames
+    local frames = state.frames
+    ns.Apply()
+    check("off, nothing is made or added to the map", state.frames == frames and #providers == 0)
+    S.Set("mapEntrances", true)
+    check("on, its pins are added to the map once", #providers == 1)
+    check("in the template the XML names", state.pinTemplate == "NaowhForeverEntrancePinTemplate")
+    check("the Scarlet Monastery's four wings share one pin", #pins == 1 and #pins[1].dungeons == 4)
+    check("on its spot", math.abs(pins[1].x - 0.839) < 1e-9 and math.abs(pins[1].y - 0.316) < 1e-9)
+    S.Set("showHorde", false)
+    check("Horde ground hidden by the faction switch: no pin there", #pins == 0)
+    S.Set("showHorde", true)
+    -- A continent: every entrance it holds, those on one spot together.
+    shownMap, state.onMap = 1415, { [1415] = 0.5 }
+    providers[1]:RefreshAllData()
+    local spots = {}
+    for _, dungeon in ipairs(J.Dungeons()) do
+        local e = dungeon.entrance
+        if e and J.FactionShown(dungeon) then spots[e.map .. ":" .. e.x .. ":" .. e.y] = true end
+    end
+    local want = 0
+    for _ in pairs(spots) do want = want + 1 end
+    check("a map that holds them shows every entrance, one pin per spot", #pins == want and want > 20)
+    -- Off the map's edge: not on it.
+    state.onMap = { [1415] = 3 }
+    shownMap = 1415
+    providers[1]:RefreshAllData()
+    local inside = true
+    for _, group in ipairs(pins) do
+        if group.x > 1 or group.y > 1 then inside = false end
+    end
+    check("a spot off the map's edge gets no pin", inside)
+    -- The pin itself: the dungeon's door, a raid's own, and a waypoint on a click.
+    shownMap, state.onMap = 1445, nil   -- Dustwallow Marsh: Onyxia's Lair
+    providers[1]:RefreshAllData()
+    check("Onyxia's Lair on its zone", #pins == 1 and pins[1].dungeons[1].raid ~= nil)
+    local Pin = state.env.NaowhForeverEntrancePinMixin
+    local pin = state.worldMap:CreateTexture()
+    pin.Icon = state.worldMap:CreateTexture()
+    for k, v in pairs(Pin) do pin[k] = v end
+    pin.SetPosition = function(self, x, y) self.at = { x, y } end
+    pin.GetMap = function() return map end
+    pin:OnAcquired(pins[1])
+    check("a raid's pin shows the raid door", state.atlases.raid == true)
+    -- Its size: by the kind of map shown, halved full screen.
+    state.mapInfo = { [1445] = { mapType = 3 }, [1414] = { mapType = 2 }, [947] = { mapType = 1 } }
+    local function SizeOn(mapID)
+        shownMap = mapID
+        pin:OnAcquired(pins[1])
+        return pin.w
+    end
+    check("on a zone's map at 200%", SizeOn(1445) == 44 and pin.h == 44)
+    check("on a continent's at 150%", SizeOn(1414) == 33)
+    check("on the world's at 120%", math.abs(SizeOn(947) - 26.4) < 1e-9)
+    state.mapMaximised = true
+    check("full screen, half that", math.abs(SizeOn(947) - 13.2) < 1e-9)
+    state.mapMaximised = false
+    shownMap = 1445
+    local shown = { pin }
+    map.EnumeratePinsByTemplate = function() local i = 0; return function() i = i + 1; return shown[i] end end
+    local count = #pins
+    S.Set("mapEntranceScale", 0.5)
+    check("Icon Size resizes the pins shown without drawing them again", pin.w == 22 and #pins == count)
+    state.mapInfo = nil
+    pin:OnMouseEnter()
+    pin:OnClick("LeftButton")
+    local waypoint = state.waypoints[#state.waypoints]
+    check("a click puts a waypoint on the entrance", waypoint.map == 1445 and waypoint.x == 52.9
+        and waypoint.note == " (entrance)" and waypoint.title == "Onyxia's Lair")
+    S.Set("mapEntrances", false)
+    check("off again, its pins go", #pins == 0)
 end
 
 do

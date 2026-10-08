@@ -71,9 +71,12 @@ local ns = _G.NaowhForever
 ---@field linked? JournalDungeon[] those dungeons, joined
 
 local S = ns.UI.ModuleSettings("journal", {
-    enabled = false,
+    enabled = true,
     mapPanel = true,
     mapFactions = false,
+    mapEntrances = false,
+    -- The entrance pins' size, on top of each kind of map's own (UI/EntrancePins.lua).
+    mapEntranceScale = 1,
     usableOnly = true,
     myRecipes = true,
     openUnreleased = false,
@@ -91,6 +94,7 @@ local S = ns.UI.ModuleSettings("journal", {
     -- map window, the Journal beside the world map and Boss Loot at Cursor.
     windowAlpha = 1,
     trackerAlpha = 1,
+    trackerScale = 1,
     mapAlpha = 1,
     listHidden = false,
     closedGroup1 = false,
@@ -101,8 +105,6 @@ local S = ns.UI.ModuleSettings("journal", {
     showHorde = true,
     shareRequests = true,
     acceptShared = false,
-    -- On by default, an exception to off by default: the tracker is the Journal's own, and
-    -- the Journal itself starts off.
     trackerAuto = true,
     -- In a dungeon, the game's quest tracker faded while this one is open.
     hideGameTracker = false,

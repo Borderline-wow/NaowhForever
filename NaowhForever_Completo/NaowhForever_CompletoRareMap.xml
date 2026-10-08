@@ -1,0 +1,12 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Script file="NaowhForever_CompletoRareMap.lua"/>
+    <Button name="NaowhForeverRarePinTemplate" mixin="NaowhForeverRarePinMixin" enableMouse="true" registerForClicks="LeftButtonUp, RightButtonUp" virtual="true">
+        <Size x="18" y="18"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+</Ui>

@@ -491,14 +491,27 @@ end
 
 -- Public entry point for the NaowhUI installer, so it never calls into ns:
 --   NaowhForever_API:ImportProfile(str, "Naowh")
--- A single-profile pack lands as profileName and becomes the account profile for every
--- character. A whole-file pack keeps its own names and binds them to specs instead.
+-- A Profiles page export (NFPROFILE1:) or a single-profile pack lands as profileName, replacing
+-- it on a rerun, and becomes the account profile for every character. A whole-file pack keeps
+-- its own names and binds them to specs instead.
 local API = {}
 _G.NaowhForever_API = API
 
+-- Settings that act for the player stay off, as the Import dialog leaves them by default.
+local PROFILE_PARTS = { settings = true, macros = true, library = true, smartReminders = true,
+    builds = true, bisLists = true, look = true }
+
 function API:ImportProfile(str, profileName)
     local specKey, specWas = CurrentSpecEntry()
-    local ok, landed = ns.InstallProfilePack(str, { profileName = profileName })
+    local ok, landed
+    local payload, why = ns.DecodeProfile(str)
+    if payload then
+        ok, landed = true, (ns.ImportProfile(payload, PROFILE_PARTS, profileName, true))
+    elseif why == "pack" then
+        ok, landed = ns.InstallProfilePack(str, { profileName = profileName })
+    else
+        ok, landed = false, why or "Nothing to read."
+    end
     -- The installer ignores the return values, so failures are reported here.
     if not ok then
         ns.Print("Naowh Forever import failed: " .. tostring(landed))
@@ -929,69 +942,6 @@ function ns.MakeMultilineBox(panel, topOffset, height)
     return box
 end
 
--- A pack string has no spaces for word-wrap, so breaks are inserted, measured against the
--- real font (a guessed character count ran past the edge). DecodePack strips whitespace.
--- The gauge is parked off-screen, not hidden: a hidden FontString's GetStringWidth() is 0.
-local wrapGauge
-local function MeasureWidth(str)
-    if not wrapGauge then
-        local host = CreateFrame("Frame", nil, UIParent)
-        host:SetSize(1, 1)
-        host:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -5000, 5000)
-        wrapGauge = host:CreateFontString(nil, "ARTWORK")
-        wrapGauge:SetFontObject("GameFontHighlightSmall")
-        wrapGauge:SetPoint("TOPLEFT")
-        host:Show()
-    end
-    wrapGauge:SetText(str)
-    return wrapGauge:GetStringWidth()
-end
-
--- How many characters of str, starting at "from", fit within maxWidth.
-local function FitCount(str, from, maxWidth)
-    local n = #str
-    local lo, hi = 0, 1
-    while from + hi - 1 <= n and MeasureWidth(str:sub(from, from + hi - 1)) <= maxWidth do
-        lo = hi
-        hi = hi * 2
-    end
-    hi = math.min(hi, n - from + 1)
-    while lo < hi do
-        local mid = lo + math.ceil((hi - lo) / 2)
-        if MeasureWidth(str:sub(from, from + mid - 1)) <= maxWidth then
-            lo = mid
-        else
-            hi = mid - 1
-        end
-    end
-    -- At least one, or a too-narrow target loops forever.
-    return math.max(lo, 1)
-end
-
--- For when the width is unreadable or the gauge measures a non-empty string as zero.
-local function FallbackWrap(str)
-    local lines = {}
-    for i = 1, #str, 50 do lines[#lines + 1] = str:sub(i, i + 49) end
-    return table.concat(lines, "\n")
-end
-
-local function WrapForDisplay(str, maxWidth)
-    if #str == 0 then return str end
-    if not maxWidth or maxWidth <= 0 then return FallbackWrap(str) end
-    local full = MeasureWidth(str)
-    if full == 0 then return FallbackWrap(str) end
-    if full <= maxWidth then return str end
-    local lines, i, n = {}, 1, #str
-    while i <= n do
-        local count = FitCount(str, i, maxWidth)
-        lines[#lines + 1] = str:sub(i, i + count - 1)
-        i = i + count
-    end
-    return table.concat(lines, "\n")
-end
--- The Profiles page's export shows its string the same way.
-ns.WrapForDisplay = WrapForDisplay
-
 local function MakeToggleRow(parent, w, h, frameLevel, get, set, toggleW, toggleH)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(w, h)
@@ -1102,9 +1052,7 @@ function ns.ShowPackExport()
     local function Regenerate()
         local str, err = ns.ExportPack(nameBox:GetText(), UnitName and UnitName("player"))
         if str then
-            -- Not box:GetWidth(): that comes from OnSizeChanged, a frame late on first open.
-            local maxWidth = box:GetParent():GetWidth()
-            box:SetText(WrapForDisplay(str, maxWidth))
+            box:SetText(str)
             local names
             local specs = ns.PackSpecs({ data = { presets = ns.DB().presets,
                 activePreset = ns.DB().activePreset, bossLists = ns.DB().bossLists,

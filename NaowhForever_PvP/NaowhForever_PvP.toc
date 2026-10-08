@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: PvP
+## Notes: What your target is doing in a fight: their short buffs, the crowd control on them and the debuffs you pick.
+## Author: Naowh
+## Version: 1.0.5
+## Dependencies: NaowhForever
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+Data\NaowhForever_PvPSpells.lua
+NaowhForever_PvP.lua
+NaowhForever_PvPAuras.lua

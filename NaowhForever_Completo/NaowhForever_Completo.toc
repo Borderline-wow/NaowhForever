@@ -1,0 +1,20 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: Completo
+## Notes: Everything there is to do, and how much of it you have done: every quest of every zone, and where you are in each chain.
+## Author: Naowh
+## Version: 1.0.5
+## Dependencies: NaowhForever
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+
+# The quest and rare data (Tools/build_completo_quests.py, build_completo_rares.py) load
+# first; the module reads them.
+Data\NaowhForever_CompletoQuests.lua
+Data\NaowhForever_CompletoRares.lua
+NaowhForever_Completo.lua
+NaowhForever_CompletoGivers.lua
+NaowhForever_CompletoRares.lua
+NaowhForever_CompletoRareAlert.lua
+NaowhForever_CompletoWindow.lua
+NaowhForever_CompletoMap.xml
+NaowhForever_CompletoRareMap.xml

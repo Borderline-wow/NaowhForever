@@ -352,6 +352,15 @@ do  -- chat, card, tooltip
     shown.life.scripts.OnFinished(shown.life)  -- let the Founder toast finish first
     s.ns.BadgesCommand("toast")
     check("moderator toast sound: PvP Prestige rank up", s.lastSound == 77003)
+    s.ns.BadgesCommand("preview ellesmere")
+    check("EllesmereUI creator badge in chat", say(filter, "Me", 906, "Player-1-SELF")
+        :find("BadgeEllesmereChat.tga", 1, true))
+    enter.fn(enter.owner, {}, "player:Me-Realm:906:SAY", "[Me]")
+    check("EllesmereUI creator card", card.title.text == "EllesmereUI Creator"
+        and card.about.text == "Makes EllesmereUI." and card.since.text == "")
+    lines = {}
+    s.postCalls[1](tooltip, { guid = "Player-1-SELF" })
+    check("EllesmereUI creator tooltip line", lines[1] and lines[1]:find("Ellesmere, creator of EllesmereUI", 1, true))
     s.ns.BadgesCommand("preview naowh")
 
     s.ns.BadgesCommand("preview nobody")
@@ -558,7 +567,7 @@ do  -- the real staff and patron files load and make sense
         setfenv(chunk, setmetatable({ _G = { NaowhForever = ns } }, { __index = _G }))
         chunk()
     end
-    local staffTiers = { naowh = true, developer = true, moderator = true }
+    local staffTiers = { naowh = true, developer = true, moderator = true, ellesmere = true }
     local ok = type(ns.BADGE_STAFF) == "table" and type(ns.BADGE_PATRONS) == "table"
     for region, list in pairs(ns.BADGE_STAFF) do
         for guid, entry in pairs(list) do

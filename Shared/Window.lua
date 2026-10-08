@@ -109,6 +109,37 @@ function Parts.Window(width, height, positionKey)
     return window
 end
 
+-- A grip in the bottom-right corner to size the window by dragging, between its minimum and
+-- the screen. Its size is kept account-wide under sizeKey, as the options window's is.
+-- onSized(window) runs as it changes, for the caller to fit its content (the scroll child's
+-- width); the window's anchors carry the rest. Returns the grip.
+local GRIP = 16
+local GRIP_INSET = 3
+
+function Parts.Resizable(window, sizeKey, minW, minH, onSized)
+    local sizes = ns.AccountSettings().windowSizes
+    local saved = sizes and sizes[sizeKey]
+    if saved then window:SetSize(math.max(saved[1], minW), math.max(saved[2], minH)) end
+    window:SetResizable(true)
+    window:SetResizeBounds(minW, minH)
+    if onSized then window:SetScript("OnSizeChanged", onSized) end
+    local grip = CreateFrame("Button", nil, window)
+    grip:SetSize(GRIP, GRIP)
+    grip:SetPoint("BOTTOMRIGHT", -GRIP_INSET, GRIP_INSET)
+    grip:SetFrameLevel(window:GetFrameLevel() + 20)
+    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    grip:SetScript("OnMouseDown", function() window:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseUp", function()
+        window:StopMovingOrSizing()
+        local account = ns.AccountSettings()
+        account.windowSizes = account.windowSizes or {}
+        account.windowSizes[sizeKey] = { window:GetWidth(), window:GetHeight() }
+    end)
+    return grip
+end
+
 -------------------------------------------------------------------------------
 --  The title bar: the logo (it opens the module's options page) and the title over its
 --  subtitle on the left, close on the right. Returns close, for the bar's icons to follow.

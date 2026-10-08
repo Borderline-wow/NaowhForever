@@ -165,6 +165,7 @@ local ns = {
         DB = function() return settings end,
         Get = function(k) return settings[k] end,
         Set = function(k, v) settings[k] = v end,
+        Default = function() return {} end,
     },
     Solid = function(parent) return parent:CreateTexture() end,
     Border = function(frame)

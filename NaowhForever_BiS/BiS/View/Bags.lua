@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------
 --  View/Bags.lua -- the marks every slot of ours has (Shared.Parts.ItemMarks), on the items in
---  your bags: an item's level in the bottom-right, your BiS's star in the bottom-left,
+--  your bags: an item's level in the bottom-right in its quality's color (gold for common and
+--  poor gear), so it never reads as a stack count, your BiS's star in the bottom-left,
 --  Forever's mark in the top-left, and the green upgrade arrow in the top-right on gear better
 --  than what you wear by your spec's stat weights (the gear tooltip's "+N% upgrade", BiS or
 --  not). In the game's bags, or in EllesmereUI's (its bags, reagent bag and bank) through the
@@ -21,6 +22,8 @@ local SW = ns.StatWeights
 local GetContainerItemID = C_Container.GetContainerItemID
 local GetContainerItemLink = C_Container.GetContainerItemLink
 local GetDetailedItemLevelInfo = C_Item.GetDetailedItemLevelInfo
+local GetItemQualityByID = C_Item.GetItemQualityByID
+local PLAIN_LEVEL = { r = 1, g = 0.82, b = 0 }
 local GetTime = GetTime
 
 local OVERLAY = "NaowhForever"   -- our name on EllesmereUI's list of item overlays
@@ -68,7 +71,13 @@ local function Paint(set, id, link)
     local gear = Items.SlotsFor(id) ~= nil
     local level = gear and S.Get("bisBagLevels") and GetDetailedItemLevelInfo(link or id) or nil
     local upgrade = gear and SW.BestGain(id, link, Weights()) ~= nil
-    return Parts.PaintItemMarks(set, level, ns.IsBisItem(id), Parts.IsForever("items", id), upgrade)
+    local shown = Parts.PaintItemMarks(set, level, ns.IsBisItem(id), Parts.IsForever("items", id), upgrade)
+    if shown then
+        local quality = GetItemQualityByID(id)
+        local c = quality and quality > 1 and ITEM_QUALITY_COLORS[quality] or PLAIN_LEVEL
+        set.level:SetTextColor(c.r, c.g, c.b)
+    end
+    return shown
 end
 
 -------------------------------------------------------------------------------

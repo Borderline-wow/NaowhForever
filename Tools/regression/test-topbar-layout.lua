@@ -53,8 +53,8 @@ end
 local function Join(list) return table.concat(list, ",") end
 local function Sides(layout) return Join(layout.left) .. " | " .. Join(layout.right) end
 
-check("the default is today's default bar: friends and guild left, Journal and BiS right",
-    Sides(defaultLayout) == "friends,guild | ldb:NaowhForeverJournal,ldb:NaowhForeverBiS")
+check("the default bar: Journal and Discovery left, BiS and Training right", Sides(defaultLayout)
+    == "ldb:NaowhForeverJournal,ldb:NaowhForeverDiscovery | ldb:NaowhForeverBiS,ldb:NaowhForeverTraining")
 
 -- A fresh profile keeps the default and only marks itself migrated.
 local db = {}
@@ -100,6 +100,19 @@ check("drawn in saved order, missing and iconless brokers skipped", Join(drawn) 
     "left:guild:M\\icon-guild.png:true:nil:4,left:ldb:BugSack:bug:false:BugSack:4,"
     .. "right:hearth:M\\icon-hearth.png:true:nil:4,right:ldb:NaowhForeverBiS:M\\icon-bis.png:true:NaowhForeverBiS:4")
 check("skipped brokers stay in the layout", db.layout.left[1] == "ldb:Missing" and db.layout.right[1] == "ldb:NoIcon")
+
+-- Every Naowh Forever launcher in the default layout has its own glyph, and the file is there.
+local glyphs = assert(loadstring("local MEDIA = ...\n" .. GLYPH .. "\nreturn GLYPH"))("Media/TopBar/")
+local missing = {}
+for _, side in ipairs({ "left", "right" }) do
+    for _, key in ipairs(defaultLayout[side]) do
+        local name = key:match("^ldb:(NaowhForever.*)$")
+        local path = name and glyphs[name]
+        local file = path and io.open(path, "rb")
+        if file then file:close() elseif name then missing[#missing + 1] = name end
+    end
+end
+check("the default launchers all have a glyph file: " .. table.concat(missing, ", "), #missing == 0)
 
 -- Editing: every change saves a fresh layout through the store.
 local saved = db.layout

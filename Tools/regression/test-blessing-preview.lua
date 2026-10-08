@@ -45,6 +45,8 @@ function methods:GetEffectiveScale() return 1 end
 function methods:IsMouseOver() return self.over == true end
 function methods:EnableMouseWheel(on) self.wheel = on end
 function methods:SetText(t) self.text = t end
+-- Roughly how wide text draws: half its font size per letter.
+function methods:GetUnboundedStringWidth() return #(self.text or "") * (self.size or 10) / 2 end
 function methods:SetTexture(t) self.texture = t end
 function methods:SetVertexColor(r, g, b) self.vertex = { r, g, b } end
 function methods:SetTextColor(r, g, b) self.color = { r, g, b } end
@@ -284,6 +286,20 @@ for _, row in ipairs(cards.bar.rows) do if row[1] and row[1].look then look = ro
 check("the card has the standard Text rows on the timer size", look and look.look == "bless"
     and look.opts.keys.FontSize == "blessTimerSize")
 settings.blessFont, settings.blessOutline, settings.blessTimerSize, settings.blessThemeColors = nil, nil, nil, nil
+
+-- Class names keep to their own slot, the button plus the gap: a long one shrinks down to 7 pt,
+-- then shortens to three letters, and a name with room is left as it is.
+settings.blessBarSize, settings.blessSpacing = 16, 0
+studio.paint(preview, "group")
+local mageCell = preview.cells[4]
+check("a name that fits smaller shrinks, no lower than 7 pt", mageCell.label.text == "Mage"
+    and mageCell.label.size < 10 and mageCell.label.size >= 7)
+check("a name too long even at 7 pt shortens to three letters", warriorCell.label.text == "War"
+    and warriorCell.label.size == 7)
+settings.blessBarSize, settings.blessSpacing = nil, nil
+studio.paint(preview, "group")
+check("with room again the full name comes back at its size", warriorCell.label.text == "Warrior"
+    and warriorCell.label.size == 10 and mageCell.label.text == "Mage" and mageCell.label.size == 10)
 
 -- Off: nothing in the preview edits.
 settings.blessings = false

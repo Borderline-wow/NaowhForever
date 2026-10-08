@@ -164,12 +164,46 @@ Case("import: unticked parts stay out", function()
     assert(w.db.account.themePreset == "midnight", "the look stays")
 end)
 
+Case("what you answered about EllesmereUI's windows stays home, both ways", function()
+    local w = World()
+    local q = w.db.profiles.Default.qol
+    q.characterPanelAsked, q.characterPanelTookOver, q.inspectPanelAsked, q.inspectPanelTookOver = true, true, true, true
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    local out = payload.parts.settings.qol
+    assert(out.fastLoot == true and out.characterPanelAsked == nil and out.characterPanelTookOver == nil
+        and out.inspectPanelAsked == nil and out.inspectPanelTookOver == nil, "export leaves them out")
+    out.characterPanelAsked, out.characterPanelTookOver, out.inspectPanelAsked, out.inspectPanelTookOver = true, true, true, true
+    w.ns.ImportProfile(payload, { settings = true }, "Theirs")
+    local p = w.db.profiles.Theirs.qol
+    assert(p.fastLoot == true and p.characterPanelAsked == nil and p.characterPanelTookOver == nil
+        and p.inspectPanelAsked == nil and p.inspectPanelTookOver == nil, "an older string's are not taken in")
+end)
+
 Case("Macros without Smart Reminders still brings the class macros", function()
     local w = World()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
     w.ns.ImportProfile(payload, { macros = true }, "Macros Only")
     local sr = w.db.profiles["Macros Only"].tankReminder
     assert(sr.utilityReminders.classMacros.PALADIN[1].body == "/cast BoP" and sr.leadTime == nil)
+end)
+
+Case("overwrite: a rerun empties the named profile and lands there", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    w.db.profiles.Naowh = { stale = { x = 1 }, qol = { fastLoot = false }, tankReminder = { leadTime = 9 } }
+    local name = w.ns.ImportProfile(payload, { settings = true, macros = true }, " Naowh ", true)
+    local p = w.db.profiles.Naowh
+    assert(name == "Naowh" and w.switched == "Naowh" and w.db.profiles["Naowh 2"] == nil, name)
+    assert(p.stale == nil and p.qol.fastLoot == true, "what the old one held is gone")
+    assert(p.tankReminder.leadTime == nil and p.tankReminder.utilityReminders.classMacros.PALADIN[1].name == "BoP")
+end)
+
+Case("overwrite: never Default, and a name not taken is just made", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    assert(w.ns.ImportProfile(payload, ALL, "Default", true) == "Default 2")
+    assert(w.db.profiles.Default.tankReminder.leadTime == 5)
+    assert(w.ns.ImportProfile(payload, ALL, "Naowh", true) == "Naowh")
 end)
 
 Case("BiS lists join yours under a free name, never over them", function()
@@ -330,7 +364,6 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     end
     ns.AccentBorder = function(f) return f end
     ns.SetButtonText = function(b, t) b.label = t end
-    ns.WrapForDisplay = function(s) return s end
     ns.ConfirmReload = function(text) reload = text end
     ns.ShowPackImport = function(text) opened = text end
     local fonts = {}
@@ -355,6 +388,7 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     ns.ShowProfileExport()
     local text = boxes[1].text
     assert(text:sub(1, 11) == "NFPROFILE1:" and assert(ns.DecodeProfile(text)), "the export box holds the string")
+    assert(not text:find("%s"), "one unbroken line, so it pastes into a quoted Lua string")
 
     ns.ShowProfileImport()
     local paste, import = boxes[2], buttons.Import

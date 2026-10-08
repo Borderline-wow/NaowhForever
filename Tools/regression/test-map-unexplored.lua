@@ -115,8 +115,8 @@ pin:Refresh()
 Check(#textures == 1 and textures[1].file == 13, "an explored area is left to the game")
 
 Check(card and card.switch == "mapUnexplored", "the card switches the setting")
-Check(Read("QoL/NaowhForever_QoL.lua"):find("mapUnexplored = false, mapUnexploredDark = 0.5", 1, true),
-    "Unexplored Areas starts off, half dark")
+Check(Read("QoL/NaowhForever_QoL.lua"):find("mapUnexplored = true, mapUnexploredDark = 0.5", 1, true),
+    "Unexplored Areas starts on, half dark")
 Check(card.rows[1].key == "mapUnexploredDark" and card.rows[1].slider[2] == 90, "the slider sets the darkness, never to black")
 
 print(("test-map-unexplored: %d checks passed"):format(checks))

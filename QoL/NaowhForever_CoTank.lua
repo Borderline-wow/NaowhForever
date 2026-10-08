@@ -56,12 +56,9 @@ end
 -------------------------------------------------------------------------------
 --  Debuffs
 -------------------------------------------------------------------------------
--- Blizzard's own sated/hidden set, as NaowhUI keeps it.
-local HIDDEN_DEBUFFS = {
-    [57723] = true, [57724] = true, [80354] = true, [95809] = true,
-    [160455] = true, [264689] = true, [390435] = true,
-    [1254550] = true, [308312] = true,
-}
+-- Debuffs a tank carries that are no danger to them, left off the row: Weakened Soul, Recently
+-- Bandaged, Resurrection Sickness and Forbearance (Forever's spell IDs).
+local HIDDEN_DEBUFFS = { [6788] = true, [11196] = true, [15007] = true, [25771] = true }
 
 -- One group per filter, so the icon cap is the whole row. isBossOrRoleAura is the engine's
 -- own "boss aura or role aura" test, which needs only one group; the default sort has no
@@ -103,20 +100,18 @@ local PREVIEW_ICONS = {
     [[Interface\Icons\Spell_Shadow_UnholyFrenzy]],
 }
 
--- Bare seconds under a minute, then 2m / 1h / 1d. Seconds round up so it never reads 0
--- while time remains; the Up band at 60 stops a value just under a minute showing "0m".
+-- Bare seconds up to 90, then minutes up to 90, then hours, rounded up so it never reads less
+-- than is left. The game formats it, since a debuff's time can be secret.
 local durationFormatter
 
 local function DurationFormatter()
     if durationFormatter then return durationFormatter end
-    local Up, Down = Enum.NumericRuleFormatRounding.Up, Enum.NumericRuleFormatRounding.Down
+    local Up = Enum.NumericRuleFormatRounding.Up
     durationFormatter = C_StringUtil.CreateNumericRuleFormatter()
     durationFormatter:SetBreakpoints({
-        { threshold = 0,     format = "%d",  step = 1, rounding = Up },
-        { threshold = 60,    format = "%dm", step = 1, rounding = Up,   components = { { div = 60 } } },
-        { threshold = 61,    format = "%dm", step = 1, rounding = Down, components = { { div = 60 } } },
-        { threshold = 3600,  format = "%dh", step = 1, rounding = Down, components = { { div = 3600 } } },
-        { threshold = 86400, format = "%dd", step = 1, rounding = Down, components = { { div = 86400 } } },
+        { threshold = 0,    format = "%d",  step = 1, rounding = Up },
+        { threshold = 90,   format = "%dm", step = 1, rounding = Up, components = { { div = 60 } } },
+        { threshold = 5400, format = "%dh", step = 1, rounding = Up, components = { { div = 3600 } } },
     })
     return durationFormatter
 end

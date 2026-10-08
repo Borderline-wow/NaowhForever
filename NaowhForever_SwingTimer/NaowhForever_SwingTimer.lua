@@ -12,23 +12,27 @@ local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
 local Parts = ns.Shared.Parts
+local St = ns.Shared.Style
+
+-- Defaults take a copy, so a saved colour never writes into the shared style.
+local function Copy(c) return { r = c.r, g = c.g, b = c.b } end
 
 local S = UI.ModuleSettings("swingTimer", {
-    enabled = false,
+    enabled = true,
     width = 220, rowHeight = 14, spacing = 2, textSize = 11, font = "", outline = "OUTLINE",
-    texture = "", bgAlpha = 0.6,
+    texture = "Naowh Gradient", bgAlpha = 0.6,
     visibility = "combat", hideWhenIdle = false,
-    showMH = true, showOH = true, showR = true,
+    showMH = true, showOH = false, showR = false,
     depleteFill = false, showTime = true, showLabel = true, showSpark = true,
     rangeCheck = true, outOfRangeAlpha = 0.4,
     classColored = false, themeColors = false,
-    mhColor = { r = 0.90, g = 0.70, b = 0.27 },
-    ohColor = { r = 0.90, g = 0.45, b = 0.27 },
-    rColor = { r = 0.27, g = 0.73, b = 0.90 },
+    mhColor = Copy(St.LOOK_RGB),
+    ohColor = Copy(St.SECOND_RGB),
+    rColor = Copy(St.HAVE_RGB),
     queueHighlight = true,
     queueColor = { r = 1, g = 0.70, b = 0.20 },
-    cleaveColor = { r = 0.95, g = 0.35, b = 0.25 },
-    sealColors = false,
+    cleaveColor = Copy(St.RED_RGB),
+    sealColors = true,
     sealRighteousColor = { r = 0.95, g = 0.85, b = 0.40 },
     sealCrusaderColor = { r = 0.95, g = 0.55, b = 0.20 },
     sealCommandColor = { r = 0.75, g = 0.35, b = 0.95 },
@@ -37,7 +41,7 @@ local S = UI.ModuleSettings("swingTimer", {
     sealWisdomColor = { r = 0.35, g = 0.65, b = 1 },
     sealFuryColor = { r = 0.95, g = 0.25, b = 0.20 },
     sealMartyrdomColor = { r = 0.90, g = 0.40, b = 0.70 },
-    swingWindow = false, swingWindowTime = 0.4,
+    swingWindow = true, swingWindowTime = 0.4,
     swingWindowColor = { r = 1, g = 1, b = 1, a = 0.35 },
     windowLatency = false,
     autoShotWindow = false,
@@ -80,13 +84,21 @@ local CAST_EVENTS = {
     "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_CHANNEL_STOP",
 }
 
--- On-next-swing attacks per class. While one is queued the melee bars take its colour and
--- carry its name, so the swing that will use it is plain to see.
-local QUEUE_SPELLS = {
-    WARRIOR = { { id = 78, key = "queueColor" }, { id = 845, key = "cleaveColor" } },  -- Heroic Strike, Cleave
-    DRUID = { { id = 6807, key = "queueColor" } },    -- Maul
-    HUNTER = { { id = 2973, key = "queueColor" } },   -- Raptor Strike
+-- The bars from the top down, named by the label each one shows. A bar's colour setting is its
+-- label in lower case plus "Color".
+local BAR_LABELS = { "MH", "OH", "R", "TGT" }
+local BAR_SWITCH = { MH = "showMH", OH = "showOH", R = "showR", TGT = "targetSwing" }
+-- Which of UnitAttackSpeed's returns is the bar's weapon speed.
+local SPEED_RETURN = { MH = 1, OH = 2, R = 3, TGT = 1 }
+
+-- Attacks that wait for the next melee swing, by class. All share queueColor unless
+-- QUEUE_OWN_COLOR gives them one.
+local NEXT_SWING = {
+    WARRIOR = { 78, 845 },  -- Heroic Strike, Cleave
+    DRUID = { 6807 },       -- Maul
+    HUNTER = { 2973 },      -- Raptor Strike
 }
+local QUEUE_OWN_COLOR = { [845] = "cleaveColor" }
 
 -- Paladin seals by their first rank: every rank shares the seal's name, which is what is
 -- matched. Seal of Fury is Forever's own. Judgement uses the seal up.
@@ -104,24 +116,21 @@ local SEALS = {
 }
 local JUDGEMENT = 20271
 
-local SWING, DIR, IMMEDIATE, ROWS
+local SWING, DIR, IMMEDIATE, BAR_SWING
 if SUPPORTED then
     SWING = Enum.PlayerSwingType
     DIR = Enum.StatusBarTimerDirection
     IMMEDIATE = Enum.StatusBarInterpolation.Immediate
-    ROWS = {
-        { type = SWING.MainHand, key = "mh", tag = "MH", show = "showMH", melee = true },
-        { type = SWING.OffHand, key = "oh", tag = "OH", show = "showOH", melee = true },
-        { type = SWING.Ranged, key = "r", tag = "R", show = "showR" },
-        { type = TARGET, key = "tgt", tag = "TGT", target = true },
-    }
+    BAR_SWING = { MH = SWING.MainHand, OH = SWING.OffHand, R = SWING.Ranged, TGT = TARGET }
 end
 
 -- unlockActive: Unlock Mode is open; unlocked: it is and this module is on.
 local frame, unlockActive, unlocked, inCombat, pendingApply, timeFormat
 local rows, byType = {}, {}
 local live = 0
-local queueSpells, queued = {}, false
+-- queueColorKey: this class's queued attacks by name, to their colour setting. queued: the name
+-- of the one queued now, or false.
+local queueColorKey, queued = {}, false
 local sealByName, seal, judgementName = {}, false, nil
 local sealTimer, sealSeconds = nil, 30
 local isHunter, moving, latency, castEnd = false, false, 0, nil
@@ -159,36 +168,27 @@ end
 -------------------------------------------------------------------------------
 --  Which bars exist
 -------------------------------------------------------------------------------
--- Main Hand always swings; Off Hand and Ranged while their slot reports a speed. A speed
--- that reads restricted (a haste proc in combat) is "unknown", not "no weapon", so the bar
--- keeps what it last knew.
-local function CanSwing(def, row)
-    local t = def.type
-    if t == SWING.MainHand then return true end
-    local speed
-    if t == TARGET then
-        local hostile, dead = UnitCanAttack("player", "target"), UnitIsDead("target")
-        if not (Plain(hostile) and hostile and Plain(dead) and not dead) then return false end
-        speed = UnitAttackSpeed("target")
-        -- The last readable speed times the bar while the live one reads restricted.
-        if Plain(speed) and type(speed) == "number" and speed > 0 then row.targetSpeed = speed end
-    else
-        local _, oh, ranged = UnitAttackSpeed("player")
-        if t == SWING.OffHand then speed = oh else speed = ranged end
+-- The bar's weapon speed, nil with no weapon. A haste proc in combat can make it read
+-- restricted; the bar then goes on with the last speed it read.
+local function WeaponSpeed(row)
+    local unit = row.slot == TARGET and "target" or "player"
+    local speed = select(SPEED_RETURN[row.label], UnitAttackSpeed(unit))
+    if Plain(speed) then
+        row.speed = type(speed) == "number" and speed > 0 and speed or nil
     end
-    if not Plain(speed) then return row and row.canSwing or false end
-    local can = type(speed) == "number" and speed > 0
-    if row then row.canSwing = can end
-    return can
+    return row.speed
 end
 
-local function Wanted(def, row)
-    if def.target then
-        if not S.Get("targetSwing") then return false end
-    elseif not S.Get(def.show) then
-        return false
+-- Main Hand is always there; the others need a weapon with a speed, and the Target bar a
+-- living enemy targeted.
+local function Wanted(row)
+    if not S.Get(row.switch) then return false end
+    if row.slot == SWING.MainHand then return true end
+    if row.slot == TARGET then
+        local hostile, dead = UnitCanAttack("player", "target"), UnitIsDead("target")
+        if not (Plain(hostile) and hostile and Plain(dead) and not dead) then return false end
     end
-    return CanSwing(def, row)
+    return WeaponSpeed(row) ~= nil
 end
 
 -------------------------------------------------------------------------------
@@ -196,9 +196,11 @@ end
 -------------------------------------------------------------------------------
 local Look = {}
 
-function Look.Row(parent, def)
+function Look.Row(parent, label)
     local row = CreateFrame("Frame", nil, parent)
-    row.def = def
+    row.label, row.slot, row.switch = label, BAR_SWING[label], BAR_SWITCH[label]
+    row.hand = label == "MH" or label == "OH"
+    row.colorKey = label:lower() .. "Color"
     row.bg = ns.Solid(row, "BACKGROUND", T.bg, 0.6)
     row.bg:SetAllPoints()
     row.border = ns.Border(row)
@@ -220,14 +222,14 @@ function Look.Row(parent, def)
     row.spark:SetTexture(SPARK_TEX)
     row.spark:SetBlendMode("ADD")
     row.spark:Hide()
-    if def.type == SWING.MainHand then
+    if row.slot == SWING.MainHand then
         row.tick = over:CreateTexture(nil, "OVERLAY", nil, 2)
         row.tick:SetWidth(2)
         row.tick:Hide()
     end
     row.tag = ns.Font(over, 11, "OUTLINE")
     row.tag:SetPoint("LEFT", row, "LEFT", TEXT_PAD, 0)
-    row.tag:SetText(def.tag)
+    row.tag:SetText(label)
     row.time = ns.Font(over, 11, "OUTLINE")
     row.time:SetPoint("RIGHT", row, "RIGHT", -TEXT_PAD, 0)
     row.time:SetText("")
@@ -248,29 +250,28 @@ function Look.Style(row, tex)
     row.time:SetShown(S.Get("showTime"))
 end
 
-function Look.BarColor(def)
-    if S.Get("classColored") and not def.target then
+function Look.BarColor(row)
+    if S.Get("classColored") and row.slot ~= TARGET then
         local c = RAID_CLASS_COLORS[select(2, UnitClass("player"))]
         if c then return c.r, c.g, c.b, 1 end
     end
-    return Color(def.key .. "Color")
+    return Color(row.colorKey)
 end
 
 function Look.Tag(row, queuedName)
     if queuedName then
-        row.tag:SetText(row.def.tag .. " - " .. queuedName)
+        row.tag:SetText(row.label .. " - " .. queuedName)
     else
-        row.tag:SetText(row.def.tag)
+        row.tag:SetText(row.label)
     end
 end
 
--- Out of range: the whole bar dims and its text turns red, as Blizzard's own timer does.
-function Look.Range(row, oor)
-    row:SetAlpha(oor and S.Get("outOfRangeAlpha") or 1)
-    local r, g, b = 1, 1, 1
-    if oor then r, g, b = 1, 0.1, 0.1 end
-    row.tag:SetTextColor(r, g, b)
-    row.time:SetTextColor(r, g, b)
+-- A bar whose target is beyond its weapon's reach fades and shows its text in red.
+function Look.Range(row, far)
+    local c = far and St.RED_RGB or T.fg
+    row:SetAlpha(far and S.Get("outOfRangeAlpha") or 1)
+    row.tag:SetTextColor(c.r, c.g, c.b)
+    row.time:SetTextColor(c.r, c.g, c.b)
 end
 
 function Look.Window(row, share, r, g, b, a)
@@ -297,8 +298,8 @@ function Look.Tick(row, frac, r, g, b, a)
     tick:Show()
 end
 
-local function BuildRow(def)
-    local row = Look.Row(frame, def)
+local function BuildRow(label)
+    local row = Look.Row(frame, label)
     row.dur = C_DurationUtil.CreateDuration()
     -- The client writes the countdown from the row's duration; no Lua runs per frame.
     local text = C_DurationUtil.CreateDurationTextBinding()
@@ -309,30 +310,27 @@ local function BuildRow(def)
     text:SetExpiredText("")
     text:SetEnabled(false)
     row.text = text
-    row.outOfRange = false
+    row.far = false
     return row
 end
 
 local function RowColor(row)
-    local def = row.def
-    if def.melee and queued then return Color(queued.key) end
-    if def.melee and seal then return Color(seal.key) end
-    return Look.BarColor(def)
+    if row.hand and queued then return Color(queueColorKey[queued]) end
+    if row.hand and seal then return Color(seal.key) end
+    return Look.BarColor(row)
 end
 
 local function PaintRow(row)
     row.bar:GetStatusBarTexture():SetVertexColor(RowColor(row))
-    Look.Tag(row, row.def.melee and queued and queued.name)
+    Look.Tag(row, row.hand and queued)
 end
 
 local function PaintRange(row)
-    Look.Range(row, row.outOfRange and not unlocked)
+    Look.Range(row, row.far and not unlocked)
 end
 
-local function SetOutOfRange(row, oor)
-    oor = oor and true or false
-    if row.outOfRange == oor then return end
-    row.outOfRange = oor
+local function SetFar(row, far)
+    row.far = far
     PaintRange(row)
 end
 
@@ -341,15 +339,15 @@ end
 -- (re-sent on every refresh, in case Blizzard's timer turned it off); a bar that does not
 -- want range just ignores the range events.
 local function SetRangeCheck(row, on)
-    row.rangeOn = on and not row.def.target
-    if row.rangeOn then C_SwingTimer.EnableRangeCheck(row.def.type, true) end
+    row.rangeOn = on and row.slot ~= TARGET
+    if row.rangeOn then C_SwingTimer.EnableRangeCheck(row.slot, true) end
 end
 
+-- IsTargetWithinSwingRange gives nil when there is nothing to measure against.
 local function ReadRange(row)
-    if not row.rangeOn then SetOutOfRange(row, false) return end
-    -- nil means no check could be made (no target, no weapon), which is not out of range.
-    local inRange = C_SwingTimer.IsTargetWithinSwingRange(row.def.type)
-    SetOutOfRange(row, Plain(inRange) and inRange == false)
+    local within
+    if row.rangeOn then within = C_SwingTimer.IsTargetWithinSwingRange(row.slot) end
+    SetFar(row, Plain(within) and within == false)
 end
 
 -------------------------------------------------------------------------------
@@ -358,12 +356,11 @@ end
 -- The window sits at the end the swing lands on: the right while filling, the left while
 -- depleting. Sized on the swing edges only.
 local function WindowSeconds(row)
-    local def = row.def
     local sec
-    if def.melee then
+    if row.hand then
         if not S.Get("swingWindow") then return nil end
         sec = S.Get("swingWindowTime")
-    elseif def.type == SWING.Ranged then
+    elseif row.slot == SWING.Ranged then
         if not (S.Get("autoShotWindow") and isHunter) then return nil end
         sec = AUTO_SHOT_CAST
     else
@@ -377,7 +374,7 @@ local function UpdateWindow(row)
     local sec = (row.live or unlocked) and WindowSeconds(row)
     if not sec then row.window:Hide() return end
     local key
-    if row.def.melee then key = "swingWindowColor"
+    if row.hand then key = "swingWindowColor"
     elseif moving then key = "autoShotMovingColor"
     else key = "autoShotStandColor" end
     Look.Window(row, sec / (row.swing or 2), Color(key))
@@ -408,8 +405,6 @@ end
 -------------------------------------------------------------------------------
 local UpdateVisibility
 
--- Idle: the bar timer parks on a finished RemainingTime duration, which paints a static empty
--- bar; a plain SetValue does not repaint a bar the timer owns.
 local function IdleRow(row)
     if row.live then
         row.live = nil
@@ -421,8 +416,7 @@ local function IdleRow(row)
         row.endTimer = nil
     end
     row.ends = nil
-    row.dur:SetTimeFromStart(GetTime() - 1, 1)
-    row.bar:SetTimerDuration(row.dur, IMMEDIATE, DIR.RemainingTime)
+    Parts.StopTimer(row.bar, row.dur)
     row.text:SetEnabled(false)
     row.time:SetText("")
     row.spark:Hide()
@@ -486,10 +480,11 @@ local function ParryHaste(row)
     ScheduleEnd(row)
 end
 
-local function QueuedSpell()
-    for i = 1, #queueSpells do
-        local cur = C_Spell.IsCurrentSpell(queueSpells[i].name)
-        if Plain(cur) and cur then return queueSpells[i] end
+-- The name of the next-swing attack waiting now, or false.
+local function Queued()
+    for name in pairs(queueColorKey) do
+        local waiting = C_Spell.IsCurrentSpell(name)
+        if Plain(waiting) and waiting then return name end
     end
     return false
 end
@@ -502,7 +497,7 @@ local function SetSeal(s)
     if s == seal then return end
     seal = s
     for i = 1, #rows do
-        if rows[i].def.melee then PaintRow(rows[i]) end
+        if rows[i].hand then PaintRow(rows[i]) end
     end
 end
 
@@ -551,11 +546,11 @@ local function SealCast(spellID)
 end
 
 local function PaintQueue()
-    local q = S.Get("queueHighlight") and QueuedSpell() or false
+    local q = S.Get("queueHighlight") and Queued()
     if q == queued then return end
     queued = q
     for i = 1, #rows do
-        if rows[i].def.melee then PaintRow(rows[i]) end
+        if rows[i].hand then PaintRow(rows[i]) end
     end
 end
 
@@ -568,7 +563,7 @@ local function RefreshRows()
     local n = 0
     for i = 1, #rows do
         local row = rows[i]
-        if Wanted(row.def, row) then
+        if Wanted(row) then
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -n * (h + sp))
             row:SetSize(w, h)
@@ -580,7 +575,7 @@ local function RefreshRows()
             if row.live then IdleRow(row) end
             row:Hide()
             SetRangeCheck(row, false)
-            SetOutOfRange(row, false)
+            SetFar(row, false)
         end
     end
     n = math.max(n, 1)
@@ -591,7 +586,7 @@ end
 local function RowsChanged()
     for i = 1, #rows do
         local row = rows[i]
-        if (Wanted(row.def, row) and true or false) ~= row:IsShown() then return true end
+        if Wanted(row) ~= row:IsShown() then return true end
     end
     return false
 end
@@ -612,8 +607,7 @@ local function PaintSample()
     for i = 1, #rows do
         local row = rows[i]
         if row.live then IdleRow(row) end
-        row.dur:SetTimeFromStart(GetTime() - 1, 1)
-        row.bar:SetTimerDuration(row.dur, IMMEDIATE, DIR.ElapsedTime)
+        Parts.StopTimer(row.bar, row.dur, true)
         row.time:SetText(S.Get("showTime") and "1.2" or "")
         row.spark:SetShown(S.Get("showSpark"))
         UpdateWindow(row)
@@ -647,21 +641,18 @@ local function Build()
     timeFormat = C_StringUtil.CreateNumericRuleFormatter()
     timeFormat:AddBreakpoint({ threshold = 0, step = 0.1,
         rounding = Enum.NumericRuleFormatRounding.Up, format = "%.1f" })
-    for i = 1, #ROWS do
-        local row = BuildRow(ROWS[i])
-        rows[i], byType[ROWS[i].type] = row, row
+    for i, label in ipairs(BAR_LABELS) do
+        local row = BuildRow(label)
+        rows[i], byType[row.slot] = row, row
         IdleRow(row)
     end
     frame.mover = UI.AttachMover(frame, "Swing Timer", function(pos) S.Set("swingPos", pos) end, "Swing Timer/Settings",
         "Swing Timer/Settings:bars")
     local _, classFile = UnitClass("player")
     isHunter = classFile == "HUNTER"
-    for _, q in ipairs(QUEUE_SPELLS[classFile] or {}) do
-        local name = C_Spell.GetSpellName(q.id)
-        if Plain(name) and name then
-            q.name = name
-            queueSpells[#queueSpells + 1] = q
-        end
+    for _, id in ipairs(NEXT_SWING[classFile] or {}) do
+        local name = C_Spell.GetSpellName(id)
+        if Plain(name) and name then queueColorKey[name] = QUEUE_OWN_COLOR[id] or "queueColor" end
     end
     if classFile == "PALADIN" then
         for _, s in ipairs(SEALS) do
@@ -684,16 +675,17 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         if not (Plain(a1) and Plain(a2)) then return end
         local row = byType[a2]
         if row then
-            -- A swing proves its slot can swing, even while its speed reads restricted.
-            if not row:IsShown() and S.Get(row.def.show) and not row.canSwing then
-                row.canSwing = true
+            -- A swing proves the weapon is there while its speed reads restricted; its length
+            -- stands in for the speed.
+            if not row:IsShown() and S.Get(row.switch) and not row.speed then
+                row.speed = a1
                 RefreshRows()
             end
             if row:IsShown() and not unlocked then StartRow(row, a1) end
             -- Blizzard's own timer may have switched the shared range flag off since the last
             -- refresh; each swing puts ours back and re-reads.
             if row.rangeOn then
-                C_SwingTimer.EnableRangeCheck(row.def.type, true)
+                C_SwingTimer.EnableRangeCheck(row.slot, true)
                 ReadRange(row)
             end
         end
@@ -704,11 +696,11 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
         -- a1 = swingType, a2 = isInRange, a3 = checksRange
         if not (Plain(a1) and Plain(a2) and Plain(a3)) then return end
         local row = byType[a1]
-        if row and row.rangeOn then SetOutOfRange(row, a3 == true and a2 == false) end
+        if row and row.rangeOn then SetFar(row, a3 == true and a2 == false) end
     elseif event == "PLAYER_TARGET_CHANGED" then
         local tr = byType[TARGET]
         if tr.live then IdleRow(tr) end
-        tr.canSwing, tr.targetSpeed = nil, nil
+        tr.speed = nil
         RefreshRows()
     elseif event == "UNIT_COMBAT" then
         -- a1 = unit, a2 = action, a5 = schoolMask
@@ -719,8 +711,7 @@ events:SetScript("OnEvent", function(_, event, a1, a2, a3, a4, a5)
             if a5 ~= 1 or not SWING_ACTIONS[a2] then return end
             local onMe = UnitIsUnit("targettarget", "player")
             if not (Plain(onMe) and onMe) then return end
-            local speed = UnitAttackSpeed("target")
-            if not Plain(speed) then speed = tr.targetSpeed end
+            local speed = WeaponSpeed(tr)
             if speed then StartRow(tr, speed) end
         elseif a2 == "PARRY" and tr.live then
             ParryHaste(tr)
@@ -779,7 +770,7 @@ local function RegisterEvents()
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterUnitEvent("UNIT_ATTACK_SPEED", "player")
     -- Fires constantly in combat, so only while there is a queued attack to watch for.
-    if S.Get("queueHighlight") and #queueSpells > 0 then
+    if S.Get("queueHighlight") and next(queueColorKey) then
         events:RegisterEvent("ACTIONBAR_UPDATE_STATE")
     end
     if S.Get("targetSwing") then
@@ -883,17 +874,17 @@ local OFF = "Turn on the Swing Timer"
 local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 120, 10, 11, 16
 local SAMPLE_LATENCY = 0.06
 local SAMPLES = {
-    melee = { mh = { 0.55, "1.2" }, oh = { 0.3, "1.3" } },
-    ranged = { r = { 0.75, "0.7" } },
-    range = { mh = { 0.55, "1.2" }, oh = { 0.3, "1.3" }, oor = true },
-    queued = { mh = { 0.7, "0.8" }, oh = { 0.45, "1.0" }, queued = true },
-    target = { mh = { 0.55, "1.2" }, tgt = { 0.4, "1.2" } },
-    parry = { mh = { 0.55, "1.2" }, tgt = { 0.8, "0.4" } },
-    window = { mh = { 0.8, "0.5" }, oh = { 0.6, "0.7" }, window = true },
-    standing = { r = { 0.85, "0.4" }, autoShot = true },
-    moving = { r = { 0.85, "0.4" }, autoShot = true, moving = true },
-    castOk = { mh = { 0.3, "1.8" }, cast = 0.75 },
-    castBad = { mh = { 0.6, "1.0" }, cast = 1.3 },
+    melee = { MH = { 0.55, "1.2" }, OH = { 0.3, "1.3" } },
+    ranged = { R = { 0.75, "0.7" } },
+    range = { MH = { 0.55, "1.2" }, OH = { 0.3, "1.3" }, oor = true },
+    queued = { MH = { 0.7, "0.8" }, OH = { 0.45, "1.0" }, queued = true },
+    target = { MH = { 0.55, "1.2" }, TGT = { 0.4, "1.2" } },
+    parry = { MH = { 0.55, "1.2" }, TGT = { 0.8, "0.4" } },
+    window = { MH = { 0.8, "0.5" }, OH = { 0.6, "0.7" }, window = true },
+    standing = { R = { 0.85, "0.4" }, autoShot = true },
+    moving = { R = { 0.85, "0.4" }, autoShot = true, moving = true },
+    castOk = { MH = { 0.3, "1.8" }, cast = 0.75 },
+    castBad = { MH = { 0.6, "1.0" }, cast = 1.3 },
 }
 local HEROIC_STRIKE = 78
 local SAMPLE_SWING = 2.6
@@ -917,18 +908,16 @@ local function Picked(key)
 end
 
 local function QueueName()
-    local list = QUEUE_SPELLS[select(2, UnitClass("player"))]
-    local id = list and list[1].id or HEROIC_STRIKE
-    local name = C_Spell.GetSpellName(id)
+    local ids = NEXT_SWING[select(2, UnitClass("player"))]
+    local name = C_Spell.GetSpellName(ids and ids[1] or HEROIC_STRIKE)
     return Plain(name) and name or "Heroic Strike"
 end
 
 local function PreviewWindow(row, sample)
-    local def = row.def
     local sec, key
-    if sample.window and def.melee and S.Get("swingWindow") then
+    if sample.window and row.hand and S.Get("swingWindow") then
         sec, key = S.Get("swingWindowTime"), "swingWindowColor"
-    elseif sample.autoShot and def.type == SWING.Ranged and S.Get("autoShotWindow") and Hunter() then
+    elseif sample.autoShot and row.slot == SWING.Ranged and S.Get("autoShotWindow") and Hunter() then
         sec, key = AUTO_SHOT_CAST, sample.moving and "autoShotMovingColor" or "autoShotStandColor"
     end
     if not sec then
@@ -940,19 +929,18 @@ local function PreviewWindow(row, sample)
 end
 
 local function PaintSampleRow(row, part, sample)
-    local def = row.def
     local fill = part[1]
     row.bar:SetValue(S.Get("depleteFill") and 1 - fill or fill)
     row.time:SetText(part[2])
     row.spark:SetShown(S.Get("showSpark"))
-    local queuedName = sample.queued and def.melee and QueueName()
+    local queuedName = sample.queued and row.hand and QueueName()
     if queuedName then
         row.bar:GetStatusBarTexture():SetVertexColor(Color("queueColor"))
     else
-        row.bar:GetStatusBarTexture():SetVertexColor(Look.BarColor(def))
+        row.bar:GetStatusBarTexture():SetVertexColor(Look.BarColor(row))
     end
     Look.Tag(row, queuedName)
-    Look.Range(row, sample.oor and S.Get("rangeCheck") and not def.target)
+    Look.Range(row, sample.oor and S.Get("rangeCheck") and row.slot ~= TARGET)
     PreviewWindow(row, sample)
     if row.tick then
         if sample.cast then
@@ -968,7 +956,7 @@ local function NewPreview(stage)
     preview:SetAllPoints()
     preview.bars = CreateFrame("Frame", nil, preview)
     preview.rows = {}
-    for i = 1, #ROWS do preview.rows[i] = Look.Row(preview.bars, ROWS[i]) end
+    for i, label in ipairs(BAR_LABELS) do preview.rows[i] = Look.Row(preview.bars, label) end
     preview.note = ns.Font(preview, NOTE_SIZE, nil, T.muted)
     preview.note:SetPoint("BOTTOM", 0, NOTE_Y)
     return preview
@@ -995,9 +983,8 @@ local function PaintPreview(preview, state)
     local h, sp, w = S.Get("rowHeight"), S.Get("spacing"), S.Get("width")
     local n = 0
     for _, row in ipairs(preview.rows) do
-        local def = row.def
-        local part = sample[def.key]
-        if part and (def.target or S.Get(def.show)) then
+        local part = sample[row.label]
+        if part and (row.slot == TARGET or S.Get(row.switch)) then
             Look.Style(row, tex)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", preview.bars, "TOPLEFT", 0, -n * (h + sp))

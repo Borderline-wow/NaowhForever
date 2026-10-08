@@ -80,7 +80,11 @@ local function Fixture(opts)
                 return Frame()
             end,
             STATUS = setmetatable({}, { __index = function() return "" end }),
-            ModuleSettings = function(_, defaults)
+            ModuleSettings = function(_, given)
+                -- Written against every macro starting off, the original defaults.
+                local defaults = setmetatable({ health = false, healthOrder = "stone", mana = false, food = false,
+                    bandage = false, trinket1 = false, trinket2 = false, focus = false, focusMark = false,
+                    focusAnnounce = false, acceptPopup = false }, { __index = given })
                 function S.Get(k)
                     if settings[k] ~= nil then return settings[k] end
                     return defaults[k]
