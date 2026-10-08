@@ -101,7 +101,7 @@ local NEXT_SWING = {
 local QUEUE_OWN_COLOR = { [845] = "cleaveColor" }
 
 -- Paladin seals by their first rank: every rank shares the seal's name, which is what is
--- matched. Seal of Fury is Forever's own. Judgement uses the seal up.
+-- matched. Seal of Fury is Forever's own. Forever's Judgement does not consume the seal.
 -- A seal lasts 30 seconds, 34 with the Seal Duration Increase item effect; a seal buff that can
 -- be read replaces this with its real length.
 local SEALS = {
@@ -114,7 +114,6 @@ local SEALS = {
     { id = 1311649, key = "sealFuryColor" },     -- Seal of Fury
     { id = 407798, key = "sealMartyrdomColor" },  -- Seal of Martyrdom
 }
-local JUDGEMENT = 20271
 
 local SWING, DIR, IMMEDIATE, BAR_SWING
 if SUPPORTED then
@@ -131,7 +130,7 @@ local live = 0
 -- queueColorKey: this class's queued attacks by name, to their colour setting. queued: the name
 -- of the one queued now, or false.
 local queueColorKey, queued = {}, false
-local sealByName, seal, judgementName = {}, false, nil
+local sealByName, seal = {}, false
 local sealTimer, sealSeconds = nil, 30
 local isHunter, moving, latency, castEnd = false, false, 0, nil
 
@@ -540,8 +539,6 @@ local function SealCast(spellID)
     if sealByName[name] then
         SetSeal(sealByName[name])
         RunOutIn(sealSeconds)
-    elseif name == judgementName then
-        SetSeal(false)
     end
 end
 
@@ -659,8 +656,6 @@ local function Build()
             local name = C_Spell.GetSpellName(s.id)
             if Plain(name) and name then sealByName[name] = s end
         end
-        local name = C_Spell.GetSpellName(JUDGEMENT)
-        judgementName = Plain(name) and name or nil
     end
     Place()
 end
@@ -1144,7 +1139,7 @@ page:Card({
 page:Card({
     id = "seals", name = "Seal Colours", order = 30, switch = "sealColors",
     help = "Paladins only. The melee bars take the colour of the seal you have up. In combat that is the "
-        .. "last seal you cast until a Judgement uses it up or it runs out, as the game keeps your buffs "
+        .. "last seal you cast until it runs out, as the game keeps your buffs "
         .. "from addons there; out of combat it is read from your buffs.",
     rows = {
         { key = "sealRighteousColor", label = "Seal of Righteousness", colour = true, needs = PaladinOn,
