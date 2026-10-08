@@ -35,6 +35,9 @@ Shared.Style = {
     HUD_BARE_SHADOW_ALPHA = 1,
     HUD_BARE_SHADOW_X = 1,
     HUD_BARE_SHADOW_Y = -1,
+    -- A window's soft drop shadow (Parts.Shadow): SHADOW_ALPHA black at its edge, clear SHADOW_SIZE out.
+    SHADOW_ALPHA = 0.4,
+    SHADOW_SIZE = 48,
     -- An item level above yours; bags with no room left.
     RED_CODE = "|cfff87171",
     RED_RGB = { r = 0.97, g = 0.44, b = 0.44 },

@@ -94,33 +94,38 @@ local SOFT_SPANS = {     -- from a corner's point to another's, over the texture
     { 1, "BOTTOMRIGHT", 4, "TOPLEFT", 0.5, 0.5, 0.5, 0.5 },
 }
 
-local function SoftPiece(backdrop, l, r, t, b)
-    local tex = Parts.Smooth(backdrop.frame:CreateTexture(nil, "BACKGROUND"), St.SOFT_SHADE)
+local SOFT_SIDES = 4      -- the spans along the four sides; the last one is the middle
+
+local function SoftPiece(pieces, frame, color, alpha, l, r, t, b)
+    local tex = Parts.Smooth(frame:CreateTexture(nil, "BACKGROUND"), St.SOFT_SHADE)
     tex:SetTexCoord(l, r, t, b)
-    local c = backdrop.color
-    tex:SetVertexColor(c.r, c.g, c.b, backdrop.softAlpha)
-    local soft = backdrop.soft
-    soft[#soft + 1] = tex
+    tex:SetVertexColor(color.r, color.g, color.b, alpha)
+    pieces[#pieces + 1] = tex
     return tex
 end
 
-local function BuildSoft(backdrop)
-    backdrop.soft = {}
-    local frame, fade = backdrop.frame, backdrop.fade
-    local out = fade - backdrop.inset
+-- The soft fade on frame: color at alpha, clear `fade` out, its corners `out` past the frame's.
+-- Hollow leaves the middle out, for a shadow round the frame that covers nothing of it.
+local function SoftPieces(frame, color, alpha, fade, out, hollow)
+    local pieces = {}
     for i = 1, #SOFT_CORNERS do
         local c = SOFT_CORNERS[i]
-        local tex = SoftPiece(backdrop, c[4], c[5], c[6], c[7])
+        local tex = SoftPiece(pieces, frame, color, alpha, c[4], c[5], c[6], c[7])
         tex:SetSize(fade, fade)
         tex:SetPoint(c[1], frame, c[1], c[2] * out, c[3] * out)
     end
-    local soft = backdrop.soft
-    for i = 1, #SOFT_SPANS do
+    for i = 1, hollow and SOFT_SIDES or #SOFT_SPANS do
         local s = SOFT_SPANS[i]
-        local tex = SoftPiece(backdrop, s[5], s[6], s[7], s[8])
-        tex:SetPoint("TOPLEFT", soft[s[1]], s[2])
-        tex:SetPoint("BOTTOMRIGHT", soft[s[3]], s[4])
+        local tex = SoftPiece(pieces, frame, color, alpha, s[5], s[6], s[7], s[8])
+        tex:SetPoint("TOPLEFT", pieces[s[1]], s[2])
+        tex:SetPoint("BOTTOMRIGHT", pieces[s[3]], s[4])
     end
+    return pieces
+end
+
+local function BuildSoft(backdrop)
+    backdrop.soft = SoftPieces(backdrop.frame, backdrop.color, backdrop.softAlpha, backdrop.fade,
+        backdrop.fade - backdrop.inset)
 end
 
 local function BackdropMode(backdrop, mode)
@@ -149,6 +154,13 @@ function Parts.HudBackdrop(frame, opts)
     backdrop.border = ns.Border(frame, BORDER_RGB)
     BackdropMode(backdrop, opts.mode)
     return backdrop
+end
+
+-- A soft drop shadow round a window, outside it only: the soft fade in black, from alpha
+-- (St.SHADOW_ALPHA) at the window's edge to clear `size` (St.SHADOW_SIZE) out.
+function Parts.Shadow(frame, size, alpha)
+    size = size or St.SHADOW_SIZE
+    return SoftPieces(frame, BORDER_RGB, alpha or St.SHADOW_ALPHA, size, size, true)
 end
 
 local PROGRESS_TEXTURE = "Interface\\Buttons\\WHITE8X8"

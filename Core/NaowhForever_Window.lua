@@ -1220,6 +1220,7 @@ local function CreateWindow()
     window:SetClampedToScreen(true)
     window:EnableMouse(true)
     ns.Shared.Parts.Backdrop(window):Paint(1)
+    ns.Shared.Parts.Shadow(window)
     local border = ns.Border(window, ns.Shared.Style.BORDER_RGB)
     -- Ctrl+F goes to the search box, and Escape clears a search before it closes the window.
     window:SetScript("OnKeyDown", function(self, key)

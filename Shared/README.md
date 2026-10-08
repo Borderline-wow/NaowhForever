@@ -27,8 +27,8 @@ Shared/
                an atlas badge on an icon's top corner (Parts.ItemBadge, Bag Space's clock and quest "!"), a short label
                in a pill of its color (Parts.Pill and Parts.SetPill, Group Inspect's "NF"), a timer line the client runs
                down by itself (Parts.TimerLine, and Parts.StopTimer to stop any timer bar), a row of labels spread evenly (Parts.LabelRow), a HUD
-               card's background: the card, a soft fade or none (Parts.HudBackdrop), and a HUD line's
-               font, size and outline (Parts.HudFont)
+               card's background: the card, a soft fade or none (Parts.HudBackdrop), a HUD line's
+               font, size and outline (Parts.HudFont), and a window's soft drop shadow (Parts.Shadow)
   Window.lua   a window: the frame, title bar, icons, opacity slider, switch, search, footer,
                and a module's card on its settings page
   Tracker.lua  a tracker's small window (Parts.TrackerPanel), and a list row's bands
@@ -162,6 +162,10 @@ Shared/
   SharedMedia statusbar, or `own` for `""` and anything missing. A row of its own uses the
   `texture` kind, `{ key = "texture", label = "Bar Texture", texture = "Flat" }`, which lists
   `ns.UI.TextureChoices`. The Swing Timer and Threat Meter use it.
+- **A window's shadow:** `Parts.Shadow(frame, size, alpha)` puts a soft drop shadow round a
+  window, outside it only, so a see-through window shows none of it: Soft's pieces without the
+  middle, in black from `alpha` (`SHADOW_ALPHA`) at the edge to clear `size` (`SHADOW_SIZE`) out.
+  It returns the textures. The options window uses it.
 - **A progress line:** `Parts.ProgressLine(parent, height)` is a thin line that holds still (the
   XP Ticker's level progress): a track in the theme's line color, a fill in a gradient into its
   color, and a fainter segment ahead of the fill (rested XP). `line:SetProgress(value, ahead)`
