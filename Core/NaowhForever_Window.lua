@@ -117,6 +117,7 @@ local MODULES = {
       subtitle = "Everything there is to do, and how much of it you have done.",
       tabs = {
           { name = "Quests", reuse = true },
+          { name = "Rares", reuse = true },
       } },
     -- The sets are a window of their own (open); only their settings live here.
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",

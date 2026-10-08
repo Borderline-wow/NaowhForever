@@ -23,6 +23,7 @@ globals = {
     "BINDING_NAME_NAOWHFOREVER_BOSSLOOT", "BINDING_NAME_NAOWHFOREVER_JOURNAL", "BINDING_NAME_NAOWHFOREVER_BIS", "BINDING_NAME_NAOWHFOREVER_COMPLETO",
     "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverUnexploredPinMixin", "NaowhForeverSkybornePinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverSleepingBagPinMixin", "NaowhForeverEntrancePinMixin",
     "NaowhForeverQuestGiverPinMixin",
+    "NaowhForeverRarePinMixin",
     "SlashCmdList", "hash_SlashCmdList", "StaticPopupDialogs",
     "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT", "RXPGuides_Themes",
 }
@@ -130,7 +131,8 @@ read_globals = {
     "UnitCastingDuration", "UnitCastingInfo", "UnitChannelDuration", "UnitChannelInfo",
     "UnitClass", "UnitDetailedThreatSituation", "UnitExists", "UnitFactionGroup",
     "UnitFullName", "UnitGroupRolesAssigned", "UnitGUID", "UnitHealth", "UnitHealthMax",
-    "UnitHealthPercent", "UnitIsAFK", "UnitIsConnected", "UnitIsDead", "UnitIsDeadOrGhost",
+    "UnitHealthPercent", "UnitIsAFK", "UnitIsConnected", "UnitIsDead", "UnitIsTapDenied", "UnitClassification", "GetRaidTargetIndex", "SetRaidTarget",
+    "FlashClientIcon", "C_VignetteInfo", "UnitIsDeadOrGhost",
     "UnitIsFriend", "UnitIsGroupAssistant", "UnitIsGroupLeader", "UnitIsInMyGuild", "UnitIsPlayer",
     "UnitIsUnit", "UnitIsVisible",
     "UnitLevel", "UnitName", "UnitNameFromGUID", "UnitOnTaxi", "UnitPosition", "UnitRace", "UnitStat",

@@ -189,7 +189,8 @@ def forever_spot(map_id, x, y):
 def lua_string(s):
     # ASCII only, as the addon files must be: an accented letter keeps its base letter.
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
-    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    s = s.replace("\\", "\\\\").replace('"', '\\"')
+    return '"' + "".join(c if " " <= c <= "~" else f"\\{ord(c):03d}" for c in s) + '"'
 
 
 def prerequisites(quests, requires, known):
