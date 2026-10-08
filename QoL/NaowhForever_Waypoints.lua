@@ -269,10 +269,7 @@ local function Build()
     pin:SetFrameStrata("LOW")
     pin:Hide()
     -- Clearing the waypoint also ends a route it is on.
-    nav = Look.NewNav(UIParent, function()
-        C_Map.ClearUserWaypoint()
-        C_SuperTrack.ClearAllSuperTracked()
-    end)
+    nav = Look.NewNav(UIParent, ns.ClearWaypoint)
     nav:SetFrameStrata("MEDIUM")
     nav:SetClampedToScreen(true)
     nav.mover = ns.UI.AttachMover(nav, "Waypoint Navigator", function(pos)
@@ -461,8 +458,14 @@ events:SetScript("OnEvent", function(_, event, isWaypoint)
     elseif event == "NAVIGATION_DESTINATION_REACHED" then
         -- isWaypoint: a stop on the way there (a zone's exit), not the spot itself.
         if not isWaypoint then Arrived() end
-    -- Nothing tracked: the game cleared it on arrival, and the name stays for the arrival.
-    elseif navFrame and not arrived and C_SuperTrack.GetHighestPrioritySuperTrackingType() then
+    -- Nothing tracked: cleared, or reached. A clear can leave the navigation frame up with no
+    -- NAVIGATION_FRAME_DESTROYED, which left the navigator showing; the name stays for an arrival.
+    elseif not C_SuperTrack.GetHighestPrioritySuperTrackingType() then
+        if navFrame then Detach() end
+    -- Tracking again on a frame that stayed: it is not created again.
+    elseif not navFrame then
+        if C_Navigation.GetFrame() then Attach() end
+    elseif not arrived then
         Retitle()
     end
 end)

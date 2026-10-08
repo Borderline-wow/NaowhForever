@@ -22,6 +22,7 @@ local made = 0
 local METHODS = {
     GetParent = function(f) return rawget(f, "parent") end,
     SetText = function(f, text) f.text = text end,
+    SetTextColor = function(f, r, g, b) f.cr, f.cg, f.cb = r, g, b end,
     GetText = function(f) return rawget(f, "text") end,
     Show = function(f) f.shown = true end,
     Hide = function(f) f.shown = false end,
@@ -137,7 +138,7 @@ local env = setmetatable({
     C_Item = {
         GetItemInfoInstant = function(id) return id, nil, nil, GEAR[id] end,
         GetDetailedItemLevelInfo = function(link) return LEVELS[link] end,
-        GetItemQualityByID = function() return 4 end,
+        GetItemQualityByID = function() return state.quality or 4 end,
         GetItemNameByID = function(id) return "item " .. id end,
         GetItemCount = function() return 0 end,
         IsItemDataCachedByID = function() return true end,
@@ -251,6 +252,12 @@ S.Set("bisBagLevels", true)
 bagFrame:UpdateItems()
 paint(eHelm, data)
 check("on again: ours back, standing in for its", helm.level.text == 30 and eHelm.ItemLevelText.alpha == 0)
+check("the level in its quality's color, never a stack count's white", helm.level.cr == 0.64
+    and helm.level.cb == 0.93)
+state.quality = 1
+bagFrame:UpdateItems()
+check("common gear's level in gold", helm.level.cr == 1 and helm.level.cg == 0.82 and helm.level.cb == 0)
+state.quality = nil
 
 -------------------------------------------------------------------------------
 --  Cost: painting a bag of 30 slots

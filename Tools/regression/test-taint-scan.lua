@@ -66,8 +66,6 @@ local UNGUARDED_ALLOWED = {
         calls = { HideUIPanel = 1 } },
     ["NaowhForever_Professions/NaowhForever_Professions.lua"] = { why = "the close button's click",
         calls = { HideUIPanel = 1 } },
-    ["QoL/NaowhForever_EnchantReplace.lua"] = { why = "answers the game's popup, shown from a click",
-        calls = { ["C_Item.ReplaceEnchant"] = 1 } },
 }
 
 local GAME_TABLES = { "hash_SlashCmdList", "hash_EmoteTokenList", "hash_ChatTypeInfoList",

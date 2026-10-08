@@ -62,6 +62,8 @@ DungeonJournal/
     MapPanel.lua       beside the world map, inside a dungeon: puts the window away while the
                        map is open, folds the game's quest log, says when the dungeon's map
                        shows on the world map
+    EntrancePins.lua   the dungeon and raid entrances as pins on the world map (its .xml
+                       holds the pin's template)
     Popup.lua          Boss Loot at Cursor (a key binding)
     QuestTracker.lua   a dungeon's quests in a small window, one line each
     DungeonMap.lua     a dungeon's map: in its own window (beside it, the bosses in kill order

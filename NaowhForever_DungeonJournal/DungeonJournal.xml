@@ -120,6 +120,7 @@
     <Script file="UI\Recent.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\MapPanel.lua"/>
+    <Include file="UI\EntrancePins.xml"/>
     <Script file="UI\Popup.lua"/>
     <Script file="UI\QuestTracker.lua"/>
     <Script file="UI\DungeonMap.lua"/>

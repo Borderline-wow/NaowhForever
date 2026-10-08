@@ -224,7 +224,7 @@ def prepare(root, version=None, bump="patch", beta=None, fetch_body=pr_body):
     # CurseForge included; before 1.0.0 every release is a pre-release.
     suffix = (match.group(4) or "").lower()
     if match.group(1) == "0" and "beta" not in suffix and "alpha" not in suffix:
-        raise ReleaseError(f"{version}: versions before 1.0.0 are pre-releases, tick Beta")
+        raise ReleaseError(f"{version}: versions before 1.0.0 are pre-releases, add -beta")
     if tag_exists(root, version):
         raise ReleaseError(f"tag {version} already exists")
 

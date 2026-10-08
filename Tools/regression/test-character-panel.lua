@@ -2,7 +2,8 @@
 -- files Shared.xml and CharacterPanel.xml load, against stubs of the game's slot buttons. Checks
 -- that it is off and hooks nothing by default; on, the game's art fades and each slot shows its
 -- edge, item level, Forever's mark and your BiS's star, and no upgrade arrow; your score and your
--- spec's stats (their yardstick, worth bars, row height and hover cards); Slot Marks alone puts
+-- spec's stats (their yardstick, worth bars, row height and hover cards); your score gone with the
+-- game's stats whenever its gear sets or titles take their place, hooks or not; Slot Marks alone puts
 -- the marks on the game's own panel as it looks; it stands down while
 -- EllesmereUI styles the panel; your supporter badge shows only when you have one, never a grey
 -- one or a pitch; off again, the game's art comes back; and neither a slot's update
@@ -24,7 +25,13 @@ local Frame
 local made = 0
 local METHODS = {
     SetScript = function(f, script, fn) f.scripts[script] = fn end,
-    HookScript = function(f, script, fn) f.hooks[script] = fn end,
+    HookScript = function(f, script, fn)
+        f.hooks[script] = fn
+        local all = rawget(f, "allHooks") or {}
+        f.allHooks = all
+        all[#all + 1] = { script = script, fn = fn }
+    end,
+    SetIgnoreParentAlpha = function(f, on) f.ignoreParentAlpha = on end,
     GetParent = function(f) return rawget(f, "parent") end,
     SetText = function(f, text) f.text = text end,
     -- A secret (see UnitStat below) formats as its value, as the game shows one.
@@ -104,6 +111,34 @@ statsList.SetPoint = function(self, point, relative, _, _, y)
     self.points[point] = relative
     if point == "TOPLEFT" then self.drop = -(y or 0) end
     if point == "BOTTOMRIGHT" then self.lift = y or 0 end
+end
+local paperDoll = Frame(character)
+local gearSets, titles = Frame(paperDoll), Frame(paperDoll)
+gearSets.shown, titles.shown = false, false
+
+local function OnScreen(f)
+    while f do
+        if rawget(f, "shown") == false then return false end
+        f = rawget(f, "parent")
+    end
+    return true
+end
+
+local function Fire(f, script)
+    for _, hook in ipairs(rawget(f, "allHooks") or {}) do
+        if hook.script == script then hook.fn(f) end
+    end
+end
+
+local function SetSidebar(pane, quiet)
+    for _, other in ipairs({ statsList, gearSets, titles }) do
+        if other ~= pane and OnScreen(other) then
+            other.shown = false
+            if not quiet then Fire(other, "OnHide") end
+        end
+    end
+    pane.shown = true
+    if not quiet then Fire(pane, "OnShow") end
 end
 local title, levelText = Frame(), Frame()
 for _, text in ipairs({ title, levelText }) do
@@ -320,8 +355,9 @@ check("the frame: its border, portrait, panes' art, divider and close button's l
     and rightArt.alpha == 0 and divider.alpha == 0 and closeArt.alpha == 0)
 check("its title and level in our font", title.size == 12 and levelText.size == 14)
 local badge = CP.badge
-check("your Naowh Score big under your level, shown", badge and badge.parent == character
+check("your Naowh Score big under your level, shown", badge and badge.parent == statsList
     and badge.shown ~= false and badge.points.TOP == levelText)
+check("on the game's stats list, its fade for your spec's stats not its own", badge.ignoreParentAlpha == true)
 badge.scripts.OnShow(badge)
 check("painted with your score, in its grade's colour, as the panel opens", badge.value.text == "|cff1eff008.3|r")
 check("only the score: its bar's legend the best it is graded against", badge.best.text == "Best 58.8"
@@ -371,14 +407,25 @@ S.Set("characterPanelMarks", true)
 S.Set("characterPanelEnchants", false)
 check("Enchant Dots off: no dot", c.wand.shown == false)
 S.Set("characterPanelEnchants", true)
-statsList.shown = false
+check("the game's stats in the pane: your score on screen", OnScreen(badge))
+SetSidebar(gearSets)
+check("the gear sets picked: no score over their rows", OnScreen(gearSets) and not OnScreen(badge))
+SetSidebar(titles)
+check("the titles picked: no score over them", OnScreen(titles) and not OnScreen(badge))
+SetSidebar(statsList)
+check("the stats picked again: the score back", OnScreen(badge) and not OnScreen(gearSets))
+SetSidebar(gearSets, true)
+check("a swap no hook hears of: still no score over the gear sets", not OnScreen(badge))
+SetSidebar(titles, true)
+check("nor over the titles", not OnScreen(badge))
+SetSidebar(statsList, true)
+check("and back with the stats", OnScreen(badge))
+SetSidebar(gearSets)
 CP.ApplyScore()
-check("the game's titles or gear sets in the pane: no score over them", badge.shown == false)
-statsList.shown = nil
-CP.ApplyScore()
-check("its stats back: the score back", badge.shown == true)
+check("a repaint while the gear sets are picked shows nothing over them", not OnScreen(badge))
+SetSidebar(statsList)
 S.Set("characterPanelScore", false)
-check("Naowh Score off: no score in the corner", badge.shown == false)
+check("Naowh Score off: no score in the corner", badge.shown == false and not OnScreen(badge))
 
 -- Your supporter badge, in the left pane's top corner: only ever a badge of your own. A player
 -- without one sees nothing there, and nothing asks them for one.
@@ -626,6 +673,22 @@ check("anyone else: asked, EllesmereUI's left as it is", asked == 1 and db.theme
 S.Set("characterPanelAsked", true)
 CP._AskForTest(false)
 check("once", asked == 1)
+local q = state.values
+q.characterPanel, q.characterPanelAsked, q.characterPanelTookOver = true, true, true
+db.themedCharacterSheet = true
+CP._AskForTest(false)
+check("a took-over EllesmereUI never saw (a profile's copy): forgotten, asked as on a first run",
+    asked == 2 and q.characterPanelTookOver == false and db.themedCharacterSheet == true)
+q.characterPanelAsked, q.characterPanelTookOver = true, true
+db.themedCharacterSheet = true
+reloads = state.reloads
+S.Set("characterPanel", false)
+check("and turning ours off then leaves EllesmereUI's as it was, no reload asked",
+    db.themedCharacterSheet == true and state.reloads == reloads)
+q.characterPanelAsked, q.characterPanelTookOver = true, true
+db.themedCharacterSheet = false
+CP._AskForTest(false)
+check("one EllesmereUI's own switch bears out: kept, not asked", asked == 2 and q.characterPanelTookOver == true)
 env.EllesmereUIDB, env.EllesmereUI = nil, nil
 reloads = state.reloads
 S.Set("characterPanel", true)

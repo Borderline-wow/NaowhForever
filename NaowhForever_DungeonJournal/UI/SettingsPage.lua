@@ -2,7 +2,7 @@
 --  UI/SettingsPage.lua -- the Dungeon Journal's settings, three tabs in the options window:
 --  Journal (a card that says where you stand and opens it, what it lists, its window and its
 --  key), Quest Tracker (the tracker and sharing quests) and Map (the Journal beside the world
---  map, and Boss Loot at Cursor's key). What it lists comes from J.OPTION_GROUPS, the same list
+--  map, the entrances on it, and Boss Loot at Cursor's key). What it lists comes from J.OPTION_GROUPS, the same list
 --  the window's Filters menu is built from, so the two always match. Your latest kills and loot are in the window (UI/Recent.lua).
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
@@ -55,6 +55,8 @@ local function Detail()
 end
 
 local function JournalOn() return S.Get("enabled") == true end
+local ENTRANCES_OFF = "Turn on Dungeon and Raid Entrances"
+local function EntrancesOn() return JournalOn() and S.Get("mapEntrances") == true end
 local function BisOn() return Loot.BisOn() end
 
 -- Which side's dungeons are listed: the faction switch beside the window's search, as a
@@ -204,6 +206,8 @@ tracker:Card({
     rows = {
         { key = "trackerAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
           help = "How solid the Dungeon Quest Tracker is." },
+        { key = "trackerScale", label = "Window Scale", slider = { 50, 150, 5 }, unit = "%", scale = 0.01,
+          help = "How big the Dungeon Quest Tracker is." },
     },
 })
 
@@ -221,6 +225,19 @@ map:Card({
           help = "Shows a dungeon's bosses and loot beside the world map while you are inside." },
         { key = "mapFactions", label = "Factions Beside the Map", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
           help = "Shows the factions earned where you are beside the world map." },
+    },
+})
+
+map:Card({
+    id = "mapentrances", name = "On the World Map", order = 15,
+    help = "The dungeon and raid entrances on the world map.",
+    summary = function(store) return store.Get("mapEntrances") and "Entrances shown" or "Off" end,
+    rows = {
+        { key = "mapEntrances", label = "Dungeon and Raid Entrances", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
+          help = "A door on each dungeon and raid entrance on the world map, for the sides the Journal lists. Hover it for the levels, click it for a waypoint." },
+        { key = "mapEntranceScale", label = "Icon Size", slider = { 50, 200, 10 }, unit = "%", scale = 0.01,
+          needs = EntrancesOn, why = ENTRANCES_OFF,
+          help = "How big the entrance icons are. They are already largest on a zone's map, smaller on a continent's and the world's, and smaller while the map fills the screen." },
     },
 })
 

@@ -326,6 +326,24 @@ do
         state.rights[#state.lines].text == "...")
 end
 
+-- Reported on Forever: UNIT_INVENTORY_CHANGED for a compound unit (targettarget) answers
+-- UnitIsUnit with a secret, which the game will not let us test. Plain Lua cannot fail on it
+-- as the game does; this checks the outcome: nothing is reset and no scan is queued.
+do
+    local ns, state, env = Fixture()
+    local S = ns.QoLSettings
+    S.Set("naowhScore", true)
+    S.Set("naowhScoreScan", true)
+    state.RunTimers()
+    local real = env.UnitIsUnit
+    env.UnitIsUnit = function(a, b) if a == "targettarget" then return state.SECRET end return real(a, b) end
+    state.Fire("UNIT_INVENTORY_CHANGED", "targettarget")
+    check("a secret answer for a compound unit: no scan queued", #state.timers == 0)
+    state.Fire("UNIT_INVENTORY_CHANGED", "party1")
+    check("a group member's gear changing still queues one", #state.timers == 1)
+    env.UnitIsUnit = real
+end
+
 -------------------------------------------------------------------------------
 --  Your group, in the background
 -------------------------------------------------------------------------------
@@ -355,6 +373,45 @@ do
     Measure("the group walked, everyone known", 0.05, function() Score.Scan() end)
     ns.QoLSettings.Set("naowhScoreScan", false)
     check("Scan Your Group off: no roster listened to", not state.frames[1].events.GROUP_ROSTER_UPDATE)
+end
+
+-------------------------------------------------------------------------------
+--  The player you hover goes first
+-------------------------------------------------------------------------------
+do
+    local ns, state = Fixture()
+    state.members = 2
+    state.gear.party1, state.gear.party2 = Set(10, 4), Set(20, 4)
+    ns.QoLSettings.Set("naowhScore", true)
+    state.RunTimers()
+    check("the walk is reading a group member", state.inspected[1] == "party1" and #state.inspected == 1)
+    local OnUnit = state.postCalls[1]
+    state.gear.mouseover, state.hovered = Set(30, 4), "mouseover"
+    OnUnit(state.tooltip)
+    check("hovered while the inspect is busy: '...', not asked over it", #state.inspected == 1)
+    state.Fire("INSPECT_READY", "Player-1-19")
+    state.now = state.now + 2
+    state.RunTimers()
+    check("asked next, ahead of the rest of the group", state.inspected[2] == "mouseover")
+    state.Fire("INSPECT_READY", "Player-1-9")
+    state.now = state.now + 2
+    state.RunTimers()
+    check("then the group's walk goes on", state.inspected[3] == "party2")
+end
+
+do
+    local ns, state = Fixture()
+    state.members = 2
+    state.gear.party1, state.gear.party2 = Set(10, 4), Set(20, 4)
+    ns.QoLSettings.Set("naowhScore", true)
+    state.RunTimers()
+    state.gear.mouseover, state.hovered = Set(30, 4), "mouseover"
+    state.postCalls[1](state.tooltip)
+    state.gear.mouseover = nil
+    state.Fire("INSPECT_READY", "Player-1-19")
+    state.now = state.now + 2
+    state.RunTimers()
+    check("moved off them before their turn: the group goes on", state.inspected[2] == "party2")
 end
 
 do

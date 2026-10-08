@@ -25,7 +25,7 @@ local FOREVER_MIN, FOREVER_SHARE = 7, 0.32
 local MARK_SIZE, MARK_IN = 13, 2
 local SHADE_SHARE, SHADE_ALPHA = 0.5, 0.8
 -- The star 1px over the line's middle (a negative drop raises it), level with the item level's
--- outlined digits across the icon; a tooltip's 1px drop left it low (seen in game, 3 Oct 2026).
+-- outlined digits across the icon; 2px left it high beside a two-digit level (7 Oct 2026).
 local MARK_STAR_DROP = -1
 Parts.MARK_IN = MARK_IN
 local MARK_UP = 14   -- the upgrade arrow, square, in the top-right corner
@@ -825,17 +825,18 @@ local LINE_FROM_SHARE = 0.45
 local LINE_GLOW_W, LINE_GLOW_ALPHA = 28, 0.55
 local shortTimes = {}
 
+-- Seconds up to 90, then minutes up to 90, then hours, each rounded up so a time never reads
+-- less than is left. The game formats it, since the time can be secret.
 function Parts.ShortTime(prefix)
     prefix = prefix or ""
     local formatter = shortTimes[prefix]
     if formatter then return formatter end
-    local Up, Down = Enum.NumericRuleFormatRounding.Up, Enum.NumericRuleFormatRounding.Down
+    local Up = Enum.NumericRuleFormatRounding.Up
     formatter = C_StringUtil.CreateNumericRuleFormatter()
     formatter:SetBreakpoints({
         { threshold = 0, format = prefix .. "%ds", step = 1, rounding = Up },
-        { threshold = 60, format = prefix .. "%dm", step = 1, rounding = Up, components = { { div = 60 } } },
-        { threshold = 61, format = prefix .. "%dm", step = 1, rounding = Down, components = { { div = 60 } } },
-        { threshold = 3600, format = prefix .. "%dh", step = 1, rounding = Down, components = { { div = 3600 } } },
+        { threshold = 90, format = prefix .. "%dm", step = 1, rounding = Up, components = { { div = 60 } } },
+        { threshold = 5400, format = prefix .. "%dh", step = 1, rounding = Up, components = { { div = 3600 } } },
     })
     shortTimes[prefix] = formatter
     return formatter
@@ -865,11 +866,17 @@ local function LineRun(line, start, duration, prefix)
     line.glow:Show()
 end
 
+-- Stops a status bar its timer owns, empty or full: SetValue does not repaint such a bar, but a
+-- duration that has already run out leaves it still.
+function Parts.StopTimer(bar, dur, full)
+    dur:SetTimeFromStart(GetTime() - 1, 1)
+    bar:SetTimerDuration(dur, Enum.StatusBarInterpolation.Immediate, full
+        and Enum.StatusBarTimerDirection.ElapsedTime or Enum.StatusBarTimerDirection.RemainingTime)
+end
+
 local function LineStop(line)
     if line.dur then
-        line.dur:SetTimeFromStart(GetTime() - 1, 1)
-        line:SetTimerDuration(line.dur, Enum.StatusBarInterpolation.Immediate,
-            Enum.StatusBarTimerDirection.RemainingTime)
+        Parts.StopTimer(line, line.dur)
         if line.binding then line.binding:SetEnabled(false) end
     end
     line:SetValue(0)

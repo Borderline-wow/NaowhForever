@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- The dungeon and raid entrances on the world map; the mixin is made once switched on -->
+    <Script file="EntrancePins.lua"/>
+    <Button name="NaowhForeverEntrancePinTemplate" mixin="NaowhForeverEntrancePinMixin" enableMouse="true" virtual="true">
+        <Size x="22" y="22"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+</Ui>

@@ -1,58 +1,83 @@
--- Run with Lua 5.1 from the repository root: Auto-Replace Enchants answers only the replace
--- enchant popup, only while it is on, and never while Shift is held.
-local settings, shift, calls = {}, false, {}
-local hook
-local env = setmetatable({
-    NaowhForever = { QoLSettings = { Get = function(key) return settings[key] end } },
-    hooksecurefunc = function(name, fn)
-        assert(name == "StaticPopup_Show")
-        hook = fn
-    end,
-    IsShiftKeyDown = function() return shift end,
-    C_Item = { ReplaceEnchant = function() calls[#calls + 1] = "replace" end },
-    StaticPopup_Hide = function(which) calls[#calls + 1] = "hide " .. which end,
-}, { __index = _G })
-env._G = env
-local chunk = assert(loadfile("QoL/NaowhForever_EnchantReplace.lua"))
-setfenv(chunk, env)
-chunk()
+-- Run with Lua 5.1 from the repository root: the game's replace enchant popup is left to the
+-- player. Its Yes calls C_Item.ReplaceEnchant, which only the game's own code may call; Auto-Replace
+-- Enchants called it from a popup hook, so the game blocked the addon and closed the popup, and an
+-- armor kit or enchant over an old one could not be applied until the addon was turned off.
+local TocFiles = dofile("Tools/regression/toc_files.lua")
+
+local CONFIRMS = { "ReplaceEnchant", "ReplaceTradeEnchant", "ReplaceTradeskillEnchant", "BindEnchant" }
+local POPUPS = { "REPLACE_ENCHANT", "TRADE_REPLACE_ENCHANT", "REPLACE_TRADESKILL_ENCHANT", "BIND_ENCHANT" }
 
 local count = 0
 local function Case(name, fn)
-    calls = {}
     fn()
     count = count + 1
     print("PASS " .. name)
 end
 
-Case("off by default: the popup is left to ask", function()
-    hook("REPLACE_ENCHANT")
-    assert(#calls == 0)
+local function Read(path)
+    local f = assert(io.open(path, "rb"))
+    local text = f:read("*a")
+    f:close()
+    return text
+end
+
+local function AddonFiles()
+    local out = {}
+    for _, path in ipairs(TocFiles("%.lua$")) do
+        if not path:find("^Libs/") and not path:find("/Libs/") then out[#out + 1] = path end
+    end
+    return out
+end
+
+Case("no addon file answers an enchant confirmation", function()
+    local found, scanned = {}, 0
+    for _, path in ipairs(AddonFiles()) do
+        scanned = scanned + 1
+        local n = 0
+        for line in (Read(path) .. "\n"):gmatch("([^\n]*)\n") do
+            n = n + 1
+            if not line:match("^%s*%-%-") then
+                for _, call in ipairs(CONFIRMS) do
+                    if line:find("%f[%w_]" .. call .. "%s*%(") then
+                        found[#found + 1] = ("%s:%d calls %s"):format(path, n, call)
+                    end
+                end
+                for _, popup in ipairs(POPUPS) do
+                    if line:find("[\"']" .. popup .. "[\"']") then
+                        found[#found + 1] = ("%s:%d handles the %s popup"):format(path, n, popup)
+                    end
+                end
+            end
+        end
+    end
+    assert(scanned > 100, "too few files scanned: " .. scanned)
+    assert(#found == 0, table.concat(found, "\n"))
 end)
 
-Case("on: the replace popup is answered yes and closed", function()
-    settings.enabled, settings.enchantReplace = true, true
-    hook("REPLACE_ENCHANT")
-    assert(table.concat(calls, ",") == "replace,hide REPLACE_ENCHANT", table.concat(calls, ","))
+Case("the retired setting is read nowhere", function()
+    for _, path in ipairs(AddonFiles()) do
+        assert(not Read(path):find("[\"']enchantReplace[\"']"), path .. " still reads enchantReplace")
+    end
 end)
 
-Case("other popups are left alone", function()
-    hook("TRADE_REPLACE_ENCHANT")
-    hook("DELETE_ITEM")
-    assert(#calls == 0)
-end)
-
-Case("Shift held: asked as before", function()
-    shift = true
-    hook("REPLACE_ENCHANT")
-    shift = false
-    assert(#calls == 0)
-end)
-
-Case("QoL off turns it off too", function()
-    settings.enabled = false
-    hook("REPLACE_ENCHANT")
-    assert(#calls == 0)
+Case("the Looting card no longer offers it", function()
+    local card
+    local env = setmetatable({
+        NaowhForever = { QoLSettings = { Get = function() return true end },
+            Shared = { Settings = { Page = function()
+                return { Card = function(_, spec) card = spec end }
+            end } } },
+        hooksecurefunc = function() end,
+    }, { __index = _G })
+    env._G = env
+    local chunk = assert(loadfile("QoL/NaowhForever_DeleteConfirm.lua"))
+    setfenv(chunk, env)
+    chunk()
+    assert(card and card.id == "looting", "Looting card not built")
+    for _, row in ipairs(card.rows) do
+        assert(row.key ~= "enchantReplace", "Auto-Replace Enchants is still offered")
+    end
+    assert(not card.help:lower():find("enchant", 1, true), "card help still promises enchants")
 end)
 
 print(("test-enchant-replace: %d cases passed"):format(count))

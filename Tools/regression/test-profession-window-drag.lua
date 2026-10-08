@@ -1,6 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the Professions window can be dragged. Until it
--- has been, it opens on Blizzard's window as before; once it has, it opens where it was left
--- and Blizzard's invisible window is pinned under it, never in combat.
+-- has been, it opens on Blizzard's window as before; once it has, Blizzard's invisible window is
+-- moved to where it was left, never in combat, and this one sits on it. Blizzard's window is never
+-- anchored to this one, which would make it protected.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -24,6 +25,7 @@ local function Frame(name)
     function f:IsShown() return self.shown end
     function f:GetLeft() return self.left end
     function f:GetTop() return self.top end
+    function f:GetEffectiveScale() return self.scale or 1 end
     return f
 end
 
@@ -48,25 +50,31 @@ check("undragged window sits on Blizzard's", win.points[1][2] == pf and win.poin
 Follow()
 check("undragged leaves Blizzard's window alone", #pf.points == 0)
 
--- Dragged: the position is kept and the window opens there.
+-- Dragged: the position is kept, Blizzard's window moves there and the window sits on it.
 win.left, win.top = 300, 700
 SavePosition()
 check("position saved", settings.windowPos.x == 300 and settings.windowPos.y == 700)
-PlaceWindow()
-check("dragged window sits where it was left",
-    win.points[1][2] == ui and win.points[1][4] == 300 and win.points[1][5] == 700)
 Follow()
-check("Blizzard's window pinned under it", #pf.points == 1 and pf.points[1][2] == win)
+check("Blizzard's window moved to the position",
+    #pf.points == 1 and pf.points[1][2] == ui and pf.points[1][4] == 300 and pf.points[1][5] == 700)
+check("window sits on Blizzard's", #win.points == 1 and win.points[1][2] == pf)
+
+-- Blizzard's window at another scale is placed in its own units.
+pf.scale, win.scale = 0.5, 1
+Follow()
+check("scaled position", pf.points[1][4] == 600 and pf.points[1][5] == 1400)
+pf.scale = nil
 
 -- In combat nothing moves; the pin waits for combat to end.
 pf.points = { { "TOPLEFT", ui, "TOPLEFT", 16, -116 } }
 combat = true
 Follow()
 check("no move in combat", pf.points[1][2] == ui)
-check("pin queued", Pending())
+check("move queued", Pending())
 combat = false
 Follow()
-check("pinned after combat", pf.points[1][2] == win and not Pending())
+check("moved after combat", pf.points[1][4] == 300 and not Pending())
+check("window back on Blizzard's after combat", win.points[1][2] == pf)
 
 -- A hidden window (module off, or a profession it does not show) does not pull Blizzard's.
 pf.points = { { "TOPLEFT", ui, "TOPLEFT", 16, -116 } }

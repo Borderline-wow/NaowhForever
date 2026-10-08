@@ -14,7 +14,8 @@ end
 
 local function Fixture(char)
     local e = { char = char or "Main-Ravencrest", reapplied = 0 }
-    local env = { ns = { QueueReapply = function() e.reapplied = e.reapplied + 1 end },
+    local env = { ns = { QueueReapply = function() e.reapplied = e.reapplied + 1 end,
+            STARTER = { profile = {}, account = {} } },
         activeRoot = nil,
         CharKey = function() return e.char end,
         UnitName = function() return e.char:match("^[^-]+") end, UNKNOWNOBJECT = "Unknown" }
@@ -185,6 +186,41 @@ Case("switching already off is reported as such rather than as a change", functi
     local ok, turnedOff = e.ns.SetAccountProfile("Naowh New")
     assert(ok == true and turnedOff == false)
     assert(sv.autoSpecProfile == nil and sv.specProfile["250"] == "Old")
+end)
+
+Case("a new install starts from the starter setup in Default", function()
+    local e = Fixture("Main-Ravencrest")
+    local starter = { profile = { qol = { fastLoot = true } }, account = { windowScale = 1.1 } }
+    e.ns.STARTER = starter
+    assert(e.ns.SettingsRoot().qol.fastLoot == true)
+    local sv = e.db()
+    assert(sv.profiles.Default == starter.profile and sv.account.windowScale == 1.1)
+    assert(sv.charActive["Main-Ravencrest"] == "Default")
+end)
+
+Case("an account that already has settings never takes the starter", function()
+    local e = Fixture("Main-Ravencrest")
+    e.ns.STARTER = { profile = { qol = { fastLoot = true } }, account = { windowScale = 1.1 } }
+    _G.NaowhForeverDB = { dbVersion = 1, profiles = { Default = { qol = { fastLoot = false } } } }
+    assert(e.ns.SettingsRoot().qol.fastLoot == false and e.db().account == nil)
+end)
+
+Case("the shipped presets carry no Smart Reminders, and a new install starts from Minimalist", function()
+    local env = { NaowhForever = {} }; env._G = env
+    local chunk = assert(loadfile(arg[3] or "Core/NaowhForever_Presets.lua")); setfenv(chunk, env); chunk()
+    local presets = env.NaowhForever.PRESETS
+    assert(presets.newInstall == "minimalist" and env.NaowhForever.STARTER == presets.minimalist)
+    assert(#presets.order >= 1 and presets.order[1] == "minimalist")
+    for _, key in ipairs(presets.order) do
+        local preset = presets[key]
+        assert(type(preset.name) == "string" and type(preset.about) == "string", key)
+        assert(type(preset.profile) == "table" and type(preset.account) == "table", key)
+        assert(preset.profile.tankReminder == nil and preset.profile.customReminders == nil, key)
+        local q = preset.profile.qol or {}
+        assert(q.characterPanelAsked == nil and q.characterPanelTookOver == nil
+            and q.inspectPanelAsked == nil and q.inspectPanelTookOver == nil,
+            key .. ": a player answers EllesmereUI's questions itself, as on a first run")
+    end
 end)
 
 -- The installer's public entry point, run against the real Core slice. InstallProfilePack and

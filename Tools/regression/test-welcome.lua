@@ -1,6 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the welcome window (Core/NaowhForever_Welcome.lua)
 -- against stubs of the shared window parts. Checks that nothing is made at load; it shows a few
--- seconds after the first login, never on a reload, never during a loading screen, and waits
+-- seconds after the first login, or after a reload while it is still unseen (another addon's
+-- setup reloading over it), never during a loading screen, and waits
 -- for combat to end; once seen (closed, Esc or any button) it never shows by itself again; Join
 -- Discord puts the Discord link on the copy card, Open Settings opens the options; /nf welcome
 -- and the settings button open it again; and none of its words ask for support.
@@ -35,6 +36,12 @@ function Frame:HookScript(name, fn) self.hooks[name] = fn end
 function Frame:RegisterEvent(e) self.events[e] = true end
 function Frame:UnregisterEvent(e) self.events[e] = nil end
 function Frame:UnregisterAllEvents() self.events = {} end
+local textures = {}
+function Frame:CreateTexture()
+    local tx = setmetatable({ SetTexture = function(tx, path) tx.path = path end }, Frame)
+    textures[#textures + 1] = tx
+    return tx
+end
 function Frame:IsShown() return self.shown end
 function Frame:SetText(text) self.text = text end
 function Frame:GetStringHeight() return 14 end
@@ -74,6 +81,8 @@ local function Setup(account)
             return b
         end,
         AccentBorder = function(b) b.accent = true; return b end,
+        Border = function(f) f.bordered = true end,
+        Tooltip = function(f, title, body) f.tipTitle, f.tipBody = title, body end,
         ShowCopyLine = function(title, text, icon) s.copied = { title = title, text = text, icon = icon } end,
         OpenOptionsWindow = function() s.options = s.options + 1 end,
         OpenFromOptions = function(open) s.fromOptions = (s.fromOptions or 0) + 1; open() end,
@@ -162,13 +171,27 @@ do
 end
 
 -------------------------------------------------------------------------------
---  A reload: never
+--  A reload before it was seen (another addon's setup reloaded over it): it comes back
 -------------------------------------------------------------------------------
 do
     local s = Setup()
     Event(s, "PLAYER_ENTERING_WORLD", false, true)
-    check("a reload starts no timer and stops listening", #s.timers == 0 and next(s.login.events) == nil)
+    check("an unseen reload waits a few seconds, like a login", #s.timers == 1 and s.timers[1].delay > 0
+        and s.windows == 0)
+    RunTimer(s)
+    check("then the window shows", Shown(s))
+end
+do
+    local s = Setup({ welcomeSeen = true })
+    Event(s, "PLAYER_ENTERING_WORLD", false, true)
+    check("seen: a reload starts no timer and stops listening", #s.timers == 0 and next(s.login.events) == nil)
     check("and makes nothing", s.windows == 0)
+end
+do
+    local s = Setup()
+    Event(s, "PLAYER_ENTERING_WORLD", false, false)
+    check("a world entry that is neither login nor reload does not start it", #s.timers == 0
+        and s.windows == 0)
 end
 
 -------------------------------------------------------------------------------
@@ -187,6 +210,14 @@ do
     check("the house window: its title and the logo's bar", win.titleText == "Welcome to Naowh Forever"
         and win.key == "welcomeWindow" and win.backdrop.alpha ~= nil)
     check("three lines of text", #win.lines == 3 and win.h ~= nil)
+    local content = win.content
+    content.GetHeight = function() return 400 end
+    content.scripts.OnSizeChanged(content)
+    local fitted = win.h
+    content.GetHeight = function() return 460.4 end
+    content.scripts.OnSizeChanged(content)
+    check("its height follows its laid out contents, room for the buttons below", fitted > 400
+        and win.h == fitted + 61)
     check("Join Discord is the main action, in the accent", win.discord.label == "Join Discord"
         and win.discord.accent == true and win.settings.label == "Open Settings" and win.close.label == "Close")
     -- Its parent hidden (the game's UI toggled off) is not a close.
@@ -328,6 +359,51 @@ do
         check("no " .. word .. " anywhere in the file", not source:find(word, 1, true))
     end
     check("it says how to start", table.concat(s.texts, " "):find("/nf", 1, true) ~= nil)
+end
+
+-------------------------------------------------------------------------------
+--  How to start: a row per preset (ns.PRESETS). On a new account a pick applies at once (the
+--  one a new install already has, nothing); picked again later it asks first.
+-------------------------------------------------------------------------------
+do
+    local s = Setup()
+    local used = {}
+    s.ns.PRESETS = { newInstall = "minimalist", order = { "minimalist", "recommended" },
+        minimalist = { name = "Minimalist", about = "Almost everything off." },
+        recommended = { name = "Recommended", about = "Naowh's setup." } }
+    s.ns.UsePreset = function(key, ask) used[#used + 1] = { key = key, ask = ask } end
+    s.ns.ShowWelcome()
+    local win = s.window
+    check("a row per preset, named, with its line", win.presets and #win.presets == 2
+        and win.presets[1].label == "Minimalist" and win.presets[2].label == "Recommended")
+    local paths = {}
+    for _, tx in ipairs(textures) do if tx.path then paths[#paths + 1] = tx.path end end
+    local all = table.concat(paths, " ")
+    check("each preset's picture, as a .png the game can load (it adds no extension to a PNG)",
+        all:find("Welcome\\minimalist.png", 1, true) ~= nil and all:find("Welcome\\recommended.png", 1, true) ~= nil)
+    s.ns.PresetChanges = function(key) return "changes of " .. key end
+    check("each button's tooltip lists what that preset changes", win.presets[2].tipTitle == "Recommended"
+        and win.presets[2].tipBody() == "changes of recommended")
+    check("under the question", table.concat(s.texts, " "):find("How do you want to start?", 1, true) ~= nil
+        and table.concat(s.texts, " "):find("Naowh's setup.", 1, true) ~= nil)
+    win.presets[2].click()
+    check("a new account's pick applies at once, the window closed and seen", #used == 1
+        and used[1].key == "recommended" and used[1].ask == false and not Shown(s) and s.account.welcomeSeen == true)
+    s.ns.ShowWelcome()
+    win.presets[1].click()
+    check("picked again later, it asks first", #used == 2 and used[2].key == "minimalist" and used[2].ask == true)
+    local fresh = Setup()
+    local none = {}
+    fresh.ns.PRESETS = s.ns.PRESETS
+    fresh.ns.UsePreset = function(key) none[#none + 1] = key end
+    fresh.ns.ShowWelcome()
+    fresh.window.presets[1].click()
+    check("a new account keeping what it has (Minimalist): nothing to apply", #none == 0 and not Shown(fresh))
+    local one = Setup()
+    one.ns.PRESETS = { newInstall = "minimalist", order = { "minimalist" }, minimalist = s.ns.PRESETS.minimalist }
+    one.ns.UsePreset = s.ns.UsePreset
+    one.ns.ShowWelcome()
+    check("one preset only: no question", one.window.presets == nil)
 end
 
 print(("test-welcome: %d checks passed"):format(checks))

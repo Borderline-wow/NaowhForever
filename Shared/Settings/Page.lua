@@ -310,6 +310,11 @@ local function Bind(control, setting)
     elseif kind == "binding" then
         BindingField(control, setting)
     end
+    if setting.tip then
+        ns.Tooltip(control, setting.label, setting.tip)
+    elseif kind ~= "button" and control._tipHooked then
+        control._tipTitle, control._tipBody = nil, nil
+    end
 end
 
 local function Dim(row, control, off)
