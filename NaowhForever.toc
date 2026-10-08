@@ -74,6 +74,7 @@ QoL\NaowhForever_HealerMana.lua
 QoL\NaowhForever_DeleteConfirm.lua
 QoL\NaowhForever_Durability.lua
 QoL\NaowhForever_TalentPoints.lua
+QoL\NaowhForever_BuffThanks.lua
 QoL\NaowhForever_CombatAlert.lua
 QoL\NaowhForever_QuestAutomation.lua
 QoL\NaowhForever_GroupButtons.lua
