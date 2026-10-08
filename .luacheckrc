@@ -127,7 +127,7 @@ read_globals = {
     "SubZoneTextFrame", "TaxiGetNodeSlot", "TaxiNodeGetType", "TaxiNodeName", "TaxiNodeOnButtonEnter", "TaxiRequestEarlyLanding",
     "tContains", "TextToSpeech_GetSelectedVoice", "time", "ToggleCalendar", "TomTom",
     "TooltipDataProcessor", "TRADE_SKILLS", "TSM_API", "UIErrorsFrame", "UiMapPoint",
-    "UIParent", "UNKNOWNOBJECT", "UnitAffectingCombat", "UnitAttackSpeed", "UnitCanAttack",
+    "TimerTracker", "UIParent", "UIWidgetTopCenterContainerFrame", "UNKNOWNOBJECT", "UnitAffectingCombat", "UnitAttackSpeed", "UnitCanAttack",
     "UnitCastingDuration", "UnitCastingInfo", "UnitChannelDuration", "UnitChannelInfo",
     "UnitClass", "UnitDetailedThreatSituation", "UnitExists", "UnitFactionGroup",
     "UnitFullName", "UnitGetTotalAbsorbs", "UnitGroupRolesAssigned", "UnitGUID", "UnitHealth", "UnitHealthMax",

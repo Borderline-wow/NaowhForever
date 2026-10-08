@@ -15,8 +15,10 @@ local FRAME_METHODS = { "SetScript", "Hide", "SetParent", "ClearAllPoints", "Set
 local FRAME_FREE = { ["GameTooltip:Hide"] = true }
 
 local FRAME_ALLOWED = {
-    ["TopBar/NaowhForever_TopBar.lua"] = { why = "the bar's own tooltip size, put back on hide",
-        calls = { ["GameTooltip:SetScale"] = 1 } },
+    ["TopBar/NaowhForever_TopBar.lua"] = {
+        why = "the bar's own tooltip size, put back on hide; the top-centre scores (no secure frames, only GhostFrame hangs from them) moved below the bar, put back when it goes",
+        calls = { ["GameTooltip:SetScale"] = 1, ["UIWidgetTopCenterContainerFrame:ClearAllPoints"] = 1,
+            ["UIWidgetTopCenterContainerFrame:SetPoint"] = 1 } },
     ["NaowhForever_BiS/CharacterPanel/Badge.lua"] = { why = "places the tooltip it owns",
         calls = { ["GameTooltip:ClearAllPoints"] = 1, ["GameTooltip:SetPoint"] = 1 } },
     ["QoL/NaowhForever_Flight.lua"] = { why = "faded leave button, out of combat only",

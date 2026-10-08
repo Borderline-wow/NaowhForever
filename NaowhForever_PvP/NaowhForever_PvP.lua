@@ -16,6 +16,7 @@ local DEFAULTS = {
     debuffs = false, debuffMax = 4, debuffExtra = "",
     focus = true, focusName = true, focusBuffs = false, focusCC = true, focusDebuffs = false,
     focusPos = { point = "CENTER", relPoint = "CENTER", x = 240, y = -180 },
+    scoresPos = false, timerPos = false,
 }
 for _, entry in ipairs(ns.PvPSpells.crowdControl) do DEFAULTS["cc_" .. entry.key] = true end
 for _, entry in ipairs(ns.PvPSpells.debuffs) do DEFAULTS["debuff_" .. entry.key] = false end

@@ -187,6 +187,7 @@ local MODULES = {
       subtitle = "What your target is doing in a fight: their short buffs and the crowd control on them.",
       tabs = {
           { name = "Auras", reuse = true },
+          { name = "Battlegrounds", reuse = true },
       } },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
       addon = "NaowhForever_SwingTimer",

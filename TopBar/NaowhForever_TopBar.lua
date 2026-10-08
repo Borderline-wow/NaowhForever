@@ -864,6 +864,47 @@ end
 
 local pending = CreateFrame("Frame")
 
+-- Blizzard's top-centre display (battleground scores, capture bars) hangs from the top of the
+-- screen, under a Top Bar left there: it goes below the bar and its FPS / MS, and back once the
+-- bar is off or moved away. One another addon has placed is left where it is.
+local WIDGETS_Y, WIDGETS_GAP, WIDGETS_ROOM = -15, 4, 60
+local widgetsAt -- the offset this file gave the display, while it sits there
+
+local function ScreenBottom(frame)
+    local bottom = frame:GetBottom()
+    return bottom and bottom * frame:GetEffectiveScale()
+end
+
+local function PlaceWidgets()
+    local widgets = UIWidgetTopCenterContainerFrame
+    if not widgets then return end
+    local point, relative, relativePoint, x, y = widgets:GetPoint(1)
+    local anchored = widgets:GetNumPoints() == 1 and point == "TOP" and relativePoint == "TOP" and x == 0
+        and (relative == nil or relative == UIParent)
+    if not (anchored and (y == WIDGETS_Y or y == widgetsAt)) then
+        widgetsAt = nil
+        return
+    end
+    local below
+    if bar and bar:IsShown() then
+        local scale, ws = bar:GetEffectiveScale(), widgets:GetEffectiveScale()
+        local top = UIParent:GetTop() * UIParent:GetEffectiveScale()
+        local centre = UIParent:GetRight() * UIParent:GetEffectiveScale() / 2
+        local home = top + WIDGETS_Y * ws
+        local left, right, barTop, bottom = bar:GetLeft(), bar:GetRight(), bar:GetTop(), ScreenBottom(bar)
+        if bar.sys:IsShown() then bottom = math.min(bottom, ScreenBottom(bar.sys) or bottom) end
+        if left and left * scale < centre and right * scale > centre and bottom < home
+            and barTop * scale > home - WIDGETS_ROOM * ws then
+            below = math.floor((bottom - top) / ws - WIDGETS_GAP + 0.5)
+        end
+    end
+    if below == y or (not below and y == WIDGETS_Y) then return end
+    widgets:ClearAllPoints()
+    widgets:SetPoint("TOP", UIParent, "TOP", 0, below or WIDGETS_Y)
+    widgetsAt = below
+end
+ns.PlaceTopCentreWidgets = PlaceWidgets
+
 -- Everything here moves or shows secure buttons, so combat defers it to the end of the fight.
 local function Apply()
     if InCombatLockdown() then
@@ -876,6 +917,7 @@ local function Apply()
             UnregisterStateDriver(bar, "visibility")
             bar:Hide()
             bar.sys:Hide()
+            PlaceWidgets()
         end
         return
     end
@@ -921,6 +963,7 @@ local function Apply()
     UpdateHover()
     AnchorSystem()
     UpdateSystem()
+    PlaceWidgets()
     UpdateBadges()
     UpdateResting()
     StartTicker()

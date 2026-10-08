@@ -10,3 +10,4 @@
 Data\NaowhForever_PvPSpells.lua
 NaowhForever_PvP.lua
 NaowhForever_PvPAuras.lua
+NaowhForever_PvPDisplays.lua
