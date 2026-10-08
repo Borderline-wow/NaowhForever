@@ -48,6 +48,7 @@ function methods:SetText(t) self.text = t end
 -- Roughly how wide text draws: half its font size per letter.
 function methods:GetUnboundedStringWidth() return #(self.text or "") * (self.size or 10) / 2 end
 function methods:SetTexture(t) self.texture = t end
+function methods:SetTexCoord(...) self.coords = { ... } end
 function methods:SetVertexColor(r, g, b) self.vertex = { r, g, b } end
 function methods:SetTextColor(r, g, b) self.color = { r, g, b } end
 function methods:CreateTexture() return New("Texture", self) end
@@ -56,7 +57,7 @@ function methods:CreateFontString() return New("FontString", self) end
 local settings = {}
 local defaults = { blessings = true, blessBarSize = 30, blessSpacing = 6, blessGroupSpacing = 6,
     blessTimerSize = 14, blessShowLabels = true, blessTimers = true, blessShowAura = true, blessShowFury = false,
-    blessLayout = "horizontal" }
+    blessLabelStyle = "name", blessLayout = "horizontal" }
 local sets = 0
 local S = {}
 function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end return v end
@@ -72,7 +73,7 @@ local ns = {
     Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
     AccountSettings = function() return account end,
     OpenBlessingsWindow = function() end,
-    PixelInset = function() end, Border = function() end, UIFontPath = function() return "font" end,
+    PixelInset = function() end, Border = function(f) f.bordered = true end, UIFontPath = function() return "font" end,
     Font = function(parent) return New("FontString", parent) end,
     Solid = function(parent) return New("Texture", parent) end,
     Color = function(_, text) return text end,
@@ -300,6 +301,39 @@ settings.blessBarSize, settings.blessSpacing = nil, nil
 studio.paint(preview, "group")
 check("with room again the full name comes back at its size", warriorCell.label.text == "Warrior"
     and warriorCell.label.size == 10 and mageCell.label.text == "Mage" and mageCell.label.size == 10)
+check("the Name style builds no class icon", warriorCell.classIcon == nil)
+
+-- Class Label Style: Class Icon shows the class's icon under its button instead of its name,
+-- two thirds of the button, between 12 and 24 px.
+settings.blessLabelStyle = "icon"
+studio.paint(preview, "group")
+local classIcon = warriorCell.classIcon
+check("Class Icon shows the class's icon in place of the name", classIcon and classIcon.shown
+    and not warriorCell.label.shown and classIcon.tex.texture == "Interface\\Icons\\ClassIcon_WARRIOR"
+    and mageCell.classIcon.tex.texture == "Interface\\Icons\\ClassIcon_MAGE")
+check("the icon is cropped and edged like the buttons", classIcon.tex.coords[1] == 0.08
+    and classIcon.tex.coords[2] == 0.92 and classIcon.bordered)
+check("the icon is two thirds of the button", classIcon.w == 20 and classIcon.h == 20)
+settings.blessBarSize = 70
+studio.paint(preview, "group")
+check("the icon stops at 24 px on big buttons", classIcon.w == 24)
+settings.blessBarSize = 20
+studio.paint(preview, "group")
+check("and keeps two thirds on small ones", classIcon.w == 13)
+settings.blessShowLabels = false
+studio.paint(preview, "group")
+check("Class Labels off hides the icon too", not classIcon.shown and not warriorCell.label.shown)
+settings.blessBarSize, settings.blessShowLabels, settings.blessLabelStyle = nil, nil, nil
+studio.paint(preview, "group")
+check("back on Name the name returns and the icon hides", warriorCell.label.shown and not classIcon.shown
+    and warriorCell.label.text == "Warrior")
+settings.blessLabelStyle, settings.blessLayout = "icon", "vertical"
+studio.paint(preview, "group")
+check("a column's icons sit beside their buttons, not on the one below", classIcon.shown
+    and classIcon.point == "LEFT" and classIcon.anchor == warriorCell)
+settings.blessLabelStyle, settings.blessLayout = nil, nil
+studio.paint(preview, "group")
+check("and back under them in a row", not classIcon.shown and warriorCell.label.point == "TOP")
 settings.blessBarSize, settings.blessSpacing, settings.blessLayout = 16, 0, "vertical"
 studio.paint(preview, "group")
 check("a column's names sit beside it with nothing to run into: never squeezed",

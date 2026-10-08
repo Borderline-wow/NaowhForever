@@ -126,6 +126,7 @@ local S = UI.ModuleSettings("qol", {
     bisToastPos = { point = "CENTER", relPoint = "CENTER", x = -9, y = 393 },
     blessings = true, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
     blessShowFury = false, blessWindowAlpha = 1, blessFont = "", blessOutline = "OUTLINE", blessThemeColors = false,
+    blessLabelStyle = "name",
     blessLayout = "horizontal",
 
     durability = false, durabilityBelow = 14, durabilityFont = "",
