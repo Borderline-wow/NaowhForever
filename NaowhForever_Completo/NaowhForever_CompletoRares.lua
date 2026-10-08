@@ -10,6 +10,8 @@
 --  its drops can be ticked. Off while Completo is: no events until it is on.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
+local T = ns.THEME
+local St = ns.Shared.Style
 local S = ns.CompletoSettings
 local D = ns.CompletoRareData
 
@@ -286,11 +288,11 @@ function R.AddLoot(tooltip, npc)
         local chance = item[CHANCE] >= 1 and ("%d%%"):format(math.floor(item[CHANCE] + 0.5))
             or ("%.1f%%"):format(item[CHANCE])
         if item[NEW] == 1 then name = name .. ns.Shared.Parts.ForeverInline(12) end
-        if R.Dropped(npc, item[ID]) then name = name .. "  |cff3fd13f(you got it)|r" end
-        tooltip:AddDoubleLine(name, chance, r, g, b, 0.62, 0.62, 0.62)
+        if R.Dropped(npc, item[ID]) then name = name .. "  " .. ns.Color(St.HAVE_RGB, "(you got it)") end
+        tooltip:AddDoubleLine(name, chance, r, g, b, T.muted.r, T.muted.g, T.muted.b)
     end
     if loot.more then
-        tooltip:AddLine(("And %d more"):format(loot.more), 0.62, 0.62, 0.62)
+        tooltip:AddLine(("And %d more"):format(loot.more), T.muted.r, T.muted.g, T.muted.b)
     end
 end
 
