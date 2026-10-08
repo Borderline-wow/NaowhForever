@@ -8,7 +8,9 @@
 --  classic spells carry none of its PvP aura flags, and it lets an addon pick an enemy's
 --  debuffs by spell ID but not their buffs: crowd control and debuffs come from spell IDs
 --  (Data/NaowhForever_PvPSpells.lua), buffs by their length and dispel type. A container does
---  not follow a new target or focus by itself, so a change rebuilds it. The time left is the
+--  not follow a new target or focus by itself, so a change rebuilds it. While your focus is
+--  also your target the focus panel fades out, the target panel already showing it all; where
+--  the game will not say whether the two are one, it stays. The time left is the
 --  game's own countdown, coloured by a curve the game evaluates: yellow, then red and blinking
 --  near the end. Before the first row, the shields on the unit added up: the game hands the
 --  amount over secret, so it is shown as given, inside a frame clipped to a bar that is full
@@ -34,9 +36,8 @@ local BLACK = { r = 0, g = 0, b = 0 }
 local MAGIC = { Magic = true }
 local ROWS = { "buffs", "cc", "debuffs" }
 local MAX_KEY = { buffs = "buffMax", cc = "ccMax", debuffs = "debuffMax" }
-local ABSORB_TEXT = "%d"
--- Without the buffs row there is no shield icon beside the number to say what it is.
-local ABSORB_ICON_TEXT = "|TInterface\\Icons\\Spell_Holy_PowerWordShield:0:0:0:0:64:64:5:59:5:59|t %d"
+-- A small shield before the number, the same on every panel, so it reads as the shields.
+local ABSORB_TEXT = "|TInterface\\Icons\\Spell_Holy_PowerWordShield:0:0:0:0:64:64:5:59:5:59|t %d"
 local ABSORB_SIZE = 0.42
 local ABSORB_RGB = { r = 0.55, g = 0.82, b = 1 }
 local NAME_SIZE = 0.42
@@ -299,7 +300,7 @@ local function UpdateAbsorb(d)
     end
     local amount = UnitGetTotalAbsorbs(d.unit)
     absorb:SetValue(amount)
-    absorb.text:SetFormattedText(RowOn(d, "buffs") and ABSORB_TEXT or ABSORB_ICON_TEXT, amount)
+    absorb.text:SetFormattedText(ABSORB_TEXT, amount)
 end
 
 -- Your focus's name in their class's colour, with their class's icon; nothing without a focus.
@@ -387,6 +388,22 @@ local function Hide(d)
     d.holder.mover:Hide()
 end
 
+-- Your focus is your target: true only when the game says so in a value it lets us read.
+local function FocusIsTarget()
+    if not (UnitExists("focus") and UnitExists("target")) then return false end
+    local same = UnitIsUnit("focus", "target")
+    return Readable(same) and same == true
+end
+
+-- The focus panel steps aside (by alpha, safe in combat) while it would repeat the target's.
+local function UpdateFocusFade()
+    for _, d in ipairs(DISPLAYS) do
+        if d.nameKey and d.holder then
+            d.holder:SetAlpha((FocusIsTarget() and not unlocked) and 0 or 1)
+        end
+    end
+end
+
 local function Apply()
     if not On() and not built then
         events:UnregisterAllEvents()
@@ -421,6 +438,7 @@ local function Apply()
             Hide(d)
         end
     end
+    UpdateFocusFade()
     if absorbUnits[1] then events:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", absorbUnits[1], absorbUnits[2]) end
     ResizeButtons()
 end
@@ -437,6 +455,7 @@ events:SetScript("OnEvent", function(self, event, unit)
             d.container:UpdateAllAuras()
             UpdateAbsorb(d)
             UpdateHeader(d)
+            UpdateFocusFade()
             return
         end
     end
@@ -629,7 +648,7 @@ local function PaintPreview(shot, state)
     end
     shot.absorb:SetFont(ns.UIFontPath(), TextSize(ABSORB_SIZE), "OUTLINE")
     shot.absorb:SetTextColor(ABSORB_RGB.r, ABSORB_RGB.g, ABSORB_RGB.b)
-    shot.absorb:SetFormattedText(RowOn(d, "buffs") and ABSORB_TEXT or ABSORB_ICON_TEXT, 1240)
+    shot.absorb:SetFormattedText(ABSORB_TEXT, 1240)
     shot.absorb:ClearAllPoints()
     if first then shot.absorb:SetPoint("RIGHT", first, "LEFT", -ICON_GAP * 2, 0) end
     shot.absorb:SetShown(S.Get("absorb") == true and first ~= nil)
@@ -812,7 +831,7 @@ page:Card({
           help = "Only buffs a dispel or purge can take off." },
         { key = "buffMax", label = "Max Buffs", slider = { 1, 10, 1 }, needs = Enabled, why = OFF },
         { key = "absorb", label = "Show Absorb", toggle = true, needs = Enabled, why = OFF,
-          help = "Before the icons, in blue, how much the shields still absorb while one is up, with a shield icon when buffs are hidden." },
+          help = "Before the icons, a small shield and in blue how much the shields still absorb, while one is up." },
         Group("Crowd Control"),
         { key = "cc", label = "Crowd Control", toggle = true, needs = Enabled, why = OFF,
           help = "The crowd control on your target; pick which in the Crowd Control card below." },

@@ -170,6 +170,8 @@ local function Fixture(qol, pvp)
     end
     env.UnitGetTotalAbsorbs = function(unit) return env.absorbs[unit] or 0 end
     env.UnitName = function(unit) return unit == "focus" and env.focusName or "Someone" end
+    env.sameUnit = false
+    env.UnitIsUnit = function(a, b) return (a == "focus" and b == "target") and env.sameUnit end
     env.UnitClass = function(unit) return "Mage", unit == "focus" and env.focusClass or "WARRIOR" end
     env.RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 } }
     env.CLASS_ICON_TCOORDS = { MAGE = { 0.25, 0.49, 0, 0.25 } }
@@ -352,6 +354,20 @@ do
     Check(not header.shown, "Focus Name off: hidden")
     S.Set("focusName", true)
 
+    -- Your focus is your target: the focus panel steps aside, the target's shows it all.
+    Check(focusHolder.alpha == 1, "a focus that is not your target: shown")
+    env.sameUnit = true
+    env.Fire("PLAYER_TARGET_CHANGED")
+    Check(focusHolder.alpha == 0 and holder.alpha ~= 0, "targeting your focus: the focus panel fades out")
+    env.sameUnit = {}
+    env.issecretvalue = function(v) return type(v) == "table" end
+    env.Fire("PLAYER_FOCUS_CHANGED")
+    Check(focusHolder.alpha == 1, "where the game keeps it secret, the panel stays")
+    env.issecretvalue = nil
+    env.sameUnit = false
+    env.Fire("PLAYER_TARGET_CHANGED")
+    Check(focusHolder.alpha == 1, "a new target: the focus panel is back")
+
     -- The time left: compact, and coloured by the game's curve near the end.
     local button = c.buttons[1]
     local options = button.timerOptions
@@ -457,13 +473,13 @@ do
         "Show Absorb: on, the shields followed")
     env.absorbs.target = 1240
     env.Fire("UNIT_ABSORB_AMOUNT_CHANGED", "target")
-    Check(bar.value == 1240 and bar.text.text == "1240" and focusBar.value ~= 1240,
-        "a shield on your target: its bar full and just the number set; the focus's untouched")
+    Check(bar.value == 1240 and bar.text.text:find("|T", 1, true) and bar.text.text:find("1240", 1, true)
+        and focusBar.value ~= 1240, "a shield on your target: its bar full, a small shield and the number; the focus's untouched")
     env.absorbs.focus = 300
     env.Fire("UNIT_ABSORB_AMOUNT_CHANGED", "focus")
     Check(focusBar.value == 300 and bar.value == 1240, "a shield on your focus: its own number")
     Check(focusBar.text.text:find("|T", 1, true) and focusBar.text.text:find("300", 1, true),
-        "the focus shows no buffs, so its number gets the shield icon to say what it is")
+        "the focus's looks the same: a small shield and the number")
     env.absorbs.target = 0
     env.Fire("PLAYER_TARGET_CHANGED")
     Check(bar.value == 0, "a new target without a shield: the bar empties, hiding the number")
