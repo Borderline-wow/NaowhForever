@@ -151,8 +151,9 @@ local function ValidUtilities(data)
             count = count + 1
             if not PositiveID(index) or index > #data.consumables or count > 500
                 or type(entry) ~= "table" or not categories[entry.category]
-                or not PositiveID(entry.itemID) or type(entry.auras) ~= "table" or #entry.auras == 0 then return false end
-            for i, id in pairs(entry.auras) do
+                or not PositiveID(entry.itemID)
+                or entry.auras ~= nil and (type(entry.auras) ~= "table" or #entry.auras == 0) then return false end
+            for i, id in pairs(entry.auras or {}) do
                 if not PositiveID(i) or i > #entry.auras or not PositiveID(id) then return false end
             end
         end

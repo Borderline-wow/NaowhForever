@@ -62,8 +62,11 @@ ns.AuraBuffSettings = S
 local CATEGORY_NAMES = { food = "Food", flask = "Flask", scroll = "Scroll",
     battle = "Battle Elixir", guardian = "Guardian Elixir" }
 local CATEGORY_ORDER = { "food", "flask", "scroll", "battle", "guardian" }
+local LIST_PREFIX = "NFCONSUMABLES1:"
+local MAX_ENTRIES = 500   -- a pack holding more is refused on import
 
--- Entries are profile data, never executable code. Require explicit item and aura IDs.
+-- Entries are profile data, never executable code. Buff IDs are only needed when the buff is
+-- not the item's own: food counts any Well Fed, other items their use spell.
 function ns.ParseConsumableEntry(category, text)
     if not CATEGORY_NAMES[category] or type(text) ~= "string" then return end
     local ids = {}
@@ -73,18 +76,18 @@ function ns.ParseConsumableEntry(category, text)
         if id < 1 or id > 2147483647 then return end
         ids[#ids + 1] = id
     end
-    if #ids < 2 then return end
-    local entry = { category = category, itemID = table.remove(ids, 1), auras = ids }
-    return entry
+    if #ids == 0 then return end
+    local itemID = table.remove(ids, 1)
+    return { category = category, itemID = itemID, auras = ids[1] and ids or nil }
 end
 
 local function EditEntry(category, index)
     local entries = S.Get("consumableEntries") or {}
     local existing = index and entries[index]
-    local initial = existing and (existing.itemID .. ", " .. table.concat(existing.auras, ", ")) or ""
-    ns.PromptText("Item ID, then buff spell ID(s), separated by commas", initial, 240, function(text)
+    local initial = existing and existing.itemID .. (existing.auras and ", " .. table.concat(existing.auras, ", ") or "") or ""
+    ns.PromptText("Item ID, then buff spell ID(s) if not the item's own", initial, 240, function(text)
         local entry = ns.ParseConsumableEntry(category, text)
-        if not entry then ns.Print("Enter an item ID followed by at least one buff spell ID.") return end
+        if not entry then ns.Print("Enter an item ID, then any buff spell IDs, separated by commas.") return end
         local copy = {}
         for i, value in ipairs(S.Get("consumableEntries") or {}) do copy[i] = value end
         copy[index or #copy + 1] = entry
@@ -93,26 +96,105 @@ local function EditEntry(category, index)
     end)
 end
 
+-- One line, since the paste box is one line: food=13931,2680;battle=13454/17539
+function ns.ConsumableListString(entries)
+    local byCategory = {}
+    for _, entry in ipairs(entries) do
+        local ids = byCategory[entry.category] or {}
+        byCategory[entry.category] = ids
+        ids[#ids + 1] = entry.auras and entry.itemID .. "/" .. table.concat(entry.auras, "/") or tostring(entry.itemID)
+    end
+    local groups = {}
+    for _, category in ipairs(CATEGORY_ORDER) do
+        if byCategory[category] then
+            groups[#groups + 1] = category .. "=" .. table.concat(byCategory[category], ",")
+        end
+    end
+    return LIST_PREFIX .. table.concat(groups, ";")
+end
+
+-- A list string, or a profile string whose consumables are taken and nothing else.
+function ns.ParseConsumableList(text)
+    text = text:gsub("%s", "")
+    local entries = {}
+    if text:sub(1, #LIST_PREFIX) == LIST_PREFIX then
+        for group in text:sub(#LIST_PREFIX + 1):gmatch("[^;]+") do
+            local category, ids = group:match("^(%a+)=(.+)$")
+            if not category then return end
+            for item in ids:gmatch("[^,]+") do
+                local entry = ns.ParseConsumableEntry(category, (item:gsub("/", ",")))
+                if not entry then return end
+                entries[#entries + 1] = entry
+            end
+        end
+    else
+        local payload = ns.DecodeProfile(text)
+        local sr = payload and payload.parts.smartReminders
+        local list = sr and type(sr.utilityReminders) == "table" and sr.utilityReminders.consumables
+        for _, entry in ipairs(type(list) == "table" and list or {}) do entries[#entries + 1] = entry end
+    end
+    if #entries > 0 then return entries end
+end
+
+local function ImportList()
+    ns.PromptText("Paste a consumables list or a profile string", "", 0, function(text)
+        local incoming = ns.ParseConsumableList(text)
+        if not incoming then ns.Print("That string holds no consumables list.") return end
+        local entries, have = {}, {}
+        for i, entry in ipairs(S.Get("consumableEntries") or {}) do
+            entries[i] = entry
+            have[entry.category .. ":" .. entry.itemID] = true
+        end
+        local added = 0
+        for _, entry in ipairs(incoming) do
+            local key = entry.category .. ":" .. entry.itemID
+            if not have[key] and #entries < MAX_ENTRIES then
+                have[key] = true
+                entries[#entries + 1] = entry
+                added = added + 1
+            end
+        end
+        S.Set("consumableEntries", entries)
+        ns.Print(("Added %d consumables; %d were already listed or past the %d limit."):format(
+            added, #incoming - added, MAX_ENTRIES))
+        UI:RefreshPage(true)
+    end)
+end
+
+local function ExportList()
+    local entries = S.Get("consumableEntries") or {}
+    if #entries == 0 then ns.Print("There are no consumables to export yet.") return end
+    ns.ShowCopyBox("Consumables list", ns.ConsumableListString(entries))
+end
+
 function ns.BuildAuraBuffConsumables(parent, y)
     local W = UI.Widgets
     local _, h
-    _, h = W:Note(parent, "Add an item ID and its buff spell ID(s), or import a profile with reminders. "
+    _, h = W:Note(parent, "Add an item ID, or import a list. Food counts any Well Fed "
+        .. "buff and other items their own buff; add buff spell IDs only for an item that gives another. "
         .. "Nothing is added automatically. Hover a reminder to choose a configured item from your bags. "
         .. "Reminders pause in combat; item menus work outside combat. When and where they show is on "
         .. "AuraBuffs > Settings.", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Import a list or a profile's consumables", buttonText = "Import",
+            onClick = ImportList },
+        { type = "button", text = "Copy this profile's list", buttonText = "Export", onClick = ExportList })
+    y = y - h
     for _, category in ipairs(CATEGORY_ORDER) do
         _, h = W:SectionHeader(parent, CATEGORY_NAMES[category]:upper(), y); y = y - h
         _, h = W:DualRow(parent, y,
             { type = "button", text = "Add " .. CATEGORY_NAMES[category], buttonText = "Add",
                 onClick = function() EditEntry(category) end },
-            { type = "label", text = "Item ID + buff spell IDs" }); y = y - h
+            { type = "label", text = "Item ID, buff spell IDs optional" }); y = y - h
         for index, entry in ipairs(S.Get("consumableEntries") or {}) do
             if entry.category == category then
                 local name = C_Item.GetItemNameByID(entry.itemID) or ("Item " .. entry.itemID)
+                local buffs = entry.auras and "Buffs: " .. table.concat(entry.auras, ", ")
+                    or category == "food" and "Buff: any Well Fed" or "Buff: the item's own"
                 _, h = W:DualRow(parent, y,
                     { type = "button", text = name, buttonText = "Edit",
                         onClick = function() EditEntry(category, index) end },
-                    { type = "button", text = "Buffs: " .. table.concat(entry.auras, ", "), buttonText = "Remove",
+                    { type = "button", text = buffs, buttonText = "Remove",
                         onClick = function()
                             local copy = {}
                             for i, value in ipairs(S.Get("consumableEntries") or {}) do

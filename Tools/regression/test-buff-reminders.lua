@@ -14,6 +14,7 @@ local SETTINGS = Read("Shared/Settings/Settings.lua")
 
 -- itemID -> use spell, for the food scan.
 local ITEM_SPELLS = { [13931] = 1249513, [2679] = 433, [21023] = 25660 }
+local SPELL_NAMES = { [1248406] = "Well Fed", [1249520] = "Well Fed", [1243969] = "Well Fed XP Boost" }
 
 local function Recorder(props)
     return setmetatable(props or {}, { __index = function() return function() end end })
@@ -37,6 +38,8 @@ local function Fixture(opts)
         group = opts.group,                         -- nil solo, "party" or "raid"
         units = opts.units or {},                   -- unit -> class; player included
         known = opts.known or {},
+        itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
+        requested = {},
         reads = 0,
     }
     local timers, frames = {}, {}
@@ -134,7 +137,7 @@ local function Fixture(opts)
                 state.reads = state.reads + 1
                 local a = (state.auras[unit] or {})[i]
                 if not a then return nil end
-                return { spellId = a[1], duration = a[3] or 0,
+                return { spellId = a[1], name = SPELL_NAMES[a[1]], duration = a[3] or 0,
                     expirationTime = a[2] and 1000 + a[2] or 0 }
             end,
         },
@@ -146,10 +149,15 @@ local function Fixture(opts)
             GetItemCount = Count,
             GetItemIconByID = function(id) return "item:" .. id end,
             GetItemSpell = function(id)
-                if ITEM_SPELLS[id] then return "spell", ITEM_SPELLS[id] end
+                local spell = state.itemSpells[id] or ITEM_SPELLS[id]
+                if spell then return "spell", spell end
             end,
+            RequestLoadItemDataByID = function(id) state.requested[id] = true end,
         },
-        C_Spell = { GetSpellTexture = function(id) return "spell:" .. id end },
+        C_Spell = {
+            GetSpellTexture = function(id) return "spell:" .. id end,
+            GetSpellName = function(id) return SPELL_NAMES[id] end,
+        },
         C_SpellBook = { IsSpellKnown = function(id) return state.known[id] == true end },
         C_Timer = {
             After = function(delay, fn) timers[#timers + 1] = { at = state.now + delay, fn = fn } end,
@@ -302,6 +310,41 @@ do
     } }, bags = { 13452, 13454 }, auras = { player = { { 17539, 3000, 3600 } } } })
     t.Login()
     Check("guardian missing, battle up", t.Shown(), "item:13452")
+end
+
+-- Item IDs alone: food counts any Well Fed, other items their use spell once the item is cached.
+do
+    local t = Fixture({ instance = "raid", bags = { 13931, 13510, 13454 }, itemSpells = { [13510] = 17626 },
+        settings = { consumableEntries = {
+            { category = "food", itemID = 13931 },
+            { category = "flask", itemID = 13510 },
+            { category = "battle", itemID = 13454 },
+        } }, auras = { player = { { 1243969, 600, 900 }, { 17626, 7000, 7200 } } } })
+    t.Login()
+    Check("XP boost alone is not Well Fed; uncached elixir shows", t.Shown(), "item:13931 item:13454")
+    Check("uncached elixir requested", t.state.requested[13454], true)
+    t.state.auras.player = { { 1248406, 600, 900 }, { 17626, 7000, 7200 }, { 17539, 3000, 3600 } }
+    t.state.itemSpells[13454] = 17539
+    local before = t.Pending()
+    t.Fire("ITEM_DATA_LOAD_RESULT", 2589)
+    Check("another item loading queues nothing", t.Pending(), before)
+    t.Fire("ITEM_DATA_LOAD_RESULT", 13454)
+    t.Advance(0.5)
+    Check("Well Fed, flask and loaded elixir up", t.Shown(), "")
+end
+
+-- An item with no use spell is asked for once, so its load result cannot refresh forever.
+do
+    local t = Fixture({ instance = "raid", bags = { 6948 }, settings = { consumableEntries = {
+        { category = "flask", itemID = 6948 } } } })
+    t.Login()
+    t.state.requested[6948] = nil
+    t.Fire("ITEM_DATA_LOAD_RESULT", 6948)
+    t.Advance(0.5)
+    Check("no use spell: not asked again after it loads", t.state.requested[6948], nil)
+    t.Fire("ITEM_DATA_LOAD_RESULT", 6948)
+    t.Advance(0.5)
+    Check("no use spell: a second load result asks nothing more", t.state.requested[6948], nil)
 end
 
 -- Warn With Minutes Left: a buff under the time shows with its timer; one over it is

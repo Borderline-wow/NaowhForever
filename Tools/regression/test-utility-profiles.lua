@@ -105,6 +105,12 @@ Case("invalid definitions reject the entire import", function()
         PALADIN = { { name = "Bad", body = "/say x", note = 5 } },
     } } } }, nil, "Other"))
 end)
+Case("an entry may leave its buff IDs out", function()
+    local e = Fixture()
+    local entry = { category = "battle", itemID = 13454 }
+    assert(e.ns.MergeProfileFromPack({ data = { utilityReminders = { consumables = { entry } } } }, nil, "Other"))
+    assert(e.profiles.Other.utilityReminders.consumables[1].itemID == 13454)
+end)
 Case("a spec-only merge preserves utility definitions unless extras are selected", function()
     local e = Fixture()
     local data = Data("250", "u1")

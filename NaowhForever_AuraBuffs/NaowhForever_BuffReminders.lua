@@ -26,6 +26,8 @@ local cells = {}
 local pending
 local wakeTimer, wakeDue
 local wakeAt
+local itemBuffs, requested = {}, {}
+local wellFedName
 
 local GROUP_UNIT = { player = true }
 for i = 1, MAX_PARTY_MEMBERS or 4 do GROUP_UNIT["party" .. i] = true end
@@ -59,6 +61,29 @@ local function Find(buffs, ids)
     end
 end
 
+-- Every cooked food's buff is named Well Fed, whatever it raises.
+local function WellFed(buffs)
+    wellFedName = wellFedName or C_Spell.GetSpellName(D.WELL_FED[1])
+    for _, aura in pairs(buffs) do
+        if aura.name == wellFedName then return aura end
+    end
+end
+
+-- An elixir, flask or scroll's buff is its use spell, which needs the item cached. Asked for
+-- once: an ID with no use spell would otherwise load, refresh and ask again forever.
+local function ItemBuff(itemID)
+    if not itemBuffs[itemID] then
+        local _, spell = C_Item.GetItemSpell(itemID)
+        if spell then
+            itemBuffs[itemID] = spell
+        elseif not requested[itemID] then
+            requested[itemID] = true
+            C_Item.RequestLoadItemDataByID(itemID)
+        end
+    end
+    return itemBuffs[itemID]
+end
+
 local function FirstCarried(items)
     for _, id in ipairs(items) do
         if C_Item.GetItemCount(id) > 0 then return id end
@@ -85,9 +110,9 @@ local function Wake(seconds)
     if not wakeAt or seconds < wakeAt then wakeAt = seconds end
 end
 
--- Adds a reminder unless one of `auras` is up with more than the warning time left.
-local function Consumable(list, buffs, auras, item, icon)
-    local aura = Find(buffs, auras)
+-- Adds a reminder unless one of the group's buffs is up with more than the warning time left.
+local function Consumable(list, buffs, group, item, icon)
+    local aura = Find(buffs, group.auras) or group.wellFed and WellFed(buffs)
     local left = aura and Left(aura)
     local warn = S.Get("consumablesMinutes") * 60
     if aura and not (left and left <= warn) then
@@ -101,18 +126,24 @@ end
 local function Consumables(list, buffs)
     local groups = {}
     for _, entry in ipairs(S.Get("consumableEntries") or {}) do
-        if type(entry) == "table" and type(entry.itemID) == "number" and type(entry.auras) == "table" then
+        if type(entry) == "table" and type(entry.itemID) == "number" then
             local group = groups[entry.category]
             if not group then group = { items = {}, auras = {} }; groups[entry.category] = group end
             group.items[#group.items + 1] = entry.itemID
-            for _, id in ipairs(entry.auras) do group.auras[#group.auras + 1] = id end
+            if type(entry.auras) == "table" then
+                for _, id in ipairs(entry.auras) do group.auras[#group.auras + 1] = id end
+            elseif entry.category == "food" then
+                group.wellFed = true
+            else
+                group.auras[#group.auras + 1] = ItemBuff(entry.itemID)
+            end
         end
     end
     for _, category in ipairs({ "food", "flask", "scroll", "battle", "guardian" }) do
         local group = groups[category]
         if group then
             local before = #list
-            Consumable(list, buffs, group.auras, FirstCarried(group.items),
+            Consumable(list, buffs, group, FirstCarried(group.items),
                 C_Item.GetItemIconByID(group.items[1]))
             if #list > before then list[#list].items = group.items end
         end
@@ -385,6 +416,7 @@ events:SetScript("OnEvent", function(_, event, unit)
         return
     end
     if event == "PLAYER_REGEN_DISABLED" then HideMenu(); return end
+    if event == "ITEM_DATA_LOAD_RESULT" and not requested[unit] then return end
     Queue()
 end)
 
@@ -430,6 +462,7 @@ local function Apply()
         events:RegisterEvent("PLAYER_UPDATE_RESTING")
         events:RegisterEvent("BAG_UPDATE_DELAYED")
         events:RegisterEvent("PLAYER_REGEN_DISABLED")
+        events:RegisterEvent("ITEM_DATA_LOAD_RESULT")
     end
     Refresh()
 end
