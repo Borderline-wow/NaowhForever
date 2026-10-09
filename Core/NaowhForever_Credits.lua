@@ -13,6 +13,7 @@ local HERO_H, LOGO_SIZE, CARD_H, EMBLEM, ICON = 96, 64, 92, 52, 30
 local PAD, GLOW, GLOW_ALPHA, STRIP = 16, 1.3, 0.35, 2
 local CHIP_H, CHIP_GAP, CHIP_PAD = 24, 6, 10
 local SECTION_GAP = 14
+local TEXT_LEFT = PAD + EMBLEM + PAD - 2
 
 local function Tier(key)
     return ns.BADGE_TIERS and ns.BADGE_TIERS[key]
@@ -113,10 +114,11 @@ local function NewPerson(view)
     card.glow = card:CreateTexture(nil, "BORDER")
     card.glow:SetBlendMode("ADD")
     card.art = card:CreateTexture(nil, "ARTWORK")
-    card.art:SetPoint("LEFT", PAD, 0)
+    -- Every card keeps an emblem-wide slot for its art, so names and lines start at one x.
+    card.art:SetPoint("CENTER", card, "LEFT", PAD + EMBLEM / 2, 0)
     card.glow:SetPoint("CENTER", card.art, "CENTER")
     card.name = ns.Font(card, 16, nil, T.fg)
-    card.name:SetPoint("TOPLEFT", card.art, "TOPRIGHT", PAD - 2, 2)
+    card.name:SetPoint("TOPLEFT", TEXT_LEFT, -PAD)
     card.role = ns.Font(card, 10, nil, T.muted)
     card.role:SetPoint("LEFT", card.name, "RIGHT", 8, -1)
     card.line = ns.Font(card, 12, nil, T.muted)
@@ -158,8 +160,7 @@ local function SetPerson(card, person, width)
     card.name:SetText(person.name)
     card.name:SetTextColor(color.r, color.g, color.b, 1)
     card.role:SetText(Upper(person.role))
-    local textLeft = PAD + (tier and EMBLEM or ICON) + PAD - 2
-    card.line:SetWidth(math.max(1, width - textLeft - PAD))
+    card.line:SetWidth(math.max(1, width - TEXT_LEFT - PAD))
     card.line:SetText(person.line)
     return CARD_H
 end
