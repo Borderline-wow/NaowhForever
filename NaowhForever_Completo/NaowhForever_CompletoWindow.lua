@@ -6,7 +6,8 @@
 --  quests indented under it. All Zones lists every zone by continent with its progress;
 --  click one to open it. The Rares tab is built the same way: a zone's rares by level,
 --  which of them you have killed, a waypoint to where each spawns; click a rare to open it
---  on its special drops.
+--  on its special drops. The Overview tab, where it opens first: how far along you are in
+--  Quests and Rares, everywhere and in the zone you are in; click one to open it.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local T = ns.THEME
@@ -19,9 +20,9 @@ local Parts, St = Shared.Parts, Shared.Style
 local WIDTH, HEIGHT = 760, 720
 local HEADER, FOOTER, PAD = St.WINDOW_HEADER, St.WINDOW_FOOTER, St.WINDOW_PAD
 local INSET, SCROLLBAR, TAB_H, TAB_GAP = St.CONTENT_INSET, St.SCROLLBAR, St.TAB_H, St.TAB_GAP
-local PAGE = "Completo/Quests"
+local PAGE = "Completo/General"
 local CARD = 6
-local TABS_W = 260
+local TAB_MARGIN = 28           -- round each tab's label
 local HERO_H = 84
 local BAR_H = 4
 local ROW_TOP, ROW_BOTTOM, LINE_GAP = 6, 8, 3
@@ -35,6 +36,8 @@ local ZONE_BAR_W = 180
 local ARROW, ARROW_GAP = 10, 6
 local ACTION_W = St.ACTION or 18
 local SEARCH_W = 260
+local SEARCH_MIN_W = 140        -- the search box narrows to this as the window does
+local SEARCH_GAP = 12           -- between the tabs and the search box
 local SEARCH_MAX = 150          -- quests a search lists at most
 -- The smallest the window drags down to: the tabs and the search box side by side, and a
 -- handful of rows.
@@ -57,6 +60,7 @@ local CONTINENTS = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
 local ELSEWHERE = "Elsewhere"
 
 local TABS = {
+    { key = "overview", label = "Overview", tip = "How far along you are in Quests and Rares." },
     { key = "quests", label = "Quests", tip = "Every quest of every zone, and where you are in each chain." },
     { key = "rares", label = "Rares", tip = "Every rare of every zone, and which of them you have killed." },
 }
@@ -65,7 +69,7 @@ local SEARCH_HINT = { quests = "Search quests or quest givers", rares = "Search 
 local window, scroll, view, kinds
 local opened = {}       -- npcID -> true: the rares opened on their drops
 local kept              -- the rare opened from the map: listed even with Hide Killed Rares
-local tab = "quests"
+local tab = "overview"
 local zone              -- the Quests tab's zone open, or nil for All Zones
 local rareZone          -- the Rares tab's
 
@@ -588,6 +592,48 @@ local function SetDrop(row, item, npc, stripe)
 end
 
 -------------------------------------------------------------------------------
+--  A part of Completo on the Overview: its name, a line on it, its count and bar; click to
+--  open its tab.
+-------------------------------------------------------------------------------
+local PickTab
+
+local function PartEnter(row)
+    row.hover:Show()
+    if not Parts.Tip(row, "ANCHOR_RIGHT") then return end
+    GameTooltip:SetText(row.title:GetText(), 1, 1, 1)
+    GameTooltip:AddLine(row.hint, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+    GameTooltip:Show()
+end
+
+local function PartMouseUp(row, button)
+    if button ~= "LeftButton" then return end
+    if row.tab == "rares" then rareZone = row.zone else zone = row.zone end
+    PickTab(row.tab)
+end
+
+local function NewPart(parent)
+    local row = NewZone(parent)
+    row:SetScript("OnEnter", PartEnter)
+    row:SetScript("OnMouseUp", PartMouseUp)
+    return row
+end
+
+-- key: the tab it opens; z: the zone it opens on, nil for All Zones.
+local function SetPart(row, key, z, label, line, n, total, stripe)
+    row.tab, row.zone = key, z
+    row.hint = z and ("Click to see %s in %s."):format(z.name, label) or ("Click to open %s."):format(label)
+    row.stripe:SetShown(stripe)
+    row.hover:Hide()
+    row.title:SetText(label)
+    row.levels:SetText(line)
+    local c = total > 0 and n == total and St.HAVE_RGB or T.fg
+    row.count:SetText(("%d / %d  (%d%%)"):format(n, total, Percent(n, total)))
+    row.count:SetTextColor(c.r, c.g, c.b)
+    row.bar:SetProgress(total > 0 and n / total or 0)
+    return ZONE_H
+end
+
+-------------------------------------------------------------------------------
 --  The pages
 -------------------------------------------------------------------------------
 local Draw = {}
@@ -777,8 +823,34 @@ local function DrawRares(self)
     self:Fit(NO_EVENTS)
 end
 
+-- Quests and Rares everywhere, then in the zone you are in.
+local function DrawOverview(self)
+    Q.Refresh()
+    local n, total = Q.Progress()
+    local killed, rares = R.Progress()
+    self:Section("Everywhere", 2)
+    self:Add("part", "quests", nil, "Quests", "Zone quests done", n, total, false)
+    self:Add("part", "rares", nil, "Rares", "Rares killed", killed, rares, true)
+    local qz, rz = Q.CurrentZone(), R.CurrentZone()
+    local here = qz or rz
+    if here then
+        self:Space(St.SECTION_SPACE)
+        self:Section(here.name, (qz and 1 or 0) + (rz and 1 or 0))
+        if qz then
+            local zn, zt, low, high = Q.ZoneProgress(qz)
+            self:Add("part", "quests", qz, "Quests", Levels(low, high), zn, zt, false)
+        end
+        if rz then
+            local zn, zt, low, high = R.ZoneProgress(rz)
+            self:Add("part", "rares", rz, "Rares", Levels(low, high), zn, zt, true)
+        end
+    end
+    self:Fit(EVENTS)
+end
+
 function Draw:Redraw()
     self:Clear()
+    if tab == "overview" then return DrawOverview(self) end
     if tab == "rares" then return DrawRares(self) end
     Q.Refresh()
     local text = SearchText()
@@ -803,12 +875,13 @@ local function Kinds()
     kinds.quest = { New = NewQuest, Set = SetQuest }
     kinds.rare = { New = NewRare, Set = SetRare }
     kinds.drop = { New = NewDrop, Set = SetDrop }
+    kinds.part = { New = NewPart, Set = SetPart }
     return kinds
 end
 
 local Paint
 
-local function PickTab(key)
+function PickTab(key)
     tab = key
     Paint()
     scroll:SetVerticalScroll(0)
@@ -826,7 +899,8 @@ local function Build()
     window.note = Parts.FooterNote(window, "")
 
     local left, top = CARD + INSET, HEADER + CARD + PAD + 4
-    window.tabs = Parts.Tabs(window, TABS_W, TABS, PickTab)
+    window.tabs = Parts.Tabs(window, 1, TABS, PickTab)
+    Parts.FitTabs(window.tabs, TABS, TAB_MARGIN)
     window.tabs:SetPoint("TOPLEFT", left, -top)
     window.search = Parts.SearchBox(window, SEARCH_HINT.quests, function()
         if window:IsShown() then
@@ -842,8 +916,11 @@ local function Build()
     scroll:SetPoint("BOTTOMRIGHT", -(CARD + SCROLLBAR + 4), FOOTER + CARD + PAD)
     view = Shared.View.New(scroll, Kinds(), Draw)
     scroll:SetScrollChild(view)
-    -- Dragged bigger or smaller: the rows follow the new width, redrawn once it settles.
+    -- Dragged bigger or smaller: the rows follow the new width, redrawn once it settles; the
+    -- search box narrows so it never runs into the tabs.
     local function FitView()
+        local room = window:GetWidth() - 2 * (CARD + INSET) - window.tabs:GetWidth() - SEARCH_GAP
+        window.search:SetWidth(math.max(SEARCH_MIN_W, math.min(SEARCH_W, room)))
         local width = window:GetWidth() - left - CARD - SCROLLBAR - INSET
         if view:GetWidth() == width then return end
         view:SetWidth(width)
@@ -858,7 +935,9 @@ function Paint()
     window.backdrop:Paint(Opacity() / 100)
     window.opacity._refreshValue()
     local n, total
-    if tab == "rares" then
+    if tab == "overview" then
+        window.note.text:SetText("")
+    elseif tab == "rares" then
         n, total = R.Progress()
         window.note.text:SetText(("%d of %d rares killed"):format(n, total))
     else
@@ -867,7 +946,9 @@ function Paint()
         window.note.text:SetText(("%d of %d zone quests done"):format(n, total))
     end
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
-    window.search.hint:SetText(SEARCH_HINT[tab])
+    -- Nothing to search on the Overview.
+    window.search:SetShown(tab ~= "overview")
+    if SEARCH_HINT[tab] then window.search.hint:SetText(SEARCH_HINT[tab]) end
     Parts.PaintTabs(window.tabs, tab)
 end
 
@@ -880,7 +961,7 @@ end)
 
 -- A rare killed or ticked off: its row, the zone's count and the footer follow.
 R.OnChange(function()
-    if not (window and window:IsShown()) or tab ~= "rares" then return end
+    if not (window and window:IsShown()) or (tab ~= "rares" and tab ~= "overview") then return end
     Paint()
     view:QueueRedraw()
 end)
@@ -895,7 +976,7 @@ end)
 
 local function IsRare(row, npc) return row.rare == npc end
 
--- which: "quests" or "rares" to open on that tab; else the one it was on. Opens on the zone
+-- which: "overview", "quests" or "rares" to open on that tab; else the one it was on. Opens on the zone
 -- you are in when it has quests (or rares), else where it was; npc: a rare to open on, in its
 -- zone with its drops open.
 function ns.OpenCompletoWindow(which, npc)

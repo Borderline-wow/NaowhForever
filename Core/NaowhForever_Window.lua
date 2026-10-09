@@ -116,6 +116,7 @@ local MODULES = {
       command = "completo", short = "Completo", icon = "Interface\\Icons\\INV_Misc_Book_08",
       subtitle = "Everything there is to do, and how much of it you have done.",
       tabs = {
+          { name = "General", reuse = true },
           { name = "Quests", reuse = true },
           { name = "Rares", reuse = true },
       } },

@@ -544,7 +544,22 @@ page:Card({
     },
 })
 
-page:Card({
+-- General: what is Completo's as a whole, not one tab's.
+local general = Settings.Page("Completo/General", S)
+
+general:Window({
+    text = "Open Completo",
+    open = function() ns.OpenCompletoWindow("overview") end,
+    headline = function()
+        Q.Refresh()
+        local n, total = Q.Progress()
+        local killed, rares = ns.Completo.Rares.Progress()
+        return ("%d of %d quests done, %d of %d rares killed"):format(n, total, killed, rares)
+    end,
+    detail = function() return "Everything there is to do, and how much of it you have done." end,
+})
+
+general:Card({
     id = "keys", name = "Key Binding", order = 30,
     help = "The key that opens the Completo window.",
     rows = {
@@ -553,7 +568,7 @@ page:Card({
     },
 })
 
-page:Card({
+general:Card({
     id = "window", name = "Window", order = 90,
     help = "Completo's own window. Drag its bottom right corner to size it.",
     rows = {
