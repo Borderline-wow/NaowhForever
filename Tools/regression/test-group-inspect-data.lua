@@ -211,6 +211,8 @@ do
     GI.Refresh("Player-1-0011")
     GI.RefreshAll()
     check("on but closed: still nothing", #state.frames == 1 and state.timers == 0 and GI.Count() == 0)
+    state.values.enabled = false
+    check("on with the QoL module off: still on", GI.On())
 end
 
 do

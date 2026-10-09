@@ -148,7 +148,7 @@ local function Roster()
     if GI.previewing then return GI.previewMode == "raid" and SAMPLES or SAMPLE_PARTY end
     return GI.roster
 end
-function GI.On() return S.Get("enabled") == true and S.Get("groupInspect") == true end
+function GI.On() return S.Get("groupInspect") == true end
 function GI.Open() GI.opened = GI.opened + 1; GI.open = true end
 function GI.Close() GI.closed = GI.closed + 1; GI.open = false end
 function GI.IsOpen() return GI.open == true end

@@ -33,7 +33,7 @@ end
 UI.MENU_TAGS = MENU_TAGS
 
 local function OnSettingChanged(key)
-    if key == "enabled" or key == "groupInspect" then SyncMenu() end
+    if key == "groupInspect" then SyncMenu() end
 end
 
 S.OnChange(OnSettingChanged)

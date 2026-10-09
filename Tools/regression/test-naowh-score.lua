@@ -3,7 +3,8 @@
 -- slots, an item not loaded yet); player tooltips (off until turned on, one inspect at a time,
 -- kept by GUID, filled in when the gear comes, never in combat or while the game's Inspect
 -- window, or the talents opened from it, holds the inspect); your group scanned in the
--- background; your score shared with your group and guild, always, and theirs kept; and what
+-- background; your score shared with your group and guild while Share My Score and the score are on,
+-- theirs kept either way; and what
 -- the hot paths cost and keep.
 local Load = dofile("Tools/regression/load_files.lua")
 
@@ -20,7 +21,8 @@ local function Fixture()
         frames = {}, timers = {}, sent = {}, members = 0, guild = false,
         fullNames = { player = "Me", party1 = "One", party2 = "Two", party3 = "Three" },
         guildRoster = { { "Guildie", "Player-7-00AB" }, { "Ninth", "Player-9-00AB" } },
-        values = { enabled = true, naowhScore = false, naowhScoreTooltip = true, naowhScoreScan = true } }
+        values = { enabled = true, naowhScore = false, naowhScoreShare = true, naowhScoreTooltip = true,
+            naowhScoreScan = true } }
     local listeners = {}
     local S = {
         Get = function(key) return state.values[key] end,
@@ -484,13 +486,14 @@ do
 end
 
 -------------------------------------------------------------------------------
---  Sharing: always on, to your group and guild; theirs kept
+--  Sharing: to your group and guild while it is on; theirs kept
 -------------------------------------------------------------------------------
 do
     local ns, state = Fixture()
     local Score = ns.NaowhScore
-    check("sharing listens with the feature off: running Naowh means sharing",
+    check("others' scores are listened for with the feature off",
         state.frames[2].events.CHAT_MSG_ADDON and state.values.naowhScore == false)
+    state.values.naowhScore = true
     state.gear.player, state.guild = Set(20, 4), true
     state.Fire("PLAYER_ENTERING_WORLD")
     check("logging in: the guild is asked for theirs and given yours",
@@ -560,6 +563,47 @@ do
     Measure("another addon's message passed over", 0.005, function()
         onEvent(state.frames[2], "CHAT_MSG_ADDON", "OtherAddon", "hello", "GUILD", "Someone")
     end)
+end
+
+-------------------------------------------------------------------------------
+--  Share My Score off, or the score off: yours never goes out, theirs still kept
+-------------------------------------------------------------------------------
+do
+    local ns, state = Fixture()
+    local Score = ns.NaowhScore
+    local S = ns.QoLSettings
+    state.values.naowhScore, state.values.naowhScoreShare = true, false
+    state.gear.player, state.guild, state.members = Set(20, 4), true, 1
+    state.Fire("PLAYER_ENTERING_WORLD")
+    state.RunTimers()
+    check("Share My Score off: logging in only asks for theirs",
+        #state.sent == 2 and state.sent[1][1] == "R" and state.sent[2][1] == "R")
+    state.Fire("CHAT_MSG_ADDON", "NaowhScore", "R", "PARTY", "Someone")
+    state.gear.player = Set(22, 4)
+    state.Fire("PLAYER_EQUIPMENT_CHANGED", 1)
+    state.RunTimers()
+    check("nor answers a request or sends a gear swap", #state.sent == 2)
+    state.Fire("CHAT_MSG_ADDON", "NaowhScore", "S Player-7-00AB 264 31", "GUILD", "Guildie")
+    check("a guildmate's is still kept", Score.Known("Player-7-00AB").score == 26.4)
+    S.Set("naowhScoreShare", true)
+    state.RunTimers()
+    check("turned on: yours goes to the group and guild", #state.sent == 4
+        and state.sent[3][1] == "S Player-1-1 220 60" and state.sent[3][2] == "PARTY" and state.sent[4][2] == "GUILD")
+    S.Set("naowhScore", false)
+    state.RunTimers()
+    state.Fire("CHAT_MSG_ADDON", "NaowhScore", "R", "GUILD", "Guildie")
+    state.gear.player = Set(24, 4)
+    state.Fire("PLAYER_EQUIPMENT_CHANGED", 1)
+    state.RunTimers()
+    check("the Naowh Score off: nothing more goes", #state.sent == 4)
+    S.Set("naowhScore", true)
+    S.Set("enabled", false)
+    state.RunTimers()
+    state.Fire("CHAT_MSG_ADDON", "NaowhScore", "R", "PARTY", "Someone")
+    state.gear.player = Set(26, 4)
+    state.Fire("PLAYER_EQUIPMENT_CHANGED", 1)
+    state.RunTimers()
+    check("the QoL module off: nothing goes either", #state.sent == 4)
 end
 
 -------------------------------------------------------------------------------

@@ -228,6 +228,8 @@ local function SwitchModuleAddon(mod, on)
     ns.Confirm(text, function()
         for _, m in ipairs(mods) do
             if on then C_AddOns.EnableAddOn(m.addon) else C_AddOns.DisableAddOn(m.addon) end
+            local store = on and m.settings and ns[m.settings]
+            if store then store.Set(m.enabledKey or "enabled", true) end
         end
         UI:RefreshPage(true)
         ns.ConfirmReload(TEXT_RELOAD:format(NameList(mods), verb))
@@ -285,7 +287,7 @@ end
 local function SetModuleOn(mod, on)
     if mod.addon and not on then return SwitchModuleAddon(mod, false) end
     local store = mod.settings and ns[mod.settings]
-    if mod.settings and not store then return SwitchModuleAddon(mod, true) end
+    if mod.settings and not store or not Loaded(mod) then return SwitchModuleAddon(mod, true) end
     if mod.addon then
         for _, m in ipairs(Linked(mod, true)) do C_AddOns.EnableAddOn(m.addon) end
     end

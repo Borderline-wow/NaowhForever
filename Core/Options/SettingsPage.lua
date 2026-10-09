@@ -4,7 +4,7 @@ local UI = ns.UI
 local O = ns.Options
 
 local MODULES, Loaded, NameList = O.MODULES, O.Loaded, O.NameList
-local SwitchModuleAddon, MinimapButtonOn = O.SwitchModuleAddon, O.MinimapButtonOn
+local ModuleOn, SetModuleOn, MinimapButtonOn = O.ModuleOn, O.SetModuleOn, O.MinimapButtonOn
 
 local DEFAULT_SCALE = 100
 local SCALE_VALUES = { [200] = "200%", [190] = "190%", [180] = "180%", [170] = "170%",
@@ -67,8 +67,11 @@ end
 local function ModuleRow(mod)
     return { type = "toggle", text = O.DisplayName(mod), module = mod,
         tooltip = mod.needs and NeedsTip(mod) or mod.subtitle,
-        getValue = function() return C_AddOns.GetAddOnEnableState(mod.addon) > 0 end,
-        setValue = function(v) SwitchModuleAddon(mod, v) end }
+        getValue = function()
+            if not Loaded(mod) then return C_AddOns.GetAddOnEnableState(mod.addon) > 0 end
+            return ModuleOn(mod)
+        end,
+        setValue = function(v) SetModuleOn(mod, v) end }
 end
 
 local function ModulesSection(W, parent, y)

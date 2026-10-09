@@ -95,7 +95,8 @@ keep their names for the rest of the addon.
   when the quest log has the change too.
 - Unlock Mode shows the tracker on your zone, or the first zone with books for your faction (The
   Barrens for the Horde, Westfall for the Alliance).
-- The Sleeping Bag tracker shows from level 14 until you have the bag; its X switches it off.
+- The Sleeping Bag tracker shows from level 14 until you have the bag; its X closes it until you
+  enter another zone, as the Library Books tracker's does.
 - Two steps at one spot (the Messenger Bag and the satchel under it) share a pin: the first not
   done. Its pins redraw once, on the quest log update after a step is taken or handed in.
 - The game says when you start and stop moving but not where you are, so the nearby alert checks

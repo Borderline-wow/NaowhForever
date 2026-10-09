@@ -314,7 +314,7 @@ end
 GI.Inspect = { WalkSoon = WalkSoon }
 
 local function OnSettingChanged(key)
-    if (key == "enabled" or key == "groupInspect") and not GI.On() then GI.Close() end
+    if key == "groupInspect" and not GI.On() then GI.Close() end
 end
 
 R.OnLoading(OnItems)

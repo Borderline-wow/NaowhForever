@@ -64,6 +64,12 @@ local function Key(offer)
     return offer.name .. "|" .. offer.level
 end
 
+local function Picked(offer)
+    local left = unpicked[Key(offer)]
+    if left == nil then return not (offer.spell and Training.Ignored()[offer.spell]) end
+    return not left
+end
+
 local function Offers()
     local byKey = Training.SpellsByService()
     local out, myLevel = {}, UnitLevel("player")
@@ -84,7 +90,7 @@ end
 local function Affordable(offers)
     local out, budget = {}, GetMoney()
     for _, offer in ipairs(offers) do
-        if not unpicked[Key(offer)] and offer.cost <= budget then
+        if Picked(offer) and offer.cost <= budget then
             out[#out + 1] = offer
             budget = budget - offer.cost
         end
@@ -119,7 +125,7 @@ local function LearnAll()
 end
 
 local function CheckPaint(row)
-    local on = not unpicked[Key(row.offer)]
+    local on = Picked(row.offer)
     row.tick:SetShown(on)
     local c = on and T.accent or T.line
     row.box:SetColor(c.r, c.g, c.b, 1)
@@ -127,8 +133,7 @@ local function CheckPaint(row)
 end
 
 local function OnOfferClick(self)
-    local key = Key(self.offer)
-    unpicked[key] = not unpicked[key] or nil
+    unpicked[Key(self.offer)] = Picked(self.offer)
     Render()
 end
 
@@ -254,7 +259,7 @@ end
 local function FillTotals(offers)
     local picked, pickedCost = 0, 0
     for _, offer in ipairs(offers) do
-        if not unpicked[Key(offer)] then
+        if Picked(offer) then
             picked = picked + 1
             pickedCost = pickedCost + offer.cost
         end
