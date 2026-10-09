@@ -176,7 +176,11 @@ local function PaintNavButton(btn, hover)
     local a = (off and not active and not hover) and NAV_OFF_ALPHA or 1
     if found == false and not active and not hover then a = MISS_ALPHA end
     btn.label:SetTextColor(c.r, c.g, c.b, a)
-    if btn.icon then btn.icon:SetVertexColor(c.r, c.g, c.b, a) end
+    if btn.fullColor then
+        btn.icon:SetAlpha(a)
+    elseif btn.icon then
+        btn.icon:SetVertexColor(c.r, c.g, c.b, a)
+    end
     if btn.open then btn.open:SetShown((active or hover) and not UI.filter) end
     if btn.dot then btn.dot:SetShown(off and not UI.filter and not (btn.open and btn.open:IsShown())) end
     btn.count:SetText(found and found > 0 and found or "")
@@ -536,10 +540,13 @@ end
 
 local function NavIcon(btn, icon)
     btn.icon = btn:CreateTexture(nil, "ARTWORK")
-    btn.icon:SetTexture(NAV_ICONS .. icon .. ".tga")
     btn.icon:SetSize(NAV_ICON_SIZE, NAV_ICON_SIZE)
     btn.icon:SetPoint("LEFT", NAV_ICON_X, 0)
-    btn.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
+    btn.fullColor = ns.Shared.Parts.ClassicIcon(btn.icon, icon)
+    if not btn.fullColor then
+        btn.icon:SetTexture(NAV_ICONS .. icon .. ".tga")
+        btn.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
+    end
 end
 
 local function NavigationButton(parent, label, y, onClick, icon)

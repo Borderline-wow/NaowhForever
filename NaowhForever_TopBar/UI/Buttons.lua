@@ -37,7 +37,7 @@ end
 
 local function SecureEnter(self)
     self.onHover()
-    self.icon:SetVertexColor(Look.Accent())
+    self.icon:SetVertexColor(Look.HoverColor())
     Tooltips.Button(self)
     if self.key ~= "hearth" then return end
     self.tipTime = 0
@@ -51,7 +51,7 @@ end
 
 local function BrokerEnter(self)
     self.onHover()
-    self.icon:SetVertexColor(Look.Accent())
+    self.icon:SetVertexColor(Look.HoverColor())
     Tooltips.Broker(self, self.broker)
 end
 
@@ -64,6 +64,7 @@ local function NewButton(key, parent, template, onHover)
     b:RegisterForClicks("AnyUp")
     b.icon = b:CreateTexture(nil, "ARTWORK")
     b.icon:SetPoint("CENTER")
+    if ns.classicSkin then b:SetHighlightTexture(ns.Shared.Style.CLASSIC_HIGHLIGHT, "ADD") end
     b.key = key
     b.onHover = onHover
     b:SetScript("OnLeave", Leave)
@@ -89,7 +90,7 @@ end
 
 function Buttons.Secure(key, parent, onHover)
     local b = NewButton(key, parent, "SecureActionButtonTemplate", onHover)
-    b.icon:SetTexture(St.ICON[key])
+    if not ns.Shared.Parts.ClassicIcon(b.icon, key) then b.icon:SetTexture(St.ICON[key]) end
     b:SetAttribute("useOnKeyDown", false)
     if key == "hearth" then
         b:SetAttribute("type", "macro")

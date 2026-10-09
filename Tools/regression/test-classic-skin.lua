@@ -4,6 +4,7 @@
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
+local missing = {}   -- texture paths this client lacks
 local function New(kind)
     local o = { kind = kind, points = {}, textures = {}, strings = {} }
     return setmetatable(o, { __index = function(_, k)
@@ -13,7 +14,11 @@ local function New(kind)
             elseif k == "SetText" then self.text = args[1]
             elseif k == "GetText" then return self.text
             elseif k == "SetVertexColor" then self.color = args
-            elseif k == "SetTexture" then self.texture = args[1]
+            elseif k == "SetTexture" then
+                self.texture = args[1]
+                return not missing[args[1]]
+            elseif k == "SetTexCoord" then self.coords = args
+            elseif k == "SetDesaturated" then self.desaturated = args[1]
             elseif k == "SetFont" then self.font = args[1]
             elseif k == "SetWidth" then self.width = args[1]
             elseif k == "SetHeight" then self.height = args[1]
@@ -85,5 +90,18 @@ check("the title in capitals, in the title font", title.text == "NAOWH FOREVER" 
 check("the plate over the middle of the top edge", plate.points[1][1] == "CENTER" and plate.points[1][2] == window
     and plate.points[1][3] == "TOP")
 check("as wide as the title and its room", plate.width == 100 + 2 * St.CLASSIC_PLATE_PAD)
+
+-- The game's full-colour icons in place of the line glyphs, only on Classic+.
+local icon = New("Texture")
+check("default skin: the glyph stays", Parts.ClassicIcon(icon, "map") == false and rawget(icon, "texture") == nil)
+ns.classicSkin = true
+check("Classic+: the game's icon for a glyph", Parts.ClassicIcon(icon, "map") == true
+    and icon.texture == St.CLASSIC_ICON_PATH .. St.CLASSIC_ICONS.map)
+check("cropped inside its edge, in its own colours", icon.coords[1] == St.CLASSIC_ICON_CROP
+    and icon.coords[2] == 1 - St.CLASSIC_ICON_CROP and icon.desaturated == false and icon.color[1] == 1)
+check("a name with no icon keeps its glyph", Parts.ClassicIcon(New("Texture"), "nothing") == false)
+missing[St.CLASSIC_ICON_PATH .. St.CLASSIC_ICONS.hearth] = true
+check("an icon this client lacks keeps its glyph", Parts.ClassicIcon(New("Texture"), "hearth") == false)
+check("the Top Bar's launchers have icons", St.CLASSIC_ICONS.NaowhForeverJournal and St.CLASSIC_ICONS.friends)
 
 print("classic skin: " .. checks .. " checks passed")

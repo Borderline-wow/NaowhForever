@@ -290,6 +290,17 @@ function Parts.ClassicBox(frame)
     return ns.Border(inside, St.CLASSIC_BRONZE_RGB)
 end
 
+-- False when the name has no icon or this client lacks its file; the caller keeps its glyph.
+function Parts.ClassicIcon(texture, name)
+    local icon = ns.classicSkin and St.CLASSIC_ICONS[name]
+    if not (icon and texture:SetTexture(St.CLASSIC_ICON_PATH .. icon)) then return false end
+    local crop = St.CLASSIC_ICON_CROP
+    texture:SetTexCoord(crop, 1 - crop, crop, 1 - crop)
+    texture:SetDesaturated(false)
+    texture:SetVertexColor(1, 1, 1, 1)
+    return true
+end
+
 function Parts.TitlePlate(frame, text)
     local plate = CreateFrame("Frame", nil, frame)
     plate:SetHeight(St.CLASSIC_PLATE_H)

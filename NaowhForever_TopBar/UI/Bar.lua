@@ -237,9 +237,9 @@ local function GroupKeys()
     for _, b in pairs(buttons) do b:Hide() end
     Look.Buttons(function(side, key, texture, glyph, coords, name)
         local b = name and Buttons.Broker(name, rightGroup, UpdateHover) or buttons[key]
-        if name then
+        if name and not ns.Shared.Parts.ClassicIcon(b.icon, name) then
             b.icon:SetTexture(texture)
-            b.icon:SetDesaturated(not glyph)
+            b.icon:SetDesaturated(not (glyph or ns.classicSkin))
             b.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
         end
         b:SetParent(side == "left" and leftGroup or rightGroup)
