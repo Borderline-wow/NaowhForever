@@ -1,6 +1,52 @@
 # Changelog
 
-## Unreleased
+## 1.1.3
+
+### Added
+- A Share My Score toggle on the Naowh Score card (BiS List > Character), so you can stop sending
+  your score to your group and guild.
+- Every Map Pins toggle is now on the Map Pins card in QoL > Interface, as well as on the world
+  map's Map Pins button.
+- Choose each class's blessing on the Blessing Bar card in Blessings settings.
+- Searching settings finds each PvP crowd control and debuff spell by name, like Polymorph, Sap or
+  Mortal Strike.
+- Show or hide each campfire bonus from the Campfire card in AuraBuffs settings.
+- A Talent Builds card in Training Planner settings shows the build you follow, with Stop Following
+  and Open Builds.
+- The Professions recipe window's logo opens its settings.
+- Open Quest Tracker on the Dungeon Journal's Quest Tracker page, and a Key Binding card in BiS List
+  settings.
+- Stats Shown on the Character Panel card picks Your Spec or All Stats.
+- Reset the Quiz and Trainer Popup positions from their cards.
+
+### Changed
+- The Trainer Popup settings are now in QoL > Questing & Group, so they show without the Training
+  Planner.
+- Keep Cursor In Window During Combat and Cooldown at Cursor are now on the QoL Cursor tab.
+- The BiS List card with tooltip and bag marks is now called Marks on Items.
+- On the Classic+ skin, buttons are the game's own red panel buttons, white with a glow under the
+  mouse.
+- On the Classic+ skin, the Threat Meter's icon is Rallying Cry and Group Inspect's is the Eye of
+  Kilrogg.
+- On the Classic+ skin, text is in Friz Quadrata like the game's own interface, with Arial Narrow
+  for compact numbers.
+- On the Classic+ skin, windows have the game's wood background in place of rock.
+
+### Fixed
+- The game no longer freezes for a moment when you level up or learn spells at a trainer.
+- Loot Feed: it no longer drifts from where you placed it in the HUD Editor after alerts show or
+  hide.
+- Your Naowh Score is no longer sent to your group and guild while the Naowh Score is switched off.
+- Group Inspect now works with the QoL module switched off.
+- Spells you skip in the Training Planner start unticked at the trainer, so Learn All I Can Afford
+  leaves them out.
+- Settings > Modules now shows and sets the same on or off state as each module's own switch.
+- The Sleeping Bag tracker's X now hides it until you enter another zone, like the Library Books
+  tracker, instead of switching it off.
+- In the HUD Editor, the Alerts group's Settings button asks which alert to open (Camp Nearby,
+  Talent Points, Durability, Restock Reminder or Pet Tracker) instead of always opening Durability.
+- RestedXP's arrow in Naowh's themes keeps its colour on its tips when it turns.
+- On the Classic+ skin, a slider's gold gem sits over its groove instead of behind its lines.
 
 ## 1.1.2
 

@@ -67,7 +67,7 @@ function ns.L(key, ...)
     return text
 end
 
-ns.CODE_BUILD = "1.1.2"
+ns.CODE_BUILD = "1.1.3"
 
 ns.THEME = {
     bg     = { r = 0x0e / 255, g = 0x0f / 255, b = 0x11 / 255 },
