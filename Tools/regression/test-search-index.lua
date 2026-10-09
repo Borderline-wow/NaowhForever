@@ -196,18 +196,18 @@ do
         local hits = UI.Search.Find(carried, query)
         return hits[1], #hits
     end
-    for _, query in ipairs({ "setups", "setup", "tailor setup", "before tailoring", "restore" }) do
+    for _, query in ipairs({ "setups", "setup", "onboarding", "before onboarding", "restore" }) do
         local hit = Hit(query)
         Check(hit and hit.page == "Profiles" and hit.card == "Profiles/Setups:setups" and hit.tag == "Profiles",
             "'" .. query .. "' is found on the Profiles page, in the Setups card")
     end
     local card, n = Hit("setups")
     Check(card.isCard and card.trail == "" and n == 4, "the card itself is a target, named by its page, then its three settings")
-    local row = Hit("questions")
-    Check(row.label == "Tailor Setup" and not row.isCard and row.trail == "Setups", "a row names its card")
-    local f = UI.Search.Build(carried, "questions")
+    local row = Hit("skin")
+    Check(row.label == "Onboarding" and not row.isCard and row.trail == "Setups", "a row names its card")
+    local f = UI.Search.Build(carried, "skin")
     Check(f.count.Profiles == 1 and f.first.Profiles == "Profiles/Setups:setups" and f.order[1] == "Profiles"
-        and f.cards["Profiles/Setups:setups"]["Tailor Setup"], "the filter counts it on the Profiles page")
+        and f.cards["Profiles/Setups:setups"]["Onboarding"], "the filter counts it on the Profiles page")
     Check(UI.Search.Build(carried, "profiles").all.Profiles, "the page's own name still keeps all of it")
     for _, query in ipairs({ "new profile", "copy", "reset", "delete", "use", "export", "share", "import", "paste" }) do
         local hit = Hit(query)
@@ -230,7 +230,7 @@ do
             SetHeight = function() end }
     end
     env.CreateFrame = Frame
-    UI.filter = UI.Search.Build(carried, "questions")
+    UI.filter = UI.Search.Build(carried, "skin")
     local y = ns.BuildProfileSettings(host, -10)
     Check(rendered[1].key == "Profiles/Setups" and rendered[1].filter == UI.filter,
         "found, the Setups card draws with the search's filter")
@@ -256,9 +256,9 @@ do
     UI.AttachSearchBox({}, function() end)
     input("bar size")
     Check(refreshed == 0, "a search that does not touch the Profiles page redraws nothing more")
-    input("tailor")
+    input("onboard")
     Check(refreshed == 1, "one that finds the Setups card redraws the Profiles page with it")
-    input("tailor setup")
+    input("onboarding")
     Check(refreshed == 2, "and again as the words change")
     input("")
     Check(refreshed == 3 and UI.filter == nil, "cleared, the Profiles page is drawn whole again")

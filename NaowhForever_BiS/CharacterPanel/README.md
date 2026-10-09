@@ -64,8 +64,8 @@ the game's art comes back and ours hides.
 ## Why
 
 - With both on, a player new to Naowh Forever (the onboarding not seen yet) gets Naowh's panel from the
-  next reload, told in chat; anyone else is asked once. A player who picked the panel in the onboarding
-  (or Tailor Setup) has answered already and gets it the same way, even over an earlier answer. At most
+  next reload, told in chat; anyone else is asked once. A player whose onboarding Apply left the panel on, with the
+  BiS List, has answered already and gets it the same way, even over an earlier answer. At most
   one question a login, the character panel's first: a second confirm would close the first. The
   question waits `ASK_DELAY` seconds after entering the world, and never comes in combat.
 - The onboarding's pick is a plain QoL key, `characterPanelPicked` (`inspectPanelPicked` for the

@@ -398,12 +398,17 @@ function ns.FontInset(size)
     return size * STEM_INSET
 end
 
-function ns.AddonFontPath()
-    local default = ns.classicSkin and FONT_CLASSIC or FONT_NAOWH
+function ns.AddonFontPath(classic)
+    if classic == nil then classic = ns.classicSkin end
+    local default = classic and FONT_CLASSIC or FONT_NAOWH
     return FontPath(ns.AccountSettings().uiFont or default) or STANDARD_TEXT_FONT
 end
 
-function ns.HeadingFontPath()
+function ns.HeadingFontPath(classic)
+    if classic ~= nil then
+        if not classic or ns.AccountSettings().uiFont then return ns.AddonFontPath(classic) end
+        return FontPath(FONT_HEADING) or ns.AddonFontPath(classic)
+    end
     if not ns.classicSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_HEADING) or ns.UIFontPath()
 end

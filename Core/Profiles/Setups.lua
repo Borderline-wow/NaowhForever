@@ -52,6 +52,7 @@ function ns.ApplyPreset(key)
     local kept = Kept(root)
     for _, k in ipairs(RIVALS) do was[k] = S.Get(k) end
     Replace(root, P[key].profile)
+    if ns.Setup then ns.Setup.PresetSwitches(P[key]) end
     for k, value in pairs(own) do root.qol[k] = value end
     PutBack(root, kept)
     root.qol.preset = key
@@ -72,11 +73,19 @@ end
 
 local function ByName(a, b) return a < b end
 
-local function Compare(profile, on, off, seen, name, store, switch)
+local function Listed(list, value)
+    for _, v in ipairs(list) do
+        if v == value then return true end
+    end
+    return false
+end
+
+local function Compare(preset, on, off, seen, name, store, switch, addon)
     if seen[name] or not (store and store.key) then return end
-    local values = profile[store.key]
+    local values = preset.profile[store.key]
     local want = values and values[switch]
     if want == nil then want = store.Default(switch) end
+    if addon and preset.modules then want = Listed(preset.modules, addon) end
     local now = store.Get(switch)
     if want == true and now ~= true then
         on[#on + 1], seen[name] = name, true
@@ -85,16 +94,16 @@ local function Compare(profile, on, off, seen, name, store, switch)
     end
 end
 
-local function CompareAll(profile, on, off, seen)
+local function CompareAll(preset, on, off, seen)
     if ns.ModuleSwitches then
         for _, mod in ipairs(ns.ModuleSwitches()) do
-            Compare(profile, on, off, seen, mod.name, mod.store, mod.key)
+            Compare(preset, on, off, seen, mod.name, mod.store, mod.key, mod.addon)
         end
     end
     for _, page in pairs(Settings.pages) do
         for _, card in pairs(page.cards) do
             if type(card.switch) == "string" then
-                Compare(profile, on, off, seen, card.name, card.store, card.switch)
+                Compare(preset, on, off, seen, card.name, card.store, card.switch)
             end
         end
     end
@@ -102,7 +111,7 @@ end
 
 function ns.PresetChanges(key)
     local on, off, seen = {}, {}, {}
-    CompareAll(P[key].profile, on, off, seen)
+    CompareAll(P[key], on, off, seen)
     table.sort(on, ByName)
     table.sort(off, ByName)
     local name, lines = P[key].name, {}

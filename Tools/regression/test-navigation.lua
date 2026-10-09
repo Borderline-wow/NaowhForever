@@ -579,8 +579,8 @@ do
     -- page draws the card with the typed words lit; cleared, the page is whole again.
     input:SetText(""); Flush()
     Settings.Page("Profiles/Setups", S):Card({ id = "setups", name = "Setups", help = "Naowh's setups for you.",
-        rows = { { label = "Tailor Setup", buttonText = "Start", button = function() end,
-            help = "Asks a few questions." } } })
+        rows = { { label = "Onboarding", buttonText = "Start", button = function() end,
+            help = "Walks you through a profile, a skin and your modules." } } })
     UI.SearchCarries("Profiles", "Profiles/Setups")
     local drawnWith = {}
     ns.BuildProfileSettings = function(parent, y)
@@ -589,17 +589,17 @@ do
         return y - Settings.Render(parent, "Profiles/Setups", function() end, filter)
     end
     ns.OpenOptionsWindow("QoL/Combat"); Flush()
-    input:SetText("tailor setup"); Flush()
-    Check(Shown("Tailor Setup") and Shown("Setups") and not Shown("Stealth Reminder"),
+    input:SetText("onboarding"); Flush()
+    Check(Shown("Onboarding") and Shown("Setups") and not Shown("Stealth Reminder"),
         "a setting only the carried card has moves the window to the Profiles page, at that card")
     Check(Button("Profiles").count.text == "1" and Button("Quality of Life").count.text == "",
         "the Profiles page counts it")
-    Check(Shown("Tailor Setup").text:find(ns.Color("accent", "Tailor"), 1, true) and drawnWith[#drawnWith] ~= false,
+    Check(Shown("Onboarding").text:find(ns.Color("accent", "Onboarding"), 1, true) and drawnWith[#drawnWith] ~= false,
         "drawn with the search, its words lit")
-    input:SetText("questions"); Flush()
+    input:SetText("skin"); Flush()
     Check(drawnWith[#drawnWith] == UI.filter, "the page draws again as the words change")
     root.scripts.OnKeyDown(root, "ESCAPE"); Flush()
-    Check(UI.filter == nil and drawnWith[#drawnWith] == false and Shown("Tailor Setup") ~= nil,
+    Check(UI.filter == nil and drawnWith[#drawnWith] == false and Shown("Onboarding") ~= nil,
         "cleared, the page is drawn whole again")
 
     -- A window card is found by its button and drawn on its page while the search holds it.

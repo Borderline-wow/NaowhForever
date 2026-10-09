@@ -152,7 +152,7 @@ local MODULES = {
           { name = "Auras", reuse = true },
           { name = "Battlegrounds", reuse = true },
       } },
-    { name = "Top Bar", settings = "TopBarSettings", addon = "NaowhForever_TopBar", needs = { "NaowhForever_QoL" },
+    { name = "Top Bar", navIcon = "window", settings = "TopBarSettings", addon = "NaowhForever_TopBar", needs = { "NaowhForever_QoL" },
       subtitle = "Your buttons on either side of an optional clock, with FPS and latency underneath.",
       tabs = {} },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
@@ -234,8 +234,13 @@ local function SwitchModuleAddon(mod, on)
     end, function() UI:RefreshPage(true) end, yes, TEXT_CANCEL)
 end
 
-local function ModuleOn(mod)
-    if mod.addon and C_AddOns.GetAddOnEnableState(mod.addon) == 0 then return false end
+local function EnableState(addon, who)
+    if who then return C_AddOns.GetAddOnEnableState(addon, who) end
+    return C_AddOns.GetAddOnEnableState(addon)
+end
+
+local function ModuleOn(mod, who)
+    if mod.addon and EnableState(mod.addon, who) == 0 then return false end
     if mod.settings then
         local store = ns[mod.settings]
         return store ~= nil and store.Get(mod.enabledKey or "enabled")
@@ -248,18 +253,19 @@ function ns.ModuleSwitches()
     for _, mod in ipairs(MODULES) do
         local store = mod.addon and mod.settings and ns[mod.settings]
         if store then
-            list[#list + 1] = { name = DisplayName(mod), store = store, key = mod.enabledKey or "enabled" }
+            list[#list + 1] = { name = DisplayName(mod), store = store, key = mod.enabledKey or "enabled",
+                addon = mod.addon }
         end
     end
     return list
 end
 
-function ns.ModuleAddons()
+function ns.ModuleAddons(who)
     local list = {}
     for _, mod in ipairs(MODULES) do
         if mod.addon then
             list[#list + 1] = { name = DisplayName(mod), addon = mod.addon, store = mod.settings and ns[mod.settings],
-                key = mod.enabledKey or "enabled", on = ModuleOn(mod) }
+                key = mod.enabledKey or "enabled", navIcon = mod.navIcon, on = ModuleOn(mod, who) }
         end
     end
     return list

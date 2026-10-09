@@ -89,17 +89,17 @@ local row = card and card.rows[1]
 check("the card sits on the Profiles page with the Setup dropdown first", card.page == "Profiles/Setups" and #card.rows == 3
     and row.label == "Setup" and row.always == true and row.choice[2] == PRESETS.order)
 local tailor, before = card.rows[2], card.rows[3]
-check("then Tailor Setup, which opens the questions", tailor.label == "Tailor Setup" and tailor.buttonText == "Start")
+check("then Onboarding, which opens the onboarding", tailor.label == "Onboarding" and tailor.buttonText == "Start")
 local opened = false
 ns.ShowSetup = function() opened = true end
 tailor.button()
-check("Start opens Tailor my setup", opened)
-check("Before Tailoring stays hidden with nothing saved", before.label == "Before Tailoring" and before.hidden() == true)
+check("Start opens the onboarding", opened)
+check("Before Onboarding stays hidden with nothing saved", before.label == "Before Onboarding" and before.hidden() == true)
 local restored = false
 ns.Setup = { CanRestore = function() return true end, Restore = function() restored = true; return true end }
-check("it shows once tailoring saved your settings", before.hidden() == false)
+check("it shows once the onboarding saved your settings", before.hidden() == false)
 before.button()
-check("Restore asks first, puts them back and offers the reload", asked and asked:find("before tailoring", 1, true)
+check("Restore asks first, puts them back and offers the reload", asked and asked:find("before the onboarding", 1, true)
     and restored and reload ~= nil)
 asked, reload, ns.Setup = nil, nil, nil
 check("its choices are the presets by name", row.choice[1].minimalist == "Minimalist"

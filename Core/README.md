@@ -55,17 +55,20 @@ Core/
   Settings.lua         the QoL settings store (ns.QoLSettings) and its defaults: the QoL features',
                                     and the keys the core, the setup and other modules read
   Profiles/Setups.lua  Naowh's setups applied and compared (ns.ApplyPreset, ns.UsePreset,
-                                    ns.PresetChanges)
+                                    ns.PresetChanges); a preset's module list goes through Setup.PresetSwitches
   AlertStack.lua       the Alerts group: alerts stacked under one Unlock Mode mover (ns.AlertStack)
 
   Pages.xml                         the pages that load after the Badges
   Pages/PatchNotes.lua Patch Notes, each build's notes as a card
   Pages/Credits.lua    Credits
-  Onboarding/Setup.lua Tailor my setup: questions, rules, Apply and Restore, a new character's profile
-  Onboarding/SetupWindow.lua the onboarding window: its welcome, a new character's page, the questions and the review
+  Onboarding/Setup.lua the onboarding's engine: each module's item, the picks (a profile, a skin, the modules)
+                                    and their defaults, the summary's plan, Apply and Restore, a new character's profile
+  Onboarding/SetupWindow.lua the onboarding window: its welcome, a new character's page, then Profile, Skin
+                                    (with a live preview of each), Modules and the summary with Apply
   Onboarding/FirstLogin.lua when the onboarding opens: an account's first login, a new character's page until it is answered
-  Profiles/SetupsCard.lua the Profiles page's Setups card: Naowh's setups, Tailor Setup, Before Tailoring
-  Onboarding/Media/    the onboarding's art: a picture per answer (Setup/), the glow dot and the infinity track
+  Profiles/SetupsCard.lua the Profiles page's Setups card: Naowh's setups, Onboarding, Before Onboarding
+  Onboarding/Media/    the onboarding's art: its glyphs (Setup/: the profiles, the summary, the welcome's
+                                    promises, Back and Next), the glow dot and the infinity track
 
   Media/               what every area uses: the icons Tools/media/make_media.py draws, the logos, the fonts
                                     (Fonts/), the link icons (Links/), the navigation glyphs (Navigation/)
@@ -304,6 +307,40 @@ Onboarding
 - Closing it also sets `welcomeSeen`, which the Character Panel reads to tell a player new to the
   addon from anyone else; players who saw the old welcome window already have it, so they are not
   treated as new.
+- The onboarding asks three things, a step each: a profile (Naowh's Minimalist or Recommended, or Keep
+  mine), a skin, and the modules; then a summary of what changes, and Apply. Players new to addons
+  do not want many choices, so it no longer asks about how they play.
+- The profile step starts on Recommended only for an account never set up: no `welcomeSeen` (the
+  onboarding or the old welcome never closed) and no `setupBefore` (no Apply yet). Anyone else starts
+  on Keep mine, so opening it again changes nothing unless they pick something.
+- The modules step starts from the picked profile: a preset's `modules` list when it has one
+  (Minimalist: Quality of Life, BiS List and Dungeon Journal), else its switches, with the feature's
+  default for a switch it leaves out; Keep mine starts from what is on now (its addon enabled, for this
+  character in its own mode, and its switch on). A module on without what it needs (`needs` in
+  `Options/Modules.lua`) cannot run, so it starts off. Picking another profile starts the modules
+  again; going back and forth keeps the flips. A flip on brings what it needs, a flip off takes
+  what needs it (`ns.LinkedAddons`).
+- A preset's module list is defined once, in Presets.lua (from `Tools/build/presets.lua`'s INFO):
+  `ns.ApplyPreset` writes it as the modules' switches (`Setup.PresetSwitches`), so applying Minimalist
+  from the Setups card and from the onboarding agree.
+- Apply backs up first (`setupBefore`: the profile, each module addon's state, whose it was and the
+  skin), applies the profile as the Setups card does (`ns.ApplyPreset`, without its confirms), sets the
+  skin, then each module: on enables its addon and switches it on (through its store when loaded, so
+  it starts at once); off disables its addon if it is on, or, after a preset, if it is enabled at all,
+  so Minimalist leaves exactly its three. Keep mine leaves an enabled module that is switched off as
+  it is.
+- A reload is asked only when something needs one: a profile or a skin applied, a module turned on
+  whose addon is not loaded, or a loaded one turned off; else the done line is printed. The summary
+  works this out the same way (`Setup.Plan`), and Apply with nothing to change just closes.
+- Apply marks the setup `custom` when its modules differ from the picked profile's (or, for Keep
+  mine, from what was on), and sets `characterPanelPicked` and `inspectPanelPicked` when the BiS List
+  stays on with that panel on, so after the reload Naowh's panel takes over from EllesmereUI's without
+  asking (`NaowhForever_BiS/CharacterPanel`).
+- Restore puts back the profile, the module addons for the character the backup was made for, and
+  the skin; a backup from before skins were saved leaves the skin alone.
+- The skin step's previews are drawn, not pictures: a small window in each skin's own colors
+  (`ns.ThemePalette` for Naowh's, with the player's theme; `ns.CLASSIC_PLUS`), edge, fonts
+  (`ns.AddonFontPath` and `ns.HeadingFontPath` take the skin to preview) and button.
 - A character new to the account gets its own page in the onboarding window, after the onboarding has
   been seen: two tiles, Same as its main or Set Up on its own, with the welcome's bottom row and no
   Back or Next. A new character starts on the account's profile, usually the main's, so the main no
@@ -323,18 +360,19 @@ Onboarding
   onboarding gets the onboarding instead, and closing it answers the page too.
 - Same as switches only when the main's profile is not already this character's, and says so; either
   way the window closes. Set Up copies the character's current profile into one named after it
-  (" 2", " 3" when taken), switches only this character to it and goes on to the first question in
-  the same window, for this character alone. `ns.CreateProfile` is not used: it switches every
+  (" 2", " 3" when taken), switches only this character to it and goes on to the profile step in
+  the same window, for this character alone; the profile picked there is applied to that new profile. `ns.CreateProfile` is not used: it switches every
   character. A copy that fails changes nothing and the page stays.
 - The page is laid out as the welcome: its animated infinity sign near the top (spinning only while
-  the page shows), then the head and muted body at the welcome's sizes and gaps, then the question
-  page's own tiles (`Tile`, `LayoutTile`, `PaintTile`) with Core/Media's chain and wand as their icons.
+  the page shows), then the head and muted body at the welcome's sizes and gaps, then the steps'
+  own tiles (`Tile`, `LayoutTile`, `PaintTile`) with Core/Media's chain and wand as their icons.
 - For one character, the onboarding turns module addons on and off with `UnitGUID("player")` passed to
   `C_AddOns.EnableAddOn`, `DisableAddOn` and `GetAddOnEnableState`, as Blizzard's AddOn List does; with
   no character they mean every character. The backup keeps the GUID, so Restore puts back that
   character's addons.
-- `ns.ModuleAddons` reads the all-characters state, so the setup also asks the character's own: a module
-  enabled only on other characters reads as off.
+- `ns.ModuleAddons(who)` reads the all-characters state, or with a GUID that character's, so in one
+  character's mode a module enabled only on other characters reads as off, and every C_AddOns call
+  names it.
 
 Credits
 - Every Credits card keeps an emblem-wide slot for its art, a badge emblem or a smaller icon, so
