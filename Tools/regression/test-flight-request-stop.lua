@@ -46,7 +46,7 @@ local function fixture(settings, extra)
         Button = function(_, text)
             local b = frame()
             b.name, b.label = text, frame()
-            b._bg, b._border = frame(), { _frame = frame() }
+            b._bg, b._border, b._rim = frame(), { _frame = frame() }, false
             return b
         end,
         AccentBorder = function(f) return f end, PixelInset = function() end,

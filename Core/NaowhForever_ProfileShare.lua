@@ -18,13 +18,14 @@ local MAX_DEPTH = 12
 local MAX_VALUES = 200000   -- values a string may hold; more is refused as too big
 local LIMITS = { maxChars = 1000000, maxBytes = 4194304, maxDepth = 32, maxValues = 1000000 }
 local TEXT_MAX = 64
-local LOOK_TYPES = { themePreset = "string", themeColors = "table", uiFont = "string", windowScale = "number" }
+local LOOK_TYPES = { themePreset = "string", themeColors = "table", uiFont = "string", windowScale = "number",
+    skin = "string" }
 local GEAR_SLOT = { [1] = true, [2] = true, [3] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true,
     [10] = true, [11] = true, [12] = true, [13] = true, [14] = true, [15] = true, [16] = true, [17] = true, [18] = true }
 local MAX_PICKS = 50
 
 -- The account's look: every profile shares it, so it travels as its own part.
-local LOOK = { "themePreset", "themeColors", "uiFont", "windowScale" }
+local LOOK = { "themePreset", "themeColors", "uiFont", "windowScale", "skin" }
 
 local OWN = { qol = { "characterPanelAsked", "characterPanelTookOver", "inspectPanelAsked", "inspectPanelTookOver" } }
 ns.PROFILE_OWN = OWN
@@ -52,8 +53,8 @@ local PARTS = {
       share = "The talent builds you saved in the Training Planner." },
     { key = "bisLists", label = "BiS Lists", help = "Added next to your own lists, never over them",
       share = "Your BiS lists, for every class." },
-    { key = "look", label = "Look", help = "Theme colours, font and window scale, for every profile",
-      share = "Theme colours, font and window scale." },
+    { key = "look", label = "Look", help = "Skin, theme colours, font and window scale, for every profile",
+      share = "Skin, theme colours, font and window scale." },
 }
 
 -------------------------------------------------------------------------------

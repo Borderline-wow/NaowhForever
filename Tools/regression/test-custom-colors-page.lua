@@ -68,6 +68,11 @@ local function Page(account, rxp, up)
         return nil, 0
     end
     function env.W:DualRow(_, _, left, right)
+        -- The Skin row is checked on its own below; the Theme rows keep their places.
+        if left.text == "Skin" then
+            e.skin = left
+            return nil, 0
+        end
         e.rows[#e.rows + 1] = { left, right }
         return nil, 0
     end
@@ -149,6 +154,22 @@ do
     e.theme.setValue("")
     e.build()
     Check(a.themePreset == nil and #e.notes == 1, "the default is stored as nothing, and the hint stays")
+end
+
+-- Skin: the default or Classic+, stored for a reload; Classic+ has its own colors, so the
+-- Theme dropdown is greyed out under it.
+do
+    local a = {}
+    local e = Page(a)
+    local k = e.skin
+    Check(k and k.type == "dropdown" and k.order[1] == "" and k.values.classic == "Classic+", "a Skin dropdown, default first")
+    Check(k.getValue() == "" and not e.theme.disabled(), "nothing saved: the default, and Theme can be picked")
+    k.setValue("classic")
+    Check(a.skin == "classic" and e.refreshes == 1, "Classic+ is stored and the page redraws")
+    e.build()
+    Check(#e.notes == 1 and e.notes[1] == HINT and e.theme.disabled(), "the hint shows, and Theme is greyed out")
+    e.skin.setValue("")
+    Check(a.skin == nil, "the default is stored as nothing")
 end
 
 -- Custom starts from the palette the player was looking at, and only then shows swatches.

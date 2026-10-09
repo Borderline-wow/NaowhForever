@@ -113,6 +113,16 @@ ns.THEME_PRESETS = {
         accent = { r = 0xd6 / 255, g = 0x8e / 255, b = 0x35 / 255 } },
 }
 
+-- The Classic+ skin's colors (Settings > Skin): in force whatever the Theme setting says.
+ns.CLASSIC_PLUS = {
+    bg     = { r = 0x0b / 255, g = 0x0a / 255, b = 0x08 / 255 },
+    panel  = { r = 0x17 / 255, g = 0x11 / 255, b = 0x0b / 255 },
+    line   = { r = 0x5e / 255, g = 0x4a / 255, b = 0x1c / 255 },
+    fg     = { r = 0xec / 255, g = 0xe3 / 255, b = 0xcc / 255 },
+    muted  = { r = 0xa8 / 255, g = 0x9a / 255, b = 0x7c / 255 },
+    accent = { r = 0xff / 255, g = 0xd1 / 255, b = 0x00 / 255 },
+}
+
 -- A |cffRRGGBB escape from a THEME key (or an {r,g,b} table). With text it wraps it and
 -- closes with |r; without, it returns the bare prefix for strings built in pieces.
 local colorPrefix = {}
@@ -155,6 +165,7 @@ end
 -- The colors in force: a preset's table, or the player's own picks for Custom. Anything else,
 -- an unknown preset name included, is the default theme and applies nothing.
 local function ThemeSource()
+    if ns.classicSkin then return ns.CLASSIC_PLUS end
     local account = ns.AccountSettings()
     local preset = account.themePreset
     if preset == "custom" then return account.themeColors end
@@ -181,7 +192,9 @@ local function Shipped(key, r, g, b)
     return math.abs(r - t.r) <= near and math.abs(g - t.g) <= near and math.abs(b - t.b) <= near
 end
 
+-- The skin is read with the colors, once per load, so a change to it waits for a reload too.
 function ns.ApplyThemeColors()
+    ns.classicSkin = ns.AccountSettings().skin == "classic"
     local source = ThemeSource()
     if not source then return end
     for _, key in ipairs(ns.THEME_EDITABLE) do
@@ -407,9 +420,24 @@ function ns.FontInset(size)
 end
 
 --- The Addon Font as a file path, looked up each time; UIFontPath keeps its first answer.
+--- Unpicked, it is Naowh, or the game's Arial Narrow on the Classic+ skin.
 ---@return string
 function ns.AddonFontPath()
-    return FontPath(ns.AccountSettings().uiFont or "Naowh") or STANDARD_TEXT_FONT
+    local default = ns.classicSkin and "Arial Narrow" or "Naowh"
+    return FontPath(ns.AccountSettings().uiFont or default) or STANDARD_TEXT_FONT
+end
+
+-- Headings (buttons, tabs, titles, card and section names): the game's Friz Quadrata on the
+-- Classic+ skin, else the Addon Font, as is a picked Addon Font on either skin.
+function ns.HeadingFontPath()
+    if not ns.classicSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
+    return FontPath("Friz Quadrata TT") or ns.UIFontPath()
+end
+
+-- A window's title plate on the Classic+ skin: the game's Morpheus, which SharedMedia only
+-- registers for the clients whose language it covers.
+function ns.TitleFontPath()
+    return LSM and LSM:Fetch("font", "Morpheus", true) or ns.HeadingFontPath()
 end
 
 function ns.UIFontPath()
@@ -457,10 +485,17 @@ gameFontEvents:SetScript("OnEvent", function(self, event, name)
     end
 end)
 
-function ns.Font(parent, size, flags, color)
+-- heading: a button's, tab's, title's or name's text, in the heading font (ns.HeadingFontPath).
+function ns.Font(parent, size, flags, color, heading)
     local c = color or ns.THEME.fg
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    fs:SetFont(ns.UIFontPath(), size, flags or "")
+    if heading and ns.classicSkin then
+        local St = ns.Shared.Style
+        size = size + St.CLASSIC_HEADING_STEP
+        fs:SetShadowColor(0, 0, 0, 1)
+        fs:SetShadowOffset(St.CLASSIC_HEADING_SHADOW, -St.CLASSIC_HEADING_SHADOW)
+    end
+    fs:SetFont(heading and ns.HeadingFontPath() or ns.UIFontPath(), size, flags or "")
     fs:SetTextColor(c.r, c.g, c.b, 1)
     return fs
 end
@@ -556,6 +591,21 @@ function ns.Border(frame, color, alpha)
     }
 end
 
+-- The Classic+ skin's field (an input, dropdown or check box) cut into the panel: a lit edge
+-- one pixel outside its black one, along the bottom and right.
+function ns.Sunken(frame)
+    local c = ns.Shared.Style.CLASSIC_BEVEL_RGB
+    local edge = CreateFrame("Frame", nil, frame)
+    ns.PixelInset(edge, -1, frame)
+    local bottom = edge:CreateTexture(nil, "OVERLAY")
+    bottom:SetColorTexture(c.r, c.g, c.b, 1)
+    bottom:SetPoint("BOTTOMLEFT"); bottom:SetPoint("BOTTOMRIGHT"); ns.Hairline(bottom, "h")
+    local right = edge:CreateTexture(nil, "OVERLAY")
+    right:SetColorTexture(c.r, c.g, c.b, 1)
+    right:SetPoint("TOPRIGHT"); right:SetPoint("BOTTOMRIGHT"); ns.Hairline(right, "v")
+    return edge
+end
+
 function ns.Solid(parent, layer, color, alpha)
     local c = color or ns.THEME.panel
     local t = parent:CreateTexture(nil, layer or "BACKGROUND")
@@ -579,6 +629,46 @@ end
 -- NaowhUI's 1px black border on buttons and input boxes, lit blue on hover.
 local BLACK = { r = 0, g = 0, b = 0 }
 
+local function Gloss(tex, state)
+    local top, bottom = state[1], state[2]
+    tex:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
+end
+
+-- The Classic+ skin's button: red with a gold rim and gold text, brighter under the mouse and
+-- turned over while pressed. The outer edge still marks a picked button, as on the default skin.
+local function ClassicButton(btn, bg, border, lbl)
+    local T, St = ns.THEME, ns.Shared.Style
+    local states = St.CLASSIC_BUTTON_RGB
+    bg:SetColorTexture(1, 1, 1, 1)
+    Gloss(bg, states.rest)
+    local shine = btn:CreateTexture(nil, "BACKGROUND", nil, 1)
+    shine:SetPoint("TOPLEFT")
+    shine:SetPoint("BOTTOMRIGHT", btn, "RIGHT")
+    shine:SetColorTexture(1, 1, 1, St.CLASSIC_BUTTON_SHINE)
+    local inside = CreateFrame("Frame", nil, btn)
+    ns.PixelInset(inside, 1, btn)
+    local gold, lit = St.CLASSIC_GOLD_RGB, St.CLASSIC_RIM_LIT_RGB
+    local rim = ns.Border(inside, gold)
+    btn._rim, btn._shine = rim, shine
+    lbl:SetTextColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    lbl:SetShadowColor(0, 0, 0, 1)
+    lbl:SetShadowOffset(1, -1)
+    btn:SetScript("OnEnter", function()
+        Gloss(bg, states.hover)
+        rim:SetColor(lit.r, lit.g, lit.b, 1)
+        border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    end)
+    btn:SetScript("OnLeave", function()
+        Gloss(bg, states.rest)
+        rim:SetColor(gold.r, gold.g, gold.b, 1)
+        border:SetColor(btn._rest.r, btn._rest.g, btn._rest.b, 1)
+    end)
+    btn:SetScript("OnMouseDown", function() Gloss(bg, states.down) end)
+    btn:SetScript("OnMouseUp", function(self)
+        Gloss(bg, self:IsMouseOver() and states.hover or states.rest)
+    end)
+end
+
 -- btn.label is exposed so a reused button can be re-labelled on each open, and btn._onClick
 -- so it can be pointed at a new action.
 function ns.Button(parent, text, w, h, onClick)
@@ -591,12 +681,16 @@ function ns.Button(parent, text, w, h, onClick)
     -- The border and the colour it rests at, so a caller can restyle a button (AccentButton).
     btn._border, btn._rest = border, BLACK
     btn._bg = bg
-    local lbl = ns.Font(btn, 12, nil)
+    local lbl = ns.Font(btn, 12, nil, nil, true)
     lbl:SetPoint("CENTER")
     lbl:SetText(ns.L(text))
     btn.label = lbl
     btn._onClick = onClick
     btn:SetScript("OnClick", function() if btn._onClick then btn._onClick() end end)
+    if ns.classicSkin then
+        ClassicButton(btn, bg, border, lbl)
+        return btn
+    end
     btn:SetScript("OnEnter", function()
         bg:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 1)
         border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
@@ -774,6 +868,7 @@ function ns.NewEditBox(parent)
         box._border:SetColor(a.r, a.g, a.b, 1)
     end)
     box:HookScript("OnLeave", function() box._border:SetColor(0, 0, 0, 1) end)
+    if ns.classicSkin then ns.Sunken(box) end
     return box
 end
 

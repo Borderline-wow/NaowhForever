@@ -99,6 +99,7 @@ function Parts.Window(width, height, positionKey)
     end
     window.backdrop = Parts.Backdrop(window)
     ns.Border(window, BORDER_RGB)
+    if ns.classicSkin then Parts.ClassicTrim(window) end
     window:SetScript("OnKeyDown", ns.UI.CloseOnEscape)
     window:SetScript("OnShow", OnShow)
     window:SetScript("OnHide", OnHide)
@@ -107,6 +108,79 @@ function Parts.Window(width, height, positionKey)
     rule:SetPoint("TOPRIGHT", 0, -HEADER)
     ns.Hairline(rule, "h")
     return window
+end
+
+-------------------------------------------------------------------------------
+--  The Classic+ skin
+-------------------------------------------------------------------------------
+-- One-pixel rings stepping out from the frame's own black edge: gold, `body` of bronze, then a
+-- black rim. Returns how far out they reach.
+local function Rings(frame, body)
+    local colors = { St.CLASSIC_GOLD_RGB }
+    for _ = 1, body do colors[#colors + 1] = St.CLASSIC_BRONZE_RGB end
+    colors[#colors + 1] = BORDER_RGB
+    for i, color in ipairs(colors) do
+        local ring = CreateFrame("Frame", nil, frame)
+        ns.PixelInset(ring, -i, frame)
+        ns.Border(ring, color)
+    end
+    return #colors
+end
+
+local function Gem(parent, size, x, y, relativeTo, point)
+    local edge = parent:CreateTexture(nil, "ARTWORK")
+    edge:SetTexture(St.GEM, nil, nil, "TRILINEAR")
+    edge:SetVertexColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, 1)
+    edge:SetSize(size + 2 * St.CLASSIC_GEM_EDGE, size + 2 * St.CLASSIC_GEM_EDGE)
+    edge:SetPoint("CENTER", relativeTo, point, x, y)
+    local gem = parent:CreateTexture(nil, "OVERLAY")
+    gem:SetTexture(St.GEM, nil, nil, "TRILINEAR")
+    gem:SetVertexColor(St.CLASSIC_GOLD_RGB.r, St.CLASSIC_GOLD_RGB.g, St.CLASSIC_GOLD_RGB.b, 1)
+    gem:SetSize(size, size)
+    gem:SetPoint("CENTER", edge)
+end
+
+-- A window's frame on the Classic+ skin: the trim round its edge and a gem on each corner.
+function Parts.ClassicTrim(frame)
+    local reach = Rings(frame, St.CLASSIC_TRIM_BODY)
+    local gems = CreateFrame("Frame", nil, frame)
+    gems:SetAllPoints()
+    gems:SetFrameLevel(frame:GetFrameLevel() + 3)
+    local d = reach / 2
+    Gem(gems, St.CLASSIC_GEM, -d, d, frame, "TOPLEFT")
+    Gem(gems, St.CLASSIC_GEM, d, d, frame, "TOPRIGHT")
+    Gem(gems, St.CLASSIC_GEM, -d, -d, frame, "BOTTOMLEFT")
+    Gem(gems, St.CLASSIC_GEM, d, -d, frame, "BOTTOMRIGHT")
+end
+
+-- A Classic+ box: a bronze line just inside the frame's black edge, the way the game's own
+-- option groups are drawn.
+function Parts.ClassicBox(frame)
+    local inside = CreateFrame("Frame", nil, frame)
+    ns.PixelInset(inside, 1, frame)
+    return ns.Border(inside, St.CLASSIC_BRONZE_RGB)
+end
+
+-- The window's name on a plate over the middle of its top edge, in the game's title face.
+function Parts.TitlePlate(frame, text)
+    local plate = CreateFrame("Frame", nil, frame)
+    plate:SetHeight(St.CLASSIC_PLATE_H)
+    plate:SetPoint("CENTER", frame, "TOP")
+    plate:SetFrameLevel(frame:GetFrameLevel() + 10)
+    ns.Solid(plate, "BACKGROUND", T.panel, 1):SetAllPoints()
+    ns.Border(plate, BORDER_RGB)
+    Rings(plate, St.CLASSIC_PLATE_BODY)
+    local title = plate:CreateFontString(nil, "OVERLAY")
+    title:SetFont(ns.TitleFontPath(), St.CLASSIC_PLATE_SIZE, "")
+    title:SetTextColor(St.CLASSIC_TITLE_RGB.r, St.CLASSIC_TITLE_RGB.g, St.CLASSIC_TITLE_RGB.b, 1)
+    title:SetShadowColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, 1)
+    title:SetShadowOffset(0, -1)
+    title:SetPoint("CENTER")
+    title:SetText(ns.L(text):upper())
+    Gem(plate, St.CLASSIC_PLATE_GEM, -St.CLASSIC_PLATE_GEM_GAP, 0, title, "LEFT")
+    Gem(plate, St.CLASSIC_PLATE_GEM, St.CLASSIC_PLATE_GEM_GAP, 0, title, "RIGHT")
+    plate:SetWidth(title:GetStringWidth() + 2 * St.CLASSIC_PLATE_PAD)
+    return plate
 end
 
 -- A grip in the bottom-right corner to size the window by dragging, between its minimum and
@@ -176,7 +250,7 @@ function Parts.TitleBar(window, title, subtitle, page)
     logo:SetScript("OnEnter", LogoEnter)
     logo:SetScript("OnLeave", LogoLeave)
     window.logo = logo
-    window.title = ns.Font(window, 20, nil, T.fg)
+    window.title = ns.Font(window, 20, nil, ns.classicSkin and T.accent or T.fg, true)
     window.title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 10, 1)
     window.title:SetText(title)
     window.subtitle = ns.Font(window, 11, nil, T.muted)
@@ -315,7 +389,7 @@ function Parts.PaintTabs(bar, shown)
     bar.shown = shown
     for _, button in ipairs(bar.buttons) do
         local on = button.key == shown
-        local color = on and T.fg or T.muted
+        local color = on and T.fg or (ns.classicSkin and T.accent or T.muted)
         button.text:SetTextColor(color.r, color.g, color.b)
         button.fill:SetShown(on)
         button.line:SetShown(on)
@@ -340,7 +414,7 @@ end
 
 local function NewTab(bar)
     local button = CreateFrame("Button", nil, bar)
-    button.text = ns.Font(button, TAB_SIZE, nil, T.muted)
+    button.text = ns.Font(button, TAB_SIZE, nil, T.muted, true)
     button.text:SetPoint("CENTER", 0, 0)
     button.fill = button:CreateTexture(nil, "BACKGROUND", nil, 1)
     button.fill:SetAllPoints()
@@ -349,6 +423,16 @@ local function NewTab(bar)
     button.line:SetPoint("BOTTOMLEFT")
     button.line:SetPoint("BOTTOMRIGHT")
     button.line:SetHeight(TAB_LINE)
+    -- Classic+: the picked tab lit bronze from the top, its gold line along the top edge.
+    if ns.classicSkin then
+        local top, bottom = St.CLASSIC_TAB_RGB[1], St.CLASSIC_TAB_RGB[2]
+        button.fill:SetColorTexture(1, 1, 1, 1)
+        button.fill:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
+        button.line:SetColorTexture(St.CLASSIC_GOLD_RGB.r, St.CLASSIC_GOLD_RGB.g, St.CLASSIC_GOLD_RGB.b, 1)
+        button.line:ClearAllPoints()
+        button.line:SetPoint("TOPLEFT")
+        button.line:SetPoint("TOPRIGHT")
+    end
     button:SetScript("OnClick", TabClicked)
     button:SetScript("OnEnter", TabEnter)
     button:SetScript("OnLeave", TabLeave)
@@ -517,7 +601,8 @@ function Parts.SettingsCardFrame(parent)
         ns.OpenFromOptions(card.onOpen)
     end))
     card.open:SetPoint("RIGHT", -CARD_PAD, 0)
-    card.headline = ns.Font(card, HEADLINE_SIZE, nil, T.fg)
+    card.headline = ns.Font(card, HEADLINE_SIZE, nil, ns.classicSkin and T.accent or T.fg, true)
+    if ns.classicSkin then Parts.ClassicBox(card) end
     card.detail = ns.Font(card, DETAIL_SIZE, nil, T.muted)
     for _, line in ipairs({ card.headline, card.detail }) do
         line:SetJustifyH("LEFT")

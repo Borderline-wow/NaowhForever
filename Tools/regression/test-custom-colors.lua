@@ -14,9 +14,9 @@ local function NewFrame()
     return f
 end
 
-local function Load(account)
+local function Load(account, libStub)
     frames = {}
-    local env = { CreateFrame = NewFrame,
+    local env = { CreateFrame = NewFrame, LibStub = libStub,
         NaowhForeverDB = { account = account, profiles = {}, charActive = {} } }
     env._G = env
     setmetatable(env, { __index = _G })
@@ -314,6 +314,48 @@ do
     local custom = ns.ThemePalette("custom")
     Check(Is(custom[4], "ff0000") and Is(custom[1], SHIPPED.bg), "custom palette: the saved pick, shipped for the rest")
     Check(#Load(nil).ThemePalette("custom") == 6, "custom with no account table still gives six")
+end
+
+-- The Classic+ skin: its own colors over any saved theme, and the game's fonts unless an
+-- Addon Font is picked.
+do
+    local ns, handler = Load({ skin = "classic", themePreset = "midnight" })
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.classicSkin == true, "the skin is read on load")
+    for _, key in ipairs(ns.THEME_EDITABLE) do
+        local c = ns.CLASSIC_PLUS[key]
+        Check(ns.THEME[key].r == c.r and ns.THEME[key].g == c.g and ns.THEME[key].b == c.b,
+            "Classic+ " .. key .. " over the saved theme")
+    end
+    Check(Ratio(ns.THEME.fg, ns.THEME.bg) >= 4.5 and Ratio(ns.THEME.fg, ns.THEME.panel) >= 4.5, "its text is readable")
+    Check(Ratio(ns.THEME.muted, ns.THEME.panel) >= 3 and Ratio(ns.THEME.accent, ns.THEME.panel) >= 3,
+        "and its secondary text and accent")
+end
+do
+    local ns, handler = Load({})
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.classicSkin == false, "no skin saved: the default")
+end
+do
+    local fonts = { ["Friz Quadrata TT"] = "friz", ["Arial Narrow"] = "arial", Naowh = "naowh", Morpheus = "morpheus",
+        Expressway = "expressway" }
+    local lsm = { LOCALE_BIT_ruRU = 1, LOCALE_BIT_western = 2 }
+    function lsm:Register() end
+    function lsm:Fetch(_, name) return fonts[name] end
+    local function Stub() return lsm end
+    local ns, handler = Load({ skin = "classic" }, Stub)
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.AddonFontPath() == "arial" and ns.HeadingFontPath() == "friz" and ns.TitleFontPath() == "morpheus",
+        "Classic+: Arial Narrow text, Friz Quadrata headings, Morpheus title plates")
+    ns.AccountSettings().uiFont = "Expressway"
+    Check(ns.AddonFontPath() == "expressway" and ns.HeadingFontPath() == "expressway", "a picked Addon Font is used for both")
+    ns, handler = Load({}, Stub)
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.AddonFontPath() == "naowh" and ns.HeadingFontPath() == "naowh", "the default skin keeps Naowh for both")
+    fonts.Morpheus = nil
+    ns, handler = Load({ skin = "classic" }, Stub)
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.TitleFontPath() == "friz", "no Morpheus for this language: title plates in the heading font")
 end
 
 print("PASS custom colors: " .. cases .. " checks")

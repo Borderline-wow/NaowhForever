@@ -30,7 +30,8 @@ Shared/
                down by itself (Parts.TimerLine, and Parts.StopTimer to stop any timer bar), a row of labels spread evenly (Parts.LabelRow), a HUD
                card's background: the card, a soft fade or none (Parts.HudBackdrop), a HUD line's
                font, size and outline (Parts.HudFont), and a window's soft drop shadow (Parts.Shadow)
-  Window.lua   a window: the frame, title bar, icons, opacity slider, switch, search, footer,
+  Window.lua   a window: the frame (and its Classic+ trim and title plate: Parts.ClassicTrim,
+               Parts.TitlePlate), title bar, icons, opacity slider, switch, search, footer,
                and a module's card on its settings page
   Tracker.lua  a tracker's small window (Parts.TrackerPanel), and a list row's bands
                (Parts.RowBands: stripe, hover, the line under it)

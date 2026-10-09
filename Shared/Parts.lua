@@ -675,6 +675,11 @@ function Backdrop:Paint(alpha)
     self.bottom:SetRGBA((top.r + bg.r) / 2, (top.g + bg.g) / 2, (top.b + bg.b) / 2, alpha)
     self.top:SetRGBA(top.r, top.g, top.b, alpha)
     self.gradient:SetGradient("VERTICAL", self.bottom, self.top)
+    local pattern = self.pattern
+    if pattern then
+        local shade = St.CLASSIC_PATTERN_SHADE
+        pattern:SetVertexColor(shade, shade, shade, St.CLASSIC_PATTERN_ALPHA * alpha)
+    end
     local flat = self.flat
     for i = 1, #flat do
         local texture = flat[i]
@@ -689,6 +694,14 @@ function Parts.Backdrop(frame)
     backdrop.gradient:SetAllPoints()
     backdrop.gradient:SetColorTexture(1, 1, 1, 1)
     backdrop.bottom, backdrop.top = CreateColor(0, 0, 0, 1), CreateColor(0, 0, 0, 1)
+    if ns.classicSkin then
+        local pattern = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
+        pattern:SetAllPoints()
+        pattern:SetTexture(St.CLASSIC_PATTERN, "REPEAT", "REPEAT")
+        pattern:SetHorizTile(true)
+        pattern:SetVertTile(true)
+        backdrop.pattern = pattern
+    end
     return backdrop
 end
 

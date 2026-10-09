@@ -413,7 +413,7 @@ local function PaintNavButton(btn, hover)
     local active = btn.fill:IsShown()
     local found = UI.filter and btn.found
     local off = btn.mod ~= nil and not ModuleOn(btn.mod)
-    local c = (active or hover) and T.fg or T.muted
+    local c = (active or hover) and T.fg or (ns.classicSkin and T.accent or T.muted)
     local a = (off and not active and not hover) and NAV_OFF_ALPHA or 1
     if found == false and not active and not hover then a = MISS_ALPHA end
     btn.label:SetTextColor(c.r, c.g, c.b, a)
@@ -856,6 +856,21 @@ function ns.BuildSettingsPage(parent, y)
         colorsPending = true
         UI:RefreshPage(true)
     end
+    local function ClassicSkin() return ns.AccountSettings().skin == "classic" end
+    _, h = W:DualRow(parent, y,
+        { type = "dropdown", text = "Skin", values = { [""] = "Naowh (default)", classic = "Classic+" },
+          order = { "", "classic" },
+          tooltip = "Classic+ dresses the addon's windows like the game's own, in gold and bronze. "
+          .. "It has its own colors and uses the game's fonts unless you pick an Addon Font. Saved "
+          .. "for this computer.|n|nTakes effect after a /reload.",
+          getValue = function() return ns.AccountSettings().skin or "" end,
+          setValue = function(v)
+              ns.AccountSettings().skin = v ~= "" and v or nil
+              colorsPending = true
+              UI:RefreshPage(true)
+          end },
+        { type = "label", text = "" }
+    ); y = y - h
     local themes, themeOrder = { [""] = "Naowh (default)" }, { "" }
     for _, key in ipairs(ns.THEME_PRESET_ORDER) do
         themes[key] = ns.THEME_PRESETS[key].name
@@ -869,6 +884,7 @@ function ns.BuildSettingsPage(parent, y)
           .. "option for your own colors. If text gets hard to read, pick Naowh (default). "
           .. "Saved for this computer.|n|nTakes effect after a /reload.",
           getValue = ns.ThemePresetKey,
+          disabled = ClassicSkin,
           setValue = function(v)
               ns.SetThemePreset(v)
               colorsPending = true
@@ -877,7 +893,7 @@ function ns.BuildSettingsPage(parent, y)
         -- What the selection looks like, before a reload.
         { type = "palette", text = "", colors = function() return ns.ThemePalette(ns.ThemePresetKey()) end }
     ); y = y - h
-    if CustomSelected() then
+    if CustomSelected() and not ClassicSkin() then
         -- An action, not a setting: it always reads "Choose a theme...", and picking one
         -- asks before it replaces the swatches below with that theme's colors.
         local starts, startOrder = { [""] = "Choose a theme...", default = "Naowh (default)" }, { "", "default" }
@@ -1144,7 +1160,20 @@ local function NavigationButton(parent, label, y, onClick, icon)
     btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
     btn.marker:SetPoint("TOPLEFT"); btn.marker:SetPoint("BOTTOMLEFT"); btn.marker:SetWidth(3)
     btn.marker:Hide()
-    btn.label = ns.Font(btn, 14, nil, T.muted)
+    -- Classic+: the game's blue list glow, fading to the right, with a lit line along its top.
+    if ns.classicSkin then
+        local St = ns.Shared.Style
+        local c = St.CLASSIC_PICK_RGB
+        btn.fill:SetColorTexture(1, 1, 1, 1)
+        btn.fill:SetGradient("HORIZONTAL", CreateColor(c.r, c.g, c.b, St.CLASSIC_PICK_ALPHA),
+            CreateColor(c.r, c.g, c.b, St.CLASSIC_PICK_FADE))
+        local line = St.CLASSIC_PICK_LINE_RGB
+        btn.marker:SetColorTexture(line.r, line.g, line.b, St.CLASSIC_PICK_LINE_ALPHA)
+        btn.marker:ClearAllPoints()
+        btn.marker:SetPoint("TOPLEFT"); btn.marker:SetPoint("TOPRIGHT")
+        ns.Hairline(btn.marker, "h")
+    end
+    btn.label = ns.Font(btn, 14, nil, T.muted, true)
     btn.label:SetPoint("LEFT", icon and NAV_LABEL_X or 18, 0)
     btn.label:SetPoint("RIGHT", -10, 0)
     btn.label:SetJustifyH("LEFT")
@@ -1224,6 +1253,10 @@ local function CreateWindow()
     ns.Shared.Parts.Backdrop(window):Paint(1)
     ns.Shared.Parts.Shadow(window)
     local border = ns.Border(window, ns.Shared.Style.BORDER_RGB)
+    if ns.classicSkin then
+        ns.Shared.Parts.ClassicTrim(window)
+        ns.Shared.Parts.TitlePlate(window, "Naowh Forever")
+    end
     -- Ctrl+F goes to the search box, and Escape clears a search before it closes the window.
     window:SetScript("OnKeyDown", function(self, key)
         if InCombatLockdown() then return end
@@ -1294,7 +1327,7 @@ local function CreateWindow()
     local ny = 0
     for _, group in ipairs(groups) do
         if group ~= "" then
-            local label = ns.Font(nav, 11, nil, T.muted)
+            local label = ns.Font(nav, 11, nil, T.muted, true)
             label:SetPoint("TOPLEFT", 20, ny - 10); label:SetText(ns.L(group))
             ny = ny - 28
         end
@@ -1341,7 +1374,7 @@ local function CreateWindow()
     contentHeader:SetHeight(PAGE_HEADER_H)
     breadcrumb = ns.Font(contentHeader, 12, nil, T.muted)
     breadcrumb:SetPoint("TOPLEFT", 26, -24)
-    headerTitle = ns.Font(contentHeader, 24, nil)
+    headerTitle = ns.Font(contentHeader, 24, nil, ns.classicSkin and T.accent or nil, true)
     headerTitle:SetPoint("TOPLEFT", 26, -51)
     headerTitle:SetPoint("TOPRIGHT", contentHeader, "TOPRIGHT", -300, -51)
     headerTitle:SetJustifyH("LEFT"); headerTitle:SetWordWrap(false)
@@ -1352,7 +1385,7 @@ local function CreateWindow()
         function() local mod = PAGES[currentPage].module; return mod and ModuleOn(mod) end,
         function(v) local mod = PAGES[currentPage].module; if mod then SetModuleOn(mod, v) end end, 52, 26)
     moduleSwitch:SetPoint("TOPRIGHT", -30, -54)
-    moduleLabel = ns.Font(contentHeader, 14, nil)
+    moduleLabel = ns.Font(contentHeader, 14, nil, nil, true)
     moduleLabel:SetPoint("RIGHT", moduleSwitch, "LEFT", -14, 0)
     ns.Tooltip(moduleSwitch, "Module", "Turn this module on or off. Your settings are kept.")
     for _, mod in ipairs(MODULES) do
@@ -1458,6 +1491,7 @@ local function CreateModuleWindow(mod)
     win:EnableMouse(true)
     ns.Shared.Parts.Backdrop(win):Paint(1)
     ns.Border(win, ns.Shared.Style.BORDER_RGB)
+    if ns.classicSkin then ns.Shared.Parts.ClassicTrim(win) end
     win:SetScript("OnKeyDown", CloseOnEscape)
 
     local header = CreateFrame("Frame", nil, win)
@@ -1465,7 +1499,7 @@ local function CreateModuleWindow(mod)
     header:SetPoint("TOPRIGHT")
     header:SetHeight(HEADER_H)
     DragRegion(header, win)
-    local title = ns.Font(header, 20, nil)
+    local title = ns.Font(header, 20, nil, ns.classicSkin and T.accent or nil, true)
     title:SetPoint("TOPLEFT", header, "TOPLEFT", 30, -18)
     title:SetText(ns.L(mod.name))
     local sub = ns.Font(header, 12, nil, T.muted)

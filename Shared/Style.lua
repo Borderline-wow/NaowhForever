@@ -38,6 +38,63 @@ Shared.Style = {
     -- A window's soft drop shadow (Parts.Shadow): SHADOW_ALPHA black at its edge, clear SHADOW_SIZE out.
     SHADOW_ALPHA = 0.4,
     SHADOW_SIZE = 48,
+    -- The Classic+ skin's frame (Parts.ClassicTrim): outside a window's own black edge, a gold
+    -- line, CLASSIC_TRIM_BODY pixels of bronze and a black rim, and a gem on each corner.
+    CLASSIC_GOLD_RGB = { r = 0xd4 / 255, g = 0xaf / 255, b = 0x37 / 255 },
+    CLASSIC_BRONZE_RGB = { r = 0x5e / 255, g = 0x4a / 255, b = 0x1c / 255 },
+    CLASSIC_TRIM_BODY = 3,
+    CLASSIC_GEM = 12,
+    CLASSIC_GEM_EDGE = 2,       -- the gem's black edge, each side
+    -- A Classic+ window's title plate (Parts.TitlePlate) over its top edge: its height, bronze,
+    -- the room either side of the title, the title's size and colour, and the gems beside it.
+    CLASSIC_PLATE_H = 30,
+    CLASSIC_PLATE_BODY = 2,
+    CLASSIC_PLATE_PAD = 34,
+    CLASSIC_PLATE_SIZE = 16,
+    CLASSIC_TITLE_RGB = { r = 0xf4 / 255, g = 0xcf / 255, b = 0x63 / 255 },
+    CLASSIC_PLATE_GEM = 7,
+    CLASSIC_PLATE_GEM_GAP = 12,
+    -- A Classic+ button (ns.Button): red, lit from the top, inside a gold rim, with a faint
+    -- shine on its top half. Each state is its fill's { top, bottom }; pressed turns it over.
+    CLASSIC_BUTTON_RGB = {
+        rest  = { { r = 0xb4 / 255, g = 0x2a / 255, b = 0x1d / 255 }, { r = 0x5a / 255, g = 0x0b / 255, b = 0x06 / 255 } },
+        hover = { { r = 0xd2 / 255, g = 0x3a / 255, b = 0x2a / 255 }, { r = 0x82 / 255, g = 0x14 / 255, b = 0x0b / 255 } },
+        down  = { { r = 0x4e / 255, g = 0x09 / 255, b = 0x06 / 255 }, { r = 0x8a / 255, g = 0x16 / 255, b = 0x0d / 255 } },
+    },
+    CLASSIC_RIM_LIT_RGB = { r = 0xff / 255, g = 0xe2 / 255, b = 0x8a / 255 },   -- the rim under the mouse
+    CLASSIC_BUTTON_SHINE = 0.1,
+    -- Classic+ fields are cut into the panel (ns.Sunken): a lit edge along their bottom and right.
+    CLASSIC_BEVEL_RGB = { r = 0x6b / 255, g = 0x62 / 255, b = 0x52 / 255 },
+    -- A Classic+ slider's filled part, { top, bottom }, and its gem knob's black edge, each side.
+    CLASSIC_FILL_RGB = { { r = 0xc7 / 255, g = 0x9a / 255, b = 0x3a / 255 }, { r = 0x6e / 255, g = 0x50 / 255, b = 0x19 / 255 } },
+    CLASSIC_KNOB_EDGE = 2,
+    -- The game's own tick in a Classic+ check box, a little larger than the box, as the game draws it.
+    CLASSIC_CHECK = "Interface\\Buttons\\UI-CheckBox-Check",
+    CLASSIC_CHECK_SCALE = 1.3,
+    -- A picked Classic+ tab: lit bronze, { top, bottom }, under a gold line along its top.
+    CLASSIC_TAB_RGB = { { r = 0x3d / 255, g = 0x2d / 255, b = 0x19 / 255 }, { r = 0x1a / 255, g = 0x12 / 255, b = 0x0a / 255 } },
+    -- The picked sidebar row on Classic+: the game's blue list glow, fading left to right
+    -- (CLASSIC_PICK_ALPHA to CLASSIC_PICK_FADE), with a lit line along its top.
+    CLASSIC_PICK_RGB = { r = 0x46 / 255, g = 0x78 / 255, b = 0xd2 / 255 },
+    CLASSIC_PICK_ALPHA = 0.6,
+    CLASSIC_PICK_FADE = 0.1,
+    CLASSIC_PICK_LINE_RGB = { r = 0x96 / 255, g = 0xbe / 255, b = 0xff / 255 },
+    CLASSIC_PICK_LINE_ALPHA = 0.4,
+    -- A section header's gem before its name, on Classic+.
+    CLASSIC_SECTION_GEM = 7,
+    CLASSIC_SECTION_GEM_GAP = 8,
+    -- The help card on Classic+, as the game draws its tooltips: dark blue inside a grey-blue line.
+    CLASSIC_TIP_RGB = { r = 0x02 / 255, g = 0x02 / 255, b = 0x12 / 255 },
+    CLASSIC_TIP_ALPHA = 0.94,
+    CLASSIC_TIP_EDGE_RGB = { r = 0x9a / 255, g = 0x9a / 255, b = 0xb0 / 255 },
+    -- A Classic+ window's background: the game's own rock, tiled over the backdrop, darkened
+    -- (CLASSIC_PATTERN_SHADE of its colour) and partly see-through so text on it stays readable.
+    CLASSIC_PATTERN = "Interface\\FrameGeneral\\UI-Background-Rock",
+    CLASSIC_PATTERN_SHADE = 0.6,
+    CLASSIC_PATTERN_ALPHA = 0.55,
+    -- Classic+ headings stand out as the game's titles do: a size up, on a black drop shadow.
+    CLASSIC_HEADING_STEP = 1,
+    CLASSIC_HEADING_SHADOW = 1,
     -- An item level above yours; bags with no room left.
     RED_CODE = "|cfff87171",
     RED_RGB = { r = 0.97, g = 0.44, b = 0.44 },
@@ -89,6 +146,7 @@ Shared.Style = {
     CLOCK_ATLAS = "auctionhouse-icon-clock",
     QUEST_ATLAS = "smallquestbang",
     PIN = MEDIA .. "pin",                   -- waypoints and places
+    GEM = MEDIA .. "waypoint_diamond",      -- the Classic+ skin's corner and title gems
     CHAIN = MEDIA .. "chain",               -- a quest's chain
     INFO = MEDIA .. "info",                 -- Naowh's tip
     LOGO = MEDIA .. "LogoAddon",            -- the Naowh logo, left of a window's title
