@@ -114,6 +114,7 @@ local S = UI.ModuleSettings("qol", {
     townTravel = false,
     mapUnexplored = true, mapUnexploredDark = 0.5,
     mapSkyborne = false, mapSkyborneSize = 20,
+    mapZoneLevels = false, mapFishing = false,
     gearSets = true, gearBarVisible = true, trinketBar = false, trinketSize = 36, trinketSpacing = 4, gearBarSize = 32, gearMounted = "", gearResting = "",
     gearWindowAlpha = 1, gearBarSpacing = 4, gearBarShow = "always",
     gearPos = { point = "CENTER", relPoint = "CENTER", x = -403, y = -379 },

@@ -106,7 +106,7 @@ read_globals = {
     "ItemRefTooltipTextLeft1", "ITEM_QUALITY_COLORS", "LE_PARTY_CATEGORY_INSTANCE", "LibStub",
     "LOCALIZED_CLASS_NAMES_MALE", "LoggingCombat", "LootFrame", "LootSlot",
     "LOOT_ITEM_PUSHED_SELF", "LOOT_ITEM_PUSHED_SELF_MULTIPLE", "LOOT_ITEM_SELF",
-    "LOOT_ITEM_SELF_MULTIPLE", "MainMenuBarVehicleLeaveButton", "MapCanvasDataProviderMixin", "MapCanvasPinMixin", "FlightMap_FlightPointPinMixin",
+    "LOOT_ITEM_SELF_MULTIPLE", "MainMenuBarVehicleLeaveButton", "MAP_AREA_LABEL_TYPE", "MapCanvasDataProviderMixin", "MapCanvasPinMixin", "FlightMap_FlightPointPinMixin",
     "GetMinimapShape", "GetPlayerFacing", "Minimap",
     "C_MapExplorationInfo", "CreateTexturePool",
     "MAX_PARTY_MEMBERS", "MAX_RAID_MEMBERS", "Menu", "MenuUtil", "MenuVariants",
