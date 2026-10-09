@@ -119,6 +119,8 @@ page:Card({
     id = "recipeWindow", name = "Recipe Window", order = ORDER_RECIPES,
     help = "What Naowh's profession window adds to each recipe: the ones you have not learned yet, your next "
         .. "rank, and how many of each reagent you have.",
+    search = "filter favorites favourites have materials skill-up skill up profitable boe bop bind on equip pickup "
+        .. "star right-click right click track recipe create all bags full chat link shift ctrl click",
     summary = RecipeSummary,
     rows = {
         { key = "recipeFinder", label = "Unlearned Recipes", toggle = true, needs = On, why = TEXT_OFF,
@@ -149,6 +151,7 @@ page:Card({
         .. "on the right has a suggested tip per craft that you can change; Ask sends the crafter one message "
         .. "per craft with the amount, your materials and the tip: in party chat when they are in your party, "
         .. "else as a whisper. Prices and the tip need an auction house scan.",
+    search = "scan prices auction prices quality of life loot items",
     summary = OrdersSummary,
     rows = {
         { key = "orderTip", label = "Suggested Tip", slider = TIP_RANGE, unit = "%", needs = On,
@@ -169,7 +172,8 @@ page:Card({
               .. "reagents cost to buy and what the item sells for, and the profit after the 5% auction house "
               .. "cut. Each reagent is priced at its cheapest: a vendor's price once you have seen a vendor "
               .. "sell it, else the lowest buyout at your last scan. Uncheck a reagent you already have to "
-              .. "leave it out of the cost, for every recipe that uses it. Hover the lines for the breakdown." },
+              .. "leave it out of the cost, for every recipe that uses it. Hover the lines for the breakdown.",
+          search = "auction prices quality of life loot items" },
         { key = "craftProfitList", label = "Profit in Recipe List", toggle = true, needs = ProfitOn,
           why = "Needs Crafting Profit",
           help = "Also shows each recipe's profit at the right of its row in the list, green or red. Recipes "

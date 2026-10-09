@@ -68,6 +68,7 @@ local TEXT_OPEN = "Open"
 local TEXT_BRAND = "Naowh Forever"
 local TEXT_CLOSE = "X"
 local TEXT_HUD_EDITOR = "HUD Editor"
+local TEXT_SUB_COMMAND = "%s  (/nf%s)"
 local TEXT_HUD_HELP = "Place and size each display. Exit Config returns to this window."
 local TEXT_RELOAD = "Reload UI"
 local TEXT_MODULE, TEXT_MODULE_HELP = "Module", "Turn this module on or off. Your settings are kept."
@@ -220,7 +221,8 @@ end
 local function LayoutHeader(page, mod, headerH)
     headerTitle:SetText(mod and DisplayName(mod) or ns.L(page.title))
     breadcrumb:SetText(mod and (DisplayName(mod) .. " / " .. ns.L(page.name)) or TEXT_BRAND)
-    headerSub:SetText(mod and mod.subtitle or page.subtitle)
+    headerSub:SetText(mod and (mod.command and TEXT_SUB_COMMAND:format(mod.subtitle, mod.command) or mod.subtitle)
+        or page.subtitle)
     contentHeader:ClearAllPoints()
     contentHeader:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, -TOP_H)
     contentHeader:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -TOP_H)

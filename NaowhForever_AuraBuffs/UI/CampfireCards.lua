@@ -419,6 +419,7 @@ campCard = page:Card({
 alertCard = page:Card({
     id = "campNearby", name = "Camp Nearby", order = ORDER_NEARBY, switch = "campNearbyAlert",
     help = "Camp Nearby on screen when a campfire is in range and your camp needs a refresh.",
+    search = "ctrl click ctrl-click dismiss hide",
     summary = AlertSummary,
     studio = { height = ALERT_H, states = ALERT_STATES, new = NewAlert, paint = PaintAlert },
     rows = {

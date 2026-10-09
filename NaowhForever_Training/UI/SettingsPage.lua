@@ -79,6 +79,7 @@ page:Card({
     id = "onTheWay", name = "On the Way", order = ORDER_ON_THE_WAY,
     help = "The Training Planner's help while you level: a toast when you level up with spells to train, "
         .. "and a panel beside your class trainer.",
+    search = "/nf trainer nf trainer waypoint class trainer",
     summary = OnTheWaySummary,
     rows = {
         { key = "levelUpToast", label = "Level-Up Toast", toggle = true, needs = Training.On,
@@ -89,13 +90,15 @@ page:Card({
         { key = "trainerPanel", label = "Panel at the Trainer", toggle = true,
           needs = Training.On, why = TEXT_OFF,
           help = "Beside your class trainer, the spells you can learn now, ticked, with their total and Learn "
-              .. "All I Can Afford. Untick one to leave it." },
+              .. "All I Can Afford. Untick one to leave it.",
+          search = "put the new ranks on my bars swap ranks /nf ranks nf ranks" },
     },
 })
 
 page:Card({
     id = "window", name = "Window", order = ORDER_WINDOW,
     help = "The planner's own window, and a mini bar to leave up while you level.",
+    search = "right-click right click skip spell",
     summary = WindowSummary,
     rows = {
         { key = "miniShown", label = "Mini Bar", toggle = true, needs = Training.On,

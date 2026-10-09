@@ -37,6 +37,7 @@ page:Card({
     id = "importing", name = "Importing", order = ORDER_IMPORTING,
     help = "What a saved set brings back when you import it. Sets are saved and imported from the Action "
         .. "Bars window, out of combat.",
+    search = "/nf bars nf bars /nfbars nfbars save restore import test delete list",
     summary = ImportingSummary,
     rows = {
         { key = "highestRank", label = "Highest Rank", toggle = true, needs = On, why = BARS_OFF,

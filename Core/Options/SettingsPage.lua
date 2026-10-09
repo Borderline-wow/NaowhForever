@@ -35,10 +35,11 @@ local TEXT_SKIN_TIP = "Classic+ dresses the addon's windows like the game's own,
 local TEXT_CLASSIC_PLUS = "Classic+"
 local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_CLASSIC] = TEXT_CLASSIC_PLUS }
 local SKIN_ORDER = { "", SKIN_CLASSIC }
-local TEXT_MINIMAP_TIP = "A minimap button that opens %s on its own. /nf%s does the same, "
+local TEXT_MINIMAP_TIP = "A minimap button that opens %s. /nf%s does the same, "
     .. "and the Top Bar can carry it too. Saved for this computer."
 local TEXT_TURNED_OFF = "%s is turned off, so its settings are hidden. Turn it on under Modules below."
 local NONE = {}
+local TEXT_ON_ITS_OWN, TEXT_ITS_SETTINGS = "%s on its own", "%s's settings"
 
 local colorsPending = false
 local rxpPending = false
@@ -94,7 +95,8 @@ end
 
 local function ModuleButtonRow(mod)
     return { type = "toggle", text = mod.name,
-        tooltip = TEXT_MINIMAP_TIP:format(mod.name, mod.command),
+        tooltip = TEXT_MINIMAP_TIP:format((mod.open and TEXT_ON_ITS_OWN or TEXT_ITS_SETTINGS):format(mod.name),
+            mod.command),
         getValue = function() return MinimapButtonOn(mod) end,
         setValue = function(v) SetModuleButton(mod, v) end }
 end

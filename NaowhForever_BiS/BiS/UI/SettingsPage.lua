@@ -130,7 +130,8 @@ page:Card({
     summary = MarksSummary,
     rows = {
         { key = "bisTooltip", label = "Show on Tooltips", toggle = true, needs = "bis", why = BIS_OFF,
-          help = "Your list's rank on the items in it." },
+          help = "Your list's rank on the items in it.",
+          search = "alt shift click alt+shift-click add remove item link" },
         { key = "bisBagMarks", label = "Bag Marks", toggle = true, needs = "bis", why = BIS_OFF,
           help = "Your BiS List's slot marks on the items in your bags: item level, your BiS's star, Forever's "
               .. "mark and the green arrow on an upgrade. In the game's bags or EllesmereUI's." },
@@ -191,6 +192,7 @@ page:Card({
     id = "lists", name = "Lists", order = ORDER_LISTS,
     help = "Lists are shared by every character of your class; each character keeps using the one picked "
         .. "here. New, Rename, Import, Export and Delete are in the BiS List's window.",
+    search = "list button title bar alt shift click alt+shift-click add remove item link",
     summary = ListsSummary,
     rows = {
         { label = "Your List", choice = ns.BisListChoices, get = ListGet, set = ns.SelectBisList,

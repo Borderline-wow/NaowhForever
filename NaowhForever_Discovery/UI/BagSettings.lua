@@ -59,6 +59,7 @@ bags:Window({
 bags:Card({
     id = "bagtracker", name = "Tracker", order = ORDER_TRACKER, switch = "bagTracker",
     help = "Shows each Sleeping Bag step, with how to reach the next one and a waypoint.",
+    search = "x close turn off",
     summary = BagSummary,
     rows = {
         { key = "bagTrackerScale", label = "Scale", slider = SCALE, unit = "%", scale = PERCENT_SCALE, needs = On,

@@ -8,6 +8,8 @@
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 ## AddonCompartmentFunc: NaowhForever_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: NaowhForever_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: NaowhForever_OnCompartmentLeave
 
 Libs\embeds.xml
 

@@ -117,6 +117,7 @@ page:Card({
 page:Card({
     id = "waypoints", name = "Waypoints", order = ORDER_WAYPOINTS,
     help = "What a waypoint from the Discovery window or the tracker does.",
+    search = "sleeping bag steps",
     summary = WaypointSummary,
     rows = {
         { key = "openMap", label = "Open the Map", toggle = true,

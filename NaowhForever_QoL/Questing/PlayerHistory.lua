@@ -666,6 +666,7 @@ boot:SetScript("OnEvent", OnLogin)
 ns.Shared.Settings.Page("QoL/Questing & Group", S):Card({
     id = "playerHistory", name = "Player History", order = 40, switch = "playerHistory",
     help = "Remembers the players you group and chat with, stored only on your computer.",
+    search = "inspect panel history tab player tab notes",
     summary = Summary,
     rows = {
         { key = "playerHistoryChats", label = "Record Chats", toggle = true,

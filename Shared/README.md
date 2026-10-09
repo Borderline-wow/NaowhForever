@@ -102,7 +102,8 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   declared `under` that row's label: hidden rows, still searched, counted and reset with the
   card, and a search hit on one opens the cog. `icons = { { texture, tip, open, enabled }, ... }`
   adds other icons beside it. A card's `watch = { store, ... }` draws it again when another
-  module's settings change too. The page
+  module's settings change too. A card's or row's `search = "..."` adds words the settings
+  search finds but nothing shows, for clicks and slash commands too small for its help. The page
   in the options window, its search entries, the dot on what you changed and each card's reset
   all come from that one declaration. Settings pages hold settings only: a module's lists and
   editors live in its own window, opened from the page's `page:Window{ ... }` card (first on

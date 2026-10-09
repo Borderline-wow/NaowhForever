@@ -226,14 +226,19 @@ local function IndexWindow(item, add)
     add(item.uid, item.text, Static(item.headline) .. " " .. Static(item.detail))
 end
 
+local function SearchText(spec)
+    if not spec.search then return spec.help end
+    return (spec.help or "") .. " " .. spec.search
+end
+
 local function IndexCard(item, add)
-    add(item.uid, item.name, item.help)
+    add(item.uid, item.name, SearchText(item))
     local group
     for _, row in ipairs(Settings.Rows(item)) do
         if row.kind == "group" then
             group = row.group
         elseif row.label then
-            add(item.uid, row.label, row.help, item.name, group)
+            add(item.uid, row.label, SearchText(row), item.name, group)
         end
     end
 end

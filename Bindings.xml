@@ -9,4 +9,5 @@
     <Binding name="NAOWHFOREVER_GROUPINSPECT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleGroupInspect()</Binding>
     <Binding name="NAOWHFOREVER_COMPLETO" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleCompleto()</Binding>
     <Binding name="NAOWHFOREVER_BOSSLOOT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BossLoot()</Binding>
+    <Binding name="NAOWHFOREVER_HUD" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleHudEditor()</Binding>
 </Bindings>

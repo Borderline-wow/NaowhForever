@@ -137,7 +137,8 @@ local rows = {
       help = "No consumable reminders in cities and inns." },
     { label = "Consumables to Watch", buttonText = "Edit List", needs = Enabled, why = OFF,
       button = EditList,
-      help = "Opens the AuraBuffs window, where you add each item by its item ID and buff spell ID." },
+      help = "Opens the AuraBuffs window, where you add each item by its item ID and buff spell ID.",
+      search = "import export" },
     Group("Raid Buffs"),
     { key = "raidBuffs", label = "Raid Buff Reminders", toggle = true, needs = Enabled, why = OFF,
       help = "Missing class buffs in your group, out of combat, with how many are missing them. A camp "
