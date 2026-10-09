@@ -1,6 +1,6 @@
 -- Run with Lua 5.1 from the repository root: the Map Pins panel on the world map. Every town
--- pin switch the options card used to hold is on the panel, the card keeps only its switch and
--- Pin Size, and the button is made only once the map pins are on.
+-- pin switch is on the panel and on the options card, both drawn from one list, with Pin Size
+-- on the card, and the button is made only once the map pins are on.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
@@ -15,16 +15,50 @@ local townSrc = Read("NaowhForever_QoL/Interface/TownMap.lua")
 for _, key in ipairs({ "townCapitalsOnly", "townMinimap", "townMinimapSpirit", "townSpiritHealers", "townZoneLinks", "townTravel",
     "townClass", "townProfession", "townFlight", "townInn", "townBank", "townRepair", "townSupplies",
     "townStable", "townVendors", "townMail" }) do
-    Check(panelSrc:find('key = "' .. key .. '"', 1, true), "on the panel: " .. key)
-    Check(not townSrc:find('key = "' .. key .. '"', 1, true), "not on the options card: " .. key)
+    Check(townSrc:find('key = "' .. key .. '"', 1, true), "in the pin list: " .. key)
+    Check(not panelSrc:find('key = "' .. key .. '"', 1, true), "not copied into the panel: " .. key)
 end
+Check(panelSrc:find("local ROWS = ns.TownPinRows", 1, true), "the panel reads the town map's list")
 Check(townSrc:find('key = "townPinSize"', 1, true), "the card keeps Pin Size")
+local pinRows = assert(loadstring("return " .. townSrc:match("local PIN_ROWS = (%b{})")))()
+
+do
+    local card
+    local function Group(title) return { group = title } end
+    local cardNs = { QoLConstants = dofile("Tools/regression/qol_constants.lua"), QoLSettings = {},
+        Apply = function() end, ThemeTint = function() end, TownCapitals = {}, TownNPCs = {},
+        Shared = { Settings = { Group = Group, Page = function() return { Card = function(_, c) card = c end } end } } }
+    local cardEnv = setmetatable({ _G = { NaowhForever = cardNs },
+        CreateFromMixins = function() return {} end, MapCanvasPinMixin = {}, MapCanvasDataProviderMixin = {},
+        hooksecurefunc = function() end,
+        CreateFrame = function() return { RegisterEvent = function() end, SetScript = function() end } end,
+    }, { __index = _G })
+    local chunk = assert(loadstring(townSrc))
+    setfenv(chunk, cardEnv)
+    chunk()
+    local labels, groups = {}, {}
+    for _, row in ipairs(card.rows) do
+        if row.group then groups[#groups + 1] = row.group elseif row.toggle then labels[row.key] = row.label end
+    end
+    for _, row in ipairs(pinRows) do
+        if row.key then Check(labels[row.key] == row.text, "the card has the panel's toggle: " .. row.key) end
+    end
+    Check(groups[1] == "Options" and groups[2] == "Show", "grouped as the drawer groups them")
+    Check(card.rows[1].key == "townPinSize", "Pin Size first")
+    Check(cardNs.TownPinRows ~= nil, "the list is shared with the panel")
+    local Search = dofile("Tools/regression/settings_search.lua")({ ["QoL/Interface"] = { card } })
+    local hit = Search("flight master")[1]
+    Check(hit and hit.label == "Flight Masters" and hit.card == "QoL/Interface:townMap",
+        "the options search finds a pin by name")
+    hit = Search("graveyard")[1]
+    Check(hit and hit.card == "QoL/Interface:townMap", "and the card by its search words")
+end
 Check(Read("NaowhForever_QoL/Interface/TownMap.xml"):find('<Script file="MapPinsPanel.lua"/>', 1, true),
     "the panel loads")
 
 local settings = { enabled = true, townMap = false }
 local S = { Get = function(key) return settings[key] end, Set = function(key, v) settings[key] = v end }
-local ns = { QoLSettings = S, Apply = function() end, THEME = { bg = {}, line = {}, accent = {}, accentSoft = {}, panel = {}, fg = {} }, UI = {} }
+local ns = { QoLSettings = S, TownPinRows = pinRows, Apply = function() end, THEME = { bg = {}, line = {}, accent = {}, accentSoft = {}, panel = {}, fg = {} }, UI = {} }
 local made, boot, button, panel = 0, nil, nil, nil
 local mapLeft, maximized, mapHeight = 500, false, 700
 local canvasLeft = 350

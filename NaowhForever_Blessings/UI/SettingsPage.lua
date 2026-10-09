@@ -58,10 +58,44 @@ local NOTES = {
     range = "Grey: nobody of that class in range. The number still counts who is missing it.",
 }
 local THEMED_GROUP = "Accent: missing the class blessing. Lighter: running out. Deeper: only players with their own."
+local NONE = "none"
+local TEXT_NONE = "None"
+local TEXT_CLASS_HELP = "Which blessing you give this class: Might, Wisdom, Kings, Salvation or Light."
+local TEXT_CLASS_SEARCH = "blessing blessings greater"
 
 local function On() return S.Get("blessings") == true end
 local function OpenWindow() ns.OpenBlessingsWindow() end
 local function LabelsOn() return On() and S.Get("blessShowLabels") == true end
+local function NotPaladin() return not B.IsPaladin() end
+
+local function BlessingChoices(class)
+    local values, order = { [NONE] = TEXT_NONE }, {}
+    local current = B.Store().classes[class]
+    for _, entry in ipairs(B.BLESSINGS) do
+        if entry.key == current or B.Learned(entry) then
+            values[entry.key] = B.SpellName(entry.key)
+            order[#order + 1] = entry.key
+        end
+    end
+    order[#order + 1] = NONE
+    return values, order
+end
+
+local function ClassRow(class)
+    return { label = B.ClassName(class), help = TEXT_CLASS_HELP, search = TEXT_CLASS_SEARCH, needs = On, why = BLESSINGS_OFF,
+        hidden = NotPaladin,
+        choice = function() return BlessingChoices(class) end,
+        get = function() return B.Store().classes[class] or NONE end,
+        set = function(key) B.SetOwn(class, key ~= NONE and key or nil) end }
+end
+
+local function ClassRows()
+    local header = Group("Blessings by Class")
+    header.hidden = NotPaladin
+    local rows = { header }
+    for _, class in ipairs(B.CLASSES) do rows[#rows + 1] = ClassRow(class) end
+    return rows
+end
 
 local function Wheel(_, delta)
     if not On() then return end
@@ -428,6 +462,7 @@ page:Card({
           why = LABELS_OFF, help = "The class's name, or its class icon, which fits however small the buttons are." },
         { key = "blessTimers", label = "Minutes Left", toggle = true, needs = On, why = BLESSINGS_OFF,
           help = "Minutes left on each class's shortest blessing, and on each player's." },
+        ClassRows(),
         Group("Size"),
         { key = "blessBarSize", label = "Button Size", slider = SIZE_SLIDER, needs = On, why = BLESSINGS_OFF,
           help = "How big each button is." },

@@ -11,7 +11,7 @@ if not Settings then return end
 
 local PLACE_DOT = St.PLACE_DOT
 local PERCENT, ROUND = B.C.PERCENT, B.C.ROUND
-local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_WINDOW = 10, 20, 30, 80
+local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_KEYS, ORDER_WINDOW = 10, 20, 30, 50, 80
 local SCALE_RANGE = { 60, 160, 5 }
 local TIME_RANGE = { 2, 15, 1 }
 local ALPHA_RANGE = St.ALPHA_RANGE
@@ -125,7 +125,7 @@ page:Window({
 })
 
 page:Card({
-    id = "marks", name = "BiS List", order = ORDER_MARKS,
+    id = "marks", name = "Marks on Items", order = ORDER_MARKS,
     help = "Your list's marks on items out in the game.",
     summary = MarksSummary,
     rows = {
@@ -199,7 +199,14 @@ page:Card({
           help = "The list this character uses." },
         { label = "Rankings For", choice = SpecChoices, get = SpecGet, set = ns.SetBisSpec,
           help = "Whose ranking the picker shows. Each spec keeps its own picks on a list." },
-        { label = "Key Binding", binding = "NAOWHFOREVER_BIS",
+    },
+})
+
+page:Card({
+    id = "keys", name = "Key Binding", order = ORDER_KEYS,
+    help = "The key that opens the BiS List.",
+    rows = {
+        { label = "Open BiS List", binding = "NAOWHFOREVER_BIS",
           help = "Press this key to open the BiS List, and again to close it." },
     },
 })

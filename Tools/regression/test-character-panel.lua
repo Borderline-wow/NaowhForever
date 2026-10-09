@@ -799,12 +799,15 @@ local offCard, offCP, offListeners, offHooked, offStore = PanelCard(0)
 check("flag 0: the team's badge still listens and hooks", offHooked == 1 and offListeners == 1
     and offCP.supportBadge == nil)
 check("flag 0: the BiS link keeps its place", offCP.BADGE_MID == CP.BADGE_MID)
-check("flag 0: no badge row at all, the Naowh Score row first", #offCard.rows == 1
+check("flag 0: no badge row at all, the Naowh Score row first", #offCard.rows == 2
     and offCard.rows[1].key == "characterPanelScore")
+check("then Stats Shown, the same Your Spec / All Stats as the panel's switch",
+    offCard.rows[2].key == "characterPanelStats" and offCard.rows[2].choice[2][1] == "spec"
+    and offCard.rows[2].choice[2][2] == "all")
 check("flag 0: the summary leaves the badge out", offCard.summary(offStore) == "With your Naowh Score")
 local onCard, _, onListeners, onHooked, onStore = PanelCard(1)
 check("flag 1: the badge listens and hooks as before", onListeners == 1 and onHooked == 1)
-check("flag 1: the Supporter Badge row first, then Naowh Score", #onCard.rows == 2
+check("flag 1: the Supporter Badge row first, then Naowh Score", #onCard.rows == 3
     and onCard.rows[1].label == "Supporter Badge" and onCard.rows[2].key == "characterPanelScore")
 check("flag 1: the summary names the badge", onCard.summary(onStore) == "With your badge and Naowh Score")
 

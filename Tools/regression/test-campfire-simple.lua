@@ -1020,6 +1020,22 @@ do
         and f.labels.labels[4].alpha < 1 and f.labels.labels[1].alpha == 1)
     crit.scripts.OnMouseUp(crit, "LeftButton")
     check("click it again: shown", s.S.Get("campHiddenBonuses")[CHAIR] == nil)
+    local critRow, bonusRows = nil, 0
+    for _, row in ipairs(card.rows) do
+        if row.key == "campHiddenBonuses" and row.field then
+            bonusRows = bonusRows + 1
+            if row.field == CHAIR then critRow = row end
+        end
+    end
+    check("a row per bonus on the card, Simple only", bonusRows == #s.ns.AuraBuffs.CampData.FEATURES
+        and critRow and critRow.label:find("Camp Chair", 1, true) and critRow.hidden() == false)
+    check("on while the bonus shows", critRow.get() == true and not s.ns.Shared.Settings.Changed(critRow))
+    critRow.set(false)
+    check("off hides it, as a click on the preview does, and counts as changed",
+        s.S.Get("campHiddenBonuses")[CHAIR] == true and critRow.get() == false
+        and s.ns.Shared.Settings.Changed(critRow))
+    s.ns.Shared.Settings.ResetRow(critRow)
+    check("its reset shows it again, leaving the others", s.S.Get("campHiddenBonuses")[CHAIR] == nil)
 
     shot.timeZone.over = true
     shot.timeZone.scripts.OnMouseUp(shot.timeZone, "LeftButton")

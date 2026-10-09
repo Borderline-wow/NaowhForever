@@ -236,8 +236,8 @@ local function Summary(store)
     return SUMMARY:format(store.Get("cursorCooldownSize"), store.Get("cursorCooldownTime"))
 end
 
-Settings.Page("QoL/Combat", S):Card({
-    id = "cursorCooldown", name = "Cooldown at Cursor", order = 96, switch = "cursorCooldown",
+Settings.Page("QoL/Cursor", S):Card({
+    id = "cursorCooldown", name = "Cooldown at Cursor", order = 40, switch = "cursorCooldown",
     help = "Press something still on cooldown and its icon, name and time left show by your mouse.",
     summary = Summary,
     rows = {

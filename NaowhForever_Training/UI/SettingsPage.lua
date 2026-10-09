@@ -8,8 +8,10 @@ local Settings = ns.Shared.Settings
 
 local PERCENT, ROUND = Training.C.PERCENT, Training.C.ROUND
 local OPACITY_RANGE, PERCENT_SCALE = Style.OPACITY_RANGE, Style.PERCENT_SCALE
-local ORDER_ON_THE_WAY, ORDER_WINDOW = 10, 20
+local ORDER_ON_THE_WAY, ORDER_WINDOW, ORDER_BUILDS = 10, 20, 30
+local BUILDS_TAB = "builds"
 local TEXT_OFF = "Turn on the Training Planner"
+local TEXT_BUILDS_SEARCH = "talents talent points follow import export share auto spend"
 local TEXT_OPEN = "Open Training Planner"
 local TEXT_TRAIN_NOW = "%d %s to train now, %s"
 local TEXT_SPELL, TEXT_SPELLS = "spell", "spells"
@@ -21,6 +23,8 @@ local TEXT_BOTH, TEXT_TOAST, TEXT_PANEL, TEXT_NOTHING =
     "Level-up toast and trainer panel", "Level-up toast", "Trainer panel", "Nothing on the way"
 local TEXT_WINDOW = "%d%% opacity%s"
 local TEXT_MINI_SHOWN = ", mini bar shown"
+local TEXT_FOLLOWING = "Following: %s"
+local TEXT_NOT_FOLLOWING = "Not following a build"
 
 local function Headline(plan)
     if #plan.now > 0 then
@@ -51,6 +55,29 @@ end
 
 local function OpenPlanner()
     ns.OpenTrainingWindow()
+end
+
+local function OpenBuildsWindow()
+    ns.OpenTrainingWindow(nil, BUILDS_TAB)
+end
+
+local function OpenBuilds()
+    ns.OpenFromOptions(OpenBuildsWindow)
+end
+
+local function NotFollowing()
+    return Training.Followed() == nil
+end
+
+local function StopFollowing()
+    local _, classID = Training.Followed()
+    Training.Follow(classID, nil)
+    ns.UI:RefreshPage(true)
+end
+
+local function BuildsSummary()
+    local build = Training.Followed()
+    return build and TEXT_FOLLOWING:format(build.name) or TEXT_NOT_FOLLOWING
 end
 
 local function OnTheWaySummary(store)
@@ -107,5 +134,18 @@ page:Card({
               .. "by dragging." },
         { key = "windowAlpha", label = "Window Opacity", slider = OPACITY_RANGE,
           unit = "%", scale = PERCENT_SCALE, help = "How solid the planner's window is, in percent. Also on its title bar." },
+    },
+})
+
+page:Card({
+    id = "builds", name = "Talent Builds", order = ORDER_BUILDS,
+    help = "Save, make, share and follow talent builds in the planner's Builds tab.",
+    search = TEXT_BUILDS_SEARCH,
+    summary = BuildsSummary,
+    rows = {
+        { label = "Builds", buttonText = "Open Builds", button = OpenBuilds,
+          help = "Opens the planner on its Builds tab." },
+        { label = "Followed Build", buttonText = "Stop", button = StopFollowing, hidden = NotFollowing,
+          help = "Stops spending your talent points on the build you follow." },
     },
 })

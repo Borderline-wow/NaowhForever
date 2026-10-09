@@ -26,30 +26,7 @@ local TEXT_TITLE = "Map Pins"
 local TEXT_TIP = "Click to choose which pins show on the map."
 local TEXT_CLOSE = "x"
 
-local ROWS = {
-    { header = "OPTIONS" },
-    { key = "townCapitalsOnly", text = "Vendors & Trainers Only in Cities",
-      tip = "Keeps vendors, trainers and the bank off questing maps." },
-    { key = "townMinimap", text = "Mailboxes on Minimap", tip = "Pins the mailboxes near you on the minimap." },
-    { key = "townMinimapSpirit", text = "Spirit Healers on Minimap",
-      tip = "Pins the spirit healers near you on the minimap." },
-    { header = "SHOW" },
-    { key = "townFlight", text = "Flight Masters" },
-    { key = "townInn", text = "Innkeepers" },
-    { key = "townMail", text = "Mailboxes", tip = "Every mailbox, in towns and out in the world." },
-    { key = "townSpiritHealers", text = "Spirit Healers",
-      tip = "Every graveyard's spirit healer, in towns and out in the world." },
-    { key = "townZoneLinks", text = "Zone Exits", tip = "Click an exit to open the adjoining zone map." },
-    { key = "townTravel", text = "Boats & Zeppelins",
-      tip = "Every dock and zeppelin tower; click one to open where it goes." },
-    { key = "townClass", text = "Class Trainers", tip = "Your class's trainers only." },
-    { key = "townProfession", text = "Profession Trainers" },
-    { key = "townBank", text = "Bank & Auction House" },
-    { key = "townRepair", text = "Repairs" },
-    { key = "townSupplies", text = "Reagents, Ammo & Food" },
-    { key = "townStable", text = "Stable Masters" },
-    { key = "townVendors", text = "Other Vendors", tip = "Trade goods and every other merchant." },
-}
+local ROWS = ns.TownPinRows
 
 local button, buttonBorder, panel
 local controls, strips = {}, {}

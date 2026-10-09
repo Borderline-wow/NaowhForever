@@ -46,3 +46,13 @@ events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", OnEvent)
 
 hooksecurefunc(S, "Set", OnSettingChanged)
+
+ns.Shared.Settings.Page("QoL/Cursor", S):Card({
+    id = "cursorClip", name = "Cursor in Window", order = 30,
+    help = "Keeps the cursor inside the game window while you fight.",
+    rows = {
+        { key = "cursorClip", label = "Keep Cursor In Window During Combat", toggle = true,
+          help = "Stops the cursor leaving the game window while you fight, for a second monitor. "
+              .. "Your own setting comes back afterwards." },
+    },
+})

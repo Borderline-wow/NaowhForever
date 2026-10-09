@@ -49,6 +49,18 @@ local function SetAll(entries, prefix, value)
     end
 end
 
+local function SpellRow(entry, prefix)
+    local key = prefix .. entry.key
+    return { label = entry.label, help = entry.group, toggle = true, hidden = true,
+        get = function() return S.Get(key) end, set = function(v) S.Set(key, v) end }
+end
+
+local function SpellRows(entries, prefix)
+    local rows = {}
+    for i, entry in ipairs(entries) do rows[i] = SpellRow(entry, prefix) end
+    return rows
+end
+
 local page = Settings.Page("PvP/Auras", S)
 
 page:Card({
@@ -106,6 +118,7 @@ page:Card({
     help = "Which crowd control shows, by ability: every rank, and the same spell from items and creatures.",
     studio = P.SpellGrid.crowdControl,
     rows = {
+        SpellRows(SPELLS.crowdControl, P.CC_PREFIX),
         Group("Everything Else"),
         { key = "ccOther", label = "Other Crowd Control", toggle = true, needs = Enabled, why = OFF,
           help = "Crowd control from creatures and anything not in the grid." },
@@ -122,6 +135,7 @@ page:Card({
     help = "Which debuffs show beside crowd control: off until you light them.",
     studio = P.SpellGrid.debuffs,
     rows = {
+        SpellRows(SPELLS.debuffs, P.DEBUFF_PREFIX),
         Group("Your Own"),
         { key = "debuffExtra", label = "Spell IDs", text = true, wide = true, needs = Enabled, why = OFF,
           help = "More debuffs to show by spell ID, separated by spaces or commas (Wowhead has the ID)." },

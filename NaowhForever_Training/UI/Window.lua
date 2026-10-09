@@ -370,11 +370,11 @@ local function PaintLearned()
     ns.SetButtonText(window.learned, S.Get("showLearned") and TEXT_HIDE_LEARNED or TEXT_SHOW_LEARNED)
 end
 
-function ns.OpenTrainingWindow(level)
+function ns.OpenTrainingWindow(level, tab)
     if not S.Get("enabled") then S.Set("enabled", true) end
     if not window then Build() end
     V.selected = level
-    if level then SetTab("spells") end
+    if level then SetTab("spells") elseif tab then SetTab(tab) end
     window:SetScale(ns.UIScale())
     Place.Snap(window, WIDTH, HEIGHT)
     PaintLearned()

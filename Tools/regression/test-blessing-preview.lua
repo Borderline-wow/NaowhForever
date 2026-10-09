@@ -380,4 +380,37 @@ check("choosing one sets your aura", Pick("Spell 7294") and B.Store().aura == "r
 studio.paint(mine, "group")
 check("the preview shows your aura", mine.aura.icon.texture == 7294)
 
+-- The card lists every class's blessing too, writing the same plan as the menus.
+local classRows
+for _, row in ipairs(cards.bar.rows) do
+    if row[1] and row[1].group == "Blessings by Class" then classRows = row end
+end
+check("the card has a Blessings by Class group, a row per class", classRows and #classRows == #B.CLASSES + 1)
+local warriorRow = classRows[2]
+check("each row is named for its class", warriorRow.label == "Warrior")
+check("its help names the blessings, so a search for one finds it",
+    warriorRow.help:find("Kings", 1, true) and warriorRow.help:find("Might", 1, true)
+    and warriorRow.help:find("Wisdom", 1, true))
+check("the row shows the plan", warriorRow.get() == "kings")
+local values, order = warriorRow.choice()
+check("its choices are the blessings, then None", values.kings == "Spell 20217" and order[#order] == "none"
+    and #order == #B.BLESSINGS + 1)
+refreshed = 0
+warriorRow.set("might")
+check("choosing one writes the plan and refreshes the page", B.Store().classes.WARRIOR == "might" and refreshed > 0)
+warriorRow.set("none")
+check("None clears it", B.Store().classes.WARRIOR == nil and warriorRow.get() == "none")
+check("shown to paladins", not warriorRow.hidden())
+class = "WARRIOR"
+check("and hidden from everyone else", warriorRow.hidden())
+for i = #cards.bar.rows, 1, -1 do
+    local row = cards.bar.rows[i]
+    if row[1] and row[1].look then table.remove(cards.bar.rows, i) end
+end
+local Search = dofile("Tools/regression/settings_search.lua")({ ["Blessings/Settings"] = { cards.bar } })
+local kings = Search("kings")
+check("the options search finds Kings on the Blessing Bar card, a row per class",
+    #kings >= #B.CLASSES and kings[1].label == "Warrior" and kings[1].card == "Blessings/Settings:bar")
+check("and finds them by \"greater\"", #Search("greater") >= #B.CLASSES)
+
 print(("test-blessing-preview: %d checks passed"):format(checks))

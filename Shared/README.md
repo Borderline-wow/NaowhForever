@@ -118,7 +118,7 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   on release), and a hover mark: `wash` (a faint fill) or `edge` (an accent line down its middle).
   Nothing runs per frame except while dragging. The Campfire's Simple bar preview uses it.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,
-  `Parts.FooterBrand`, `Parts.Resizable(window, sizeKey, minW, minH, onSized, onReleased)` (a corner
+  `Parts.Logo` (the title bar's logo alone, opening a settings page), `Parts.FooterBrand`, `Parts.Resizable(window, sizeKey, minW, minH, onSized, onReleased)` (a corner
   grip; the size is kept; `onSized` and `onReleased`, run as the grip is let go, are optional). See
   `NaowhForever_BiS/BiS/UI/Window.lua` for a short one.
 - **A tracker:** `Parts.TrackerPanel(title, opts)` builds a tracker's window once, on first

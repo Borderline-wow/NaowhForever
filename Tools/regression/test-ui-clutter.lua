@@ -89,4 +89,16 @@ Case("error text is only touched on a change, and comes back when turned off", f
     S.Set("hideErrors", false)
     assert(table.concat(log.errors, " ") == "-UI_ERROR_MESSAGE +UI_ERROR_MESSAGE")
 end)
+Case("the cursor settings live on the Cursor tab, not in UI Clutter or Combat", function()
+    local function Read(path)
+        local file = assert(io.open(path, "rb"))
+        local s = file:read("*a"):gsub("\r\n", "\n"); file:close()
+        return s
+    end
+    assert(not source:find("cursorClip", 1, true))
+    local clip = Read("NaowhForever_QoL/Cursor/CursorClip.lua")
+    assert(clip:find('Page("QoL/Cursor", S):Card({', 1, true) and clip:find('key = "cursorClip"', 1, true))
+    local cooldown = Read("NaowhForever_QoL/Combat/CursorCooldown.lua")
+    assert(cooldown:find('Page("QoL/Cursor", S):Card({\n    id = "cursorCooldown"', 1, true))
+end)
 print(count .. " UI clutter regressions passed")
