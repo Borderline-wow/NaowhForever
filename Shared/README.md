@@ -58,7 +58,12 @@ Shared/
   row with `field` (and its own `get`/`set`) is one entry of a table setting `key`, with its own dot
   and reset (AuraBuffs' raid buff switches). A row or
   group with `hidden` is left off the page: `true` for one set on the preview instead, or a
-  function, so rows for one choice only (the Campfire's Round and Simple rows) show with it. The page
+  function, so rows for one choice only (the Campfire's Round and Simple rows) show with it. A
+  row's `cog = { title, tip }` puts a cog left of its control, opening a small panel of the rows
+  declared `under` that row's label: hidden rows, still searched, counted and reset with the
+  card, and a search hit on one opens the cog. `icons = { { texture, tip, open, enabled }, ... }`
+  adds other icons beside it. A card's `watch = { store, ... }` draws it again when another
+  module's settings change too. The page
   in the options window, its search entries, the dot on what you changed and each card's reset
   all come from that one declaration. Settings pages hold settings only: a module's lists and
   editors live in its own window, opened from the page's `page:Window{ ... }` card (first on

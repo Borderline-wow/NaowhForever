@@ -28,6 +28,9 @@ local BINDING_W = 170
 local DIM = 0.35
 local TOGGLE_GAP = 10
 local CHEVRON_SIZE = 12
+local ICON_SIZE = 22            -- a row's icons, left of its control
+local ICON_REST, ICON_LIT, ICON_OFF = 0.4, 0.8, 0.12   -- an icon's alpha: resting, hovered, greyed out
+local COG_W = 380               -- a cog's panel
 local NO_EVENTS = {}
 
 local function HelpEnter(hit)
@@ -214,6 +217,71 @@ local function DotClicked(dot)
     row:GetParent():QueueSettingsRedraw()
 end
 
+-- A row's icon (Settings.lua: row.icons, row.cog): dim until hovered, greyed out while it
+-- cannot be used. A cog opens the panel of the rows set under it.
+local ToggleCog, CogAnchored
+
+local function IconEnter(icon)
+    icon:SetAlpha(ICON_LIT)
+    local tip = icon.spec and icon.spec.tip
+    if tip then ns.UI.ShowWidgetTooltip(icon, tip) end
+end
+
+local function IconLeave(icon)
+    icon:SetAlpha(ICON_REST)
+    ns.UI.HideWidgetTooltip()
+end
+
+local function IconClicked(icon)
+    local spec = icon.spec
+    if not spec then return end
+    if spec.cogFor then
+        ToggleCog(icon, icon:GetParent().setting)
+    elseif spec.open then
+        spec.open(icon)
+    end
+end
+
+local function NewIcon(row)
+    local icon = CreateFrame("Button", nil, row)
+    icon:SetSize(ICON_SIZE, ICON_SIZE)
+    icon:SetFrameLevel(row:GetFrameLevel() + 5)
+    icon.tex = icon:CreateTexture(nil, "OVERLAY")
+    icon.tex:SetAllPoints()
+    icon:SetScript("OnEnter", IconEnter)
+    icon:SetScript("OnLeave", IconLeave)
+    icon:SetScript("OnClick", IconClicked)
+    return icon
+end
+
+-- Lays the row's icons out from `left`, the control, outward; returns the last one, the new left.
+local function SetIcons(row, setting, left, off)
+    local icons = setting.icons or NO_EVENTS
+    for i = 1, #icons do
+        local spec = icons[i]
+        local icon = row.icons[i]
+        if not icon then
+            icon = NewIcon(row)
+            row.icons[i] = icon
+        end
+        local on = not off and (spec.enabled == nil or spec.enabled())
+        icon.spec = spec
+        icon.tex:SetTexture(spec.texture or ns.UI.COGS_ICON)
+        -- A cog whose settings were changed shows it, as a row's dot does.
+        local tint = spec.cogFor and Settings.CogChanged(setting.card, setting.label) and T.accentSoft or T.fg
+        icon.tex:SetVertexColor(tint.r, tint.g, tint.b, 1)
+        icon:ClearAllPoints()
+        icon:SetPoint("RIGHT", left, "LEFT", -CONTROL_GAP, 0)
+        icon:EnableMouse(on)
+        icon:SetAlpha(on and ICON_REST or ICON_OFF)
+        icon:Show()
+        if spec.cogFor then CogAnchored(icon, setting) end
+        left = icon
+    end
+    for i = #icons + 1, #row.icons do row.icons[i]:Hide() end
+    return left
+end
+
 local function NewSetting(view)
     local row = CreateFrame("Frame", nil, view)
     row:SetHeight(ROW_H)
@@ -245,6 +313,7 @@ local function NewSetting(view)
     row.why:SetWordWrap(false)
     row.hit = HelpHit(row, row.label)
     row.dot:SetFrameLevel(row.hit:GetFrameLevel() + 1)
+    row.icons = {}
     return row
 end
 
@@ -350,7 +419,7 @@ local function SetSetting(row, setting, split)
     row.split:SetShown(split)
     local off, why = Settings.Off(setting)
     Dim(row, control, off)
-    local left = control._valBox and control or control
+    local left = SetIcons(row, setting, control, off)
     row.why:ClearAllPoints()
     row.why:SetPoint("RIGHT", left, "LEFT", -CONTROL_GAP, 0)
     row.why:SetText(off and why or "")
@@ -612,12 +681,19 @@ function Draw:Card(card, found)
     elseif isOpen then
         -- A match set on the preview (a hidden row) can only be changed there, so the card
         -- shows whole. Part of a card shows no reset, which would reset what is left out too.
-        local only = found ~= true and found or nil
+        -- A match in a cog's panel keeps the row the cog is on, and opens the cog once drawn.
+        local only, cogOwner = found ~= true and found or nil, nil
         for _, row in ipairs(only and Settings.Rows(card) or NO_EVENTS) do
-            if only[row.label] and Hidden(row) then only = nil break end
+            if only[row.label] and row.under ~= nil then
+                only[row.under], cogOwner = true, row.under
+            elseif only[row.label] and Hidden(row) then
+                only = nil
+                break
+            end
         end
         if card.studio and self.kinds.studio and not only then self:Add("studio", card) end
         self:Settings(card, only)
+        if cogOwner then self:OpenCogOn(card, cogOwner) end
         local changed = Settings.ChangedCount(card)
         if changed > 0 and not only then self:Add("cardFoot", card, changed) end
     end
@@ -652,6 +728,98 @@ function Draw:Redraw()
     self:Fit(NO_EVENTS)
 end
 
+-------------------------------------------------------------------------------
+--  A cog's panel: the rows set under a row's cog, drawn as the page draws its rows, so their
+--  dots, controls and help are the same. Under the cog; a second click on it closes it, and so
+--  does its x, or the page going away.
+-------------------------------------------------------------------------------
+local cog   -- the one panel: cog.card and cog.label say whose rows it shows
+
+local CogDraw = {}
+
+function CogDraw:Redraw()
+    self:Clear()
+    local w = self:GetWidth()
+    if cog.card then
+        for _, row in ipairs(Settings.Rows(cog.card)) do
+            if row.under == cog.label then
+                self.left, self.width = 0, w
+                self:Add("setting", row, false)
+            end
+        end
+    end
+    self:Fit(NO_EVENTS)
+end
+
+local function FitCog(height)
+    cog:SetHeight(St.PANEL_HEADER + height + St.PANEL_PAD)
+end
+
+local function CogPanel()
+    if cog then return cog end
+    for k, v in pairs(Draw) do if CogDraw[k] == nil then CogDraw[k] = v end end
+    cog = Parts.Panel("")
+    cog:SetFrameStrata("DIALOG")
+    cog:SetToplevel(true)
+    cog:SetWidth(COG_W)
+    cog.view = View.New(cog, kinds, CogDraw)
+    cog.view.settingsRedrawFn = function() Draw.FlushSettings(cog.view) end
+    cog.view.shownRows = {}
+    cog.view.onResize = FitCog
+    cog.view:SetPoint("TOPLEFT", St.PANEL_PAD, -St.PANEL_HEADER)
+    cog.view:SetWidth(COG_W - St.PANEL_PAD * 2)
+    cog:Hide()
+    return cog
+end
+
+-- Whether the panel shows this row's cog: a redraw of the page puts the panel under the cog's
+-- new place.
+function CogAnchored(icon, setting)
+    if not (cog and cog:IsShown() and cog.card == setting.card and cog.label == setting.label) then return end
+    cog.icon = icon
+    cog:ClearAllPoints()
+    cog:SetPoint("TOP", icon, "BOTTOM", 0, -CONTROL_GAP)
+end
+
+local function OpenCog(icon, setting)
+    CogPanel()
+    cog.card, cog.label, cog.page = setting.card, setting.label, icon:GetParent():GetParent()
+    cog.title:SetText((setting.cog and setting.cog.title) or setting.label)
+    Draw.Watch(setting.card.store, cog.view)
+    cog:Show()
+    CogAnchored(icon, setting)
+    cog.view:Redraw()
+    FitCog(cog.view:GetHeight())
+end
+
+function ToggleCog(icon, setting)
+    if cog and cog:IsShown() and cog.card == setting.card and cog.label == setting.label then
+        cog:Hide()
+        return
+    end
+    OpenCog(icon, setting)
+end
+
+-- The page has drawn the row with this label: its cog opens (a search hit behind it).
+function Draw:OpenCogOn(card, label)
+    for i = 1, self.pools.setting.used do
+        local row = self.pools.setting[i]
+        local setting = row.setting
+        if setting and setting.card == card and setting.label == label then
+            for _, icon in ipairs(row.icons) do
+                if icon:IsShown() and icon.spec and icon.spec.cogFor then
+                    if not (cog and cog:IsShown() and cog.card == card and cog.label == label) then
+                        OpenCog(icon, setting)
+                    end
+                    return
+                end
+            end
+        end
+    end
+end
+
+Settings.CogPanel = function() return cog end
+
 function Draw:QueueSettingsRedraw()
     if self.settingsQueued then return end
     self.settingsQueued = true
@@ -662,38 +830,61 @@ local DRAG_WAIT = 0.05   -- seconds between looks for the end of a slider drag
 
 -- A slider being dragged (UI.sliderDrag) holds the redraw until it is let go: the redraw
 -- hides and shows the rows again, and hiding the slider ended its drag after one step.
-local function FlushSettings(view)
+function Draw.FlushSettings(view)
     if ns.UI.sliderDrag then
         C_Timer.After(DRAG_WAIT, view.settingsRedrawFn)
         return
     end
     view.settingsQueued = false
     if view:IsVisible() then
+        view.stale = nil
         view:Redraw()
         if view.onResize then view.onResize(view:GetHeight()) end
+    else
+        view.stale = true
     end
 end
 
 local watched = {}
 
-local function Watch(store, view)
+-- A view changed while hidden is drawn again as it shows, so it never shows an old value (an
+-- options window that stepped aside for a picker, a page another page changed).
+function Draw.Watch(store, view)
     local views = watched[store]
     if not views then
         views = {}
         watched[store] = views
         store.OnChange(function()
             for v in pairs(views) do
-                if v:IsVisible() then v:QueueSettingsRedraw() end
+                if v:IsVisible() then v:QueueSettingsRedraw() else v.stale = true end
             end
         end)
     end
     views[view] = true
 end
 
+local function ShownAgain(view)
+    if not view.stale then return end
+    view.stale = nil
+    view:QueueSettingsRedraw()
+end
+
+-- The page's rows hide for a moment each time it is drawn again: the cog's panel closes only
+-- once the page itself has gone.
+local function PageGone(view)
+    if not (cog and cog:IsShown() and cog.page == view) then return end
+    C_Timer.After(0, view.goneFn)
+end
+
 local function NewView(parent)
     local view = View.New(parent, kinds, Draw)
-    view.settingsRedrawFn = function() FlushSettings(view) end
+    view.settingsRedrawFn = function() Draw.FlushSettings(view) end
+    view.goneFn = function()
+        if cog and cog.page == view and not view:IsVisible() then cog:Hide() end
+    end
     view.shownRows = {}
+    view:HookScript("OnShow", ShownAgain)
+    view:HookScript("OnHide", PageGone)
     return view
 end
 
@@ -710,9 +901,11 @@ function Settings.Render(parent, pageKey, onResize, filter)
     view.pageKey, view.onResize, view.filter = pageKey, onResize, filter
     local page = Settings.pages[pageKey]
     for _, item in ipairs(page and page.items or NO_EVENTS) do
-        if item.store then Watch(item.store, view) end
+        if item.store then Draw.Watch(item.store, view) end
+        -- Another module's settings the card is drawn from (card.watch = { store, ... }).
+        for _, store in ipairs(item.watch or NO_EVENTS) do Draw.Watch(store, view) end
         for _, row in ipairs(item.rows or NO_EVENTS) do
-            if row.store and row.store ~= item.store then Watch(row.store, view) end
+            if row.store and row.store ~= item.store then Draw.Watch(row.store, view) end
         end
     end
     view:Show()
@@ -733,6 +926,13 @@ end
 function Settings.FindRow(parent, label, cardUid)
     local view = parent.settingsView
     if not view then return nil end
+    -- A setting set in a cog's panel: the row the cog is on, with the cog opened.
+    local card = cardUid and label and Settings.CardOf(cardUid)
+    local owner = card and Settings.UnderOf(card, label)
+    if owner then
+        label = owner
+        view:OpenCogOn(card, owner)
+    end
     findLabel, findCard = label, cardUid
     local row = (label and view:Find("setting", IsSetting)) or view:Find("cardHead", IsHead)
     findLabel, findCard = nil, nil

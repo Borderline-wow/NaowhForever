@@ -529,4 +529,147 @@ check("a thick outline has no shadow either", fs.flags == "THICKOUTLINE" and fs.
 Parts.HudFont(fs, "", 12, "NONE")
 check("None: no outline and no shadow", fs.flags == "" and fs.shadowAlpha == 0 and fs.shadowX == 0)
 
+-------------------------------------------------------------------------------
+--  A row's cog and icons: the rows set in a cog's panel are hidden card rows, still counted,
+--  reset, searched and jumped to; the panel follows the cog, and closes with a second click or
+--  the cogPage going away. A card's watch, and a cogPage changed while hidden.
+-------------------------------------------------------------------------------
+local function RunTimers()
+    while #timers > 0 do table.remove(timers, 1)() end
+end
+METHODS.SetVertexColor = function(f, r, g, b) f.tint = { r, g, b } end
+METHODS.SetTexture = function(f, texture) f.texture = texture end
+METHODS.EnableMouse = function(f, on) f.mouse = on end
+METHODS.SetAlpha = function(f, a) f.alpha = a end
+METHODS.SetPoint = function(f, ...) f.point = { ... } end
+METHODS.ClearAllPoints = function(f) f.point = nil end
+ns.UI.COGS_ICON = "cog"
+ns.UI.ShowWidgetTooltip, ns.UI.HideWidgetTooltip = NOTHING, NOTHING
+ns.UI.Search = { Mark = function(_, text) return text end }
+local SOFT = { r = 0.3, g = 0.7, b = 0.96 }
+rawset(ns.THEME, "accentSoft", SOFT)
+
+local cogDefaults = { showCount = true, countSize = 14, countX = 0, other = false }
+local cogValues = { showCount = true }
+local listeners = {}
+local cogStore = {
+    Get = function(k) if cogValues[k] ~= nil then return cogValues[k] end return cogDefaults[k] end,
+    Raw = function(k) return cogValues[k] end,
+    Default = function(k) return cogDefaults[k] end,
+    Set = function(k, v)
+        cogValues[k] = v
+        for _, fn in ipairs(listeners) do fn() end
+    end,
+    OnChange = function(fn) listeners[#listeners + 1] = fn end,
+}
+local backed, anchored = 0, false
+local cogCard = Settings.Page("Test/Cogs", cogStore):Card({ id = "bar", name = "Bar", rows = {
+    { key = "showCount", label = "Show Count", toggle = true, cog = { title = "Count Text", tip = "Its text." } },
+    { key = "countSize", label = "Count Size", slider = { 8, 32, 1 }, under = "Show Count" },
+    { key = "countX", label = "Count X", slider = { -50, 50, 1 }, under = "Show Count" },
+    { key = "other", label = "Other", toggle = true, icons = {
+        { texture = "back", tip = "Back.", open = function() backed = backed + 1 end,
+          enabled = function() return anchored end } } },
+} })
+check("a row set in a cog is a hidden card row", cogCard.rows[2].hidden == true and cogCard.rows[2].under == "Show Count")
+check("the cog is the row's first icon", cogCard.rows[1].icons[1].cogFor == cogCard.rows[1])
+
+local cogParent = Frame()
+Settings.Render(cogParent, "Test/Cogs", NOTHING)
+local cogPage = cogParent.settingsView
+local function PageRow(label)
+    for i = 1, cogPage.pools.setting.used do
+        local cogRow = cogPage.pools.setting[i]
+        if cogRow.setting.label == label then return cogRow end
+    end
+end
+check("the cogPage draws the list's rows only", cogPage.pools.setting.used == 2 and PageRow("Show Count")
+    and PageRow("Other") and not PageRow("Count Size"))
+local cogIcon = PageRow("Show Count").icons[1]
+check("the cog is drawn left of the row's control", cogIcon.shown ~= false and cogIcon.tex.texture == "cog")
+local back = PageRow("Other").icons[1]
+check("an icon greyed out while it cannot be used", back.tex.texture == "back" and back.mouse == false)
+anchored = true
+cogPage:Redraw()
+check("and lit once it can", back.mouse == true)
+back.scripts.OnClick(back)
+check("its click does its one thing", backed == 1)
+
+cogIcon.scripts.OnClick(cogIcon)
+local panel = Settings.CogPanel()
+local function PanelRow(label)
+    for i = 1, panel.view.pools.setting.used do
+        local cogRow = panel.view.pools.setting[i]
+        if cogRow.setting.label == label then return cogRow end
+    end
+end
+check("the cog opens its panel under itself", panel.shown and panel.point[2] == cogIcon and panel.point[1] == "TOP")
+check("titled, with the rows set under it", panel.title.text == "Count Text" and PanelRow("Count Size")
+    and PanelRow("Count X") and panel.view.pools.setting.used == 2)
+check("drawn like the cogPage's rows", PanelRow("Count Size").setting.kind == "slider")
+
+PanelRow("Count Size").setting.set(20)
+RunTimers()
+check("a change shows its dot in the panel", PanelRow("Count Size").dot.shown == true)
+check("the card counts it", Settings.ChangedCount(cogCard) == 1)
+-- The redraw lays the cogPage out anew; the panel is put back under the cog wherever it is now.
+panel:ClearAllPoints()
+cogPage:Redraw()
+check("and the cog shows one of its settings changed", cogIcon.tex.tint[1] == SOFT.r)
+check("the panel stays open through the cogPage's redraw, still under the cog", panel.shown
+    and panel.point[2] == PageRow("Show Count").icons[1])
+PanelRow("Count Size").dot.scripts.OnClick(PanelRow("Count Size").dot)
+check("its dot puts that setting back", cogValues.countSize == 14)
+cogStore.Set("countX", 9)
+Settings.Reset(cogCard)
+check("the card's Reset puts back what is set in the cog", cogValues.countX == 0 and Settings.ChangedCount(cogCard) == 0)
+
+cogIcon = PageRow("Show Count").icons[1]
+cogIcon.scripts.OnClick(cogIcon)
+check("a second click on the cog closes it", not panel.shown)
+
+-- The sidebar's search: a match set in a cog's panel.
+Settings.Render(cogParent, "Test/Cogs", NOTHING, { all = {}, cards = { [cogCard.uid] = { ["Count Size"] = true } } })
+check("a search hit in a cog keeps the row with the cog", PageRow("Show Count") ~= nil)
+check("and opens the cog", panel.shown and panel.label == "Show Count")
+panel:Hide()
+Settings.Render(cogParent, "Test/Cogs", NOTHING)
+local jumped, top = Settings.FindRow(cogParent, "Count X", cogCard.uid)
+check("a jump to a setting in a cog goes to its row and opens the cog", jumped == PageRow("Show Count")
+    and top ~= nil and panel.shown)
+
+-- The cogPage going away closes the panel; its own redraw does not.
+cogPage.scripts.OnHide(cogPage)
+RunTimers()
+check("the panel stays while the cogPage is still there", panel.shown)
+cogPage:Hide()
+cogPage.scripts.OnHide(cogPage)
+RunTimers()
+check("and closes once the cogPage has gone", not panel.shown)
+
+-- A change while the cogPage is hidden draws it again as it shows.
+cogStore.Set("other", true)
+check("a cogPage hidden during a change is marked to draw again", cogPage.stale == true)
+cogPage:Show()
+cogPage.scripts.OnShow(cogPage)
+check("and queues it as it shows", cogPage.settingsQueued == true and cogPage.stale == nil)
+RunTimers()
+
+-- A card drawn from another module's settings watches them too.
+local otherListeners = {}
+local otherStore = { Get = NOTHING, OnChange = function(fn) otherListeners[#otherListeners + 1] = fn end }
+Settings.Page("Test/Watch", cogStore):Card({ id = "w", name = "W", watch = { otherStore }, rows = {
+    { key = "other", label = "Other", toggle = true } } })
+local watchParent = Frame()
+Settings.Render(watchParent, "Test/Watch", NOTHING)
+check("a card's watch listens to that store", #otherListeners == 1)
+otherListeners[1]()
+check("and a change there draws the cogPage again", watchParent.settingsView.settingsQueued == true)
+RunTimers()
+
+-- The stubs that remember their calls make tables of their own: measure the cogPage alone.
+METHODS.SetPoint, METHODS.SetVertexColor = NOTHING, NOTHING
+Settings.Render(cogParent, "Test/Cogs", NOTHING)
+Measure(check)("a page with cogs and icons redrawn", 1, function() cogPage:Redraw() end)
+
 print(("test-shared: %d checks passed"):format(checks))

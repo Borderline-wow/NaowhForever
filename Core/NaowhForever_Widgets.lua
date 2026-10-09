@@ -905,10 +905,15 @@ local MODIFIER_KEYS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true
 -- screen saves it.
 -- Click it and press a key to bind, Escape to cancel; right-click clears it.
 -- The page reuses its rows, so a region that already has its key button keeps it.
-function UI.KeyField(rgn, action, label)
-    if rgn._keyField then return end
-    rgn._keyField = true
+-- `action` and `label` may be functions, for a field pointed at another binding each time its
+-- panel opens; call the returned button's _refreshValue after re-pointing it. `tooltip`
+-- replaces the default line, for a binding not listed under Key Bindings.
+function UI.KeyField(rgn, action, label, tooltip)
+    if rgn._keyField then return rgn._keyField end
+    local function Action() if type(action) == "function" then return action() end return action end
+    local function Label() if type(label) == "function" then return label() end return label end
     local btn = ns.Button(rgn, "", 150, 26)
+    rgn._keyField = btn
     btn:SetPoint("RIGHT", rgn, "RIGHT", -20, 0)
     -- The row's label, and the hover area that shows its tooltip, end where the field starts,
     -- or that tooltip covers the field.
@@ -916,7 +921,7 @@ function UI.KeyField(rgn, action, label)
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     local capturing
     local function Show()
-        local key = GetBindingKey(action)
+        local key = GetBindingKey(Action())
         btn.label:SetText(capturing and "Press a key..." or key and GetBindingText(key) or "|cff808080Not bound|r")
         btn:SetAlpha(InCombatLockdown() and 0.4 or 1)
     end
@@ -931,7 +936,7 @@ function UI.KeyField(rgn, action, label)
     btn:SetScript("OnClick", function(_, button)
         if InCombatLockdown() then return end
         if button == "RightButton" then
-            for _, key in ipairs({ GetBindingKey(action) }) do SetBinding(key) end
+            for _, key in ipairs({ GetBindingKey(Action()) }) do SetBinding(key) end
             Save()
             Stop()
             return
@@ -949,12 +954,13 @@ function UI.KeyField(rgn, action, label)
         end
         local combo = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
             .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
+        local current = Action()
         local previous = GetBindingAction(combo)
-        for _, old in ipairs({ GetBindingKey(action) }) do SetBinding(old) end
-        SetBinding(combo, action)
+        for _, old in ipairs({ GetBindingKey(current) }) do SetBinding(old) end
+        SetBinding(combo, current)
         Save()
-        if previous ~= "" and previous ~= action then
-            ns.Print(("%s is now bound to %s instead of %s."):format(GetBindingText(combo), label,
+        if previous ~= "" and previous ~= current then
+            ns.Print(("%s is now bound to %s instead of %s."):format(GetBindingText(combo), Label(),
                 GetBindingName(previous)))
         end
         Stop()
@@ -963,9 +969,14 @@ function UI.KeyField(rgn, action, label)
     btn:EnableKeyboard(false)
     btn:SetScript("OnShow", Show)
     btn:SetScript("OnHide", function() if capturing then Stop() end end)
-    ns.Tooltip(btn, label, "Click, then press a key to bind it. Escape cancels; right-click clears. "
-        .. "The same binding as in Key Bindings > Naowh Forever.")
+    ns.Tooltip(btn, type(label) == "string" and label or "Key Binding", tooltip
+        or ("Click, then press a key to bind it. Escape cancels; right-click clears. "
+        .. "The same binding as in Key Bindings > Naowh Forever."))
+    btn._refreshValue = function()
+        if capturing then Stop() else Show() end
+    end
     Show()
+    return btn
 end
 
 -- A full-row Reload UI button (see Reload UI in the Core file).

@@ -92,12 +92,28 @@ local function Flatten(rows)
     return out
 end
 
+-- A row's icons, left of its control (Page.lua draws them): row.icons = { { texture, tip, open,
+-- enabled }, ... }, from the control outward; enabled(), when given, greys one out while false.
+-- row.cog = { title, tip } puts a cog first. It opens a panel of the rows declared `under` this
+-- row's label: hidden rows, set in the cog's panel, still searched, counted and reset with the
+-- card. Made once per row, so drawing makes no tables.
+local function Icons(row)
+    if not row.cog or row.cogIcon then return end
+    local cog = { tip = row.cog.tip, cogFor = row }
+    local icons = { cog }
+    for _, icon in ipairs(row.icons or NO_KEYS) do icons[#icons + 1] = icon end
+    row.cogIcon, row.icons = cog, icons
+end
+
 local function Normalise(row, card)
     row.card = card
     if row.group then
         row.kind = "group"
         return row
     end
+    -- A row set in another row's cog is hidden from the list.
+    if row.under ~= nil then row.hidden = true end
+    Icons(row)
     for _, kind in ipairs(KINDS) do
         if row[kind] ~= nil then
             row.kind = kind
@@ -262,6 +278,21 @@ end
 
 function Settings.Reset(card)
     for _, row in ipairs(card.rows) do Settings.ResetRow(row) end
+end
+
+-- The label of the row whose cog sets this hidden row, or nil for a row set in the list.
+function Settings.UnderOf(card, label)
+    for _, row in ipairs(card.rows) do
+        if row.label == label and row.under ~= nil then return row.under end
+    end
+end
+
+-- Whether a setting behind a row's cog differs from its default: the cog shows it.
+function Settings.CogChanged(card, label)
+    for _, row in ipairs(card.rows) do
+        if row.under == label and Settings.Changed(row) then return true end
+    end
+    return false
 end
 
 local function LabelOf(card, key)
