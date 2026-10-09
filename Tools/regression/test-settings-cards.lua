@@ -1,8 +1,8 @@
 -- Run with Lua 5.1 from the repository root: every settings card any file declares
 -- (Settings.Page(...):Card({...})), read from the source. Each card has an id, a name and its
 -- help; its labels are its own; "Colour", never "Color"; and every key it shows has a default in
--- some module's settings (UI.ModuleSettings), Smart Reminders' own default tables, or is one
--- whose unset value means "follow automatically".
+-- some module's settings (UI.ModuleSettings), or is one whose unset value means "follow
+-- automatically".
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 
 local checks = 0

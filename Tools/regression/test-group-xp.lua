@@ -8,7 +8,7 @@ local function Noop() end
 local NOOP_META = { __index = function() return Noop end }
 local DEFAULTS = { enabled = true, groupXP = true, groupXPShowSelf = true, groupXPWidth = 260,
     groupXPFont = "", groupXPFontSize = 12, groupXPOutline = "OUTLINE", groupXPTexture = "", groupXPBgAlpha = 0.85 }
-local GRADIENT = "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga"
+local GRADIENT = "Interface\\AddOns\\NaowhForever\\Core\\Media\\NaowhGradient.tga"
 
 local function boot(settings)
     local s = { now = 0, timers = {}, sent = {}, created = {}, combat = false, group = true,
@@ -35,18 +35,19 @@ local function boot(settings)
         function f:SetValue(v) self.value = v end
         return f
     end
-    local ns = { THEME = { bg = {}, accent = { r = 0, g = 0.5, b = 1 } },
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), QoLConstants = dofile("Tools/regression/qol_constants.lua"), THEME = { bg = {}, accent = { r = 0, g = 0.5, b = 1 } },
         Font = function(parent)
             local fs = frame("FontString", nil, parent)
             parent.fonts[#parent.fonts + 1] = fs
             return fs
         end,
         Solid = function() return frame("Texture") end, Border = function() return frame("Border") end,
-        Apply = function() end, ShowRaidReminderAnchorConfig = function() end,
-        HideRaidReminderAnchorConfig = function() end,
+        Apply = function() end, ShowUnlockMode = function() end,
+        HideUnlockMode = function() end,
         UI = { AttachMover = function() return frame("Mover") end,
             TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
-        Shared = { Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline end } } }
+        Shared = { Style = dofile("Tools/regression/shared_style.lua"),
+            Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline end } } }
     ns.QoLSettings = {
         Get = function(k)
             local v = s.settings[k]
@@ -93,8 +94,8 @@ local function boot(settings)
         end,
     }
     setmetatable(env, { __index = _G })
-    local senders = assert(loadfile("Core/NaowhForever_Senders.lua")); setfenv(senders, env); senders()
-    local f = assert(io.open("QoL/NaowhForever_GroupXP.lua", "rb"))
+    local senders = assert(loadfile("Core/Senders.lua")); setfenv(senders, env); senders()
+    local f = assert(io.open("NaowhForever_QoL/XP/GroupXP.lua", "rb"))
     local src = f:read("*a"); f:close()
     local chunk = assert(loadstring(src, "GroupXP")); setfenv(chunk, env); chunk()
     local events, bootFrame = s.created[1], s.created[2]
@@ -282,7 +283,7 @@ do
     s.fire("CHAT_MSG_ADDON", SECRET, "2 Player-1-02 21 300 1200", "PARTY", "Tank Ironhide")
     s.fire("CHAT_MSG_ADDON", "NaowhGroupXP", "2 Player-1-02 21 300 1200", SECRET, "Tank Ironhide")
     check("a secret prefix or channel is skipped before it is compared", s.rows() == before)
-    s.msg("2 |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t 60 1 2", "Tank Ironhide")
+    s.msg("2 |TInterface\\AddOns\\NaowhForever\\Core\\Badges\\Media\\BadgeNaowhChat.tga:0|t 60 1 2", "Tank Ironhide")
     s.msg("2 %s%d%n 60 1 2", "Tank Ironhide")
     s.msg("2 Player-9-ABCDEF 60 1 2", "Stranger")
     check("a GUID that is not a player's, or not in the group, keeps nothing", s.rows() == before)

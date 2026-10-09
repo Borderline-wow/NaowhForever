@@ -1,0 +1,15 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- PvP.xml: the PvP module's files, in load order. -->
+    <Script file="Data\Spells.lua"/>
+    <Script file="PvP.lua"/>
+    <Script file="AuraRows.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\Icon.lua"/>
+    <Script file="View\AuraPanel.lua"/>
+    <Script file="Auras.lua"/>
+    <Script file="Displays.lua"/>
+    <Script file="UI\AurasPreview.lua"/>
+    <Script file="UI\SpellGrid.lua"/>
+    <Script file="UI\AurasPage.lua"/>
+    <Script file="UI\BattlegroundsPage.lua"/>
+</Ui>

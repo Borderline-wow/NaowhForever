@@ -10,8 +10,8 @@ end
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
-local panelSrc = Read("QoL/NaowhForever_MapPinsPanel.lua")
-local townSrc = Read("QoL/NaowhForever_TownMap.lua")
+local panelSrc = Read("NaowhForever_QoL/Interface/MapPinsPanel.lua")
+local townSrc = Read("NaowhForever_QoL/Interface/TownMap.lua")
 for _, key in ipairs({ "townCapitalsOnly", "townMinimap", "townMinimapSpirit", "townSpiritHealers", "townZoneLinks", "townTravel",
     "townClass", "townProfession", "townFlight", "townInn", "townBank", "townRepair", "townSupplies",
     "townStable", "townVendors", "townMail" }) do
@@ -19,7 +19,7 @@ for _, key in ipairs({ "townCapitalsOnly", "townMinimap", "townMinimapSpirit", "
     Check(not townSrc:find('key = "' .. key .. '"', 1, true), "not on the options card: " .. key)
 end
 Check(townSrc:find('key = "townPinSize"', 1, true), "the card keeps Pin Size")
-Check(Read("QoL/NaowhForever_TownMap.xml"):find('<Script file="NaowhForever_MapPinsPanel.lua"/>', 1, true),
+Check(Read("NaowhForever_QoL/Interface/TownMap.xml"):find('<Script file="MapPinsPanel.lua"/>', 1, true),
     "the panel loads")
 
 local settings = { enabled = true, townMap = false }
@@ -57,7 +57,7 @@ local function NewFrame()
 end
 ns.Solid = function() return { SetAllPoints = function() end, SetPoint = function() end } end
 ns.Hairline = function() end
-ns.Shared = { Style = { BACKDROP_ALPHA = 0.97, BORDER_RGB = {} } }
+ns.Shared = { Style = { BACKDROP_ALPHA = 0.97, BORDER_RGB = {}, LOGO_SMALL = "LogoSmall" } }
 ns.Border = function() return { SetColor = function() end } end
 ns.Tooltip = function() end
 local function Text() return { SetPoint = function() end, SetText = function() end, SetJustifyH = function() end,
@@ -85,7 +85,7 @@ local env = setmetatable({
         overlayFrames = { MapButton(-4), MapButton(-36), { IsShown = function() return true end,
             GetNumPoints = function() return 1 end, GetPoint = function() return "BOTTOMLEFT", canvas, "BOTTOMLEFT", 0 end } } },
 }, { __index = _G })
-local chunk = assert(loadstring(Read("QoL/NaowhForever_MapPinsPanel.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/MapPinsPanel.lua")))
 setfenv(chunk, env)
 chunk()
 boot.scripts.OnEvent(boot)

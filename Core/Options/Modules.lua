@@ -1,0 +1,319 @@
+-- Modules.lua: the options window's modules and pages, and turning a module on or off (ns.Options).
+local ns = _G.NaowhForever
+local UI = ns.UI
+
+local PROFILES_PAGE = "Profiles"
+local QOL = "QoL"
+local TEXT_QOL = "Quality of Life"
+local TEXT_AND = " and "
+local TEXT_SWITCH = "%s %s?"
+local TEXT_ENABLE, TEXT_DISABLE = "Enable", "Disable"
+local TEXT_NEEDS_THEM = " It needs %s, so %s will be %sd."
+local TEXT_NEEDED_BY = " %s needs it, so %s will be %sd."
+local TEXT_BOTH, TEXT_ALL_OF_THEM = "both", "all of them"
+local TEXT_YES_BOTH, TEXT_YES_ALL = " Both", " All"
+local TEXT_CANCEL = "Cancel"
+local TEXT_RELOAD = "%s will be %sd when you reload. Reload now?"
+
+local SYSTEM_PAGES = {
+    { name = "Settings", build = "BuildSettingsPage", reuse = true,
+      subtitle = "Options for the whole addon, saved for this computer." },
+    { name = "Patch Notes", reuse = true, subtitle = "What changed in recent builds." },
+    { name = "Credits", build = "BuildCreditsPage", reuse = true, subtitle = "The people and projects behind Naowh Forever." },
+    { name = PROFILES_PAGE, build = "BuildProfileSettings", reuse = true,
+      subtitle = "Switch, copy and share everything these pages save." },
+}
+
+local MODULES = {
+    { name = "QoL", navIcon = "checklist", settings = "QoLSettings", addon = "NaowhForever_QoL",
+      subtitle = "Naowh's quality of life tweaks, trimmed to what Forever has.",
+      tabs = {
+          { name = "Interface", reuse = true },
+          { name = "Cursor", reuse = true },
+          { name = "Combat", reuse = true },
+          { name = "Questing & Group", reuse = true },
+          { name = "XP", reuse = true },
+          { name = "Loot & Items", reuse = true },
+          { name = "Travel", reuse = true },
+          { name = "System", reuse = true },
+      } },
+    { name = "Dungeon Journal", group = "ADVENTURE", navIcon = "map", settings = "JournalSettings",
+      addon = "NaowhForever_DungeonJournal",
+      open = "ToggleJournalWindow",
+      command = "journal", alias = "dj", short = "Journal", icon = "Interface\\Icons\\INV_Misc_Book_09",
+      subtitle = "Every dungeon and raid: what drops, your quests, and more.",
+      tabs = {
+          { name = "Journal", reuse = true },
+          { name = "Quest Tracker", reuse = true },
+          { name = "Map", reuse = true },
+      } },
+    { name = "BiS List", group = "ADVENTURE", navIcon = "trophy", settings = "QoLSettings", enabledKey = "bis",
+      addon = "NaowhForever_BiS",
+      open = "ToggleBisWindow",
+      command = "bis", short = "BiS", icon = "Interface\\Icons\\INV_Sword_39",
+      subtitle = "Your best-in-slot list, marked on tooltips and called out when it drops.",
+      tabs = {
+          { name = "Settings", reuse = true },
+          { name = "Character", reuse = true },
+      } },
+    { name = "Training Planner", group = "ADVENTURE", navIcon = "notes", settings = "TrainingSettings",
+      addon = "NaowhForever_Training", needs = { "NaowhForever_Professions" },
+      open = "ToggleTrainingWindow",
+      command = "training", short = "Training", icon = "Interface\\Icons\\INV_Misc_Book_11",
+      subtitle = "What you can train now, what each level brings and what it costs.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Discovery", group = "ADVENTURE", navIcon = "compass", settings = "DiscoverySettings",
+      addon = "NaowhForever_Discovery",
+      open = "ToggleDiscoveryWindow",
+      command = "discovery", short = "Discovery", icon = "Interface\\Icons\\INV_Misc_Book_07",
+      subtitle = "Library books to find around Azeroth, and who to hand them to.",
+      tabs = {
+          { name = "Library Books", reuse = true },
+          { name = "Sleeping Bag", reuse = true },
+      } },
+    { name = "Completo", group = "ADVENTURE", navIcon = "checklist", settings = "CompletoSettings",
+      addon = "NaowhForever_Completo",
+      open = "ToggleCompletoWindow",
+      command = "completo", short = "Completo", icon = "Interface\\Icons\\INV_Misc_Book_08",
+      subtitle = "Everything there is to do, and how much of it you have done.",
+      tabs = {
+          { name = "General", reuse = true },
+          { name = "Quests", reuse = true },
+          { name = "Rares", reuse = true },
+      } },
+    { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
+      addon = "NaowhForever_GearSets",
+      open = "ToggleGearSetsWindow",
+      command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
+      subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Blessings", group = "COMBAT", navIcon = "spark", settings = "QoLSettings", enabledKey = "blessings",
+      addon = "NaowhForever_Blessings",
+      open = "ToggleBlessingsWindow",
+      command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
+      subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Professions", group = "ADVENTURE", navIcon = "hammer", settings = "ProfessionSettings",
+      addon = "NaowhForever_Professions",
+      subtitle = "Recipes, reagents and crafting in one window, with the recipes you have not learned yet.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Macros", group = "UTILITIES", navIcon = "pen", settings = "MacroSettings",
+      addon = "NaowhForever_Macros",
+      open = "ToggleMacroWindow",
+      command = "macros", short = "Macros", icon = "Interface\\Icons\\INV_Misc_Note_01",
+      subtitle = "Naowh's Forge: your macros, checked and explained, and macros kept current for you.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Action Bars", group = "UTILITIES", navIcon = "grid", settings = "ActionBarSettings",
+      addon = "NaowhForever_ActionBars",
+      open = "ToggleActionBarsWindow",
+      command = "bars", short = "Bars", icon = "Interface\\Icons\\INV_Misc_Gear_01",
+      subtitle = "Your action bars saved by name and put back whenever you want them.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "AuraBuffs", group = "COMBAT", navIcon = "aura", settings = "AuraBuffSettings",
+      addon = "NaowhForever_AuraBuffs",
+      open = "ToggleAuraBuffsWindow",
+      command = "buffs", short = "Buffs", icon = "Interface\\Icons\\Spell_Holy_WordFortitude",
+      subtitle = "Buff, consumable and campfire reminders, and a low health warning.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Threat Meter", group = "COMBAT", navIcon = "bars", settings = "ThreatMeterSettings",
+      addon = "NaowhForever_ThreatMeter",
+      command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
+      subtitle = "Threat on your target for the whole group, and a warning before you pull.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "Group Inspect", group = "COMBAT", navIcon = "group", settings = "QoLSettings",
+      enabledKey = "groupInspect", addon = "NaowhForever_GroupInspect", needs = { "NaowhForever_BiS" },
+      open = "ToggleGroupInspect",
+      command = "group", short = "Group", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
+      subtitle = "Everyone in your party or raid: their Naowh Score, gear, talents and stats.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+    { name = "PvP", group = "COMBAT", navIcon = "swords", settings = "PvPSettings",
+      addon = "NaowhForever_PvP",
+      command = "pvp", short = "PvP", icon = "Interface\\Icons\\INV_Sword_27",
+      subtitle = "What your target is doing in a fight: their short buffs and the crowd control on them.",
+      tabs = {
+          { name = "Auras", reuse = true },
+          { name = "Battlegrounds", reuse = true },
+      } },
+    { name = "Top Bar", settings = "TopBarSettings", addon = "NaowhForever_TopBar", needs = { "NaowhForever_QoL" },
+      subtitle = "Your buttons on either side of an optional clock, with FPS and latency underneath.",
+      tabs = {} },
+    { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
+      addon = "NaowhForever_SwingTimer",
+      subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
+}
+
+local Options = {}
+ns.Options = Options
+UI.PROFILES_PAGE = PROFILES_PAGE
+
+local PAGES = {}
+
+local function DisplayName(mod)
+    return ns.L(mod.name == QOL and TEXT_QOL or mod.name)
+end
+
+local function Loaded(mod)
+    return not mod.addon or C_AddOns.IsAddOnLoaded(mod.addon)
+end
+
+local function Has(list, value)
+    for _, v in ipairs(list or {}) do
+        if v == value then return true end
+    end
+    return false
+end
+
+local function LinkedTo(cur, other, on)
+    if on then return Has(cur.needs, other.addon) end
+    return Has(other.needs, cur.addon)
+end
+
+local function Linked(mod, on)
+    local mods, seen = { mod }, { [mod.addon] = true }
+    local i = 1
+    while mods[i] do
+        local cur = mods[i]
+        for _, other in ipairs(MODULES) do
+            if other.addon and not seen[other.addon] and LinkedTo(cur, other, on) then
+                seen[other.addon] = true
+                mods[#mods + 1] = other
+            end
+        end
+        i = i + 1
+    end
+    return mods
+end
+
+local function NameList(mods)
+    local names = {}
+    for i, m in ipairs(mods) do names[i] = DisplayName(m) end
+    if #names == 1 then return names[1] end
+    return table.concat(names, ", ", 1, #names - 1) .. TEXT_AND .. names[#names]
+end
+
+local function SwitchQuestion(mod, mods, on, verb)
+    local text = TEXT_SWITCH:format(on and TEXT_ENABLE or TEXT_DISABLE, DisplayName(mod))
+    if #mods == 1 then return text end
+    local others = { unpack(mods, 2) }
+    return text .. (on and TEXT_NEEDS_THEM or TEXT_NEEDED_BY)
+        :format(NameList(others), #mods == 2 and TEXT_BOTH or TEXT_ALL_OF_THEM, verb)
+end
+
+local function SwitchModuleAddon(mod, on)
+    local mods = Linked(mod, on)
+    local verb = on and "enable" or "disable"
+    local text = SwitchQuestion(mod, mods, on, verb)
+    local yes = (on and TEXT_ENABLE or TEXT_DISABLE) .. (#mods == 2 and TEXT_YES_BOTH or #mods > 2 and TEXT_YES_ALL or "")
+    ns.Confirm(text, function()
+        for _, m in ipairs(mods) do
+            if on then C_AddOns.EnableAddOn(m.addon) else C_AddOns.DisableAddOn(m.addon) end
+        end
+        UI:RefreshPage(true)
+        ns.ConfirmReload(TEXT_RELOAD:format(NameList(mods), verb))
+    end, function() UI:RefreshPage(true) end, yes, TEXT_CANCEL)
+end
+
+local function ModuleOn(mod)
+    if mod.addon and C_AddOns.GetAddOnEnableState(mod.addon) == 0 then return false end
+    if mod.settings then
+        local store = ns[mod.settings]
+        return store ~= nil and store.Get(mod.enabledKey or "enabled")
+    end
+    return true
+end
+
+function ns.ModuleSwitches()
+    local list = {}
+    for _, mod in ipairs(MODULES) do
+        local store = mod.addon and mod.settings and ns[mod.settings]
+        if store then
+            list[#list + 1] = { name = DisplayName(mod), store = store, key = mod.enabledKey or "enabled" }
+        end
+    end
+    return list
+end
+
+function ns.ModuleAddons()
+    local list = {}
+    for _, mod in ipairs(MODULES) do
+        if mod.addon then
+            list[#list + 1] = { name = DisplayName(mod), addon = mod.addon, store = mod.settings and ns[mod.settings],
+                key = mod.enabledKey or "enabled", on = ModuleOn(mod) }
+        end
+    end
+    return list
+end
+
+function ns.LinkedAddons(addon, on)
+    for _, mod in ipairs(MODULES) do
+        if mod.addon == addon then
+            local names = {}
+            for i, m in ipairs(Linked(mod, on)) do names[i] = m.addon end
+            return names
+        end
+    end
+    return { addon }
+end
+
+local function SetModuleOn(mod, on)
+    if mod.addon and not on then return SwitchModuleAddon(mod, false) end
+    local store = mod.settings and ns[mod.settings]
+    if mod.settings and not store then return SwitchModuleAddon(mod, true) end
+    if mod.addon then
+        for _, m in ipairs(Linked(mod, true)) do C_AddOns.EnableAddOn(m.addon) end
+    end
+    if store then store.Set(mod.enabledKey or "enabled", on) end
+    UI:RefreshPage(true)
+end
+
+function ns.TurnOnModule(addon)
+    for _, mod in ipairs(MODULES) do
+        if mod.addon == addon then return SetModuleOn(mod, true) end
+    end
+end
+
+local function MinimapButtonOn(mod)
+    local account = ns.AccountSettings()
+    return account.microMenu and account.microMenu.buttons[mod.name] == true
+end
+
+local function AddPages()
+    for _, page in ipairs(SYSTEM_PAGES) do
+        page.key, page.title = page.name, page.name
+        PAGES[page.key] = page
+    end
+    for _, mod in ipairs(MODULES) do
+        for _, tab in ipairs(mod.tabs) do
+            tab.key, tab.module = mod.name .. "/" .. tab.name, mod
+            PAGES[tab.key] = tab
+        end
+    end
+end
+
+AddPages()
+
+Options.SYSTEM_PAGES, Options.MODULES, Options.PAGES = SYSTEM_PAGES, MODULES, PAGES
+Options.DisplayName, Options.Loaded, Options.NameList = DisplayName, Loaded, NameList
+Options.ModuleOn, Options.SetModuleOn, Options.SwitchModuleAddon = ModuleOn, SetModuleOn, SwitchModuleAddon
+Options.MinimapButtonOn = MinimapButtonOn

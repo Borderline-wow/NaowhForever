@@ -1,46 +1,47 @@
--------------------------------------------------------------------------------
---  View/Paperdoll.lua -- your character as the game's character frame lays it out
---  (ns.BiS.View.Paperdoll): eight slots down each side, the weapons underneath, each showing
---  the slot's BiS in its quality's edge with a check once it is yours (green while you wear
---  it). Over the model a switch: it wears
---  your whole BiS, or what you wear now (where hovering a slot tries its BiS on); drag it to
---  turn it, scroll to zoom, right-click to set it straight. Under it, what your BiS gets you
---  over what you wear. Hover a slot to light its row; a click opens its picker.
--------------------------------------------------------------------------------
+-- Paperdoll.lua: your character in your BiS, its slots as the game lays them out (B.View.Paperdoll).
 local ns = _G.NaowhForever
-local Tip = ns.Shared.Parts.Tip
+
 local T = ns.THEME
 local B = ns.BiS
+local C = B.C
 local Shared = ns.Shared
 local Items, Parts = Shared.Items, Shared.Parts
-
+local Tip = Parts.Tip
 local St = B.Style
+
+local OFF_HAND, RANGED = C.OFF_HAND, C.RANGED
 local SLOT, SLOT_GAP, MODEL_GAP, DOLL_W = St.SLOT, St.SLOT_GAP, St.MODEL_GAP, St.DOLL_W
 local LOOK_W, TURN_SPEED, ZOOM_STEP, ZOOM_MAX = St.LOOK_W, St.TURN_SPEED, St.ZOOM_STEP, St.ZOOM_MAX
 local CAMERA, GAINS_H, BORDER_RGB = St.CAMERA, St.GAINS_H, St.BORDER_RGB
-local WORN_DROP = 2     -- what you wear: its green line this far under the icon
-local PLACE_DOT = St.PLACE_DOT
-
--- The game's own order: shirt and tabard on the left too, shown but not for picking.
+local PLACE_DOT, TITLE_RGB, IDLE_RGB = St.PLACE_DOT, St.TIP_TITLE_RGB, St.GOLD_RGB
+local CROP_IN, CROP_OUT = St.CROP_IN, St.CROP_OUT
+local WORN_DROP, WORN_H = 2, 2
+local TOP_H = St.TAB_H + 8
+local HINT_Y = 6
+local COSMETIC_ALPHA = 0.5
+local MODEL_ALPHA = 0.35
+local WORN_KEY = 20
 local LEFT_SLOTS = { 1, 2, 3, 15, 5, 4, 19, 9 }
 local RIGHT_SLOTS = { 10, 6, 7, 8, 11, 12, 13, 14 }
 local BOTTOM_SLOTS = { 16, 17, 18 }
-local COSMETIC = { [4] = "Shirt", [19] = "Tabard" }
 local COLUMN_H = #RIGHT_SLOTS * (SLOT + SLOT_GAP) - SLOT_GAP
-local TOP_H = St.TAB_H + 8     -- the switch's strip over the slots and the model, clear of the hat
 local DOLL_H = TOP_H + COLUMN_H + MODEL_GAP + SLOT + GAINS_H
-
--- The weapons go in their hand; the ranged slot is left out, as trying it on takes a hand.
+local COSMETIC = { [4] = "Shirt", [19] = "Tabard" }
 local HAND = { [16] = "MAINHANDSLOT", [17] = "SECONDARYHANDSLOT" }
-
 local LOOKS = { { key = "bis", label = "Your BiS" }, { key = "now", label = "Now" } }
+local HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
+local FOREVER_KIND = C.FOREVER_KIND
+local TEXT_NO_STATS = "No stats: wear what you like."
+local TEXT_PICK_BIS = "Click to pick your BiS."
+local TEXT_YOUR_PICKS = "Your %s picks"
+local TEXT_OFF_HAND_IDLE = "Unused while your main hand's BiS is a two-hander."
+local TEXT_NOT_YOURS = "Not yours yet."
+local TEXT_CHANGE = "Click to change them."
+local TEXT_HINT = "Drag to turn" .. PLACE_DOT .. "Scroll to zoom" .. PLACE_DOT .. "Right-click to reset"
+local BLANK = " "
 
-
--------------------------------------------------------------------------------
---  The model: your BiS on it, or what you wear; turned by dragging, zoomed by scrolling
--------------------------------------------------------------------------------
 local function TryOn(model, slot, id)
-    model:TryOn(select(2, C_Item.GetItemInfo(id)) or "item:" .. id, HAND[slot])
+    model:TryOn(select(2, C_Item.GetItemInfo(id)) or ("item:" .. id), HAND[slot])
 end
 
 local function Dress(model)
@@ -52,7 +53,7 @@ local function Dress(model)
     for _, gear in ipairs(Items.GEAR_SLOTS) do
         local slot = gear[1]
         local id = doll.list.slots[slot]
-        if id and slot ~= 18 and not (slot == 17 and idle) then TryOn(model, slot, id) end
+        if id and slot ~= RANGED and not (slot == OFF_HAND and idle) then TryOn(model, slot, id) end
     end
 end
 
@@ -96,13 +97,33 @@ local function ModelHidden(model)
     model:SetScript("OnUpdate", nil)
 end
 
--------------------------------------------------------------------------------
---  The slots
--------------------------------------------------------------------------------
 local function CosmeticEnter(button)
     if not Tip(button, "ANCHOR_RIGHT") then return end
-    GameTooltip:SetText(COSMETIC[button.slot], 1, 1, 1)
-    GameTooltip:AddLine("No stats: wear what you like.", T.muted.r, T.muted.g, T.muted.b)
+    GameTooltip:SetText(COSMETIC[button.slot], TITLE_RGB.r, TITLE_RGB.g, TITLE_RGB.b)
+    GameTooltip:AddLine(TEXT_NO_STATS, T.muted.r, T.muted.g, T.muted.b)
+    GameTooltip:Show()
+end
+
+local function EmptyTip(label)
+    GameTooltip:SetText(label, TITLE_RGB.r, TITLE_RGB.g, TITLE_RGB.b)
+    GameTooltip:AddLine(TEXT_PICK_BIS, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
+    GameTooltip:Show()
+end
+
+local function PicksTip(doll, slot, picks, label)
+    local soft, muted = T.accentSoft, T.muted
+    GameTooltip:SetItemByID(picks[1])
+    GameTooltip:AddLine(BLANK)
+    GameTooltip:AddLine(TEXT_YOUR_PICKS:format(label), soft.r, soft.g, soft.b)
+    for rank, id in ipairs(picks) do
+        GameTooltip:AddLine(Parts.RankMark(rank) .. " " .. Items.QualityHex(id) .. Items.Name(id) .. "|r")
+    end
+    if slot == OFF_HAND and B.OffHandIdle(doll.list) then
+        GameTooltip:AddLine(TEXT_OFF_HAND_IDLE, IDLE_RGB.r, IDLE_RGB.g, IDLE_RGB.b, true)
+    elseif not Items.Owned(picks[1]) then
+        GameTooltip:AddLine(TEXT_NOT_YOURS, muted.r, muted.g, muted.b)
+    end
+    GameTooltip:AddLine(TEXT_CHANGE, muted.r, muted.g, muted.b)
     GameTooltip:Show()
 end
 
@@ -113,25 +134,9 @@ local function SlotEnter(button)
     local picks = B.Picks(doll.list, slot, doll.picks)
     local label = ns.L(Items.SLOT_NAME[slot])
     if not Tip(button, "ANCHOR_RIGHT") then return end
-    if not picks[1] then
-        GameTooltip:SetText(label, 1, 1, 1)
-        GameTooltip:AddLine("Click to pick your BiS.", T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-        return GameTooltip:Show()
-    end
-    if doll.look == "now" and slot ~= 18 then TryOn(doll.model, slot, picks[1]) end
-    GameTooltip:SetItemByID(picks[1])
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(("Your %s picks"):format(label), T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    for rank, id in ipairs(picks) do
-        GameTooltip:AddLine(Parts.RankMark(rank) .. " " .. Items.QualityHex(id) .. Items.Name(id) .. "|r")
-    end
-    if slot == 17 and B.OffHandIdle(doll.list) then
-        GameTooltip:AddLine("Unused while your main hand's BiS is a two-hander.", 1, 0.82, 0, true)
-    elseif not Items.Owned(picks[1]) then
-        GameTooltip:AddLine("Not yours yet.", T.muted.r, T.muted.g, T.muted.b)
-    end
-    GameTooltip:AddLine("Click to change them.", T.muted.r, T.muted.g, T.muted.b)
-    GameTooltip:Show()
+    if not picks[1] then return EmptyTip(label) end
+    if doll.look == "now" and slot ~= RANGED then TryOn(doll.model, slot, picks[1]) end
+    PicksTip(doll, slot, picks, label)
 end
 
 local function SlotLeave(button)
@@ -145,6 +150,24 @@ local function SlotClicked(button)
     button:GetParent().onClick(button.slot, button)
 end
 
+local function Cosmetic(button, slot)
+    button.icon:SetTexture(select(2, C_PaperDollInfo.GetInventorySlotInfoForInvSlot(slot)))
+    button.icon:SetTexCoord(0, 1, 0, 1)
+    button.icon:SetDesaturated(true)
+    button:SetAlpha(COSMETIC_ALPHA)
+    button:SetScript("OnEnter", CosmeticEnter)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+local function WornLine(button)
+    local worn = ns.Solid(button, "ARTWORK", St.HAVE_RGB, 1)
+    worn:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -WORN_DROP)
+    worn:SetPoint("TOPRIGHT", button, "BOTTOMRIGHT", 0, -WORN_DROP)
+    worn:SetHeight(WORN_H)
+    worn:Hide()
+    return worn
+end
+
 local function SlotButton(doll, slot, x, y)
     local button = CreateFrame("Button", nil, doll)
     button:SetSize(SLOT, SLOT)
@@ -153,104 +176,54 @@ local function SlotButton(doll, slot, x, y)
     local icon = Parts.ItemIcon(button, SLOT)
     icon:SetAllPoints()
     button.iconFrame, button.icon, button.edge = icon, icon.texture, icon.edge
-    if COSMETIC[slot] then
-        button.icon:SetTexture(select(2, C_PaperDollInfo.GetInventorySlotInfoForInvSlot(slot)))
-        button.icon:SetTexCoord(0, 1, 0, 1)
-        button.icon:SetDesaturated(true)
-        button:SetAlpha(0.5)
-        button:SetScript("OnEnter", CosmeticEnter)
-        button:SetScript("OnLeave", GameTooltip_Hide)
-        return
-    end
+    if COSMETIC[slot] then return Cosmetic(button, slot) end
     button.wand = B.View.EnchantBadge(button)
-    -- The marks every slot of ours has (its item level, Forever's mark; no star, as every slot
-    -- here is your BiS); and what you wear, a green line under the icon, as the list's rows
-    -- have one at their edge.
     button.marks = Parts.ItemMarks(icon, SLOT)
-    button.worn = ns.Solid(button, "ARTWORK", St.HAVE_RGB, 1)
-    button.worn:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -WORN_DROP)
-    button.worn:SetPoint("TOPRIGHT", button, "BOTTOMRIGHT", 0, -WORN_DROP)
-    button.worn:SetHeight(2)
-    button.worn:Hide()
-    button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    button.worn = WornLine(button)
+    button:SetHighlightTexture(HIGHLIGHT, "ADD")
     button:SetScript("OnClick", SlotClicked)
     button:SetScript("OnEnter", SlotEnter)
     button:SetScript("OnLeave", SlotLeave)
     doll.buttons[#doll.buttons + 1] = button
 end
 
--------------------------------------------------------------------------------
---  The doll
--------------------------------------------------------------------------------
-local Doll = {}
-
--- A number that changes when a slot's BiS, or what you wear, does: the model is dressed and
--- the gains read again only then.
 local function Outfit(list)
     local sum = 0
     for _, gear in ipairs(Items.GEAR_SLOTS) do
         local slot = gear[1]
-        sum = sum + (list.slots[slot] or 0) * slot + (GetInventoryItemID("player", slot) or 0) * (slot + 20)
+        sum = sum + (list.slots[slot] or 0) * slot + (GetInventoryItemID("player", slot) or 0) * (slot + WORN_KEY)
     end
     return sum
 end
 
--- Again, now that an item has loaded.
-function Doll:Refresh()
-    self.outfit = nil
-    self:Paint(self.list)
-end
-
-function Doll:Paint(list)
-    self.list = list
-    for _, button in ipairs(self.buttons) do
-        local slot = button.slot
-        local id = list.slots[slot]
-        if id then
-            button.icon:SetTexture(C_Item.GetItemIconByID(id))
-            button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        else
-            button.icon:SetTexture(select(2, C_PaperDollInfo.GetInventorySlotInfoForInvSlot(slot)))
-            button.icon:SetTexCoord(0, 1, 0, 1)
-        end
-        local edge = id and Items.QualityColor(id) or BORDER_RGB
-        button.edge:SetColor(edge.r, edge.g, edge.b, 1)
-        button.icon:SetDesaturated(slot == 17 and B.OffHandIdle(list))
-        button.worn:SetShown(id ~= nil and Items.Wearing(slot, id))
-        Parts.PaintItemMarks(button.marks, id and (B.Rankings.ItemLevel(id) or C_Item.GetDetailedItemLevelInfo(id)),
-            nil, Parts.IsForever("items", id))
-        B.View.PaintEnchantBadge(button.wand, slot)
-    end
-    local outfit = Outfit(list)
-    if outfit == self.outfit then return end
-    self.outfit = outfit
-    Dress(self.model)
-    local gains = B.View.PaintScoreCard(self.gainsBlock, list, self.look)
-    if gains.waiting then
-        local ids = wipe(self.ids)
-        for _, gear in ipairs(Items.GEAR_SLOTS) do ids[#ids + 1] = list.slots[gear[1]] end
-        Items.OnLoaded(ids, self.refreshFn)
+local function PaintIcon(button, slot, id)
+    if id then
+        button.icon:SetTexture(C_Item.GetItemIconByID(id))
+        button.icon:SetTexCoord(CROP_IN, CROP_OUT, CROP_IN, CROP_OUT)
+    else
+        button.icon:SetTexture(select(2, C_PaperDollInfo.GetInventorySlotInfoForInvSlot(slot)))
+        button.icon:SetTexCoord(0, 1, 0, 1)
     end
 end
 
-function Doll:SetLook(key)
-    self.look = key
-    Parts.PaintTabs(self.looks, key)
-    Dress(self.model)
-    B.View.PaintScoreLook(self.gainsBlock, key)
+local function PaintButton(button, list)
+    local slot = button.slot
+    local id = list.slots[slot]
+    PaintIcon(button, slot, id)
+    local edge = id and Items.QualityColor(id) or BORDER_RGB
+    button.edge:SetColor(edge.r, edge.g, edge.b, 1)
+    button.icon:SetDesaturated(slot == OFF_HAND and B.OffHandIdle(list))
+    button.worn:SetShown(id ~= nil and Items.Wearing(slot, id))
+    Parts.PaintItemMarks(button.marks, id and (B.Rankings.ItemLevel(id) or C_Item.GetDetailedItemLevelInfo(id)),
+        nil, Parts.IsForever(FOREVER_KIND, id))
+    B.View.PaintEnchantBadge(button.wand, slot)
 end
 
--- onHover(slot or nil) and onClick(slot, button) are the caller's.
-function B.View.Paperdoll(parent, onHover, onClick)
-    local doll = Mixin(CreateFrame("Frame", nil, parent), Doll)
-    doll:SetSize(DOLL_W, DOLL_H)
-    doll.buttons, doll.picks, doll.ids, doll.onHover, doll.onClick = {}, {}, {}, onHover, onClick
-    doll.look = "bis"
-    doll.refreshFn = function() doll:Refresh() end
+local function Model(doll)
     local model = CreateFrame("DressUpModel", nil, doll)
     model:SetPoint("TOPLEFT", SLOT + MODEL_GAP, -TOP_H)
     model:SetSize(DOLL_W - 2 * (SLOT + MODEL_GAP), COLUMN_H)
-    ns.Solid(doll, "BACKGROUND", T.panel, 0.35):SetAllPoints(model)
+    ns.Solid(doll, "BACKGROUND", T.panel, MODEL_ALPHA):SetAllPoints(model)
     model:EnableMouse(true)
     model:EnableMouseWheel(true)
     model:SetScript("OnShow", ModelShown)
@@ -260,26 +233,65 @@ function B.View.Paperdoll(parent, onHover, onClick)
     model:SetScript("OnMouseUp", ModelUp)
     model:SetScript("OnMouseWheel", ModelWheel)
     Straighten(model)
-    doll.model = model
-    doll.looks = Parts.Tabs(doll, LOOK_W, LOOKS, function(key) doll:SetLook(key) end)
-    doll.looks:SetPoint("TOP", doll, "TOP", 0, 0)
-    Parts.PaintTabs(doll.looks, doll.look)
-    local hint = ns.Font(doll, 10, nil, T.muted)
-    hint:SetPoint("BOTTOM", model, "BOTTOM", 0, 6)
-    hint:SetText("Drag to turn" .. PLACE_DOT .. "Scroll to zoom" .. PLACE_DOT .. "Right-click to reset")
-    for i, slot in ipairs(LEFT_SLOTS) do SlotButton(doll, slot, 0, -(TOP_H + (i - 1) * (SLOT + SLOT_GAP))) end
-    for i, slot in ipairs(RIGHT_SLOTS) do
-        SlotButton(doll, slot, DOLL_W - SLOT, -(TOP_H + (i - 1) * (SLOT + SLOT_GAP)))
-    end
+    return model
+end
+
+local function Slots(doll)
+    local row = SLOT + SLOT_GAP
+    for i, slot in ipairs(LEFT_SLOTS) do SlotButton(doll, slot, 0, -(TOP_H + (i - 1) * row)) end
+    for i, slot in ipairs(RIGHT_SLOTS) do SlotButton(doll, slot, DOLL_W - SLOT, -(TOP_H + (i - 1) * row)) end
     local step = SLOT + MODEL_GAP
     local left = (DOLL_W - #BOTTOM_SLOTS * step + MODEL_GAP) / 2
     for i, slot in ipairs(BOTTOM_SLOTS) do
         SlotButton(doll, slot, left + (i - 1) * step, -(TOP_H + COLUMN_H + MODEL_GAP))
     end
-    -- The score card under the weapons.
+end
+
+local Doll = {}
+
+function Doll:Refresh()
+    self.outfit = nil
+    self:Paint(self.list)
+end
+
+function Doll:Paint(list)
+    self.list = list
+    for _, button in ipairs(self.buttons) do PaintButton(button, list) end
+    local outfit = Outfit(list)
+    if outfit == self.outfit then return end
+    self.outfit = outfit
+    Dress(self.model)
+    local gains = B.View.PaintScoreCard(self.gainsBlock, list, self.look)
+    if not gains.waiting then return end
+    local ids = wipe(self.ids)
+    for _, gear in ipairs(Items.GEAR_SLOTS) do ids[#ids + 1] = list.slots[gear[1]] end
+    Items.OnLoaded(ids, self.refreshFn)
+end
+
+function Doll:SetLook(key)
+    self.look = key
+    Parts.PaintTabs(self.looks, key)
+    Dress(self.model)
+    B.View.PaintScoreLook(self.gainsBlock, key)
+end
+
+function B.View.Paperdoll(parent, onHover, onClick)
+    local doll = Mixin(CreateFrame("Frame", nil, parent), Doll)
+    doll:SetSize(DOLL_W, DOLL_H)
+    doll.buttons, doll.picks, doll.ids, doll.onHover, doll.onClick = {}, {}, {}, onHover, onClick
+    doll.look = "bis"
+    doll.refreshFn = function() doll:Refresh() end
+    local model = Model(doll)
+    doll.model = model
+    doll.looks = Parts.Tabs(doll, LOOK_W, LOOKS, function(key) doll:SetLook(key) end)
+    doll.looks:SetPoint("TOP", doll, "TOP", 0, 0)
+    Parts.PaintTabs(doll.looks, doll.look)
+    local hint = ns.Font(doll, St.TINY_SIZE, nil, T.muted)
+    hint:SetPoint("BOTTOM", model, "BOTTOM", 0, HINT_Y)
+    hint:SetText(TEXT_HINT)
+    Slots(doll)
     doll.gainsBlock = B.View.ScoreCard(doll, DOLL_W)
     doll.gainsBlock:SetPoint("TOPLEFT", 0, -(TOP_H + COLUMN_H + MODEL_GAP + SLOT + MODEL_GAP))
-    -- A new frame starts shown, so OnShow only covers later shows.
     ModelShown(model)
     return doll
 end

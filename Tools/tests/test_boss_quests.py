@@ -1,4 +1,4 @@
-"""Tests for Tools/build_boss_quests.py's choice of which bosses a dungeon's quests can need:
+"""Tests for Tools/build/boss_quests.py's choice of which bosses a dungeon's quests can need:
 every wing of the same instance (Scarlet Monastery's four, the two Blackrock Spires), else
 the dungeon's own. Offline. From the repo root:
 
@@ -9,7 +9,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import build_boss_quests  # noqa: E402
+import paths  # noqa: E402,F401
+import boss_quests  # noqa: E402
 
 BOSSES = {
     "Scarlet Monastery - Library": [(3974, "Houndmaster Loksey")],
@@ -28,20 +29,20 @@ MAPS = {
 
 class KinBosses(unittest.TestCase):
     def test_wings_of_one_instance_share_their_bosses(self):
-        npcs = {npc for npc, _ in build_boss_quests.kin_bosses("Scarlet Monastery - Cathedral", BOSSES, MAPS)}
+        npcs = {npc for npc, _ in boss_quests.kin_bosses("Scarlet Monastery - Cathedral", BOSSES, MAPS)}
         self.assertEqual(npcs, {3974, 3975, 3976})
 
     def test_a_dungeon_on_its_own_keeps_its_own(self):
-        npcs = [npc for npc, _ in build_boss_quests.kin_bosses("Excavation Site: Wetlands", BOSSES, MAPS)]
+        npcs = [npc for npc, _ in boss_quests.kin_bosses("Excavation Site: Wetlands", BOSSES, MAPS)]
         self.assertEqual(npcs, [260808])
 
     def test_no_map_falls_back_to_its_own(self):
-        self.assertEqual(build_boss_quests.kin_bosses("Blackmaw Hold", BOSSES, MAPS), [])
+        self.assertEqual(boss_quests.kin_bosses("Blackmaw Hold", BOSSES, MAPS), [])
 
     def test_the_real_data_links_herod_to_into_the_scarlet_monastery(self):
-        bosses = build_boss_quests.dungeon_bosses()
-        maps = build_boss_quests.dungeon_maps()
-        npcs = {npc for npc, _ in build_boss_quests.kin_bosses("Scarlet Monastery - Cathedral", bosses, maps)}
+        bosses = boss_quests.dungeon_bosses()
+        maps = boss_quests.dungeon_maps()
+        npcs = {npc for npc, _ in boss_quests.kin_bosses("Scarlet Monastery - Cathedral", bosses, maps)}
         self.assertTrue({3974, 3975} <= npcs)
 
 

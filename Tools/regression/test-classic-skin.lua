@@ -54,7 +54,7 @@ local env = setmetatable({
     end,
 }, { __index = _G })
 env._G = env
-for _, path in ipairs({ "Shared/Style.lua", "Shared/Window.lua" }) do
+for _, path in ipairs({ "Shared/Style.lua", "Shared/UI/Window.lua" }) do
     local f = assert(io.open(path, "rb"))
     local chunk = assert(loadstring(f:read("*a"), path)); f:close()
     setfenv(chunk, env)

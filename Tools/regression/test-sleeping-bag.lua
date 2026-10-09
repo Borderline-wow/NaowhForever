@@ -1,5 +1,5 @@
--- Regression test for the Cozy Sleeping Bag chain (NaowhForever_Discovery/NaowhForever_SleepingBagData.lua and
--- the chain logic in NaowhForever_Discovery/NaowhForever_Discovery.lua): each faction's steps in order, the
+-- Regression test for the Cozy Sleeping Bag chain (NaowhForever_Discovery/Data/SleepingBag.lua and
+-- the chain logic in NaowhForever_Discovery/SleepingBag.lua): each faction's steps in order, the
 -- first starting its faction's quest, every later one handing one in, the chain read from the
 -- quest log, step by step, and two steps of one name told apart by their zone. Then the Sleeping
 -- Bag tracker on the shared tracker window (its rows, no garbage per redraw), its map pins
@@ -21,7 +21,7 @@ end
 
 local ns = {}
 _G.NaowhForever = ns
-assert(loadstring(Read("NaowhForever_Discovery/NaowhForever_SleepingBagData.lua")))()
+assert(loadstring(Read("NaowhForever_Discovery/Data/SleepingBag.lua")))()
 local data = ns.SleepingBag
 
 -- The data.
@@ -42,9 +42,8 @@ Check(data.steps.A[1].map == 1436 and data.steps.H[1].map == 1413,
     "the Alliance starts in Westfall, the Horde in The Barrens")
 Check(data.steps.A[3] == data.steps.H[3], "the chain is the same for both from Stonetalon on")
 
--- The logic, read out of the module (the part between its two markers), against a quest log.
-local source = Read("NaowhForever_Discovery/NaowhForever_Discovery.lua")
-local logic = assert(source:match("(local Bag = {}.-\nfunction Bag%.Waypoint.-\nend)"), "the chain's logic")
+-- The logic, loaded from its own file, against a quest log.
+local logic = Read("NaowhForever_Discovery/SleepingBag.lua")
 local completed, inLog, level, side = {}, {}, 20, "A"
 local env = setmetatable({
     ns = ns,
@@ -55,9 +54,11 @@ local env = setmetatable({
     },
     UnitLevel = function() return level end,
 }, { __index = _G })
-local chunk = assert(loadstring(logic .. "\nreturn Bag"))
+ns.Discovery = { Library = env.Library }
+local chunk = assert(loadstring(logic))
 setfenv(chunk, env)
-local Bag = chunk()
+chunk()
+local Bag = ns.SleepingBagChain
 
 local step, at = Bag.Current()
 Check(at == 1 and step.object == "Burned-Out Remains" and step.map == 1436, "nothing done: the first remains")
@@ -179,7 +180,10 @@ end
 -------------------------------------------------------------------------------
 --  The tracker
 -------------------------------------------------------------------------------
-Load("NaowhForever_Discovery/NaowhForever_SleepingBagTracker.lua")
+addon.Discovery = { Settings = S, Bag = Bag, Library = Library }
+Load("NaowhForever_Discovery/Constants.lua")
+Load("NaowhForever_Discovery/View/Style.lua")
+Load("NaowhForever_Discovery/UI/BagTracker.lua")
 Check(panel == nil, "loaded, nothing is built")
 addon.Apply()
 Check(panel ~= nil and title == "SLEEPING BAG", "on, it is built on the shared tracker window, as Sleeping Bag")
@@ -207,13 +211,13 @@ rows[3].waypoint(rows[3])
 Check(waypoints[1] == "Pocket Litter", "a pin's waypoint is its step's")
 
 inLog[79008] = true
-addon.ShowRaidReminderAnchorConfig()
+addon.ShowUnlockMode()
 rows = panel.entries
 Check(rows[1].done == true and rows[1].sub == nil and rows[1].color == GREY and rows[2].color == nil,
     "a step done: ticked, muted, nothing under it; the next one in full")
 local first = rows[1]
 local Measure = dofile("Tools/regression/measure.lua")(function(label, ok) Check(ok, label) end)
-Measure("the tracker redrawn", 1, function() addon.ShowRaidReminderAnchorConfig() end)
+Measure("the tracker redrawn", 1, function() addon.ShowUnlockMode() end)
 Check(panel.entries[1] == first, "its rows' entries kept and refilled")
 
 panel.opts.onClose()
@@ -240,7 +244,7 @@ local mapGlobals = {
 }
 settings.bagMapPins = false
 local before = #frames
-local mapEnv = Load("NaowhForever_Discovery/NaowhForever_SleepingBagMap.lua", mapGlobals)
+local mapEnv = Load("NaowhForever_Discovery/UI/BagPins.lua", mapGlobals)
 local boot = frames[#frames]
 Check(#frames == before + 1 and boot.events.PLAYER_LOGIN, "loaded, only its login check")
 addon.Apply()
@@ -283,12 +287,16 @@ Check(lines[1] == "Sleeping Bag, step 2" and lines[2] == "Burned-Out Remains (ma
 -------------------------------------------------------------------------------
 --  One name, and short help
 -------------------------------------------------------------------------------
-for _, path in ipairs({ "NaowhForever_Discovery/NaowhForever_Discovery.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryWindow.lua",
-        "NaowhForever_Discovery/NaowhForever_SleepingBagTracker.lua", "NaowhForever_Discovery/NaowhForever_SleepingBagMap.lua",
-        "Core/NaowhForever_Window.lua" }) do
+for _, path in ipairs({ "NaowhForever_Discovery/Discovery.lua", "NaowhForever_Discovery/SleepingBag.lua",
+        "NaowhForever_Discovery/Data/SleepingBag.lua", "NaowhForever_Discovery/View/BagHero.lua",
+        "NaowhForever_Discovery/View/StepRow.lua", "NaowhForever_Discovery/UI/Window.lua",
+        "NaowhForever_Discovery/UI/BagTracker.lua", "NaowhForever_Discovery/UI/BagPins.lua",
+        "NaowhForever_Discovery/UI/BagSettings.lua", "NaowhForever_Discovery/UI/BooksSettings.lua",
+        "Core/Options/Window.lua", "Core/Options/Modules.lua" }) do
     Check(not Read(path):find("Sleeping Bags", 1, true), path .. ": one name, Sleeping Bag")
 end
-local bagPage = source:match('local bags = Settings%.Page%("Discovery/Sleeping Bag", S%)(.*)$')
+local bagPage = Read("NaowhForever_Discovery/UI/BagSettings.lua")
+    :match('local bags = Settings%.Page%("Discovery/Sleeping Bag", S%)(.*)$')
 Check(bagPage ~= nil and bagPage:find('text = "Open Sleeping Bag"', 1, true), "its tab and Open button: Sleeping Bag")
 local helps = 0
 for help in bagPage:gmatch('help = ("[^"\r\n]*")') do
@@ -303,8 +311,8 @@ Check(not bagPage:find('help = "[^"\r\n]*"%s*%.%.'), "no help strung over lines"
 -------------------------------------------------------------------------------
 --  Both Discovery trackers on the shared tracker window, with no copy of its parts
 -------------------------------------------------------------------------------
-for _, path in ipairs({ "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua",
-        "NaowhForever_Discovery/NaowhForever_SleepingBagTracker.lua" }) do
+for _, path in ipairs({ "NaowhForever_Discovery/UI/BookTracker.lua",
+        "NaowhForever_Discovery/UI/BagTracker.lua" }) do
     local text = Read(path)
     Check(text:find("Parts.TrackerPanel(", 1, true) and text:find("SetRows(", 1, true),
         path .. ": on Parts.TrackerPanel, its rows through SetRows")

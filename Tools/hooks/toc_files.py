@@ -25,7 +25,7 @@ def toc_paths(toc=TOC):
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            # "Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is before the options.
+            # "Core\Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is before the options.
             yield number, line.split(" [", 1)[0].strip().replace("\\", "/")
 
 

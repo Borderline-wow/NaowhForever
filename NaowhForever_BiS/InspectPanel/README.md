@@ -7,7 +7,7 @@ the Talents button, the Guild tab. Naowh fades its art (`SetAlpha`, never `Hide`
 window by the pane (its own frames keep their width on the left) and lays its own frames over
 it, from post-hooks only.
 
-On by default (QoL > Character > Inspect Panel), like the Character Panel, and nothing is hooked
+On by default (BiS List > Character > Inspect Panel), like the Character Panel, and nothing is hooked
 or built until the game loads its inspect window (`Blizzard_InspectUI`, on the first inspect).
 EllesmereUI's inspect sheet and this one are never on at once, by the Character Panel's rule
 (`CP.Rival`): turning this on turns `EllesmereUIDB.themedInspectSheet` off, off turns it back on if
@@ -61,16 +61,18 @@ default) is the answering side.
 
 ```
 InspectPanel/
-  InspectPanel.xml   what loads, in order
-  Panel.lua          the namespace (ns.InspectPanel), its switch, the window widened and dressed,
-                     whose inspect data the game holds (IP.Ready), the refresh each part paints on
-  Slots.lua          the slots and the gear check
-  TheirBiS.lua       their BiS asked and kept; yours answered
-  Card.lua           the score card and the badge plate
-  Details.lua        the Player tab
-  History.lua        the History tab
-  SettingsPage.lua   its card on QoL > Character
+  InspectPanel.xml     what loads, in order
+  InspectPanel.lua     the namespace (ns.InspectPanel), its switch, the window widened and dressed,
+                       whose inspect data the game holds (IP.Ready), the refresh each part paints on
+  Slots.lua            the slots and the gear check
+  TheirBiS.lua         their BiS asked and kept; yours answered
+  Card.lua             the score card and the badge plate
+  Details.lua          the Player tab
+  History.lua          the History tab
+  UI/SettingsPage.lua  its card on BiS List > Character
 ```
+
+Its sizes and colours shared with the Character Panel come from `CP.C` (`CharacterPanel/Constants.lua`).
 
 ## Blizzard's side (Forever, `Blizzard_InspectUI`, `Camelot` and `Mainline` files)
 
@@ -82,6 +84,31 @@ InspectPanel/
   post-hooked so the inset keeps its width when the paper doll or guild tab moves its bottom.
 - `INSPECTFRAME_SUBFRAMES` (`Camelot/Blizzard_InspectUI_Overrides.lua`): the tabs' frames, kept on
   the left part of the wider window.
+
+## Why
+
+- Each part paints on `IP.Refresh` with the unit and GUID shown, and reads the game's inspect data
+  only while `IP.Ready` says it is that player's: a stale `INSPECT_READY` is ignored.
+- Gear the game says they wear but sends none of (an inspect cleared under the window) is asked for
+  again once per player shown, so the window fills in rather than showing them bare.
+- Item data that is still loading is read again `LOAD_SETTLE` seconds after the last
+  `GET_ITEM_INFO_RECEIVED`, once for a burst.
+- Their BiS is asked by addon whisper, so a player without Naowh Forever never answers and shows no
+  stars. The ask is `1 Q <their GUID> <your GUID>`; the answer `1 A <your GUID> <slot>:<item ID>:<rank>,...`
+  (`-` for none), one message under `MAX_BYTES` (255), cut short when a list would not fit. The kind
+  of message is its third byte (`KIND_AT`).
+- An answer is kept only for the ask out, from the player inspected (their name and GUID matched
+  against the inspect unit itself, as strangers are not in your group or guild), while the window
+  still shows them, every field checked, and only for the item still worn in that slot.
+- Answering: only whispers that ask, at most once per `ANSWER_GAP` for each asker and `ANSWERS_MAX`
+  in all every `ANSWERS_WINDOW` seconds; nothing they sent goes back. Asking: at most once per
+  `ASK_GAP` for each player, only of your own faction.
+- Talents are read from the game's inspect talent data only while it is that player's; anything not
+  known yet reads "...". `IP.ReadTalentTrees` and `IP.ReadInspectTalents` are shared with Group Inspect.
+- Chat in the History tab is someone else's text: shown as plain text only (`ns.PlainText`), never as
+  a format or with its codes. The tab is there only while Player History is on.
+- Your BiS star and your enchant advice are about your gear, so they are not shown on theirs; an
+  orange dot marks a slot an enchanter could enchant that has none.
 
 ## Checking
 

@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- SkyborneSpots.xml: the Skyborne Spots script and its world map pin template. -->
+    <Script file="SkyborneSpots.lua"/>
+    <Button name="NaowhForeverSkybornePinTemplate" mixin="NaowhForeverSkybornePinMixin" enableMouse="true" registerForClicks="LeftButtonUp, RightButtonUp" virtual="true">
+        <Size x="20" y="20"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+</Ui>

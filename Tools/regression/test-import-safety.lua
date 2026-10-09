@@ -76,7 +76,7 @@ do -- text from outside shows as text
 end
 
 -------------------------------------------------------------------------------
---  The Profiles page's import and the Reminder Pack import, on the real libraries
+--  The Profiles page's import, and an old Reminder Pack string, on the real libraries
 -------------------------------------------------------------------------------
 local function World()
     local w = { profiles = { Default = { tankReminder = {} } }, account = {}, printed = {} }
@@ -84,10 +84,7 @@ local function World()
         UI = { Widgets = {} }, CODE_BUILD = "test", MacroText = { LIMIT = 255 },
         THEME = { accent = {}, muted = {}, fg = {}, panel = {}, bg = {}, line = {} },
         Color = function(_, text) return text or "" end,
-        Integrations = { ValidRule = function() return true end },
         Print = function(m) w.printed[#w.printed + 1] = m end,
-        SettingDefault = function() return nil end,
-        SpecName = function(key) return "Spec " .. key end,
         ListProfiles = function() return {} end,
         SettingsRoot = function() return w.profiles.Default end,
         AccountSettings = function() return w.account end,
@@ -109,18 +106,16 @@ local function World()
         CreateFrame = function() return { SetScript = function() end } end }, { __index = _G })
     env._G = env
     ns.Shared = { Decode = LoadDecode(env) }
-    for _, path in ipairs({ "Core/NaowhForever_Packs.lua", "Core/NaowhForever_ProfileShare.lua" }) do
-        local chunk = assert(loadfile(path))
-        setfenv(chunk, env)
-        chunk()
-    end
-    w.ns = ns
+    local chunk = assert(loadfile("Core/Profiles/ProfileShare.lua"))
+    setfenv(chunk, env)
+    chunk()
+    w.ns, w.env = ns, env
     return w
 end
 
 local function Profile(payload) return "NFPROFILE1:" .. Encode(payload) end
 
-do -- a profile string: names, Smart Reminders, class macros, the look and BiS lists
+do -- a profile string: names, consumables, class macros, the look and BiS lists
     local w = World()
     local layer = {}
     for _ = 1, 22 do layer = { layer, layer } end
@@ -128,10 +123,12 @@ do -- a profile string: names, Smart Reminders, class macros, the look and BiS l
     check(("a shared-table profile is refused without a freeze (%.3f s)"):format(took), bomb == nil and took < 2)
 
     local payload = w.ns.DecodeProfile(Profile({ format = 1,
-        name = "|TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t Official",
+        name = "|TInterface\\AddOns\\NaowhForever\\Core\\Badges\\Media\\BadgeNaowhChat.tga:0|t Official",
         author = "|cffe6cc80Naowh|r\n[Naowh]: trust me", made = "|Hurl:x|h",
         parts = {
-            smartReminders = { customReminders = { ["1"] = { a = { name = 5 } } } },
+            consumables = { { category = "food", itemID = 13931 }, { category = "food", itemID = -1 } },
+            reminders = { customReminders = { ["1"] = { a = { name = 5 } } },
+                utilityReminders = { consumables = { { category = "food", itemID = 13931 } } } },
             macros = { classMacros = { PALADIN = { { name = "Fine", body = string.rep("x", 900) } } } },
             look = { windowScale = "big", themeColors = 7, uiFont = "Naowh" },
             bisLists = { MAGE = { { name = "|cffff0000Red|r\nList", spec = "fire", slots = { [1] = 101, [4] = 5,
@@ -140,9 +137,10 @@ do -- a profile string: names, Smart Reminders, class macros, the look and BiS l
     check("the profile decodes", payload ~= nil)
     check("its name, author and date are plain text", not payload.name:find("|", 1, true)
         and #payload.name <= 64 and payload.author == "cffe6cc80Naowhr[Naowh]: trust me" and payload.made == "Hurl:xh")
-    check("Smart Reminders that fail the pack checks are left out", payload.parts.smartReminders == nil)
+    check("consumables that fail the checks are left out", payload.parts.consumables == nil)
+    check("an old reminders part is gone, and cannot stand in for them", payload.parts.reminders == nil)
     check("class macros past the game's limits are left out", payload.parts.macros.classMacros == nil)
-    local _, added = w.ns.ImportProfile(payload, { smartReminders = true, macros = true, look = true, bisLists = true }, "Mine")
+    local _, added = w.ns.ImportProfile(payload, { consumables = true, macros = true, look = true, bisLists = true }, "Mine")
     check("the look takes only values of the right type", w.account.windowScale == nil and w.account.themeColors == nil
         and w.account.uiFont == "Naowh")
     local list = w.account.bisLists.MAGE.lists[1]
@@ -150,26 +148,24 @@ do -- a profile string: names, Smart Reminders, class macros, the look and BiS l
     check("only gear slots holding item IDs", list.slots[1] == 101 and list.slots[2] == nil and list.slots[3] == nil
         and list.slots[4] == nil and list.slots[99] == nil)
     check("and picks that are item IDs", #list.extra[1] == 2 and list.extra[1][2] == 103)
-    check("Smart Reminders untouched", next(w.profiles.Mine.tankReminder) == nil)
+    check("the reminders' store untouched", next(w.profiles.Mine.tankReminder) == nil)
 end
 
-do -- a Reminder Pack: curator text, profile names, a bomb
+do -- an old Reminder Pack string, even a bomb, is refused unread and changes nothing
     local w = World()
-    local data = { presets = { ["250"] = { p1 = { name = "Tank", list = { 1 } } } } }
-    local payload, desc = w.ns.DecodePack("NSRPACK2:" .. Encode({ format = 1,
-        name = "|cff0091edNaowh Official|r", author = "|TBadge:0|t Naowh", made = "2026\n|Hx|h",
-        derivedFrom = { name = "|cffffffffX", author = 5 }, data = data }))
-    check("a pack decodes", payload ~= nil)
-    check("its curator text is plain", payload.name == "cff0091edNaowh Officialr" and payload.author == "TBadge:0t Naowh"
-        and payload.made == "2026Hxh" and payload.derivedFrom.name == "cffffffffX" and payload.derivedFrom.author == nil)
-    check("and so is the description", not desc:find("|T", 1, true) and not desc:find("|H", 1, true))
-    payload = w.ns.DecodePack("NSRPACK2:" .. Encode({ format = 1, profiles = { ["|cffff0000Raid|r"] = data } }))
-    check("a pack's profile names are plain", payload and payload.profiles["cffff0000Raidr"] ~= nil)
-    check("two names that clean to one are refused",
-        w.ns.DecodePack("NSRPACK2:" .. Encode({ format = 1, profiles = { ["A|"] = data, ["A"] = data } })) == nil)
+    local data = { presets = { ["250"] = { p1 = { name = "Tank", list = { 1 } } } },
+        utilityReminders = { consumables = { { category = "food", itemID = 13931 } } } }
+    local pack = "NSRPACK2:" .. Encode({ format = 1, name = "|cff0091edNaowh Official|r", data = data })
+    local payload, why = w.ns.DecodeProfile(pack)
+    check("a pack is refused with a message", payload == nil and why == "Reminder Packs are no longer supported.")
     local bomb = "NSRPACK2:" .. LD:EncodeForPrint(LD:CompressDeflate(string.rep("\0", 6 * 1024 * 1024)))
-    local took, value = Timed(function() return w.ns.DecodePack(bomb) end)
-    check(("a pack bomb is refused (%.3f s)"):format(took), value == nil and took < 1)
+    local took, value, said = Timed(function() return w.ns.DecodeProfile(bomb) end)
+    check(("a pack bomb is refused unread (%.3f s)"):format(took), value == nil and said == why and took < 1)
+    local ok, told = w.env.NaowhForever_API:ImportProfile(pack, "Naowh")
+    check("the installer's import refuses it and says why", ok == false and told == why
+        and w.printed[1] == "Naowh Forever import failed: " .. why)
+    check("no profile is made or switched to", w.profiles.Naowh == nil and w.switched == nil
+        and next(w.profiles.Default.tankReminder) == nil)
 end
 
 -------------------------------------------------------------------------------
@@ -191,8 +187,8 @@ do
     local ns = { QoLSettings = { Get = function() return true end, Set = function() end },
         THEME = { fg = {}, muted = {}, accent = {}, bg = {} }, AccountSettings = function() return {} end,
         Apply = function() end, UI = { RefreshPage = function() end },
-        Shared = { Parts = { HudFont = function() end } },
-        ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end }
+        Shared = { Style = dofile("Tools/regression/shared_style.lua"), Parts = { HudFont = function() end } },
+        ShowUnlockMode = function() end, HideUnlockMode = function() end }
     local env = setmetatable({ NaowhForever = ns, CreateFrame = Frame, hooksecurefunc = function() end,
         C_Timer = { After = function() end }, GetTime = function() return 0 end,
         IsInRaid = function() return false end, GetNumSubgroupMembers = function() return 1 end,
@@ -205,9 +201,13 @@ do
         UnitIsGroupLeader = function() return false end, UnitIsGroupAssistant = function() return false end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile("NaowhForever_Blessings/NaowhForever_Blessings.lua"))
-    setfenv(chunk, env)
-    chunk("NaowhForever", ns)
+    for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Blessings/.*%.lua$")) do
+        if not path:find("/UI/Window%.lua$") then
+            local chunk = assert(loadfile(path))
+            setfenv(chunk, env)
+            chunk("NaowhForever", ns)
+        end
+    end
     local fire
     for _, f in ipairs(frames) do
         if f.scripts.OnEvent and not fire then

@@ -41,8 +41,8 @@ end
 
 local function Fixture(qol, aura)
     local env = { pairs = pairs, ipairs = ipairs, type = type, math = math, table = table }
-    local ns = { Apply = function() end, ShowRaidReminderAnchorConfig = function() end,
-        HideRaidReminderAnchorConfig = function() end }
+    local ns = { Apply = function() end, ShowUnlockMode = function() end,
+        HideUnlockMode = function() end }
     ns.QoLSettings = Settings(qol)
     ns.AuraBuffSettings = aura and Settings(aura)
     ns.UI = { AttachMover = function(frame, label, onMoved, page)
@@ -64,7 +64,7 @@ local function Fixture(qol, aura)
         local orig = t[key]
         t[key] = function(...) orig(...); fn(...) end
     end
-    Load({ "QoL/NaowhForever_AlertStack.lua" }, env)
+    Load({ "Core/AlertStack.lua" }, env)
     return ns, env
 end
 
@@ -96,12 +96,12 @@ do
     local mover = rawget(group, "mover")
     Check(mover.label == "Alerts" and mover.page ~= nil, "one mover, named Alerts, with an options page")
     Check(mover.shown == false, "the mover stays hidden outside Unlock Mode")
-    ns.ShowRaidReminderAnchorConfig()
+    ns.ShowUnlockMode()
     Check(mover.shown == true, "Unlock Mode shows the mover while a member is up")
     Check(mover.h == 26 * 1.5 + 6 + 32 + 6 + 36 and mover.w == 300, "the mover covers the whole stack")
     camp:Hide(); talent:Hide(); pet:Hide()
     Check(mover.shown == false, "no member up: no mover")
-    ns.HideRaidReminderAnchorConfig()
+    ns.HideUnlockMode()
     mover.onMoved({ point = "CENTER", relPoint = "CENTER", x = 10, y = 20 })
     Check(qol.alertsPos.x == 10 and qol.alertsPos.y == 20, "moving the group saves its spot")
 end

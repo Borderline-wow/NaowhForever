@@ -1,4 +1,4 @@
-"""Tests for the daily badge sync (Tools/sync_badges.py): naowh.gg's patron list checked and
+"""Tests for the daily badge sync (Tools/release/sync_badges.py): naowh.gg's patron list checked and
 written as Lua. Offline, made-up data. From the repo root:
 
     python -m unittest discover -s Tools/tests
@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import paths  # noqa: E402,F401
 import sync_badges  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]

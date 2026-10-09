@@ -1,12 +1,15 @@
--- Loads QoL's Food & Drink Bar and NaowhForever_Macros.lua against stubbed macro, bag and item
--- APIs and checks what they write. Run from the repo root: lua Tools/regression/test-macros.lua
+-- Loads the shared food lists, QoL's Food & Drink Bar and the Macros module's rules (Macros.lua through Profile.lua)
+-- against stubbed macro, bag and item APIs and checks what they write. Run from the repo root:
+-- lua Tools/regression/test-macros.lua
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local text = f:read("*a"); f:close()
     return text
 end
-local foodSource = Read("QoL/NaowhForever_FoodBar.lua")
-local source = Read(arg[1] or "NaowhForever_Macros/NaowhForever_Macros.lua")
+local foodSource = Read("NaowhForever_QoL/Loot/FoodBar.lua")
+local MACRO_FILES = { "Macros.lua", "Constants.lua", "Data/Items.lua", "Commands.lua", "Smart.lua", "Profile.lua" }
+local sources = { Read("Core/Features.lua"), Read("Shared/Game/Consumables.lua"), foodSource }
+for _, file in ipairs(MACRO_FILES) do sources[#sources + 1] = Read("NaowhForever_Macros/" .. file) end
 
 local FOOD, DRINK = "Food", "Drink"
 -- itemID -> { spell, required level }
@@ -63,13 +66,13 @@ local function Fixture(opts)
     local mover
     local ns = {
         QoLSettings = Q,
+        Shared = { Style = dofile("Tools/regression/shared_style.lua") },
         SettingsRoot = function() return { macros = settings, qol = qol } end,
-        Shared = { Items = { HEALTHSTONES = { 9421, 5509 }, HEALING_POTIONS = { 13446, 929 } } },
         Print = function(msg) printed[#printed + 1] = msg end,
         AccountSettings = function() return account end,
         Apply = function() end,
-        ShowRaidReminderAnchorConfig = function() end,
-        HideRaidReminderAnchorConfig = function() end,
+        ShowUnlockMode = function() end,
+        HideUnlockMode = function() end,
         Font = function() return Frame() end,
         Border = function() end,
         PixelInset = function() end,
@@ -155,7 +158,7 @@ local function Fixture(opts)
     env._G = { NaowhForever = ns, SLASH_SAY1 = "/say", SLASH_CAST1 = "/cast", SLASH_SCRIPT1 = "/run",
         SLASH_TARGET_MARKER1 = "/tm", EMOTE1_CMD1 = "/wave" }
     setmetatable(env, { __index = _G })
-    for _, text in ipairs({ foodSource, source }) do
+    for _, text in ipairs(sources) do
         local chunk
         if setfenv then
             chunk = assert(loadstring(text)); setfenv(chunk, env)

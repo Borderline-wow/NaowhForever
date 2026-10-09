@@ -5,15 +5,6 @@
 ## Version: 1.0.6
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-# The data loads first; the module reads it.
-NaowhForever_DiscoveryData.lua
-NaowhForever_SleepingBagData.lua
-NaowhForever_Discovery.lua
-NaowhForever_DiscoveryWindow.lua
-NaowhForever_DiscoveryTracker.lua
-NaowhForever_SleepingBagTracker.lua
-NaowhForever_DiscoveryMap.xml
-NaowhForever_SleepingBagMap.xml
-NaowhForever_DiscoveryNearby.lua
+Discovery.xml

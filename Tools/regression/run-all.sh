@@ -9,10 +9,8 @@ cd "$(dirname "$0")/../.." || exit 1
 # Tests that read the source file under test from their first argument.
 args_for() {
     case "$1" in
-        test-feint-recharge.lua | test_smart_charge_regressions.lua | test-smart-display-review-fixes.lua)
-            echo "NaowhForever_SmartReminders/NaowhForever_SmartReminders.lua" ;;
         test-smart-minimap.lua)
-            echo "Core/NaowhForever_Window.lua" ;;
+            echo "Core/Options/Launchers.lua" ;;
         *) echo "" ;;
     esac
 }

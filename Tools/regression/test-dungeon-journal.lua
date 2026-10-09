@@ -20,6 +20,10 @@ check("the journal lists its files", #journalFiles > 40)
 -- What the modules share loads first: the Journal is drawn with it.
 local files = TocFiles("^Shared/.*%.lua$")
 check("the shared parts load", #files >= 7)
+-- The copy cards are stubbed, so their Shared file is left out.
+for i = #files, 1, -1 do
+    if files[i] == "Shared/UI/CopyCard.lua" then table.remove(files, i) end
+end
 for _, path in ipairs(journalFiles) do files[#files + 1] = path end
 
 local RING_SLOTS = { 1, 2 }
@@ -135,7 +139,7 @@ local NO_PROFESSIONS = {}
 -- Where you stand, as C_Map.GetPlayerMapPosition answers.
 local STANDING_AT = { GetXY = function() return 0.42, 0.61 end }
 
-local function fixture(settings)
+local function fixture(settings, noBis)
     local state = {
         level = 20, instance = nil, combat = false, bisList = true,
         hooks = {}, frames = 0, printed = {}, waypoints = {}, mapOpened = nil, requested = {},
@@ -178,6 +182,7 @@ local function fixture(settings)
     function S.OnChange(fn) listeners[#listeners + 1] = fn end
 
     local ns = {
+        MEDIA = dofile("Tools/regression/core_media.lua"),
         THEME = setmetatable({}, { __index = function() return WHITE end }),
         UI = { ModuleSettings = function(_, defaults) state.defaults = defaults; return S end,
             SlimScroll = function(parent)
@@ -260,7 +265,8 @@ local function fixture(settings)
             state.waypoints[#state.waypoints + 1] = { title = title, map = map, x = x, y = y, note = note }
             return true
         end,
-        IsBisItem = function(id) return state.bis[id] end,
+        IsBisItem = not noBis and function(id) return state.bis[id] end or nil,
+        TurnOnModule = function(addon) state.turnedOn = addon end,
         -- Every item goes in slot 1 or 2, like a ring.
         BisSlotsFor = function(id) return not (state.recipes and state.recipes[id]) and RING_SLOTS or nil end,
         -- Cloth only, so a mage can use cloth and anything without an armor type.
@@ -545,10 +551,18 @@ local function fixture(settings)
     state.G = env._G
     state.worldMap = env.WorldMapFrame
     state.env = env
-    local senders = assert(loadfile("Core/NaowhForever_Senders.lua"))
+    local senders = assert(loadfile("Core/Senders.lua"))
     setfenv(senders, env)
     senders()
+    -- The feature switches the Journal's settings read their defaults from.
+    local features = assert(loadfile("Core/Features.lua"))
+    setfenv(features, env)
+    features()
+    local classCanUse, slotsFor = ns.ClassCanUse, ns.BisSlotsFor
     for _, path in ipairs(files) do
+        if path:find("^NaowhForever_DungeonJournal/") and ns.Shared.Items.ClassCanUse ~= classCanUse then
+            ns.Shared.Items.ClassCanUse, ns.Shared.Items.SlotsFor = classCanUse, slotsFor
+        end
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()
@@ -668,21 +682,29 @@ do
     end
     check("nearly every boss has a tip", tips > 150)
     check("a boss with no NPC ID has no tip", J.Tip({ name = "Nobody" }) == nil)
-    -- Each boss names an ability once: Wowhead lists Old Serra'kis's Dazed four times.
+    -- Each boss names an ability once: Wowhead lists Old Serra'kis's Dazed four times. The
+    -- spells' names are in Tools/data/abilities_cache.json, which Tools/build/abilities.py builds
+    -- Data/Abilities.lua from (the data keeps only the IDs).
+    local cacheFile = assert(io.open("Tools/data/abilities_cache.json", "rb"))
+    local cache = cacheFile:read("*a"):gsub("\r\n", "\n")
+    cacheFile:close()
     local withAbilities = 0
-    for line in io.lines("NaowhForever_DungeonJournal/Data/Abilities.lua") do
-        local npc, ids, names = line:match("^%s*%[(%d+)%] = { ([%d, ]+) },  %-%- [^:]+: (.-)\r?$")
-        if npc then
-            local seen, count = {}, 0
-            for name in (names .. ", "):gmatch("(.-), ") do
-                check("boss " .. npc .. " lists " .. name .. " once", not seen[name])
-                seen[name], count = true, count + 1
-            end
-            local _, commas = ids:gsub(",", "")
-            check("boss " .. npc .. " names each of its spells", count == commas + 1
-                and #J.Abilities[tonumber(npc)] == count)
-            withAbilities = withAbilities + 1
+    for npc, ids in pairs(J.Abilities) do
+        local listed = cache:match('\n "' .. npc .. '": {\n  "abilities": %[(.-)\n  %]')
+        check("boss " .. npc .. " is in the abilities cache", listed ~= nil)
+        local nameOf = {}
+        for spell, name in (listed or ""):gmatch('%[\n%s*(%d+),\n%s*"(.-)"\n%s*%]') do
+            spell = tonumber(spell)
+            nameOf[spell] = nameOf[spell] or name
         end
+        local seen = {}
+        for _, spell in ipairs(ids) do
+            local name = nameOf[spell]
+            check("boss " .. npc .. " names each of its spells", name ~= nil)
+            check("boss " .. npc .. " lists " .. tostring(name) .. " once", not seen[name])
+            seen[name or spell] = true
+        end
+        withAbilities = withAbilities + 1
     end
     check("hundreds of bosses have abilities", withAbilities > 150)
 
@@ -1321,6 +1343,7 @@ do
     for _, frame in ipairs(state.made) do
         if rawget(frame, "itemID") and rawget(frame, "chance") and frame.scripts.OnEnter then item = frame end
     end
+    ---@diagnostic disable-next-line: duplicate-set-field
     state.tooltip.AddLine = function(_, text) lines[#lines + 1] = text end
     item.scripts.OnEnter(item)
     local chanceLine
@@ -1758,6 +1781,7 @@ do
     local spellShown
     local spellLines = {}
     rawset(state.tooltip, "SetSpellByID", function(_, id) spellShown = id end)
+    ---@diagnostic disable-next-line: duplicate-set-field
     state.tooltip.AddLine = function(_, text) spellLines[#spellLines + 1] = text end
     ability.scripts.OnEnter(ability)
     check("the whole of it in the spell's tooltip", spellShown == spells[1] and Has(spellLines, "Shift-click: link"))
@@ -2067,7 +2091,7 @@ do
         end
         check("its entrance on a floor its switch offers: " .. key, map.entrance == nil or Offered(map.entrance[1]))
         local function Shipped(path)
-            local file = io.open(path:gsub("^Interface\\AddOns\\NaowhForever\\", ""):gsub("\\", "/") .. ".tga", "rb")
+            local file = io.open(path:gsub("^Interface\\AddOns\\", ""):gsub("^NaowhForever\\", ""):gsub("\\", "/") .. ".tga", "rb")
             if file then file:close() end
             return file ~= nil
         end
@@ -2111,7 +2135,7 @@ do
             and FloorsOf(ubrsView) == "9,8,7")
         check("on its first boss's floor, the addon's picture of it", ubrsView.floor == 8
             and rawget(ubrsView.picture, "shown") == true
-            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\UpperBlackrockSpire8"
+            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever_DungeonJournal\\Media\\Maps\\UpperBlackrockSpire8"
             and rawget(ubrsView.tiles[1], "shown") == false)
         check("named for the switch", rawget(ubrsView.floorName, "text") == "Hall of Binding and the Rookery")
         ubrsView:Step(1)
@@ -2122,7 +2146,7 @@ do
         ubrsView:Step(1)
         check("then round to Dragonspire Hall, where you come in", ubrsView.floor == 9
             and rawget(ubrsView.floorName, "text") == "Dragonspire Hall"
-            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\UpperBlackrockSpire9")
+            and ubrsView.picture.texture == "Interface\\AddOns\\NaowhForever_DungeonJournal\\Media\\Maps\\UpperBlackrockSpire9")
         local rend = RowFor("Warchief Rend Blackhand")
         rend.scripts.OnClick(rend)
         check("a mapRow of a boss on another floor goes to its floor", ubrsView.floor == 7
@@ -2199,13 +2223,13 @@ do
         local dalView = ShownView("Atrexis the Grave Knight")
         check("opens in the Underbelly, its first picture", dalView ~= nil and dalView.floor == 1
             and FloorsOf(dalView) == "1,2"
-            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\Dalaran"
+            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever_DungeonJournal\\Media\\Maps\\Dalaran"
             and rawget(dalView.floorName, "text") == "The Underbelly")
         check("Atrexis alone there", PinFor("Arcane Anomaly") == nil)
         local shade = RowFor("Shade of the Archmage")
         shade.scripts.OnClick(shade)
         check("a mapRow on the city's floor goes up to it", dalView.floor == 2
-            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever\\Media\\Maps\\Dalaran2"
+            and dalView.picture.texture == "Interface\\AddOns\\NaowhForever_DungeonJournal\\Media\\Maps\\Dalaran2"
             and rawget(dalView.floorName, "text") == "City of Dalaran")
         check("its pin ringed there, Atrexis's gone", rawget(PinFor("Shade of the Archmage").gold, "shown") == true
             and PinFor("Atrexis the Grave Knight") == nil)
@@ -2311,6 +2335,7 @@ do
     -- A boss's loot from its pin closes with the map.
     local opened, closed = 0, 0
     local open, close = J.View.OpenBossLoot, J.View.CloseBossLoot
+    ---@diagnostic disable-next-line: duplicate-set-field
     J.View.OpenBossLoot = function() opened = opened + 1 end
     J.View.CloseBossLoot = function() closed = closed + 1 end
     local bazil
@@ -2370,15 +2395,15 @@ do
         check("a map is for a dungeon the Journal has: " .. key, dungeon ~= nil)
         check("its art and floors: " .. key, (type(map.art) == "string" or type(map.image) == "string")
             and map.floors >= 1)
-        -- The addon's own picture is in Media/Maps, for a dungeon the game has no art for.
+        -- The addon's own picture is in NaowhForever_DungeonJournal/Media/Maps, for a dungeon the game has no art for.
         if map.image then
-            check("its picture is the addon's: " .. key, map.image:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil
+            check("its picture is the addon's: " .. key, map.image:find("^Interface\\AddOns\\NaowhForever_DungeonJournal\\Media\\Maps\\") ~= nil
                 and map.art == nil)
         end
         -- A floor the art lacks, as the addon's own picture.
         for n, path in pairs(map.images or {}) do
             check("its floor's picture is the addon's: " .. key .. " " .. n, type(map.art) == "string"
-                and n >= 1 and n <= map.floors and path:find("^Interface\\AddOns\\NaowhForever\\Media\\Maps\\") ~= nil)
+                and n >= 1 and n <= map.floors and path:find("^Interface\\AddOns\\NaowhForever_DungeonJournal\\Media\\Maps\\") ~= nil)
         end
         -- Every pin is one of its bosses, on one of its floors, on the map.
         local bosses = {}
@@ -2743,6 +2768,7 @@ do
     friendlyLabel.GetStringWidth = function(font) return font.text:find("reward", 1, true) and 1000 or 10 end
     ns.OpenJournalWindow(druids)
     check("too narrow: the count alone", friendlyLabel.text:find("%d|r$") and not friendlyLabel.text:find("reward"))
+    ---@diagnostic disable-next-line: duplicate-set-field
     friendlyLabel.GetStringWidth = function(font) return font.text:find("|c", 1, true) and 1000 or 10 end
     ns.OpenJournalWindow(druids)
     check("narrower: the standing alone", friendlyLabel.text == "FACTION_STANDING_LABEL5")
@@ -3513,7 +3539,7 @@ do
     local function Ask(text, sender)
         emmyFrame.scripts.OnEvent(emmyFrame, "CHAT_MSG_ADDON", "NaowhJournal", text, "PARTY", sender or "Die Man-Realm")
     end
-    Ask("1 A " .. EMMY .. " |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t 6981")
+    Ask("1 A " .. EMMY .. " |TInterface\\AddOns\\NaowhForever\\Core\\Badges\\Media\\BadgeNaowhChat.tga:0|t 6981")
     Ask("1 A " .. EMMY .. " Player-%s%d 6981")
     check("an ask from something that is not a player's GUID is not answered", #hers.sent == 0 and lookups == 0)
     local ids = {}
@@ -3802,6 +3828,38 @@ do
     check("a name that matches is still left out when the filters hide it", not view:Listed(hidden, "zq"))
     check("a name that does not match is left out", not view:Listed(next(J.Items), "zq"))
     Measure("a search over every dungeon and faction redrawn", 2, function() view:Redraw() end)
+end
+
+do
+    local ns, state = fixture({ enabled = true, missingBisOnly = true }, true)
+    local J = ns.Journal
+    ns.Apply()
+    check("without the BiS List loaded the Journal loads, its class rules the core's",
+        J.Loot.Usable ~= nil and not J.Loot.BisOn() and J.Loot.Rank(next(J.Items)) == nil)
+    check("and Missing BiS Only lists nothing away", not J.Loot.ReadFilters({}).missingBis)
+    ns.OpenJournalWindow(J.Get("Shadowfang Keep"))
+    local link
+    for _, frame in ipairs(state.made) do
+        if rawget(frame, "linkArg") == "NaowhForever_BiS" and rawget(frame, "onLink") then link = frame end
+    end
+    check("a dungeon's page offers to turn the BiS List on", link ~= nil)
+    link.onLink(link.linkArg)
+    check("and its link does", state.turnedOn == "NaowhForever_BiS")
+    state.turnedOn = nil
+    local itemRow
+    for _, frame in ipairs(state.made) do
+        if rawget(frame, "itemID") and frame.scripts.OnClick and J.Loot.BisGear(frame.itemID) and not itemRow then
+            itemRow = frame
+        end
+    end
+    itemRow.scripts.OnClick(itemRow, "RightButton")
+    local turnOn
+    for _, e in ipairs(state.menu or {}) do
+        if e.text == "Turn on BiS List" then turnOn = e end
+        check("no BiS List entries without it", e.text ~= "Add to BiS List" and e.text ~= "Remove from BiS List")
+    end
+    turnOn.click()
+    check("an item's menu turns the BiS List on", state.turnedOn == "NaowhForever_BiS")
 end
 
 print(("test-dungeon-journal: %d checks passed"):format(checks))

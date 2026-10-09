@@ -33,12 +33,14 @@ local function Frame()
     function f:AddDoubleLine(...) self.lines[#self.lines+1]={...} end
     frames[#frames+1]=f;return f
 end
-local ns={THEME={accent={r=0,g=.7,b=1},muted={r=.5,g=.6,b=.7},bg={}},UI={},Print=noop,Apply=noop}
+local ns={Shared={Style=dofile('Tools/regression/shared_style.lua')},THEME={accent={r=0,g=.7,b=1},muted={r=.5,g=.6,b=.7},bg={}},UI={},Print=noop,Apply=noop,
+ QoLConstants=dofile('Tools/regression/qol_constants.lua')}
 ns.QoLSettings={Get=function(k) return settings[k] end,Set=function(k,v) settings[k]=v end}
 ns.MakeModal=function() lastDimmer,lastPanel=Frame(),Frame();return lastDimmer,lastPanel end
-ns.Solid=function() return Frame() end;ns.Border=noop
+ns.Solid=function() return Frame() end;ns.Border=noop;ns.NewEditBox=function() return Frame() end
 ns.UI.Keep=function(parent,key,fn) local f=fn(parent);parent.cache[key]=f;return f end
 ns.UI.KeepFont=function(parent,key) local f=Frame();parent.cache[key]=f;return f end
+ns.UI.SlimScroll=function() return Frame() end
 ns.UI.KeepButton=function(parent,key,text,w,h,fn) local f=Frame();f.label=Frame();f.label:SetText(text);f.click=fn;parent.cache[key]=f;return f end
 local tooltip=Frame();local title=Frame();title:SetText('Test name')
 local env={_G={NaowhForever=ns},GameTooltip=tooltip,ItemRefTooltip=Frame(),ShoppingTooltip1=Frame(),ShoppingTooltip2=Frame(),GameTooltipTextLeft1=title,
@@ -61,11 +63,12 @@ setmetatable(env,{__index=function(_,key)
 end})
 setmetatable(env._G,{__index=env})
 -- The copy box is the Core's (ns.ShowCopyBox): load that function alone from it.
-local core=assert(io.open('Core/NaowhForever_Core.lua','rb')):read('*a')
-local first=assert(core:find('function ns.ShowCopyBox',1,true))
-local last=assert(core:find('-- Confirm for a reload',first,true))
-local copy=assert(loadstring(core:sub(first,last-1)));setfenv(copy,setmetatable({ns=ns},{__index=env}));copy()
-local chunk=assert(loadfile('QoL/NaowhForever_GlobalCopy.lua'));setfenv(chunk,env);chunk()
+local core=assert(io.open('Core/Core.lua','rb')):read('*a'):gsub('\r\n','\n')
+local constants=assert(core:match('\n(local MODULE_KEY = .-\n)\nlocal ns = {}\n'),'Core constants')
+local first=assert(core:find('local function NewCopyScroll',1,true))
+local last=assert(core:find('local function ConfirmHead',first,true))
+local copy=assert(loadstring(constants..core:sub(first,last-1)));setfenv(copy,setmetatable({ns=ns},{__index=env}));copy()
+for _,path in ipairs({'Shared/UI/CopyCard.lua','NaowhForever_QoL/Interface/GlobalCopy.lua'}) do local chunk=assert(loadfile(path));setfenv(chunk,env);chunk() end
 for name,tip in pairs({GameTooltip=tooltip,ItemRefTooltip=env.ItemRefTooltip,ShoppingTooltip1=env.ShoppingTooltip1,
  ShoppingTooltip2=env.ShoppingTooltip2}) do tip.name=name end
 local function clear()

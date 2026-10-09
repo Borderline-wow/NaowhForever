@@ -17,13 +17,15 @@ local settings = { enabled = true, mapSkyborne = true, mapSkyborneSize = 20 }
 local S = { Get = function(key) return settings[key] end, Set = function() end }
 local account, printed, card = {}, {}, nil
 local ns = {
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     QoLSettings = S,
     Apply = function() end,
     AccountSettings = function() return account end,
     Print = function(msg) printed[#printed + 1] = msg end,
     ThemeTint = function() return nil end,
     PlaceWaypoint = function() end,
-    Shared = { Settings = { Page = function() return { Card = function(_, c) card = c end } end } },
+    Shared = { Style = dofile("Tools/regression/shared_style.lua"),
+        Settings = { Page = function() return { Card = function(_, c) card = c end } end } },
 }
 
 local race, faction, combat, now = "Skyborne", "Horde", false, 1000
@@ -103,7 +105,7 @@ local env = setmetatable({
         AddDataProvider = function(_, p) provider = p end,
     },
 }, { __index = _G })
-for _, file in ipairs({ "QoL/NaowhForever_SkyborneData.lua", "QoL/NaowhForever_SkyborneSpots.lua" }) do
+for _, file in ipairs({ "NaowhForever_QoL/Interface/SkyborneData.lua", "NaowhForever_QoL/Interface/SkyborneSpots.lua" }) do
     local chunk = assert(loadstring(Read(file)))
     setfenv(chunk, env)
     chunk()
@@ -120,9 +122,10 @@ for kind, list in pairs(ns.SkyborneSpots) do
     end
 end
 Check(#ns.SkyborneSpots.leyline == 36 and #ns.SkyborneSpots.convergence == 30, "36 ley lines, 30 convergences")
-Check(Read("QoL/NaowhForever_SkyborneData.lua"):find("Copyright (c) 2026 tr0tsky", 1, true), "with tr0tsky's notice")
+Check(Read("NaowhForever_QoL/Interface/SkyborneData.lua"):find("Copyright (c) 2026 tr0tsky", 1, true), "with tr0tsky's notice")
 
-Check(Read("QoL/NaowhForever_QoL.lua"):find("mapSkyborne = false", 1, true), "Skyborne Spots starts off")
+Check(Read("Core/Settings.lua"):find("mapSkyborne = F.mapSkyborne,", 1, true)
+    and Read("Core/Features.lua"):find("mapSkyborne = false,", 1, true), "Skyborne Spots starts off")
 Check(card and card.switch == "mapSkyborne", "the card switches the setting")
 
 local function CastAt(spellID, buffID, duration)
@@ -189,7 +192,7 @@ Check(#account.skyborneSpots.leyline == 1, "Read Ley Line that gives Energized s
 provider:RefreshAllData()
 Check(#pins == 14 and pins[1].entry.kind == "leyline", "an Alliance map shows ley lines, not convergences")
 
-Check(Read("QoL/NaowhForever_SkyborneSpots.xml"):find('registerForClicks="LeftButtonUp, RightButtonUp"', 1, true),
+Check(Read("NaowhForever_QoL/Interface/SkyborneSpots.xml"):find('registerForClicks="LeftButtonUp, RightButtonUp"', 1, true),
     "a pin takes right-clicks")
 local foundPin
 for _, pin in ipairs(pins) do

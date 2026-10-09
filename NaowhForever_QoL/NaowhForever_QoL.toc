@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: Quality of Life
+## Notes: Naowh's quality of life tweaks, trimmed to what Forever has.
+## Author: Naowh
+## Version: 1.0.6
+## Dependencies: NaowhForever
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+
+QoL.xml

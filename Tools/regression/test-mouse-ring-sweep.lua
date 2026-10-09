@@ -1,6 +1,6 @@
 -- Mouse ring sweep handoff between the GCD and a hard cast, in Forever's event order: the GCD
 -- starts with UNIT_SPELLCAST_SENT and UNIT_SPELLCAST_START follows a round trip later.
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_MouseRing.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Cursor/MouseRing.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 
 local GCD_COLOR = { r = 0, g = 0, b = 1 }
@@ -48,8 +48,9 @@ local function Session(settings)
     local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end }
     local page = { Card = function() end }
     local ns = {
+        QoLConstants = dofile("Tools/regression/qol_constants.lua"),
         QoLSettings = S, UI = {}, THEME = {},
-        Shared = { Settings = { Group = function() return {} end, Page = function() return page end } },
+        Shared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = { Group = function() return {} end, Page = function() return page end } },
         GCDSpell = function() return 61304 end,
         MeleeRangeSpell = function() return nil end,
         Apply = function() end,

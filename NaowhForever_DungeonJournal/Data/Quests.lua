@@ -1,32 +1,6 @@
--------------------------------------------------------------------------------
---  Data/Quests.lua -- every dungeon quest on WoW Forever, from
---  Wowhead's Forever dungeon quest guide (patch 1.60.1, updated 2026-09-23). Generated;
---  instance IDs are the Map table's for build 1.60.1.69913.
---
---  Each quest: { questID, name, level, side ("A", "H" or "B"), shareable (true,
---  false or "pre" for a prerequisite chain), where it starts, and where the quest giver
---  stands as uiMapID, x, y when it is outside the dungeon; class for class quests }.
---  Positions on Stormwind, Mulgore, Redridge and the Eastern Plaguelands are converted to
---  Forever's redrawn maps.
---
---  Added by hand: the new-in-Forever dungeons that have no quests in the guide, and
---  levels = { min, max } for all nine new ones; the classic dungeons carry the classic-era
---  ranges, which Forever's quest levels still match. map is nil where the instance ID is not
---  in the client's Map table yet (still encrypted in 1.60.1); those are matched by the
---  instance name GetInstanceInfo reports, so the name must be the client's own.
---  City of Dalaran's quests are by hand too, from their Wowhead Forever quest pages
---  (2026-10-05); the Stormwind spot is converted like the guide's.
---
---  Optional per quest, from Wowhead's Forever quest database (2026-09-26), filled in
---  for the dungeons up to level 20 so far: alt = the same quest's other versions (one
---  per faction), either of which counts; steps = the rest of its chain, all of which
---  must be done for Done; lead = a lead-in quest that only counts while you carry it.
---  A step can be a table of IDs, one per faction, any of which counts. next runs
---  alongside steps: next[i] = { uiMapID, x, y, where } is where steps[i] is picked up.
--------------------------------------------------------------------------------
+-- Quests.lua: every dungeon quest on WoW Forever, from Wowhead's Forever dungeon quest guide.
 local J = _G.NaowhForever.Journal
 
--- One entry per dungeon, matched to its Journal dungeon by name (Journal.lua).
 J.QuestData = {
     { name = "Ragefire Chasm", map = 389, levels = { 13, 18 }, quests = {
         { 5761, "Slaying the Beast", 9, "H", true, "Orgrimmar, The Drag - Neeru Fireblade (49.5, 50.6)", 1454, 49.5, 50.6 },
@@ -150,10 +124,6 @@ J.QuestData = {
         { 96984, "Heart of Disruption", 33, "H", false, "Silverpine Forest, near the City of Dalaran - Image of Archmage Modera, after Blood in the Streets (68.6, 45.2)", 1421, 68.6, 45.2 },
         { 96987, "Opportunistic Education", 33, "H", true, "By the City of Dalaran's sewer entrance - Rexxie Copperclutch" },
     } },
-    -- Scarlet Monastery's four wings share one instance (189), each its own dungeon here with
-    -- classic's ranges; the Journal tells them apart by the subzone you stand in (Journal.lua).
-    -- A quest goes under the wing it is done in: Hearts of Zeal (hearts from any wing) under the
-    -- first, the two that kill Loksey, Herod, Mograine and Whitemane under the Cathedral.
     { name = "Scarlet Monastery - Graveyard", map = 189, levels = { 26, 36 }, quests = {
         { 1051, "Vorrel's Revenge", 25, "H", true, "Scarlet Monastery, Graveyard - Vorrel Sengutz" },
         { 1113, "Hearts of Zeal", 30, "H", true, "Undercity, The Apothecarium - Master Apothecary Faranell Complete Going, Going, Guano!, Razorfen Kraul (48.8, 69.3)", 1458, 48.8, 69.3 },
@@ -329,29 +299,19 @@ J.QuestData = {
     } },
     { name = "Blackmaw Hold", map = nil, levels = { 55, 60 }, quests = {} },
     { name = "Shaper's Terrace", map = 3001, levels = { 58, 60 }, quests = {} },
-    -- The raids announced for Forever (maps from the game's Map and Achievement tables).
     { name = "Onyxia's Lair", map = 249, levels = { 60, 60 }, quests = {} },
     { name = "The Barrow Deeps", map = 3052, levels = { 60, 60 }, quests = {} },
     { name = "Hyjal Summit", map = 2981, levels = { 60, 60 }, quests = {} },
 }
 
--- Where a quest is handed in, where that is not its quest giver: quest ID ->
--- { uiMapID, x, y, who }. A quest in your log is tracked to here. From
--- Wowhead Forever's NPC pages (2026-09-26), with its Classic-era spots dropped on the
--- redrawn maps; The Glowing Shard follows the in-game quest text, which Wowhead has
--- wrong. Dungeons up to level 20 so far.
 J.QuestTurnIns = {
-    -- The Hall of Thanes
     [96393] = { 1455, 39.6, 55.6, "King Magni Bronzebeard, Ironforge" },
     [98423] = { 1455, 39.6, 55.6, "King Magni Bronzebeard, Ironforge" },
-    -- Wailing Caverns
     [6981] = { 1413, 63.0, 37.2, "Sputtervalve, Ratchet" },
     [3366] = { 1413, 48.2, 32.8, "Falla Sagewind, above Wailing Caverns" },
     [3369] = { 1456, 78.5, 28.5, "Arch Druid Hamuul Runetotem, Thunder Bluff" },
     [3370] = { 1457, 35.2, 8.0, "Mathrengyl Bearwalker, Darnassus" },
-    -- The Deadmines
     [373] = { 1453, 57.6, 47.8, "Baros Alexston, Stormwind City" },
-    -- Ruins of Lordaeron
     [97288] = { 1458, 48.5, 69.5, "Master Apothecary Faranell, Undercity" },
     [97289] = { 1458, 46.1, 62.6, "Unfinished Abomination, Undercity" },
     [97290] = { 1458, 48.5, 69.5, "Master Apothecary Faranell, Undercity" },
@@ -360,7 +320,6 @@ J.QuestTurnIns = {
     [95204] = { 1458, 73.5, 32.5, "Oran Snakewrithe, Undercity" },
     [95189] = { 1453, 69.2, 29.4, "Lady Dena Kennedy, Stormwind City" },
     [92415] = { 1453, 56.2, 54.2, "Orphan Matron Nightingale, Stormwind City" },
-    -- Blackfathom Deeps
     [6561] = { 1456, 70.8, 33.4, "Bashana Runetotem, Thunder Bluff" },
     [6562] = { 1440, 11.6, 34.3, "Je'neu Sancrea, Zoram'gar Outpost" },
     [6564] = { 1440, 11.6, 34.3, "Je'neu Sancrea, Zoram'gar Outpost" },

@@ -1,0 +1,26 @@
+-- ruRU.lua: the Russian strings.
+local L = _G.NaowhForeverLocale
+if not L then return end
+
+L["Profiles"] = "Профили"
+L["Setup"] = "Настройка"
+L["Cooldown Presets"] = "Предустановки времени восстановления"
+L["Dungeon Bosses"] = "Боссы подземелий"
+L["Raid Bosses"] = "Рейдовые боссы"
+L["Trash"] = "Треш"
+L["Debuffs"] = "Дебаффы"
+L["Coming soon"] = "Скоро"
+L["Click to open settings."] = "Нажмите, чтобы открыть настройки."
+L["Drag to move the minimap button."] = "Перетащите, чтобы переместить кнопку у мини-карты."
+L["Add"] = "Добавить"
+L["Cancel"] = "Отмена"
+L["Close"] = "Закрыть"
+L["Delete"] = "Удалить"
+L["Done"] = "Готово"
+L["Edit"] = "Изменить"
+L["Import"] = "Импорт"
+L["New Profile"] = "Новый профиль"
+L["Preview"] = "Предпросмотр"
+L["Remove"] = "Убрать"
+L["Save"] = "Сохранить"
+L["Test"] = "Тест"

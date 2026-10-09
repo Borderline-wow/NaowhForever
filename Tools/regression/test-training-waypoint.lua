@@ -1,8 +1,13 @@
-local f = assert(io.open(arg[1] or "NaowhForever_Training/NaowhForever_Training.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local function Slice(a, b)
-    local first = assert(source:find(a, 1, true))
-    return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
+local DIR = arg[1] or "NaowhForever_Training"
+local Load = dofile("Tools/regression/load_files.lua")
+
+-- The module's Route.lua, loaded into env with ns.Training to fill.
+local function LoadRoute(env)
+    env.ns.Training = env.Training
+    env.NaowhForever = env.ns
+    env._G = env
+    Load({ DIR .. "/Route.lua" }, setmetatable(env, { __index = _G }))
+    return env.Training
 end
 
 -- uiMapID -> its continent, its corner in world units and its size.
@@ -51,12 +56,7 @@ local function Nearest(class, faction, at)
             end,
         },
     }
-    setmetatable(env, { __index = _G })
-    local code = "local ns, Training = ns, Training\n"
-        .. Slice("local function WorldPos", "\nfunction Training.WaypointToTrainer")
-        .. "\nreturn Training.NearestTrainer"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    local npc, map = chunk()()
+    local npc, map = LoadRoute(env).NearestTrainer()
     return npc and (npc[4] .. "@" .. map) or "none"
 end
 
@@ -121,12 +121,7 @@ local function Route(class, faction, professions, at)
             end,
         },
     }
-    setmetatable(env, { __index = _G })
-    local code = "local ns, Training = ns, Training\n"
-        .. Slice("local function WorldPos", "\n---------")
-        .. "\nreturn Training.WaypointToTrainer"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    chunk()()
+    LoadRoute(env).WaypointToTrainer()
     return placed
 end
 

@@ -5,9 +5,10 @@ covers a lot, so each addition is weighed on how many players would use it, how 
 upkeep it adds and how much code it brings. If you want to build a feature, message
 Glyalith on [Discord](https://discord.gg/naowh) before you start.**
 
-Naowh Forever is Naowh's companion addon for the WoW Forever client: Smart Reminders,
-BiS, Dungeon Journal, Professions, Gear Sets, Swing Timer, Threat Meter, Group Inspect, QoL,
-macros and buff reminders, in one window.
+Naowh Forever is Naowh's companion addon for the WoW Forever client: BiS, Dungeon
+Journal, Completo, Discovery, Training Planner, Professions, Gear Sets, Blessings, Macros,
+Action Bars, buff reminders, Threat Meter, Group Inspect, PvP, Swing Timer, Top Bar and QoL,
+in one window.
 
 Thanks for wanting to help! Pull requests are welcome. This document explains how PRs
 are reviewed and the rules the codebase lives by, so your change can merge quickly
@@ -51,8 +52,8 @@ comment, sent back for changes, or merged and fixed up by me.
      Guard aura reads with `C_Secrets.ShouldAurasBeSecret()` and freeze while it is true.
    - The combat log is closed to addons on Forever.
 
-4. **Forever only.** This addon targets the Forever client. Retail Smart Reminders lives
-   in its own repo, so do not add retail branches here. Forever uses classic-era spell
+4. **Forever only.** This addon targets the Forever client and nothing else, so do not
+   add retail branches here. Forever uses classic-era spell
    IDs (retail IDs do not match) and does not load Blizzard's deprecated shims, so use
    the current API (`C_SpellBook.IsSpellKnown`, not `IsPlayerSpell`). Look IDs up on
    [Wowhead Forever](https://www.wowhead.com/forever).
@@ -69,22 +70,26 @@ comment, sent back for changes, or merged and fixed up by me.
   Keep your editor on CRLF, and never `sed -i` from Git Bash, which strips them.
 - **Match the surrounding code.** Before building an options row, slider or popup, find
   the nearest existing example in the same module and copy its shape.
-- Each module has its own folder with `NaowhForever_<Name>.lua` files. Add new files to
-  the TOC that loads that module (`NaowhForever.toc` for the core, or the module addon's
-  own `NaowhForever_<Module>.toc`) next to the rest of its files.
-- A module with many files loads them through its own XML file, which the TOC lists once,
-  and names its files plainly inside its folder. The Dungeon Journal is the example:
-  `NaowhForever_DungeonJournal/DungeonJournal.xml`, with its layout in `NaowhForever_DungeonJournal/README.md`. Add a
-  new file to that XML. The checks read the XML too, so its files are linted and compiled.
+- **Follow the house style in [STYLE.md](STYLE.md):** where files go, the order inside a
+  file, naming, constants, the feature switches and the shared components.
+- Each module has its own folder and loads its files through its own XML file, which its
+  TOC lists once, and names its files plainly inside its folder. The Dungeon Journal is the
+  example: `NaowhForever_DungeonJournal/DungeonJournal.xml`, with its layout in
+  `NaowhForever_DungeonJournal/README.md`. The base addon's areas (`Core/`, `Shared/`,
+  `Core/Badges/`, `Core/Integrations/RestedXP/`) load through their own XML files too. Add a
+  new file to its area's XML, never to a TOC. The checks read the XML too, so its files are linted and compiled.
+- A feature's on/off switch and its default live in `Core/Features.lua`
+  (`ns.FEATURES`), and the module's settings read it from there.
 - Settings go through `UI.ModuleSettings`, option widgets through the `ns.UI` kit in
-  `Core/NaowhForever_Widgets.lua`, confirmations through `ns.Confirm` / `ns.PromptText`,
+  `Core/Options/Widgets.lua`, confirmations through `ns.Confirm` / `ns.PromptText`,
   and movable frames through `UI.AttachMover` so they show up in Unlock Mode.
-- Keep comments short and only where the code cannot speak for itself.
+- One comment per file: its first line, `-- <File>.lua: <what it is>.` Anything a reader
+  needs that the code cannot say goes in the module's `README.md`, under Why.
 
 ### Shared components
 
 - Build every piece of UI from the shared components: `Shared/` (listed in
-  `Shared/README.md`) and the `ns.UI` widgets in `Core/NaowhForever_Widgets.lua`. Windows,
+  `Shared/README.md`) and the `ns.UI` widgets in `Core/Options/Widgets.lua`. Windows,
   title bars, buttons, tabs, links, borders, fonts, colours, settings cards, confirmations
   and tooltips all have one.
 - Never hand-roll a part that already exists, and never copy one into your module to change
@@ -97,8 +102,8 @@ comment, sent back for changes, or merged and fixed up by me.
 
 ### Style
 
-- Every colour, size and gap is a named value, with a comment when the name alone does not
-  say what it is for: in the module's style file when more than one file uses it (the
+- Every colour, size and gap is a named value, with its reason in the README's Why when the
+  name alone does not say what it is for: in the module's style file when more than one file uses it (the
   Dungeon Journal's `View/Style.lua`), else at the top of the file that does. No bare
   numbers in drawing code.
 - Edges are 1px black: buttons and input boxes have it by default, and a window's own
@@ -107,7 +112,7 @@ comment, sent back for changes, or merged and fixed up by me.
 - Text goes through `ns.Font`, in the Naowh font. That font leaves room above its
   capitals, so its letters sit under the middle of their font string: an icon beside text
   is moved down to the letters by a named offset with its reason (the Dungeon Journal's
-  `PIN_DROP`, the Discovery tracker's `NUDGE`), never an unnamed number. Measure it in game
+  `PIN_DROP`, the chat badge's `BADGE_DROP`), never an unnamed number. Measure it in game
   rather than guessing.
 
 ### Help text
@@ -136,9 +141,11 @@ comment, sent back for changes, or merged and fixed up by me.
   the checkout. Point an `Interface\AddOns\NaowhForever_<Module>` folder at each one too. A
   folder the game has not seen before may need a restart to show up in the AddOns list.
 - A new module addon gets its own TOC with `## Dependencies: NaowhForever` (and any module
-  it needs) and `## Group: NaowhForever`, which files it under Naowh Forever in the AddOns
-  list, a `move-folders` line in `.pkgmeta` after the modules it needs, and `addon =`
-  on its entry in `MODULES` (`needs =` too when it cannot work without another module).
+  it needs), `## Group: NaowhForever`, which files it under Naowh Forever in the AddOns
+  list, and one file line, its `<Module>.xml`. It also needs a `move-folders` line in
+  `.pkgmeta` after the modules it needs, `addon =` on its entry in `MODULES`
+  (`Core/Options/Modules.lua`; `needs =` too when it cannot work without another module),
+  and its item in the onboarding's list (`Core/Onboarding/Setup.lua`).
 - A new global the addon writes goes in `globals` in `.luacheckrc`, a new game API it
   reads in `read_globals`.
 
@@ -149,7 +156,7 @@ Every pull request runs these on GitHub. Get them green before you ask for a rev
 | Check | What it looks at |
 | --- | --- |
 | `pre-commit` | luacheck; CRLF and ASCII in addon files; every TOC file exists with the right letter case; valid XML and YAML; merge markers, trailing whitespace, mixed line endings, private keys and files over 5 MB; the workflows through actionlint and zizmor. The list is in `.pre-commit-config.yaml`. |
-| `tests` | Every test in `Tools/regression` on Lua 5.1, including `test-syntax.lua`, which compiles every file the TOC loads, so `goto` or `//` fails here instead of at login; and the release script's tests in `Tools/tests`. |
+| `tests` | Every test in `Tools/regression` on Lua 5.1, including `test-syntax.lua`, which compiles every file the TOCs load, so `goto` or `//` fails here instead of at login; and the tools' Python tests in `Tools/tests`. |
 | `pr-rules` | Addon changes have a changelog line under `## Changelog` in the PR description, and the TOC `## Version` and `ns.CODE_BUILD` stay as they are. Label the PR `no changelog` when nothing changes for players, or `release` for the release commit. Editing the description re-runs it. |
 | `package` | The release packager builds the zip without uploading it, then every TOC file and library must be inside and no tooling may ship. |
 | `title` | The PR title is `type: summary` (see [PR etiquette](#pr-etiquette)), since a squash merge turns it into the commit on main. |
@@ -212,7 +219,7 @@ package manager's Lua 5.1 (or LuaJIT).
 pre-commit install              # checks on every commit from now on
 pre-commit run --all-files      # everything, once
 bash Tools/regression/run-all.sh
-python -m unittest discover -s Tools/tests    # the release script
+python -m unittest discover -s Tools/tests    # the tools' Python tests
 bash Tools/hooks/check-pr.sh origin/main
 ```
 

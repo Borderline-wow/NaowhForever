@@ -1,4 +1,5 @@
 -- Offline behavior checks; these do not emulate client taint or rendering.
+local TocFiles = dofile('Tools/regression/toc_files.lua')
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 local function fixture(settings, withSettings)
@@ -45,9 +46,9 @@ local function fixture(settings, withSettings)
         s.frames[#s.frames+1]=f; if name then s.named[name]=f end
         return f
     end
-    local ns={ THEME={bg={},fg={r=1,g=1,b=1},muted={r=0.6,g=0.6,b=0.6},accent={r=0,g=0.7,b=1}},
+    local ns={ MEDIA = dofile("Tools/regression/core_media.lua"), THEME={bg={},fg={r=1,g=1,b=1},muted={r=0.6,g=0.6,b=0.6},accent={r=0,g=0.7,b=1}},
         UIFontPath=function() return 'font.ttf' end, Print=function() end,
-        Apply=function() end, ShowRaidReminderAnchorConfig=function() end, HideRaidReminderAnchorConfig=function() end,
+        Apply=function() end, ShowUnlockMode=function() end, HideUnlockMode=function() end,
         Font=function() return frame('FontString') end,
         Border=function(_,color) local b=frame('Border'); b.edge=color; return {_frame=b} end,
         AllowOffscreen=function() end,
@@ -100,13 +101,21 @@ local function fixture(settings, withSettings)
     function env.GameTooltip:SetOwner(o) self.owner=o end
     function env.GameTooltip:GetOwner() return self.owner end
     ns.Shared={Parts={HudFont=function(fs,font,size,outline) fs:SetFont('font.ttf',size,outline);fs.shadowFor=outline=='' end},
-        Style={RED_RGB={r=0.97,g=0.44,b=0.44},HAVE_RGB={r=0.3,g=0.82,b=0.48},WARN_RGB={r=0.98,g=0.57,b=0.24}}}
+        Style=setmetatable({RED_RGB={r=0.97,g=0.44,b=0.44},HAVE_RGB={r=0.3,g=0.82,b=0.48},WARN_RGB={r=0.98,g=0.57,b=0.24}},
+            {__index=dofile('Tools/regression/shared_style.lua')})}
     if withSettings then
         ns.Shared.Settings={Group=function(name) return {group=name} end,Look=function(_,opts) s.look=opts;return {} end,
+            Snap=function(v,range)
+                local low,high,step=range[1],range[2],range[3]
+                v=low+math.floor((v-low)/step+0.5)*step
+                return math.max(low,math.min(high,v))
+            end,
             Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}
     end
     setmetatable(env,{__index=_G})
-    local chunk=assert(loadfile('NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua'));setfenv(chunk,env);chunk()
+    local files=TocFiles('^NaowhForever_ThreatMeter/.*%.lua$')
+    table.insert(files,1,'Core/Features.lua')
+    for _,path in ipairs(files) do local chunk=assert(loadfile(path));setfenv(chunk,env);chunk() end
     s.ns=ns
     function s.fire(event,unit)
         local all={};for i,f in ipairs(s.frames) do all[i]=f end

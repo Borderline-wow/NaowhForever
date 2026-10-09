@@ -1,0 +1,32 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Completo.xml: Completo's files, in load order. -->
+    <Script file="Completo.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Quests.lua"/>
+    <Script file="Data\Rares.lua"/>
+    <Script file="Data\AlertSounds.lua"/>
+    <Script file="Data\RaidMarks.lua"/>
+    <Script file="Quests.lua"/>
+    <Script file="Givers.lua"/>
+    <Script file="Rares.lua"/>
+    <Script file="Kills.lua"/>
+    <Script file="Sounds.lua"/>
+    <Script file="Marks.lua"/>
+    <Script file="KeyBinding.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\View.lua"/>
+    <Script file="View\Hero.lua"/>
+    <Script file="View\ZoneRow.lua"/>
+    <Script file="View\PartRow.lua"/>
+    <Script file="View\QuestRow.lua"/>
+    <Script file="View\RareRow.lua"/>
+    <Script file="View\DropRow.lua"/>
+    <Script file="View\AlertCard.lua"/>
+    <Script file="UI\RareAlert.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Include file="UI\QuestPins.xml"/>
+    <Include file="UI\RarePins.xml"/>
+    <Script file="UI\GeneralSettings.lua"/>
+    <Script file="UI\QuestsSettings.lua"/>
+    <Script file="UI\RaresSettings.lua"/>
+</Ui>

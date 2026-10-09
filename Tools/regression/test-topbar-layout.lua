@@ -1,7 +1,15 @@
 -- Top Bar layout: the saved layout, its migration from the old button keys, the order the bar
--- draws in, and the preview editor's remove, move and add. Cut out of TopBar.lua and run on stubs.
-local f = assert(io.open(arg[1] or "TopBar/NaowhForever_TopBar.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+-- draws in, and the preview editor's remove, move and add. NaowhForever_TopBar/Layout.lua and its look are
+-- loaded on stubs; the preview's key handling is cut out of NaowhForever_TopBar/UI/Preview.lua.
+
+-- The Top Bar's files as TopBar.xml lists them, read as one source.
+local parts = {}
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do
+    local f = assert(io.open(path, "rb"))
+    parts[#parts + 1] = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+end
+local source = table.concat(parts, "\n")
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
@@ -11,18 +19,7 @@ local function Slice(a, b)
 end
 
 local defaultLayout = assert(loadstring("return " .. assert(source:match("\n    layout = (%b{}),\n"))))()
-local GLYPH = Slice("local GLYPH = {", "\n\n")
-
-local code = table.concat({
-    "local S, LDB, MEDIA = ...",
-    GLYPH,
-    "local Look = {}",
-    Slice("local SIDES = {", "\n-------------------------------------------------------------------------------\n--  Live info"),
-    Slice("local NO_COORDS =", "\nlocal function PaintClock()"),
-    Slice("local function CopyList(list)", "\nlocal function ButtonName(key)"),
-    "return { Look = Look, SavedLayout = SavedLayout, RemoveKey = RemoveKey, MoveKey = MoveKey,",
-    "    AddKey = AddKey, ResetLayout = ResetLayout, InLayoutOf = InLayoutOf }",
-}, "\n")
+local FILES = { "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/Layout.lua", "NaowhForever_TopBar/View/Style.lua", "NaowhForever_TopBar/View/Look.lua" }
 
 local function Store(db)
     local S = { sets = 0 }
@@ -43,11 +40,21 @@ local ldb = {
 }
 
 local function Load(db)
-    local chunk = assert(loadstring(code))
-    setfenv(chunk, setmetatable({ wipe = function(t) for k in pairs(t) do t[k] = nil end return t end },
-        { __index = _G }))
     local S = Store(db)
-    return chunk(S, function() return ldb end, "M\\"), S
+    local ns = { TopBar = { Settings = S, LDB = function() return ldb end },
+        Shared = { Style = {}, Parts = {} }, THEME = {}, UI = {} }
+    local env = setmetatable({ NaowhForever = ns, wipe = function(t) for k in pairs(t) do t[k] = nil end return t end },
+        { __index = _G })
+    env._G = env
+    for _, path in ipairs(FILES) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        chunk()
+    end
+    local TB = ns.TopBar
+    local L = TB.Layout
+    return { Look = TB.Look, Style = TB.Style, SavedLayout = L.Saved, RemoveKey = L.Remove, MoveKey = L.Move,
+        AddKey = L.Add, ResetLayout = L.Reset, InLayoutOf = L.InLayoutOf }, S
 end
 
 local function Join(list) return table.concat(list, ",") end
@@ -96,13 +103,18 @@ api.Look.Buttons(function(side, key, texture, glyph, coords, name)
     drawn[#drawn + 1] = side .. ":" .. key .. ":" .. tostring(texture) .. ":" .. tostring(glyph) .. ":"
         .. tostring(name) .. ":" .. #coords
 end)
+local M = api.Style.MEDIA
 check("drawn in saved order, missing and iconless brokers skipped", Join(drawn) ==
-    "left:guild:M\\icon-guild.png:true:nil:4,left:ldb:BugSack:bug:false:BugSack:4,"
-    .. "right:hearth:M\\icon-hearth.png:true:nil:4,right:ldb:NaowhForeverBiS:M\\icon-bis.png:true:NaowhForeverBiS:4")
+    "left:guild:" .. M .. "icon-guild.png:true:nil:4,left:ldb:BugSack:bug:false:BugSack:4,"
+    .. "right:hearth:" .. M .. "icon-hearth.png:true:nil:4,right:ldb:NaowhForeverBiS:" .. M
+    .. "icon-bis.png:true:NaowhForeverBiS:4")
 check("skipped brokers stay in the layout", db.layout.left[1] == "ldb:Missing" and db.layout.right[1] == "ldb:NoIcon")
 
 -- Every Naowh Forever launcher in the default layout has its own glyph, and the file is there.
-local glyphs = assert(loadstring("local MEDIA = ...\n" .. GLYPH .. "\nreturn GLYPH"))("Media/TopBar/")
+local glyphs = {}
+for name, path in pairs(api.Style.GLYPH) do
+    glyphs[name] = "NaowhForever_TopBar/Media/" .. path:sub(#api.Style.MEDIA + 1)
+end
 local missing = {}
 for _, side in ipairs({ "left", "right" }) do
     for _, key in ipairs(defaultLayout[side]) do

@@ -44,14 +44,14 @@ local function boot(settings, units)
         return f
     end
     local St = { TIME_OK_RGB = GREEN, TIME_LOW_RGB = YELLOW, TIME_OUT_RGB = RED, RED_RGB = RED }
-    local ns = { THEME = { bg = {}, fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.5, g = 0.5, b = 0.5 } },
+    local ns = { QoLConstants = dofile("Tools/regression/qol_constants.lua"), THEME = { bg = {}, fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.5, g = 0.5, b = 0.5 } },
         Font = function(parent)
             local fs = frame("FontString", nil, parent)
             parent.fonts[#parent.fonts + 1] = fs
             return fs
         end,
-        Apply = function() end, ShowRaidReminderAnchorConfig = function() end,
-        HideRaidReminderAnchorConfig = function() end,
+        Apply = function() end, ShowUnlockMode = function() end,
+        HideUnlockMode = function() end,
         UI = { AttachMover = function() return frame("Mover") end },
         Shared = { Style = St, Parts = {
             HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline end,
@@ -112,7 +112,7 @@ local function boot(settings, units)
     }
     setmetatable(env, { __index = _G })
     s.env = env
-    local f = assert(io.open("QoL/NaowhForever_HealerMana.lua", "rb"))
+    local f = assert(io.open("NaowhForever_QoL/Combat/HealerMana.lua", "rb"))
     local src = f:read("*a"); f:close()
     local chunk = assert(loadstring(src, "HealerMana")); setfenv(chunk, env); chunk()
     local events, bootFrame = s.created[1], s.created[2]

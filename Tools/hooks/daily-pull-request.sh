@@ -62,8 +62,8 @@ hold() {
 # What to run on our machines for a check's stuck changes (Tools/README.md has the rest).
 how_to_make() {
   case "$1" in
-    bis) echo '`python Tools/build_bis_data.py` (it asks Wowhead for the items the game'"'"'s tables do not have), then `lua Tools/regression/test-bis-dungeon-drops.lua` for their sources' ;;
-    loot) echo '`python Tools/wowsrc.py --resolve`, then `python Tools/build_journal.py`' ;;
+    bis) echo '`python Tools/build/bis_data.py` (it asks Wowhead for the items the game'"'"'s tables do not have), then `lua Tools/regression/test-bis-dungeon-drops.lua` for their sources' ;;
+    loot) echo '`python Tools/sources/wowsrc.py --resolve`, then `python Tools/build/journal.py`' ;;
     *) echo "its tool without \`--offline\` (see Tools/README.md)" ;;
   esac
 }

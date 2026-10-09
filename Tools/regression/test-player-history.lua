@@ -1,4 +1,4 @@
--- Loads NaowhForever_PlayerHistory.lua against stubbed groups, chat events and tooltips and checks
+-- Loads PlayerHistory.lua against stubbed groups, chat events and tooltips and checks
 -- Player History: nothing listened to while off, sessions with the roster, dungeon and raid runs,
 -- whispers and group chat by GUID, secrets, NPCs and yourself skipped, the caps, Forget After and
 -- malformed saved data at load, notes and their tooltip line, and that a chat burst, a roster
@@ -33,6 +33,7 @@ local function Boot(settings, account, now)
     local ns = {
         THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, fg = { r = 0.94, g = 0.95, b = 0.95 } },
         Apply = Noop,
+        QoLConstants = dofile("Tools/regression/qol_constants.lua"),
         AccountSettings = function() return s.account end,
         Confirm = function(text, yes) s.confirmed = text; yes() end,
     }
@@ -74,7 +75,7 @@ local function Boot(settings, account, now)
         TooltipDataProcessor = { AddTooltipPostCall = function(kind, fn) s.posts[#s.posts + 1] = { kind, fn } end },
     }, { __index = _G })
     ns.Shared.Decode = LoadDecode(env)
-    local chunk = assert(loadfile("QoL/NaowhForever_PlayerHistory.lua"))
+    local chunk = assert(loadfile("NaowhForever_QoL/Questing/PlayerHistory.lua"))
     setfenv(chunk, env)
     chunk()
     s.ns, s.PH, s.S = ns, ns.PlayerHistory, ns.QoLSettings

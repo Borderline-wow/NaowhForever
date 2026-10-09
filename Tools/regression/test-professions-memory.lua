@@ -294,8 +294,10 @@ local defaults = {}
 local db = {}
 local account = {}
 local ns
-ns = {
-    Shared = { Parts = {} },
+ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
+    Shared = { Style = dofile("Tools/regression/shared_style.lua"), Parts = {}, Settings = {
+        Group = function() return {} end, Look = function() return {} end,
+        Page = function() return { Window = Noop, Card = Noop } end } },
     THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
         fg = { r = 0.94, g = 0.95, b = 0.95 }, bg = { r = 0.05, g = 0.06, b = 0.07 },
         panel = { r = 0.1, g = 0.1, b = 0.1 }, line = { r = 0.18, g = 0.19, b = 0.21 },
@@ -311,7 +313,12 @@ ns = {
                 if v == nil then return defaults[k] end
                 return v
             end
-            function S.Set(k, v) settings[k] = v end
+            local listeners = {}
+            function S.Set(k, v)
+                settings[k] = v
+                for i = 1, #listeners do listeners[i](k, v) end
+            end
+            function S.OnChange(fn) listeners[#listeners + 1] = fn end
             return S
         end,
     },
@@ -450,14 +457,12 @@ setmetatable(env, { __index = _G })
 -------------------------------------------------------------------------------
 --  Load the module and open its window beside the auction house
 -------------------------------------------------------------------------------
-local files = { "NaowhForever_Professions.lua", "NaowhForever_RecipeData.lua",
-    "NaowhForever_RecipeFinder.lua", "NaowhForever_CraftTimer.lua",
-    "NaowhForever_FavoriteRecipes.lua", "NaowhForever_ShoppingList.lua" }
-local paths = {}
-for i, f in ipairs(files) do paths[i] = DIR .. "/" .. f end
-Load({ paths[1], paths[2] }, env)
+-- Every file Professions.xml lists, in its order, after the feature switches they read.
+local xml = assert(io.open(DIR .. "/Professions.xml", "rb")):read("*a"):gsub("<!%-%-.-%-%->", "")
+local paths = { "Core/Features.lua" }
+for file in xml:gmatch("<Script%s+file=\"([^\"]+)\"") do paths[#paths + 1] = DIR .. "/" .. file:gsub("\\", "/") end
+Load(paths, env)
 local recipes = api.Build(ns.RecipeData)
-Load({ paths[3], paths[4], paths[5], paths[6] }, env)
 
 -- Count the auction house panels' draws: the shopping list places itself on every draw.
 local place = ns.ShoppingListPlace

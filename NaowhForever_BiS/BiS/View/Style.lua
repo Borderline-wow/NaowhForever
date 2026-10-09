@@ -1,39 +1,49 @@
--------------------------------------------------------------------------------
---  View/Style.lua -- what only the BiS List draws (ns.BiS.Style), over the house look
---  (ns.Shared.Style, read through this table).
--------------------------------------------------------------------------------
+-- Style.lua: what only the BiS List draws (B.Style), over the house look.
 local ns = _G.NaowhForever
 
 ns.BiS.Style = setmetatable({
-    -- The window: as large as the Dungeon Journal's, the paperdoll's card where its list is.
+    STAR_GAP = 4,
     WINDOW_W = 1160,
     WINDOW_H = 800,
     SIDE_W = 380,
 
-    -- The paperdoll: slots down both sides of your model, the weapons underneath.
     SLOT = 44,
     SLOT_GAP = 7,
     MODEL_GAP = 12,
     DOLL_W = 372,
-    LOOK_W = 150,           -- the switch over the model: your BiS, or what you wear now
-    CAMERA = 0.85,          -- the model's camera, a little closer than the game's
-    GAINS_H = 132,          -- what your BiS gets you, under the weapons
-    TURN_SPEED = 0.012,     -- radians the model turns per pixel dragged
+    LOOK_W = 150,
+    CAMERA = 0.85,
+    GAINS_H = 132,
+    TURN_SPEED = 0.012,
     ZOOM_STEP = 0.1,
     ZOOM_MAX = 0.7,
-    LIST_BUTTON_H = 26,     -- the list you use, as a button over the paperdoll
+    LIST_BUTTON_H = 26,
+    CROP_IN = 0.08,
+    CROP_OUT = 0.92,
 
-    -- The list: the summary (how many are yours, the filter, a bar of your slots), then a row
-    -- per slot.
     FILTER_W = 380,
     ROW_H = 32,
     ROW_ICON = 22,
-    STATUS_W = 8,           -- the list's inset: every text starts this far in, and ends this far
-                            -- short of the right edge; bands, rules and the slot bar go edge to edge
-    COLUMN_GAP = 10,        -- between a row's columns: name, gain, wand, source
-    SLOT_W = 82,            -- the slot's name: "Shoulder" and "Main Hand", the longest, and a gap
-    META_W = 230,           -- where it drops, on the right
-    TAIL_W = 70,            -- Worn, In Bag, its picks
-    PLACE_H = 40,           -- a place to run next: two lines
-    PICKER_BOX_W = 286,     -- the item box along the picker's bottom
+    STATUS_W = 8,
+    COLUMN_GAP = 10,
+    SLOT_W = 82,
+    META_W = 230,
+    TAIL_W = 70,
+    PLACE_H = 40,
+    PICKER_BOX_W = 286,
+    NAME_GAP = 8,
+    ACTION_GAP = 6,
+    CURSOR_TIP_X = 16,
+    LIT = 0.12,
+    CARD_ALPHA = 0.95,
+    TOAST_W = 300,
+
+    TINY_SIZE = 10,
+    NAME_SIZE = 13,
+    COUNT_SIZE = 20,
+
+    GOLD_RGB = { r = 1, g = 0.82, b = 0 },
+    GAIN_BIG_RGB = { r = 0x1e / 255, g = 1, b = 0 },
+    GAIN_RGB = { r = 0.47, g = 0.86, b = 0.45 },
+    GAIN_SMALL_RGB = { r = 0.42, g = 0.62, b = 0.45 },
 }, { __index = ns.Shared.Style })

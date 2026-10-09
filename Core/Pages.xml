@@ -1,0 +1,9 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Pages.xml: Patch Notes, Credits, the onboarding, after the Badges. -->
+    <Script file="Pages\PatchNotes.lua"/>
+    <Script file="Pages\Credits.lua"/>
+    <Script file="Onboarding\Setup.lua"/>
+    <Script file="Onboarding\SetupWindow.lua"/>
+    <Script file="Onboarding\FirstLogin.lua"/>
+    <Script file="Profiles\SetupsCard.lua"/>
+</Ui>

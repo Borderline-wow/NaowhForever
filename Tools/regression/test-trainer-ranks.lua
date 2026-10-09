@@ -1,4 +1,4 @@
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_Trainer.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Questing/Trainer.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true))
@@ -31,8 +31,8 @@ local function Fixture(bars, known, kept)
         Kept = function() return kept or {} end,
     }
     setmetatable(env, { __index = _G })
-    local code = "local " .. Slice("function RankOf(", "\n---") .. "local "
-        .. Slice("function CheckSlot(", "\n-- The spell names in a list")
+    local code = "local " .. Slice("function RankOf(", "\nlocal function AddBest(") .. "local "
+        .. Slice("function CheckSlot(", "\nlocal function Summary(")
         .. "\nreturn Upgrades"
     local chunk = assert(loadstring(code)); setfenv(chunk, env)
     return chunk()
@@ -68,5 +68,12 @@ Case("kept spells are still listed, flagged", function()
 end)
 Case("spells not in the spellbook and empty slots are ignored", function()
     assert(Slots(Fixture({ [1] = 2055 }, { 598 })()) == "")
+end)
+Case("QoL declares the Trainer Popup card on the Training Planner's page, so it goes with QoL", function()
+    assert(source:find('local TRAINING_PAGE = "Training Planner/Settings"', 1, true))
+    local card = Slice("Settings.Page(TRAINING_PAGE):Card({", "\n})")
+    assert(card:find('id = "trainer"', 1, true) and card:find('switch = "trainerPopup"', 1, true)
+        and card:find("store = S,", 1, true))
+    assert(card:find("button = ns.TrainerRankCheck,", 1, true) and card:find("button = ns.TrainerForgetKept,", 1, true))
 end)
 print(count .. " trainer rank regressions passed")

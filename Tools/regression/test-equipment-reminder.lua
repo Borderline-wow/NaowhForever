@@ -1,8 +1,8 @@
--- Loads NaowhForever_EquipmentReminder.lua against stubbed frames and checks what it listens to:
+-- Loads EquipmentReminder.lua against stubbed frames and checks what it listens to:
 -- nothing while off, and when on, gear changes for you only (UNIT_INVENTORY_CHANGED fires for every
 -- group member, so a raid's gear swaps would otherwise all reach the handler).
 -- Run from the repo root: lua Tools/regression/test-equipment-reminder.lua
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_EquipmentReminder.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Loot/EquipmentReminder.lua", "rb"))
 local source = f:read("*a"); f:close()
 
 local checks = 0
@@ -24,8 +24,8 @@ end
 
 local values = { enabled = true, equipReminder = false }
 local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end }
-local ns = { QoLSettings = S, THEME = {}, Apply = Noop,
-    Shared = { Settings = { Page = function() return { Card = Noop } end } } }
+local ns = { QoLConstants = dofile("Tools/regression/qol_constants.lua"), QoLSettings = S, THEME = {}, Apply = Noop,
+    Shared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = { Page = function() return { Card = Noop } end } } }
 local env = setmetatable({
     _G = { NaowhForever = ns },
     CreateFrame = Frame,

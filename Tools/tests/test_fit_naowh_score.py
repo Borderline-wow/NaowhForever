@@ -1,4 +1,4 @@
-"""Tests for Tools/fit_naowh_score.py: the fit on a made-up item table whose answer is known,
+"""Tests for Tools/build/fit_naowh_score.py: the fit on a made-up item table whose answer is known,
 the quality gates, the change gate, rounding and the Lua it writes. Offline. From the repo
 root:
 
@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import paths  # noqa: E402,F401
 import fit_naowh_score as fit  # noqa: E402
 
 # The made-up game: each slot kind's share of the budget, and each quality's budget line.

@@ -1,38 +1,28 @@
--------------------------------------------------------------------------------
---  View/Bags.lua -- the marks every slot of ours has (Shared.Parts.ItemMarks), on the items in
---  your bags: an item's level in the bottom-right in its quality's color (gold for common and
---  poor gear), so it never reads as a stack count, your BiS's star in the bottom-left,
---  Forever's mark in the top-left, and the green upgrade arrow in the top-right on gear better
---  than what you wear by your spec's stat weights (the gear tooltip's "+N% upgrade", BiS or
---  not). In the game's bags, or in EllesmereUI's (its bags, reagent bag and bank) through the
---  hook it offers other addons for their marks.
---
---  Ours is a frame over each bag button, kept in our own table (nothing stored on theirs), and
---  painted after the bag paints the slot. Off, nothing is hooked or made; turned off after
---  being on, ours hide and EllesmereUI's hook is let go. Item levels show on gear only, and
---  only with Item Level in Bags on (EllesmereUI's own shows again when ours is off).
--------------------------------------------------------------------------------
+-- Bags.lua: Bag Marks, the slot marks on your bags' items, the game's or EllesmereUI's.
 local ns = _G.NaowhForever
+
+local GetContainerItemID = C_Container.GetContainerItemID
+local GetContainerItemLink = C_Container.GetContainerItemLink
+local GetDetailedItemLevelInfo = C_Item.GetDetailedItemLevelInfo
+local GetItemQualityByID = C_Item.GetItemQualityByID
+local GetTime = GetTime
+
 local S = ns.QoLSettings
 local B = ns.BiS
 local Shared = ns.Shared
 local Items, Parts, Bags = Shared.Items, Shared.Parts, Shared.Bags
 local SW = ns.StatWeights
 
-local GetContainerItemID = C_Container.GetContainerItemID
-local GetContainerItemLink = C_Container.GetContainerItemLink
-local GetDetailedItemLevelInfo = C_Item.GetDetailedItemLevelInfo
-local GetItemQualityByID = C_Item.GetItemQualityByID
-local PLAIN_LEVEL = { r = 1, g = 0.82, b = 0 }
-local GetTime = GetTime
+local OVERLAY = "NaowhForever"
+local PLAIN_QUALITY = 1
+local PLAIN_LEVEL_RGB = { r = 1, g = 0.82, b = 0 }
+local BIND_GAP = 1
+local FOREVER_KIND = B.C.FOREVER_KIND
+local SETTINGS = { enabled = true, bis = true, bisBagMarks = true, bisBagLevels = true }
 
-local OVERLAY = "NaowhForever"   -- our name on EllesmereUI's list of item overlays
-
-local sets = {}         -- a bag's item button -> our marks over it
-local ellesmere = {}    -- EllesmereUI's buttons among them, whose own item level ours stands in for
+local sets = {}
+local ellesmere = {}
 local installed, registered = false, false
--- Your spec's weights and what your gear is worth by them, read once a frame: a bag paints
--- every slot in one go, EllesmereUI one slot per call.
 local weights, power, readAt
 
 local function On()
@@ -59,9 +49,12 @@ local function Weights()
     return weights, power
 end
 
--- An item's marks; none for an empty slot. Its level and arrow on gear only (a level on a
--- potion says nothing).
----@return boolean shown whether it shows an item level
+local function PaintLevel(set, id)
+    local quality = GetItemQualityByID(id)
+    local c = quality and quality > PLAIN_QUALITY and ITEM_QUALITY_COLORS[quality] or PLAIN_LEVEL_RGB
+    set.level:SetTextColor(c.r, c.g, c.b)
+end
+
 local function Paint(set, id, link)
     if not id then
         set:Hide()
@@ -71,18 +64,11 @@ local function Paint(set, id, link)
     local gear = Items.SlotsFor(id) ~= nil
     local level = gear and S.Get("bisBagLevels") and GetDetailedItemLevelInfo(link or id) or nil
     local upgrade = gear and SW.BestGain(id, link, Weights()) ~= nil
-    local shown = Parts.PaintItemMarks(set, level, ns.IsBisItem(id), Parts.IsForever("items", id), upgrade)
-    if shown then
-        local quality = GetItemQualityByID(id)
-        local c = quality and quality > 1 and ITEM_QUALITY_COLORS[quality] or PLAIN_LEVEL
-        set.level:SetTextColor(c.r, c.g, c.b)
-    end
+    local shown = Parts.PaintItemMarks(set, level, ns.IsBisItem(id), Parts.IsForever(FOREVER_KIND, id), upgrade)
+    if shown then PaintLevel(set, id) end
     return shown
 end
 
--------------------------------------------------------------------------------
---  The game's bags
--------------------------------------------------------------------------------
 local function GameBag(frame)
     if not On() then return end
     for _, button in frame:EnumerateValidItems() do
@@ -93,17 +79,12 @@ local function GameBag(frame)
     end
 end
 
--------------------------------------------------------------------------------
---  EllesmereUI's bags
--------------------------------------------------------------------------------
--- Its own marks in our corners: its BoE word in the bottom-left puts our star after it, and
--- Pawn's upgrade arrow in the bottom-right our item level before it.
 local function Corners(set, button)
     local bind = button.BindTypeText
     local word = bind and bind:GetText()
     set.rank:ClearAllPoints()
     if word and word ~= "" then
-        set.rank:SetPoint("LEFT", bind, "RIGHT", 1, 0)
+        set.rank:SetPoint("LEFT", bind, "RIGHT", BIND_GAP, 0)
     else
         set.rank:SetPoint("BOTTOMLEFT", Parts.MARK_IN, Parts.MARK_IN)
     end
@@ -116,12 +97,10 @@ local function Corners(set, button)
     end
 end
 
--- EllesmereUI's item level, back as it had it (or hidden while ours stands in for it).
 local function TheirLevel(button, alpha)
     if button.ItemLevelText then button.ItemLevelText:SetAlpha(alpha) end
 end
 
--- Called by EllesmereUI for each slot it paints: data is its slot's, for the call only.
 local function EllesmereSlot(button, data)
     local info = data.info
     local id = info and info.itemID
@@ -137,46 +116,53 @@ local function EllesmereSlot(button, data)
     TheirLevel(button, shown and 0 or 1)
 end
 
--------------------------------------------------------------------------------
---  On and off
--------------------------------------------------------------------------------
 local function Repaint()
     Bags.RepaintGame(GameBag)
     if registered then Bags.RefreshEllesmere() end
 end
 
+local function ListChanged()
+    if On() then Repaint() end
+end
+
 local function Install()
     installed = true
     Bags.OnGameUpdate(GameBag)
-    -- A new list or pick: the stars again.
-    B.OnListChange(function() if On() then Repaint() end end)
+    B.OnListChange(ListChanged)
+end
+
+local function Release()
+    for button, set in pairs(sets) do
+        set:Hide()
+        if ellesmere[button] then TheirLevel(button, 1) end
+    end
+end
+
+local function Register(on)
+    local bags = Bags.Ellesmere()
+    if not bags or on == registered then return end
+    registered = on
+    if on then
+        bags.RegisterItemOverlayIcon(OVERLAY, EllesmereSlot)
+    else
+        bags.UnregisterItemOverlayIcon(OVERLAY)
+    end
 end
 
 local function Apply()
     local on = On()
     if on and not installed then Install() end
     if not installed then return end
-    local bags = Bags.Ellesmere()
-    if bags and on ~= registered then
-        registered = on
-        if on then
-            bags.RegisterItemOverlayIcon(OVERLAY, EllesmereSlot)
-        else
-            bags.UnregisterItemOverlayIcon(OVERLAY)
-        end
-    end
-    if on then
-        Repaint()
-        return
-    end
-    for button, set in pairs(sets) do
-        set:Hide()
-        if ellesmere[button] then TheirLevel(button, 1) end
-    end
+    Register(on)
+    if on then return Repaint() end
+    Release()
 end
+
+local function OnSetting(key)
+    if SETTINGS[key] then Apply() end
+end
+
 B.ApplyBagMarks = Apply
 
-S.OnChange(function(key)
-    if key == "enabled" or key == "bis" or key == "bisBagMarks" or key == "bisBagLevels" then Apply() end
-end)
+S.OnChange(OnSetting)
 hooksecurefunc(ns, "Apply", Apply)

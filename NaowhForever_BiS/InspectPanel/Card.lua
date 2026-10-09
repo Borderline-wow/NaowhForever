@@ -1,12 +1,6 @@
--------------------------------------------------------------------------------
---  Card.lua -- the inspected player's Naowh Score as the character panel's score card, at the
---  top of our pane, with yours under the bar's start to compare; and their supporter badge
---  plate in the model's top-left corner, as on your panel. The score is read from their gear
---  while the game's inspect data is theirs (and kept for their tooltip), else the last read
---  or the one their Naowh Forever shared; "..." while their items load, never another
---  player's. Hover the card for both scores and the bests they are graded against.
--------------------------------------------------------------------------------
+-- Card.lua: their Naowh Score card and supporter badge plate on the inspect panel.
 local ns = _G.NaowhForever
+
 local T = ns.THEME
 local S = ns.QoLSettings
 local IP = ns.InspectPanel
@@ -14,6 +8,12 @@ local CP = ns.CharacterPanel
 
 local YOU = "You "
 local PLATE_LEVEL = 10
+local BADGES_LIVE = ns.BADGES_LIVE
+local TITLE_RGB = CP.C.TITLE_RGB
+local TIP_TITLE = "Naowh Score"
+local TIP_THEM, TIP_YOU = "Them", "You"
+local TIP_GOAL = "Level %d goal"
+local TIP_BEST = "Best in the game"
 
 local card, plate
 local last = {}
@@ -24,7 +24,7 @@ end
 
 local function BadgeOn()
     local wanted = S.Get("inspectPanelBadge")
-    if ns.FEATURE_BADGES ~= 1 then wanted = S.Default("inspectPanelBadge") end
+    if ns.FEATURE_BADGES ~= BADGES_LIVE then wanted = S.Default("inspectPanelBadge") end
     return IP.On() and wanted == true
 end
 
@@ -67,19 +67,19 @@ end
 local function Enter(self)
     local Score = ns.NaowhScore
     if not ns.Shared.Parts.Tip(self, "ANCHOR_BOTTOM") then return end
-    local m = T.muted
+    local m, w = T.muted, TITLE_RGB
     local unit = IP.unit
-    GameTooltip:SetText("Naowh Score", 1, 1, 1)
+    GameTooltip:SetText(TIP_TITLE, w.r, w.g, w.b)
     local name = unit and UnitName(unit)
-    GameTooltip:AddDoubleLine(IP.Readable(name) and name or "Them",
+    GameTooltip:AddDoubleLine(IP.Readable(name) and name or TIP_THEM,
         card.score and Score.Colored(card.score, card.level) or CP.WAITING, m.r, m.g, m.b)
-    GameTooltip:AddDoubleLine("You", Score.Colored((Score.Unit("player")), LevelOf("player")), m.r, m.g, m.b)
+    GameTooltip:AddDoubleLine(TIP_YOU, Score.Colored((Score.Unit("player")), LevelOf("player")), m.r, m.g, m.b)
     local goal, best = card.level and Score.Best(card.level), Score.Best()
     if goal and best and goal < best then
         local gold = CP.GOAL_RGB
-        GameTooltip:AddDoubleLine("Level " .. card.level .. " goal", Score.Text(goal), gold.r, gold.g, gold.b, 1, 1, 1)
+        GameTooltip:AddDoubleLine(TIP_GOAL:format(card.level), Score.Text(goal), gold.r, gold.g, gold.b, w.r, w.g, w.b)
     end
-    if best then GameTooltip:AddDoubleLine("Best in the game", Score.Text(best), m.r, m.g, m.b, 1, 1, 1) end
+    if best then GameTooltip:AddDoubleLine(TIP_BEST, Score.Text(best), m.r, m.g, m.b, w.r, w.g, w.b) end
     GameTooltip:Show()
 end
 

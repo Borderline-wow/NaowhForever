@@ -5,8 +5,6 @@
 ## Version: 1.0.6
 ## Dependencies: NaowhForever, NaowhForever_BiS
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-# Its own XML loads its files in order (see README.md). Needs BiS, whose Naowh Score, inspect
-# queue, inspect panel and character panel parts it reuses.
 GroupInspect.xml

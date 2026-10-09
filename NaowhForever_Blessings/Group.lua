@@ -1,0 +1,92 @@
+-- Group.lua: your group as the bar sees it: each member's names, class and GUID, and who can plan for others.
+local ns = _G.NaowhForever
+
+local B = ns.Blessings
+local Secret = B.Secret
+
+local NAME_SLOTS = 4
+
+local function Readable(v)
+    return not Secret(v) and v ~= nil and v ~= ""
+end
+
+local function HeaderNames(member, realm, firstNames, raid)
+    local seen, out = {}, {}
+    local function Add(name)
+        if Readable(name) and not seen[name] then
+            seen[name] = true
+            out[#out + 1] = name
+        end
+    end
+    for _, name in ipairs(member.candidates) do
+        if firstNames[name] == 1 then Add(name) end
+    end
+    if not member.who:find("-", 1, true) then Add(member.who .. "-" .. realm) end
+    local seenBy
+    if raid then
+        seenBy = member.rosterName
+    elseif Readable(member.short) then
+        seenBy = Readable(member.server) and member.short .. "-" .. member.server or member.short
+    end
+    return table.concat(out, ","), Readable(seenBy) and seen[seenBy] == true
+end
+
+local function Roster()
+    local units = { "player" }
+    local raid = IsInRaid()
+    if raid then
+        units = {}
+        for i = 1, GetNumGroupMembers() do units[#units + 1] = "raid" .. i end
+    else
+        for i = 1, GetNumSubgroupMembers() do units[#units + 1] = "party" .. i end
+    end
+    local realm = GetNormalizedRealmName()
+    local list, firstNames = {}, {}
+    for i, unit in ipairs(units) do
+        local name, unitRealm = UnitFullName(unit)
+        local _, class = UnitClass(unit)
+        local guid = UnitGUID(unit)
+        if name and not (Secret(name) or Secret(unitRealm) or Secret(class) or Secret(guid)) and class then
+            local who = name
+            if unitRealm and unitRealm ~= "" and unitRealm ~= realm then who = name .. "-" .. unitRealm end
+            local short, server = UnitName(unit)
+            local member = { unit = unit, guid = guid, class = class, who = who, short = short,
+                server = server, rosterName = raid and (GetRaidRosterInfo(i)) or nil }
+            local names = { who, short, member.rosterName }
+            if Readable(short) and Readable(server) then names[4] = short .. "-" .. server end
+            member.candidates = {}
+            local counted = {}
+            for k = 1, NAME_SLOTS do
+                local n = names[k]
+                if Readable(n) and not counted[n] then
+                    counted[n] = true
+                    firstNames[n] = (firstNames[n] or 0) + 1
+                    member.candidates[#member.candidates + 1] = n
+                end
+            end
+            list[#list + 1] = member
+        end
+    end
+    for _, member in ipairs(list) do
+        member.names, member.targetable = HeaderNames(member, realm, firstNames, raid)
+    end
+    return list
+end
+
+B.Roster = Roster
+
+function B.InGroup(who)
+    for _, member in ipairs(Roster()) do
+        if member.who == who then return member end
+    end
+end
+
+function B.CanAssign(unit)
+    local lead, assist = UnitIsGroupLeader(unit), UnitIsGroupAssistant(unit)
+    return not (Secret(lead) or Secret(assist)) and (lead or assist)
+end
+
+function B.Assigned(member)
+    local store = B.Store()
+    return store.players[member.guid] or store.classes[member.class]
+end

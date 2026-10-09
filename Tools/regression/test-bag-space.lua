@@ -1,4 +1,4 @@
--- Loads NaowhForever_BagSpace.lua, after the Shared files it draws with, against stubbed bag,
+-- Loads BagSpace.lua, after the Shared files it draws with, against stubbed bag,
 -- item and frame APIs and checks what the row offers, what the clicks do, stacking, the card's
 -- look (header, shared marks, the clock and quest badges drawn from the game's atlases, prices in
 -- their largest coin centred under even cells, no outline, colors by state), its Background (the
@@ -6,9 +6,9 @@
 -- Font, Font Size and Outline (the header and prices scale with the size), the tooltip lines that
 -- explain the badges, its settings preview and card rows, and what a scan costs.
 -- Run from the repo root: lua Tools/regression/test-bag-space.lua
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_BagSpace.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Loot/BagSpace.lua", "rb"))
 local source = f:read("*a"); f:close()
-local SHARED = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua" }
+local SHARED = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/UI/Parts.lua", "Shared/UI/Marks.lua", "Shared/UI/Text.lua", "Shared/UI/Hud.lua", "Shared/UI/Timer.lua", "Shared/UI/Share.lua", "Shared/UI/Panels.lua" }
 
 -- itemID -> name, quality, required level, max stack, vendor price, class
 local ITEMS = {
@@ -106,6 +106,7 @@ local function Fixture(opts)
     local cards = {}
 
     local ns = {
+        QoLConstants = dofile("Tools/regression/qol_constants.lua"),
         Color = function(token, text) return "|cff" .. HEX[token] .. (text and (text .. "|r") or "") end,
         THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
             fg = { r = 0.94, g = 0.95, b = 0.95 }, bg = { r = 0.05, g = 0.06, b = 0.07 },
@@ -113,8 +114,8 @@ local function Fixture(opts)
         QoLSettings = S,
         Print = function(msg) printed[#printed + 1] = msg end,
         Apply = function() end,
-        ShowRaidReminderAnchorConfig = function() end,
-        HideRaidReminderAnchorConfig = function() end,
+        ShowUnlockMode = function() end,
+        HideUnlockMode = function() end,
         IsBisItem = function(id) return opts.bis and opts.bis[id] end,
         AuctionPrice = function(id) return opts.ah and opts.ah[id] end,
         ScrapMarker = opts.scrap,
@@ -445,7 +446,7 @@ do
     local bags = { [0] = Bag(16, { { 1, 3 }, { 2, 11 } }) }
     local t = Fixture({ bags = bags })
     local free = t.FreeText()
-    t.ns.ShowRaidReminderAnchorConfig()
+    t.ns.ShowUnlockMode()
     local icons = {}
     for _, b in ipairs(t.buttons) do
         if b.shown and b.icon then icons[#icons + 1] = b.icon.texture end
@@ -652,7 +653,7 @@ do
     t.Set("bagSpaceBackground", "card")
     Check("background: back to the card", backdrop.fill.shown and backdrop.border._frame.shown and SoftShown(false), true)
     Check("background: the house shadow again", AllShadow(St.HUD_SHADOW_X, St.HUD_SHADOW_Y, St.HUD_SHADOW_ALPHA), true)
-    local qol = io.open("QoL/NaowhForever_QoL.lua", "rb")
+    local qol = io.open("Core/Settings.lua", "rb")
     local defaults = qol:read("*a"); qol:close()
     Check("background: Card by default in the settings", defaults:find('bagSpaceBackground = "card"', 1, true) ~= nil, true)
 end
@@ -696,7 +697,7 @@ do
     local grown = collectgarbage("count") - kb
     collectgarbage("restart")
     Check("text: no garbage per scan", grown / 500 < 0.05, true)
-    local qol = io.open("QoL/NaowhForever_QoL.lua", "rb")
+    local qol = io.open("Core/Settings.lua", "rb")
     local defaults = qol:read("*a"); qol:close()
     Check("text: today's look in the settings", defaults:find('bagSpaceFont = "", bagSpaceFontSize = 12, '
         .. 'bagSpaceOutline = ""', 1, true) ~= nil, true)

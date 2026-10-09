@@ -6,12 +6,12 @@
 
 **Naowh's companion addon for World of Warcraft Forever**
 
-Boss reminders, your BiS list, a dungeon journal, professions, gear swaps
+Your BiS list, a dungeon journal, professions, a training planner, gear swaps
 and a lot of quality of life, all in one window.
 
 [![Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=for-the-badge&logo=discord&logoColor=white&labelColor=0b1a24)](https://discord.gg/naowh)
 [![naowh.gg](https://img.shields.io/badge/naowh.gg-Website-c8a46a?style=for-the-badge&labelColor=0b1a24)](https://naowh.gg/)
-[![Download](https://img.shields.io/badge/Download-Releases-36c5d8?style=for-the-badge&logo=github&logoColor=white&labelColor=0b1a24)](https://github.com/nwh-gaming-ab/NaowhForever/releases)
+[![Download](https://img.shields.io/badge/Download-Releases-36c5d8?style=for-the-badge&logo=github&logoColor=white&labelColor=0b1a24)](https://github.com/naowh-gaming/NaowhForever/releases)
 [![WoW Forever](https://img.shields.io/badge/WoW-Forever-1f7fe0?style=for-the-badge&logo=battledotnet&logoColor=white&labelColor=0b1a24)](https://www.wowhead.com/forever)
 
 [Install](#install) &nbsp;|&nbsp; [What's inside](#whats-inside) &nbsp;|&nbsp; [Commands](#commands) &nbsp;|&nbsp; [Changelog](CHANGELOG.md) &nbsp;|&nbsp; [Contributing](.github/CONTRIBUTING.md)
@@ -24,18 +24,21 @@ and a lot of quality of life, all in one window.
 
 | Module | What it does |
 | --- | --- |
-| **Smart Reminders** | Tells you what to press when a boss ability is about to land, for dungeon and raid bosses, with cooldown presets for your spec. |
 | **BiS List** | Your best-in-slot list in its own window: your gear on a paperdoll, every pick per slot ranked with stars, where each drops and where to run next. Marked on tooltips and called out when it drops. Open it with its own key too. |
 | **Stat Weights** | What each stat is worth to your spec, with your own changes: a line on gear tooltips ("Fire: +9% upgrade" and what it is weighed against), and the BiS List's upgrades and enchants. On BiS List's Stat Weights tab. |
 | **Dungeon Journal** | Every dungeon on Forever, the new ones included, and the raids: its bosses in order and what they drop, your BiS marked, your quests there with what to do first, a tip from Naowh for each boss and how many times you have killed it. A map of each classic dungeon with every boss on it, and in a dungeon the world map (M) shows it, with the Journal beside it. Open it with its own key too. |
-| **Completo** | Everything there is to do, and how much of it you have done. First up, Quests: every quest of every zone for your character, your progress per zone, and every quest chain with the step you are on. Mounts, transmog and more to follow. Open it with `/nfcompleto`. |
+| **Completo** | Everything there is to do, and how much of it you have done. Quests: every quest of every zone for your character, your progress per zone, and every quest chain with the step you are on. Rares: every rare of every zone on the map, with an alert when you see one. Open it with `/nfcompleto`. |
+| **Discovery** | Library books to find around Azeroth and who to hand them to, and the Cozy Sleeping Bag's chain step by step. |
+| **Training Planner** | What you can train now, what each level brings and what it costs, with the way to your nearest trainer. |
 | **Professions** | Recipes, reagents and crafting in one window, including the recipes you have not learned yet. |
 | **Gear & Trinkets** | Swap equipment sets from a bar, or automatically while you ride or rest. |
 | **Blessings** | Paladin blessings by class and player, shared with your group's paladins. |
 | **Macros** | Class, consumable and focus macros, written and kept up to date for you. |
-| **Buffs & Reminders** | Buff, consumable and campfire reminders, a low health warning and debuff sounds. |
+| **Action Bars** | Your action bars saved by name and put back whenever you want them. |
+| **Buffs & Reminders** | Buff, consumable and campfire reminders, and a low health warning. |
 | **Threat Meter** | Threat on your target for the whole group, and a warning before you pull. |
 | **Group Inspect** | Everyone in your party or raid in one window: their Naowh Score, item level, gear, talents and stats, and who runs Naowh Forever. Also on a party or raid member's right-click menu. |
+| **PvP** | What your target is doing in a fight: their short buffs and the crowd control on them, and battleground displays. |
 | **Swing Timer** | Your swings from the game's own timer, with marks for timing around them. |
 | **Top Bar** | Friends, guild, the clock and your addon buttons across the top of the screen. |
 | **Quality of Life** | Questing, loot and bag space, alerts, casting, tooltips, trainer ranks, flight and camp, mail and more. |
@@ -52,26 +55,35 @@ character or share them with a friend.
 ## Install
 
 1. Download the newest `NaowhForever-<version>.zip` from
-   [Releases](https://github.com/nwh-gaming-ab/NaowhForever/releases).
+   [Releases](https://github.com/naowh-gaming/NaowhForever/releases).
 2. Extract it into your Forever `Interface\AddOns` folder, so that you end up with
-   `Interface\AddOns\NaowhForever\NaowhForever.toc`.
+   `Interface\AddOns\NaowhForever\NaowhForever.toc` and each module's
+   `Interface\AddOns\NaowhForever_<Module>` folder beside it.
 3. Log in, or type `/reload` if you are already in game, then open it with `/nf`.
 
 ## Commands
 
 | Command | Opens |
 | --- | --- |
-| `/nf` | The main window (also `/naowh`, `/nao` and `/nsr`) |
+| `/nf` | The main window (also `/naowh` and `/nao`) |
 | `/nfbis` | Your BiS list |
 | `/nfjournal` | Dungeon Journal (also `/nfdj`) |
-| `/nfcompleto` | Completo: your quests per zone and quest chains |
+| `/nfcompleto` | Completo: your quests and rares per zone, and quest chains |
+| `/nfdiscovery` | Discovery |
+| `/nftraining` | Training Planner |
 | `/nfgear` | Gear Sets |
 | `/nfbless` | Blessings |
+| `/nfmacros` | Macros |
+| `/nfbars` | Action Bars |
+| `/nfbuffs` | Buffs & Reminders |
 | `/nfthreat` | Threat Meter |
 | `/nfgroup` | Group Inspect (also `/nf group`) |
+| `/nfpvp` | PvP |
+| `/nf setup` | The onboarding, to tailor your setup again |
 | `/nf quiz` | A WoW quiz for flights and campfires |
+| `/nfaim` | The Aim Trainer |
 | `/nf scrap` | Your Scrap List (Scrap Marker, QoL > Loot & Items) |
-| `/copy` | The text under your mouse, ready to copy (turn on Global Copy in QoL > Tools) |
+| `/copy` | The text under your mouse, ready to copy (turn on Global Copy in QoL > Interface) |
 | `/nf badges id` | Your badge code, for all your characters (see [Supporter badges](#supporter-badges)) |
 
 You can also open the window from the addon compartment next to the minimap.
@@ -124,7 +136,7 @@ The code only has your region and your characters' IDs. No names, nothing else.
 
 ### Adding staff (maintainers)
 
-Staff are in `Badges/NaowhForever_BadgesStaff.lua`, by region and then character ID. The
+Staff are in `Core/Badges/Staff.lua`, by region and then character ID. The
 number before the `:` in the code is the region. Forever has its own region numbers, not
 retail's 1 to 5, so always copy it from the code. For `90:Player-4613-006EB819`:
 
@@ -135,7 +147,7 @@ retail's 1 to 5, so always copy it from the code. For `90:Player-4613-006EB819`:
 ```
 
 Tiers are `naowh`, `developer` and `moderator`; `title` is optional. Add one line per
-character in the code. Don't edit `Badges/NaowhForever_BadgesPatrons.lua`: the patron sync
+character in the code. Don't edit `Core/Badges/Patrons.lua`: the patron sync
 writes it. Staff can check a badge with
 `/nf badges preview [naowh|developer|moderator|legendary]` and `/nf badges toast`.
 
@@ -158,30 +170,28 @@ addon, site or tool against its license or terms. See
 For maintainers. A release is one click:
 
 1. Check that everything for the release is merged into `main`. On an up-to-date `main`,
-   `GH_REPO=nwh-gaming-ab/NaowhForever python Tools/release.py pending` (needs `gh`) prints
+   `GH_REPO=naowh-gaming/NaowhForever python Tools/release/release.py pending` (needs `gh`) prints
    `## Unreleased` as the release will write it, with the `## Changelog` lines from the
    merged PRs' descriptions; fix a line by editing that PR's description.
 2. Open **Actions > Release > Run workflow** and keep the branch on `main`.
 3. Pick the **Bump** and click **Run workflow**:
 
-   | Bump | From `0.5.16-beta` |
+   | Bump | From `1.0.6` |
    | --- | --- |
-   | patch (default) | `0.5.17-beta` |
-   | minor | `0.6.0-beta` |
-   | major | `1.0.0-beta` |
+   | patch (default) | `1.0.7` |
+   | minor | `1.1.0` |
+   | major | `2.0.0` |
 
-   Untick **Beta** for a full release: major without Beta gives `1.0.0`. Before 1.0.0 every
-   release is a pre-release, so the workflow refuses to run with Beta unticked. **Version**
-   takes an exact version instead, for anything the bumps can't express.
+   **Version** takes an exact version instead, for anything the bumps can't express.
 
 The workflow then:
 
 - adds the merged PRs' changelog lines to `## Unreleased` and renames it to the version,
-  sets the TOC `## Version` and `ns.CODE_BUILD`, and pushes that as
-  `chore(release): <version>` to `main`;
+  sets every TOC's `## Version` (the core's and each module addon's) and `ns.CODE_BUILD`,
+  and pushes that as `chore(release): <version>` to `main`;
 - tags the commit, and the tag starts a second Release run that builds the zip,
   publishes the GitHub release with the player notes and every commit since the last
-  tag, uploads to CurseForge and Wago, and posts the notes to Discord;
+  tag, uploads to CurseForge, and posts the notes to Discord;
 - puts an empty `## Unreleased` back at the top of the changelog on `main`.
 
 The push uses the `RELEASE_DEPLOY_KEY` secret: a deploy key with write access, on Protect
@@ -190,7 +200,7 @@ main's bypass list. Without it, `main` rejects the release commit and nothing is
 It stops before changing anything if there is nothing for `## Unreleased`, it is not the
 newest section, a merged PR's changelog line does not start with `Added:`, `Changed:` or
 `Fixed:` (the error names the PR), the tag already exists, or the version is not like
-`0.5.17-beta`. Pushing a tag by hand still releases, but only with what `CHANGELOG.md`
+`1.0.7`. Pushing a tag by hand still releases, but only with what `CHANGELOG.md`
 already says: the PRs' lines are added by the workflow.
 
 ## License

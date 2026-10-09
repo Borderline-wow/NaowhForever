@@ -1,11 +1,29 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- Group Inspect, in load order: its data and inspect walk, the Naowh Forever exchange and
-         stats, the window, its party cards and raid rows, and its settings card. Loads after the
-         Inspect Panel and Naowh Score, whose parts it reuses. See README.md. -->
-    <Script file="Data.lua"/>
+    <!-- GroupInspect.xml: Group Inspect's files, in load order. -->
+    <Script file="GroupInspect.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Preview.lua"/>
+    <Script file="Records.lua"/>
+    <Script file="Inspect.lua"/>
+    <Script file="PreviewGroup.lua"/>
+    <Script file="Stats.lua"/>
+    <Script file="OwnStats.lua"/>
+    <Script file="Message.lua"/>
     <Script file="Share.lua"/>
-    <Script file="Window.lua"/>
-    <Script file="Party.lua"/>
-    <Script file="Raid.lua"/>
-    <Script file="SettingsPage.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\Texts.lua"/>
+    <Script file="View\Parts.lua"/>
+    <Script file="View\Pill.lua"/>
+    <Script file="View\Gear.lua"/>
+    <Script file="View\Card.lua"/>
+    <Script file="View\CardPaint.lua"/>
+    <Script file="View\Party.lua"/>
+    <Script file="View\RaidOrder.lua"/>
+    <Script file="View\RaidBar.lua"/>
+    <Script file="View\Row.lua"/>
+    <Script file="View\Raid.lua"/>
+    <Script file="View\Solo.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\Menu.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
 </Ui>

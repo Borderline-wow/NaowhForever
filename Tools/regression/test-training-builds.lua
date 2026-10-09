@@ -1,11 +1,7 @@
 -- Training Planner talent builds: sharing them as text and saving your own. An imported
 -- string comes from another player, so everything it says is checked against the class tree.
-local f = assert(io.open(arg[1] or "NaowhForever_Training/NaowhForever_Training.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local function Slice(a, b)
-    local first = assert(source:find(a, 1, true))
-    return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
-end
+local DIR = arg[1] or "NaowhForever_Training"
+local Load = dofile("Tools/regression/load_files.lua")
 
 -- A mage tree: two rows of Arcane, one talent in Fire, and one Naowh build.
 -- node = { spell, ranks, row, column, slot, the node it needs at full rank }.
@@ -30,13 +26,6 @@ local function Fixture(o)
             Print = function(m) printed[#printed + 1] = m end,
             Confirm = function(_, yes) yes() end,
         },
-        Account = function(key)
-            account[key] = account[key] or {}
-            return account[key]
-        end,
-        Changed = function() changes = changes + 1 end,
-        Apply = function() end,
-        CharKey = function() return "Me-Realm" end,
         UnitClass = function() return "Mage", "MAGE", 8 end,
         C_Spell = { GetSpellName = function(id) return "Talent " .. id end },
         wipe = function(t) for k in pairs(t) do t[k] = nil end end,
@@ -72,11 +61,22 @@ local function Fixture(o)
         end,
     }
     setmetatable(env, { __index = _G })
+    env._G = env
     env.ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env, true) }
-    local code = "local Training = {}\n" .. Slice("local BUILD_PREFIX", "-------------------------------------------------------------------------------\n--  At the trainer")
-        .. "\nreturn Training"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    local training = chunk()
+    -- What Training.lua gives the build file: the account store, the character's key, the
+    -- change listeners and the event wiring.
+    env.ns.Training = {
+        Account = function(key)
+            account[key] = account[key] or {}
+            return account[key]
+        end,
+        Changed = function() changes = changes + 1 end,
+        Apply = function() end,
+        CharKey = function() return "Me-Realm" end,
+    }
+    env.NaowhForever = env.ns
+    Load({ DIR .. "/Constants.lua", DIR .. "/Builds.lua" }, env)
+    local training = env.ns.Training
     -- A share string as another player's copy of the addon would write it.
     local function Pack(data)
         vault[#vault + 1] = data
@@ -244,7 +244,7 @@ Case("a copy of a built-in build is a saved build of its own", function()
 end)
 
 Case("every class has its tree, and any build that ships passes the rules", function()
-    local data = assert(io.open("NaowhForever_Training/NaowhForever_TrainingBuilds.lua", "rb")):read("*a")
+    local data = assert(io.open(DIR .. "/Data/TrainingBuilds.lua", "rb")):read("*a")
     local ns = {}
     local chunk = assert(loadstring(data)); setfenv(chunk, { _G = { NaowhForever = ns } }); chunk()
     local t, classes = Fixture(), 0

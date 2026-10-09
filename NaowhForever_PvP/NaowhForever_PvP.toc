@@ -5,9 +5,6 @@
 ## Version: 1.0.6
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-Data\NaowhForever_PvPSpells.lua
-NaowhForever_PvP.lua
-NaowhForever_PvPAuras.lua
-NaowhForever_PvPDisplays.lua
+PvP.xml

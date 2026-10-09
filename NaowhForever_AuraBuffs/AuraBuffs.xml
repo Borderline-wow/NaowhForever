@@ -1,0 +1,26 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- AuraBuffs.xml: the AuraBuffs module's files, in load order. -->
+    <Script file="AuraBuffs.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\BuffReminders.lua"/>
+    <Script file="Data\Campfire.lua"/>
+    <Script file="BuffReminders.lua"/>
+    <Script file="CampReader.lua"/>
+    <Script file="LowHealth.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\BuffCell.lua"/>
+    <Script file="View\CampIcon.lua"/>
+    <Script file="View\CampBar.lua"/>
+    <Script file="View\CampAlert.lua"/>
+    <Script file="View\LowHealthLook.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+    <Script file="UI\Campfire.lua"/>
+    <Script file="UI\CampfireCards.lua"/>
+    <Script file="UI\LowHealth.lua"/>
+    <Script file="UI\LowHealthCard.lua"/>
+    <Script file="UI\BuffMenu.lua"/>
+    <Script file="UI\BuffReminders.lua"/>
+    <Script file="UI\BuffsCard.lua"/>
+    <Script file="UI\WindowPages.lua"/>
+    <Script file="UI\Window.lua"/>
+</Ui>

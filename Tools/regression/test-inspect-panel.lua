@@ -155,7 +155,7 @@ local ns = {
     UI = { Keep = NOTHING },
     QoLSettings = S,
     Apply = NOTHING,
-    FEATURE_BADGES = 1,
+    FEATURE_BADGES = 1, BADGES_LIVE = 1,
     PlainText = function(text, max)
         if type(text) ~= "string" then return nil end
         if max and #text > max then text = text:sub(1, max) end
@@ -184,6 +184,7 @@ local ns = {
         Best = function() return 58.8 end,
         Grade = function(score) return score / 58.8 end,
         RAMP = { { 0, 0.6, 0.6, 0.6 }, { 1, 1, 0.5, 0 } },
+        COMPARE = { LEVEL = "level", BOTH = "both", MAX = "max" },
         Text = tostring,
         Remember = function(guid, score) remembered[guid] = score end,
         Known = function(guid) return state.known and state.known[guid] end,
@@ -342,13 +343,14 @@ local function Window()
 end
 
 local files = TocFiles("^Shared/.*%.lua$")
-files[#files + 1] = "Core/NaowhForever_Senders.lua"
+files[#files + 1] = "Core/Senders.lua"
+files[#files + 1] = "NaowhForever_BiS/BiS/Constants.lua"
 files[#files + 1] = "NaowhForever_BiS/BiS/Enchants.lua"
 for _, path in ipairs(TocFiles("^NaowhForever_BiS/CharacterPanel/.*%.lua$")) do files[#files + 1] = path end
 local panelFiles = TocFiles("^NaowhForever_BiS/InspectPanel/.*%.lua$")
 check("the TOC loads the inspect panel's files, its settings last",
-    panelFiles[#panelFiles] == "NaowhForever_BiS/InspectPanel/SettingsPage.lua"
-    and panelFiles[1] == "NaowhForever_BiS/InspectPanel/Panel.lua")
+    panelFiles[#panelFiles] == "NaowhForever_BiS/InspectPanel/UI/SettingsPage.lua"
+    and panelFiles[1] == "NaowhForever_BiS/InspectPanel/InspectPanel.lua")
 for _, path in ipairs(panelFiles) do files[#files + 1] = path end
 Load(files, env)
 local IP = ns.InspectPanel
@@ -845,13 +847,13 @@ local function Card(flag)
     local cards = {}
     local store = { Get = function(key) return key ~= "inspectPanelBadge" or flag == 1 end }
     local flagNs = {
-        FEATURE_BADGES = flag, QoLSettings = store,
+        FEATURE_BADGES = flag, BADGES_LIVE = 1, QoLSettings = store,
         InspectPanel = { EllesmereSheet = function() return false end },
         Shared = { Settings = { Page = function()
             return { Card = function(_, def) cards[def.id] = def end }
         end } },
     }
-    Load({ "NaowhForever_BiS/InspectPanel/SettingsPage.lua" }, setmetatable({ _G = { NaowhForever = flagNs } },
+    Load({ "NaowhForever_BiS/InspectPanel/UI/SettingsPage.lua" }, setmetatable({ _G = { NaowhForever = flagNs } },
         { __index = _G }))
     return cards.inspectPanel, store
 end

@@ -13,7 +13,8 @@ local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local settings = { enabled = true, mapPins = true, mapPinSize = 20 }
 local S = { Get = function(key) return settings[key] end, Set = function() end }
 local ns = { CompletoSettings = S, Apply = function() end, ThemeTint = function() end,
-    Completo = { Quests = { Refresh = function() end, Givers = function() return {} end } } }
+    Completo = { Settings = S, Style = {}, C = { PERCENT = 100 },
+        Quests = { Refresh = function() end, Givers = function() return {} end } } }
 
 local maximized, onSize = false, nil
 local pins = {}
@@ -47,7 +48,7 @@ local env = setmetatable({
     WorldMapFrame = map,
     wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
 }, { __index = _G })
-local chunk = assert(loadstring(Read("NaowhForever_Completo/NaowhForever_CompletoMap.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_Completo/UI/QuestPins.lua")))
 setfenv(chunk, env)
 chunk()
 boot.OnEvent(boot)

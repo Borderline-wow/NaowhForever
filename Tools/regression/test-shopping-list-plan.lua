@@ -1,23 +1,11 @@
 -- Run with Lua 5.1 from the repository root: the Shopping List's make-or-buy planning. What was
 -- bought counts at every level of an item's tree, a craft taken off takes its purchases along,
 -- a recipe with a cooldown is never planned, and only your own profession's recipes are
--- recorded. The planning code is cut out of the real file and run.
+-- recorded. The module's real planning file is loaded and run, with the files it reads.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local function Read(path)
-    local f = assert(io.open(path, "rb"))
-    local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
-    return s
-end
-
-local source = Read("NaowhForever_Professions/NaowhForever_ShoppingList.lua")
-local first = assert(source:find("local MAX_DEPTH = ", 1, true))
-local learn = assert(source:find("local function Learn()", first, true))
-local last = assert(source:find("\nend\n", learn, true))
-local chunk = source:sub(first, last + 4)
-    .. "return { Materials = Materials, Trim = Trim, Drop = Drop, Learn = Learn, List = List,"
-    .. " Have = Have, Makes = Makes, Keep = Keep }"
+local Load = dofile("Tools/regression/load_files.lua")
 
 -- Items: ore smelts to bars, two ore a bar; a sword takes bars. Arcanite is a transmute.
 local ORE, BAR, SWORD, THORIUM, CRYSTAL, ARCANITE, FLUX = 1, 2, 3, 4, 5, 6, 7
@@ -29,7 +17,7 @@ local env = {
     UnitName = function() return "Grim" end,
     GetRealmName = function() return "Realm" end,
     wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
-    ItemName = function(id) return "item" .. id end,
+    C_Item = { GetItemNameByID = function(id) return "item" .. id end, RequestLoadItemDataByID = function() end },
     GetSpellBaseCooldown = function(id) return cooldownBase[id] or 0, 0 end,
     GetProfessions = function() local t = {} for i = 1, #myLines do t[i] = i end return unpack(t) end,
     GetProfessionInfo = function(i) return "prof", nil, 1, 300, 0, 0, myLines[i] end,
@@ -40,7 +28,8 @@ local env = {
         GetRecipeCooldown = function(id) return cooldownLeft[id] or 0, dayCooldown[id] or false end,
         GetBaseProfessionInfo = function() return { professionID = openProf } end,
     },
-    ns = {
+    NaowhForever = {
+        Professions = {},
         AccountSettings = function() return account end,
         AuctionPrice = function(item) return prices[item] end,
         ProfWindowAPI = {
@@ -55,9 +44,11 @@ local env = {
         },
     },
 }
-local fn = assert(loadstring(chunk))
-setfenv(fn, setmetatable(env, { __index = _G }))
-local SL = fn()
+env._G = env
+Load({ "NaowhForever_Professions/Constants.lua", "NaowhForever_Professions/Text.lua",
+    "NaowhForever_Professions/Data/CooldownRecipes.lua", "NaowhForever_Professions/ShoppingPlan.lua" },
+    setmetatable(env, { __index = _G }))
+local SL = env.NaowhForever.Professions.Shopping
 
 local function Reset()
     for k in pairs(account) do account[k] = nil end

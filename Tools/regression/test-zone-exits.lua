@@ -13,7 +13,7 @@ local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
 local ns = {}
-local chunk = assert(loadstring(Read("QoL/NaowhForever_ZoneExits.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/ZoneExits.lua")))
 setfenv(chunk, { _G = { NaowhForever = ns } })
 chunk()
 
@@ -39,7 +39,7 @@ for _, pair in ipairs({ { 1413, 1411 }, { 1429, 1436 }, { 1429, 1431 }, { 1440, 
 end
 Check(Leads(1411, 1454) and Leads(1429, 1453), "city gates: Orgrimmar, Stormwind")
 
-local map = Read("QoL/NaowhForever_TownMap.lua")
+local map = Read("NaowhForever_QoL/Interface/TownMap.lua")
 Check(map:find("ns.ZoneExits[mapID]", 1, true) and not map:find("GetMapLinksForMap(mapID)", 1, true),
     "the town map draws our own exits")
 Check(map:find('if S.Get("townZoneLinks") then', 1, true), "on the Clickable Zone Exits setting")

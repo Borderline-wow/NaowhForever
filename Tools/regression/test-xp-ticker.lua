@@ -169,12 +169,13 @@ local function Boot(account, settings, who)
     }
     env._G = env
     setmetatable(env, { __index = _G })
-    local core = assert(loadstring(Read("Core/NaowhForever_Core.lua"), "Core"))
+    local core = assert(loadstring(Read("Core/Core.lua"), "Core"))
     setfenv(core, env)
     core("NaowhForever")
     local ns = env.NaowhForever
     ns.ApplyThemeColors()
-    Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/Parts.lua", "Shared/Window.lua", "Shared/Played.lua" }, env)
+    ns.QoLConstants = dofile("Tools/regression/qol_constants.lua")
+    Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/UI/Parts.lua", "Shared/UI/Marks.lua", "Shared/UI/Text.lua", "Shared/UI/Hud.lua", "Shared/UI/Timer.lua", "Shared/UI/Share.lua", "Shared/UI/Panels.lua", "Shared/UI/Window.lua", "Shared/UI/Tabs.lua", "Shared/UI/SettingsCard.lua", "Shared/Game/Played.lua" }, env)
 
     local defaults = { enabled = true, xpTicker = true, xpTickerLevel = true, xpTickerElapsed = true,
         xpTickerHideResting = false, xpTickerFont = "", xpTickerFontSize = 24, xpTickerOutline = "",
@@ -189,10 +190,10 @@ local function Boot(account, settings, who)
     ns.UI = { FontPath = function(name) return name ~= "" and "font:" .. name or "naowh" end,
         AttachMover = function(parent) return Frame(parent) end }
     ns.Apply, ns.ResetXPBarSession = NOTHING, NOTHING
-    ns.ShowRaidReminderAnchorConfig, ns.HideRaidReminderAnchorConfig = NOTHING, NOTHING
+    ns.ShowUnlockMode, ns.HideUnlockMode = NOTHING, NOTHING
     Load({ "Shared/Settings/Settings.lua" }, env)
     local first = #created + 1
-    Load({ "QoL/NaowhForever_XPTicker.lua" }, env)
+    Load({ "NaowhForever_QoL/XP/XPTicker.lua" }, env)
     local card = ns.Shared.Settings.pages["QoL/XP"].cards.xpTicker
 
     for i = first, #created do
@@ -255,7 +256,7 @@ do
     check("the card is the shared HUD backdrop", fill and t.backdrop.SetMode and t.backdrop.mode == "card")
     check("the card is the theme's background", Shown(fill) and Is(fill, T.bg))
     check("at the card alpha the Flight Timer uses", fill.a == St.HUD_CARD_ALPHA and St.HUD_CARD_ALPHA == 0.85
-        and Read("QoL/NaowhForever_Flight.lua"):find("CARD_ALPHA = 380, 10, 6, St.HUD_CARD_ALPHA", 1, true))
+        and Read("NaowhForever_QoL/Travel/Flight.lua"):find("CARD_ALPHA = 380, 10, 6, St.HUD_CARD_ALPHA", 1, true))
     check("with the black border", Shown(t.backdrop.border._frame))
     check("no soft fade made until it is picked", t.backdrop.soft == nil)
     check("the progress line's track on the card", Shown(t.line.track))
@@ -294,7 +295,7 @@ do
     check("footer rows at the row size", t.ding.label.size == 12 and t.time.value.size == 12 and t.percent.size == 12)
 
     check("the text has no outline, the soft shadow", All(t, Plain))
-    check("no hand-written color codes", not Read("QoL/NaowhForever_XPTicker.lua"):find("|cff", 1, true))
+    check("no hand-written color codes", not Read("NaowhForever_QoL/XP/XPTicker.lua"):find("|cff", 1, true))
 
     local c = t.controls
     check("the buttons beside the rate, centred on it", c.parent == t and c.p1 == "RIGHT" and c.p2 == t
@@ -305,7 +306,7 @@ do
     check("house icons", St.PLAY:find("Media\\play$") and St.PAUSE:find("Media\\pause$")
         and St.RESET:find("Media\\reset$"))
     for _, file in ipairs({ "play", "pause", "reset" }) do
-        local f = io.open("Media/" .. file .. ".tga", "rb")
+        local f = io.open("Core/Media/" .. file .. ".tga", "rb")
         check(file .. " icon exists", f)
         f:close()
     end
@@ -447,10 +448,10 @@ do
     check("the row sets the outline", s.S.Get("xpTickerOutline") == "OUTLINE" and All(t, Outlined))
     outline.set("")
     bg.set("card")
-    local qol = Read("QoL/NaowhForever_QoL.lua")
+    local qol = Read("Core/Settings.lua")
     check("Background is Card by default", qol:find('xpTickerBackground = "card"', 1, true))
     check("no outline by default", qol:find('xpTickerOutline = ""', 1, true))
-    check("the Color spelling in player text", not Read("QoL/NaowhForever_XPTicker.lua"):find("[Cc]olour"))
+    check("the Color spelling in player text", not Read("NaowhForever_QoL/XP/XPTicker.lua"):find("[Cc]olour"))
     check("Reset XP per Hour is still on the card", labels["Reset XP per Hour"])
 end
 
@@ -816,7 +817,7 @@ do
     local grown = collectgarbage("count") - mem
     collectgarbage("restart")
     check(("no garbage per update or XP event (%.3f KB)"):format(grown), grown < 0.05)
-    local source = Read("QoL/NaowhForever_XPTicker.lua")
+    local source = Read("NaowhForever_QoL/XP/XPTicker.lua")
     check("no hand-written colors", not source:find("SetTextColor%(%d") and not source:find("SetVertexColor%(%d"))
 end
 
@@ -865,7 +866,7 @@ do
     local s = Boot()
     local t, T, pf = s.ticker, s.T, s.played
     check("Show Played Time on by default", s.S.Get("xpTickerPlayed") == true
-        and Read("QoL/NaowhForever_QoL.lua"):find("xpTickerPlayed = true, xpTickerPace = false", 1, true))
+        and Read("Core/Settings.lua"):find("xpTickerPlayed = true, xpTickerPace = false", 1, true))
     check("a Played row under the rate", t.played.on and t.played.label.text == "Played"
         and t.played.label.p5 <= -(8 + 24) and Is(t.played.label, T.muted))
     check("over the level in progress", t.current.on and t.played.label.p5 > t.current.label.p5)
@@ -1147,7 +1148,7 @@ do
     check("and on a ding", Is(h[3].value, St.HAVE_RGB))
 
     check("Show Played at Ding on by default", s.S.Get("xpTickerSplitPlayed") == true
-        and Read("QoL/NaowhForever_QoL.lua"):find("xpTickerSplitPlayed = true", 1, true))
+        and Read("Core/Settings.lua"):find("xpTickerSplitPlayed = true", 1, true))
     check("the played time at each ding, muted", h[1].played.text == "1d 1h 0m" and h[2].played.text == "17:05:00"
         and h[3].played.text == "16:40:00" and Is(h[1].played, T.muted) and h[1].played.shown)
     check("-- where it was not known yet", h[4].played.text == "--")
@@ -1219,7 +1220,7 @@ do
 end
 
 do
-    local bar = Read("QoL/NaowhForever_XPBar.lua")
+    local bar = Read("NaowhForever_QoL/XP/XPBar.lua")
     check("the XP Bar asks through the shared helper", bar:find('Played.Want("xpBar")', 1, true)
         and bar:find("Played.Total()", 1, true) and not bar:find("RequestTimePlayed", 1, true)
         and not bar:find("TIME_PLAYED_MSG", 1, true))

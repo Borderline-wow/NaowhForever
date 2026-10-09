@@ -1,14 +1,19 @@
--------------------------------------------------------------------------------
---  StatWeights/Tooltip.lua -- while the module is on, a line on the tooltip of gear that is an
---  upgrade for your spec: "(green arrow) +9% upgrade . Fire" (Shared/Parts.lua's UpgradeLine).
---  Nothing on gear that is not one, that you wear, or that your class does not wear (SW.BestGain,
---  which the bags' arrow reads too). Installed the first time the module is turned on.
--------------------------------------------------------------------------------
+-- Tooltip.lua: the upgrade line on gear tooltips, while Stat Weights is on.
 local ns = _G.NaowhForever
+
 local SW = ns.StatWeights
 local S = SW.Settings
 local Items = ns.Shared.Items
 local UpgradeLine = ns.Shared.Parts.UpgradeLine
+
+local installed = false
+
+local function TooltipLink(tooltip)
+    if not tooltip.GetItem then return nil end
+    local link = select(2, tooltip:GetItem())
+    if link and issecretvalue(link) then return nil end
+    return link
+end
 
 local function OnItem(tooltip, data)
     if not SW.On() or tooltip:IsForbidden() then return end
@@ -17,18 +22,9 @@ local function OnItem(tooltip, data)
     local key = Items.SlotsFor(id) and SW.ActiveSpec()
     local weights = key and SW.For(key)
     if not weights then return end
-    -- Its link, for its own stats where it has random ones. The comparison tooltips beside it
-    -- (what you wear) have no GetItem on this client: those go by the ID.
-    local link
-    if tooltip.GetItem then
-        link = select(2, tooltip:GetItem())
-        if link and issecretvalue(link) then link = nil end
-    end
-    local best = SW.BestGain(id, link, weights, SW.Power(weights))
+    local best = SW.BestGain(id, TooltipLink(tooltip), weights, SW.Power(weights))
     if best then tooltip:AddLine(UpgradeLine(best, SW.Spec(key).name)) end
 end
-
-local installed = false
 
 local function Install()
     if installed or not SW.On() then return end
@@ -36,7 +32,9 @@ local function Install()
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnItem)
 end
 
-S.OnChange(function(key)
+local function OnSetting(key)
     if key == "enabled" then Install() end
-end)
+end
+
+S.OnChange(OnSetting)
 hooksecurefunc(ns, "Apply", Install)

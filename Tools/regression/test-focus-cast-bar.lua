@@ -1,10 +1,10 @@
--- Loads NaowhForever_FocusCastBar.lua against stubbed frames and cast APIs and checks the bar's
+-- Loads FocusCastBar.lua against stubbed frames and cast APIs and checks the bar's
 -- colour while a focus cast runs (interrupt ready, on cooldown, uninterruptible), and what one
 -- throttled update of a running cast costs: it must not build colour objects every tick. Also its
 -- look: the defaults draw today's flat, outlined bar, and font, outline, bar texture, background
 -- opacity and Apply Theme each apply on change.
 -- Run from the repo root: lua Tools/regression/test-focus-cast-bar.lua
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_FocusCastBar.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Combat/FocusCastBar.lua", "rb"))
 local source = f:read("*a"); f:close()
 
 local checks = 0
@@ -92,15 +92,16 @@ local kick = { IsZero = function() return state.kickReady end, GetRemainingDurat
 
 local frames = {}
 local ns = {
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     QoLSettings = S, THEME = { muted = {}, accent = ACCENT, bg = THEME_BG },
     UI = { FontPath = function() return "font" end, AttachMover = function() return Widget("Mover") end,
         TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
-    Shared = { Settings = { Group = function() return {} end, Look = function() return {} end,
+    Shared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = { Group = function() return {} end, Look = function() return {} end,
         Page = function() return { Card = Noop } end },
         Parts = { HudFont = function(fs, font, size, outline) fs.font = { font, size, outline } end } },
     Font = function(parent) return Widget("FontString", parent) end,
     Border = Noop,
-    Apply = Noop, ShowRaidReminderAnchorConfig = Noop, HideRaidReminderAnchorConfig = Noop,
+    Apply = Noop, ShowUnlockMode = Noop, HideUnlockMode = Noop,
 }
 local env = setmetatable({
     _G = { NaowhForever = ns },

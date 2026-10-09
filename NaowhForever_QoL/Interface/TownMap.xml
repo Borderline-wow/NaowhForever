@@ -1,0 +1,27 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- TownMap.xml: the town map script, its world map pin templates and the Map Pins drawer. -->
+    <Script file="TownMap.lua"/>
+    <Frame name="NaowhForeverTownPinTemplate" mixin="NaowhForeverTownPinMixin" enableMouseMotion="true" enableMouseClicks="false" virtual="true">
+        <Size x="16" y="16"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture parentKey="Border">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-1" y="1"/>
+                        <Anchor point="BOTTOMRIGHT" x="1" y="-1"/>
+                    </Anchors>
+                    <Color r="0" g="0" b="0" a="1"/>
+                </Texture>
+            </Layer>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+    </Frame>
+    <Button name="NaowhForeverZoneLinkPinTemplate" mixin="NaowhForeverZoneLinkPinMixin" enableMouse="true" registerForClicks="LeftButtonUp, RightButtonUp" virtual="true">
+        <Size x="16" y="16"/>
+        <Layers><Layer level="ARTWORK"><Texture parentKey="Icon"><Anchors><Anchor point="CENTER"/></Anchors></Texture></Layer></Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+    <Script file="MapPinsPanel.lua"/>
+</Ui>

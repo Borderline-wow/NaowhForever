@@ -1,19 +1,6 @@
--------------------------------------------------------------------------------
---  TheirBiS.lua -- the BiS star on the gear of a player you inspect, from their own BiS list:
---  asked of their Naowh Forever by addon whisper, so a player without it never answers and
---  shows no stars. Asked once their inspect is ready (at most once per ASK_GAP each); answered
---  with which of the items they wear are on their list, and its rank there:
---    ask     "1 Q <their GUID> <your GUID>"
---    answer  "1 A <your GUID> <slot>:<item ID>:<rank>,..."  ("-" for none), one message,
---            under 255 bytes (a list that would not fit is cut short).
---  An answer is kept only for the ask out, from the player inspected (their name and GUID,
---  matched against the inspect unit itself, as strangers are not in your group or guild),
---  while the window still shows them, every field checked, and only for the item still worn in
---  that slot. Answering is on by default (Share Your BiS): only whispers that ask, at most once
---  per ANSWER_GAP for each asker and ANSWERS_MAX in all every ANSWERS_WINDOW seconds; nothing
---  they sent goes back.
--------------------------------------------------------------------------------
+-- TheirBiS.lua: their BiS stars, asked of their Naowh Forever by whisper; yours answered.
 local ns = _G.NaowhForever
+
 local IP = ns.InspectPanel
 local S = ns.QoLSettings
 local Items = ns.Shared.Items
@@ -29,6 +16,8 @@ local MAX_BYTES = 255
 local MAX_RANK = 99
 local MAX_ID = 2 ^ 31
 local COMMA, ASK, ANSWER = 44, 81, 65
+local KIND_AT = 3
+local NEXT_ENTRY = 2
 local ASK_FORMAT = "1 Q %s %s"
 local ANSWER_HEAD = "1 A %s "
 local ENTRY = "%d:%d:%d"
@@ -177,7 +166,7 @@ local function Read(body)
         items[slot], ranks[slot] = id, rank
         if last == length then return true end
         if body:byte(last + 1) ~= COMMA then return false end
-        pos = last + 2
+        pos = last + NEXT_ENTRY
     end
 end
 
@@ -219,7 +208,7 @@ function OnMessage(_, _, prefix, message, channel, sender)
         or #message > MAX_BYTES then
         return
     end
-    local kind = message:byte(3)
+    local kind = message:byte(KIND_AT)
     if kind == ASK then
         local to = ShareOn() and message:match(ASK_PATTERN)
         if to and to == Own() then Answer(sender) end

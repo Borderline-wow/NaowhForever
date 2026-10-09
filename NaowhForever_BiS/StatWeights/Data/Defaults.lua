@@ -1,26 +1,16 @@
--------------------------------------------------------------------------------
---  StatWeights/Data/Defaults.lua -- what a point of each stat is worth to each spec, by
---  default (ns.StatWeightDefaults): the class, the spec's key (the BiS List's), its name and
---  its weights, for level 60. Measured in the spec's anchor at 1: its main stat for a fighter,
---  Spell Damage for a caster, Healing for a healer, Stamina for a tank. A percent (hit, crit,
---  haste, dodge, block) is worth that many anchor points per 1%, and dps a point of a weapon's
---  damage per second (14 attack power's worth); an enchant's weapon damage is worked out from
---  it. ns.StatWeightDefaultsUpdated: when they were last set, for the page. Players change them
---  in the module's page. Keys as StatWeights.lua's STATS.
--------------------------------------------------------------------------------
+-- Defaults.lua: each spec's default stat weights (ns.StatWeightDefaults), set by hand.
 local ns = _G.NaowhForever
 
--- What every spec of a role weighs alike; each spec's own weights go on top.
+local NONE = {}
 local MELEE = { sta = 0.1, armor = 0.005 }
 local CASTER = { spell = 1, sta = 0.05, armor = 0.005 }
 local HEALER = { heal = 1, sta = 0.05, armor = 0.005 }
 local TANK = { sta = 1, def = 1.5, armor = 0.06, dodge = 10, threat = 6 }
 
--- A spec: its role's weights, with its own on top.
 local function Spec(class, key, name, role, own)
     local weights = {}
     for stat, worth in pairs(role) do weights[stat] = worth end
-    for stat, worth in pairs(own or {}) do weights[stat] = worth end
+    for stat, worth in pairs(own or NONE) do weights[stat] = worth end
     return { class = class, key = key, name = name, weights = weights }
 end
 

@@ -62,7 +62,7 @@ jobs:
       - name: Run the regression tests
         run: bash Tools/regression/run-all.sh
 
-      - name: Test the release script
+      - name: Run the Python tests
         run: python3 -m unittest discover -s Tools/tests
 
   package:

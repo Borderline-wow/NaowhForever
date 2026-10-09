@@ -1,25 +1,27 @@
-local f = assert(io.open(arg[1] or "TopBar/NaowhForever_TopBar.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local function Slice(a, b)
-    local first = assert(source:find(a, 1, true))
-    return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
-end
+-- The Top Bar's saved instances (NaowhForever_TopBar/Info.lua), loaded against stubbed instance APIs.
 
 -- Saved instances as GetSavedInstanceInfo returns them: name, reset, locked, extended, total, done.
+-- The list is read at `now`, its resets having last been reported at `updatedAt`.
 local function Fixture(saved, now, updatedAt)
+    local clock = updatedAt
+    local ns = { TopBar = {}, Print = function() end }
     local env = {
-        GetTime = function() return now end,
+        NaowhForever = ns,
+        GetTime = function() return clock end,
         GetNumSavedInstances = function() return #saved end,
         GetSavedInstanceInfo = function(i)
             local s = saved[i]
             return s[1], 1, s[2], 1, s[3], s[4], 0, false, 5, "Normal", s[5], s[6]
         end,
     }
+    env._G = env
     setmetatable(env, { __index = _G })
-    local code = Slice("local lockoutsAt = 0", "\nfunction ns.LockoutsCommand")
-        .. "\nlockoutsAt = " .. updatedAt .. "\nreturn Lockouts"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    return chunk()()
+    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/Info.lua" }) do
+        local chunk = assert(loadfile(path)); setfenv(chunk, env); chunk()
+    end
+    ns.TopBar.Info.InstanceInfoUpdated()
+    clock = now
+    return ns.TopBar.Info.Lockouts()
 end
 local function Lines(list)
     local out = {}

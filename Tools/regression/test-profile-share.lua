@@ -1,13 +1,16 @@
 -- Run with Lua 5.1 from the repository root: the Profiles page's whole-profile Export and
--- Import, through the real LibSerialize and LibDeflate. What a string carries, what a
--- profile from someone's pack keeps back, and what Import lands, part by part, without
--- touching an existing profile.
+-- Import, through the real LibSerialize and LibDeflate. What a string carries, what it
+-- leaves home, and what Import lands, part by part, without touching an existing profile.
 strmatch = string.match   -- LibStub's, as the game has it
 dofile("Libs/LibStub/LibStub.lua")
 dofile("Libs/LibDeflate/LibDeflate.lua")
 dofile("Libs/LibSerialize/LibSerialize.lua")
 
 local PlainText = dofile("Tools/regression/plain_text.lua")()
+local settingsShared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = {} }
+local settingsStyle = assert(loadfile("Shared/Settings/Style.lua"))
+setfenv(settingsStyle, { _G = { NaowhForever = { Shared = settingsShared } }, setmetatable = setmetatable })
+settingsStyle()
 
 local count = 0
 local function Case(name, fn) fn(); count = count + 1; print("PASS " .. name) end
@@ -29,7 +32,7 @@ local function World()
                 macros = { foodBar = true },
                 tankReminder = { leadTime = 5, presets = { { name = "Mine" } },
                     utilityReminders = { classMacros = { PALADIN = { { name = "BoP", body = "/cast BoP" } } },
-                        other = 1 } },
+                        consumables = { { category = "food", itemID = 13931 } }, other = 1 } },
                 notAModule = { secret = "x" },
             },
         },
@@ -45,7 +48,7 @@ local function World()
     w.active = "Default"
     w.buildsChanged = 0
     local ns = {
-        UI = {}, CODE_BUILD = "test", PlainText = PlainText,
+        UI = { PROFILES_PAGE = "Profiles" }, CODE_BUILD = "test", PlainText = PlainText,
         MacroText = { LIMIT = 255 },
         TrainingBuilds = { [2] = { talents = {} } },
         -- Points that cannot be taken start with 0 here; the real rules are Training's own test.
@@ -65,19 +68,21 @@ local function World()
         end,
         SwitchProfile = function(name) w.switched, w.active = name, name end,
         RefreshRuntime = function() w.refreshed = w.refreshed + 1 end,
-        ValidPackData = function(data) return type(data) == "table" end,
     }
     w.ns = ns
     local env = setmetatable({ _G = { NaowhForever = ns }, UnitName = function() return "Glyadin" end,
         date = os.date }, { __index = _G })
-    ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env) }
-    local chunk = assert(loadfile("Core/NaowhForever_ProfileShare.lua"))
-    setfenv(chunk, env)
-    chunk()
+    ns.Shared = { Decode = dofile("Tools/regression/load_decode.lua")(env), Settings = settingsShared.Settings }
+    for _, path in ipairs({ "Core/Profiles/ProfileShare.lua", "Core/Profiles/ProfileDialogs.lua",
+        "Core/Options/ProfilesPage.lua" }) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        chunk()
+    end
     return w
 end
 
-local ALL = { settings = true, macros = true, library = true, smartReminders = true, builds = true,
+local ALL = { settings = true, macros = true, library = true, consumables = true, builds = true,
     bisLists = true, look = true }
 
 Case("export: one string with every part, personal data left home", function()
@@ -91,11 +96,11 @@ Case("export: one string with every part, personal data left home", function()
     assert(parts.settings.qol.lootFeedPos[2] == 10, "positions travel")
     assert(parts.settings.notAModule == nil and parts.settings.macros == nil and parts.settings.tankReminder == nil)
     assert(parts.macros.module.foodBar == true and parts.macros.classMacros.PALADIN[1].name == "BoP")
-    assert(parts.smartReminders.leadTime == 5 and parts.smartReminders.utilityReminders.other == 1)
-    assert(parts.smartReminders.utilityReminders.classMacros == nil, "class macros only as Macros")
+    assert(#parts.consumables == 1 and parts.consumables[1].itemID == 13931 and parts.consumables[1].category == "food")
+    assert(parts.reminders == nil and parts.smartReminders == nil, "the rest of the reminders' store stays home")
     assert(parts.bisLists.PALADIN[1].name == "Prot")
     assert(parts.library.PALADIN[1].name == "Seal" and parts.library.PALADIN[1].icon == 135)
-    assert(#parts.library.PALADIN == 1, "a pack macro's Library copy stays home")
+    assert(#parts.library.PALADIN == 2, "every Library macro goes")
     assert(parts.builds[2][1].name == "Ret" and parts.builds[2][1].points[2] == 12)
     assert(parts.builds[2][1].saved == nil)
     assert(parts.look.themePreset == "slate" and parts.look.windowScale == 1.1)
@@ -107,7 +112,7 @@ Case("export: only the ticked parts go in", function()
     local text, note = w.ns.ExportProfile({ builds = true, library = true })
     local parts = assert(w.ns.DecodeProfile(text)).parts
     assert(parts.builds and parts.library and parts.settings == nil and parts.look == nil)
-    assert(note and note:find("copied from a pack", 1, true), tostring(note))
+    assert(note == nil, tostring(note))
     text, note = w.ns.ExportProfile({})
     assert(text == nil and note == "Tick a part to share.", tostring(note))
 end)
@@ -119,14 +124,53 @@ Case("the string survives being wrapped and pasted with spaces", function()
     assert(w.ns.DecodeProfile(wrapped))
 end)
 
-Case("a profile from someone's pack keeps their Smart Reminders and class macros back", function()
+local function OldString(parts)
+    local LS, LD = LibStub("LibSerialize"), LibStub("LibDeflate")
+    return "NFPROFILE1:" .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize({ format = 1, name = "Old",
+        parts = parts })))
+end
+
+Case("an older string's reminders part brings only its consumables, under either old key", function()
+    local w = World()
+    for _, key in ipairs({ "smartReminders", "reminders" }) do
+        local parts = assert(w.ns.DecodeProfile(OldString({ [key] = { leadTime = 9, presets = { { name = "X" } },
+            utilityReminders = { other = 2, consumables = { { category = "flask", itemID = 13510, auras = { 17628 } } },
+                classMacros = { MAGE = { { name = "Blink", body = "/cast Blink" } } } } } }))).parts
+        assert(parts.consumables[1].itemID == 13510 and parts.consumables[1].auras[1] == 17628, key)
+        assert(parts.smartReminders == nil and parts.reminders == nil and parts.macros == nil, key)
+        w.ns.ImportProfile({ name = "Old", parts = parts }, ALL, "From " .. key)
+        local sr = w.db.profiles["From " .. key].tankReminder
+        assert(sr.utilityReminders.consumables[1].itemID == 13510, key)
+        assert(sr.leadTime == nil and sr.presets == nil and sr.utilityReminders.other == nil, key)
+        assert(sr.utilityReminders.classMacros == nil, "class macros travel only as Macros")
+    end
+    local parts = assert(w.ns.DecodeProfile(OldString({ consumables = { { category = "food", itemID = 1 } },
+        smartReminders = { utilityReminders = { consumables = { { category = "food", itemID = 2 } } } } }))).parts
+    assert(parts.consumables[1].itemID == 1 and #parts.consumables == 1 and parts.smartReminders == nil,
+        "the new part wins over an old one")
+    parts = assert(w.ns.DecodeProfile(OldString({ smartReminders = { leadTime = 9 } }))).parts
+    assert(parts.consumables == nil and parts.smartReminders == nil, "an old part with no consumables brings nothing")
+end)
+
+Case("a new string carries the consumables under their own key, and nothing else of the store", function()
+    local w = World()
+    local LS, LD = LibStub("LibSerialize"), LibStub("LibDeflate")
+    local text = assert(w.ns.ExportProfile())
+    local ok, raw = LS:Deserialize(LD:DecompressDeflate(LD:DecodeForPrint(text:sub(12))))
+    assert(ok and raw.parts.consumables[1].itemID == 13931)
+    assert(raw.parts.smartReminders == nil and raw.parts.reminders == nil)
+end)
+
+Case("a profile that once came from a pack shares like any other, and never names the pack", function()
     local w = World()
     w.db.profiles.Default.tankReminder.importedPack = { name = "Naowh's Pack", author = "Naowh", licensed = true }
     local text, note = w.ns.ExportProfile()
+    assert(note == nil, tostring(note))
+    local LD = LibStub("LibDeflate")
+    assert(not LD:DecompressDeflate(LD:DecodeForPrint(text:sub(12))):find("Naowh's Pack", 1, true))
     local parts = assert(w.ns.DecodeProfile(text)).parts
-    assert(parts.smartReminders == nil and parts.macros.classMacros == nil)
+    assert(parts.consumables[1].itemID == 13931 and parts.macros.classMacros.PALADIN[1].name == "BoP")
     assert(parts.macros.module.foodBar == true and parts.settings.qol, "the rest still goes")
-    assert(note and note:find("Naowh's Pack", 1, true), tostring(note))
 end)
 
 Case("the parts a string holds, for the import's ticks", function()
@@ -134,7 +178,7 @@ Case("the parts a string holds, for the import's ticks", function()
     local list = w.ns.ProfileStringParts(assert(w.ns.DecodeProfile((w.ns.ExportProfile()))))
     local keys = {}
     for _, part in ipairs(list) do keys[#keys + 1] = part.key .. (part.detail and (":" .. part.detail) or "") end
-    assert(table.concat(keys, ",") == "settings:2 modules,macros:1 class macros,library:1 macros,smartReminders,"
+    assert(table.concat(keys, ",") == "settings:2 modules,macros:1 class macros,library:2 macros,consumables,"
         .. "builds:1 builds,bisLists:1 lists,look", table.concat(keys, ","))
 end)
 
@@ -147,7 +191,10 @@ Case("import: a new profile with every part, switched to, the old one untouched"
     assert(name == "Default 2" and w.switched == "Default 2" and w.refreshed == 1, name)
     local p = w.db.profiles["Default 2"]
     assert(p.qol.fastLoot == true and p.topBar.mouseoverAlpha == 0.4 and p.macros.foodBar == true)
-    assert(p.tankReminder.leadTime == 5 and p.tankReminder.utilityReminders.classMacros.PALADIN[1].name == "BoP")
+    assert(p.tankReminder.utilityReminders.classMacros.PALADIN[1].name == "BoP")
+    assert(p.tankReminder.utilityReminders.consumables[1].itemID == 13931)
+    assert(p.tankReminder.leadTime == nil and p.tankReminder.presets == nil and p.tankReminder.utilityReminders.other == nil,
+        "only the consumables and class macros of the store")
     assert(w.db.account.themePreset == "slate", "the look comes in")
     assert(added.bisLists == 0 and added.library == 0 and added.builds == 0, "what you have is not added twice")
     assert(#w.db.account.libraryMacros.PALADIN == 2 and #w.db.account.trainingBuilds[2] == 1)
@@ -160,7 +207,7 @@ Case("import: unticked parts stay out", function()
     w.db.account.themePreset = "midnight"
     w.ns.ImportProfile(payload, { settings = true }, "Fresh")
     local p = w.db.profiles.Fresh
-    assert(p.qol.fastLoot == true and p.macros == nil and p.tankReminder.leadTime == nil)
+    assert(p.qol.fastLoot == true and p.macros == nil and p.tankReminder.utilityReminders == nil)
     assert(w.db.account.themePreset == "midnight", "the look stays")
 end)
 
@@ -179,12 +226,39 @@ Case("what you answered about EllesmereUI's windows stays home, both ways", func
         and p.inspectPanelAsked == nil and p.inspectPanelTookOver == nil, "an older string's are not taken in")
 end)
 
-Case("Macros without Smart Reminders still brings the class macros", function()
+Case("Macros without Consumables still brings the class macros, and the other way round", function()
     local w = World()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
     w.ns.ImportProfile(payload, { macros = true }, "Macros Only")
     local sr = w.db.profiles["Macros Only"].tankReminder
-    assert(sr.utilityReminders.classMacros.PALADIN[1].body == "/cast BoP" and sr.leadTime == nil)
+    assert(sr.utilityReminders.classMacros.PALADIN[1].body == "/cast BoP" and sr.utilityReminders.consumables == nil)
+    w.ns.ImportProfile(payload, { consumables = true }, "Consumables Only")
+    sr = w.db.profiles["Consumables Only"].tankReminder
+    assert(sr.utilityReminders.consumables[1].itemID == 13931 and sr.utilityReminders.classMacros == nil)
+end)
+
+Case("Consumables replace only the list, never the rest of the reminders' store", function()
+    local w = World()
+    local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
+    local root = w.ns.ProfileRoot("Kept")
+    local macros = { MAGE = { { name = "Blink", body = "/cast Blink" } } }
+    root.tankReminder = { leadTime = 9, utilityReminders = { classMacros = macros, other = 3,
+        consumables = { { category = "flask", itemID = 1 } } } }
+    ---@diagnostic disable-next-line: duplicate-set-field
+    w.ns.ProfileExists = function(name) return name == "Kept" end
+    w.ns.ImportProfile(payload, { consumables = true }, "Kept", true)
+    local sr = w.db.profiles.Kept.tankReminder
+    assert(sr.utilityReminders.consumables[1].itemID == 13931 and #sr.utilityReminders.consumables == 1)
+    assert(sr.leadTime == nil and sr.utilityReminders.classMacros == nil, "an overwrite still starts empty")
+    w.db.profiles.Fresh = { tankReminder = { leadTime = 9, utilityReminders = { classMacros = macros, other = 3 } } }
+    local fresh = w.db.profiles.Fresh
+    w.ns.ProfileRoot = function() return fresh end
+    ---@diagnostic disable-next-line: duplicate-set-field
+    w.ns.ProfileExists = function() return false end
+    w.ns.ImportProfile(payload, { consumables = true }, "Fresh")
+    assert(fresh.tankReminder.leadTime == 9 and fresh.tankReminder.utilityReminders.other == 3)
+    assert(fresh.tankReminder.utilityReminders.classMacros == macros)
+    assert(fresh.tankReminder.utilityReminders.consumables[1].itemID == 13931)
 end)
 
 Case("overwrite: a rerun empties the named profile and lands there", function()
@@ -258,11 +332,14 @@ Case("a value of the wrong type, or for no module, is not taken in", function()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
     payload.parts.settings.qol.fastLoot = "yes"
     payload.parts.settings.bogus = { x = 1 }
-    payload.parts.smartReminders.importedPack = { name = "fake", licensed = true }
+    payload.parts.consumables[1].importedPack = { name = "fake", licensed = true }
+    payload.parts.importedPack = { name = "fake", licensed = true }
+    payload.parts.tankReminder = { leadTime = 1 }
     w.ns.ImportProfile(payload, ALL, "Checked")
     local p = w.db.profiles.Checked
     assert(p.qol.fastLoot == nil and p.qol.bisSlots[1] == 6948 and p.bogus == nil)
-    assert(p.tankReminder.importedPack == nil, "a string cannot claim a pack")
+    assert(p.tankReminder.importedPack == nil and p.importedPack == nil, "a string cannot claim a pack")
+    assert(p.tankReminder.leadTime == nil and p.tankReminder.utilityReminders.consumables[1].importedPack == nil)
 end)
 
 -- Forever raises on 1 / 0, which LibSerialize does to each 0 it writes: none may reach it.
@@ -286,10 +363,10 @@ Case("a 0 comes back as 0 and never reaches the serializer", function()
     assert(parts.settings.topBar.mouseoverAlpha == 0 and parts.settings.qol.lootFeedPos[2] == 0)
 end)
 
-Case("pack strings go to the pack import; damaged or newer ones are refused", function()
+Case("old pack strings say packs are gone; damaged or newer ones are refused", function()
     local w = World()
     local _, err = w.ns.DecodeProfile("NSRPACK2:abcdef")
-    assert(err == "pack")
+    assert(err == "Reminder Packs are no longer supported.", tostring(err))
     _, err = w.ns.DecodeProfile("NFPROFILE1:%%%not-a-string")
     assert(err and err:find("damaged", 1, true), tostring(err))
     _, err = w.ns.DecodeProfile("hello")
@@ -308,7 +385,7 @@ end
 Case("a crafted string's name, author, date and list names show as plain text", function()
     local w = World()
     local LS, LD = LibStub("LibSerialize"), LibStub("LibDeflate")
-    local BADGE = "|TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:16|t"
+    local BADGE = "|TInterface\\AddOns\\NaowhForever\\Core\\Badges\\Media\\BadgeNaowhChat.tga:16|t"
     local text = "NFPROFILE1:" .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize({
         format = 1, name = BADGE .. " |cffe6cc80Naowh's Official|r\nVerified by the team",
         author = "%s%d%n |Hplayer:Naowh|h[Naowh]|h", made = ("|cffff0000x|r"):rep(400),
@@ -349,11 +426,9 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     local buttons, boxes, toggles = {}, {}, {}
     ns.THEME = setmetatable({}, { __index = function() return { r = 1, g = 1, b = 1 } end })
     ns.MakeModal = function() return Frame(), Frame() end
-    ns.MakeMultilineBox = function()
-        local box = Frame()
-        boxes[#boxes + 1] = box
-        return box
-    end
+    ns.UI.SlimScroll = function() return Frame() end
+    ns.Solid = function() return Frame() end
+    ns.Border = NOTHING
     ns.Font = function() return Frame() end
     ns.NewEditBox = function() return Frame() end
     ns.Button = function(_, text, _, _, fn)
@@ -365,7 +440,6 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     ns.AccentBorder = function(f) return f end
     ns.SetButtonText = function(b, t) b.label = t end
     ns.ConfirmReload = function(text) reload = text end
-    ns.ShowPackImport = function(text) opened = text end
     local fonts = {}
     ns.UI.KeepFont = function(_, key)
         local f = Frame()
@@ -379,7 +453,11 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
         return t
     end
     local env = getfenv(ns.ExportProfile)
-    env.CreateFrame = function() return Frame() end
+    env.CreateFrame = function(kind)
+        local f = Frame()
+        if kind == "EditBox" then boxes[#boxes + 1] = f end
+        return f
+    end
     env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 
     ns.ShowProfileExport({ settings = true, builds = true })
@@ -409,9 +487,9 @@ Case("the dialogs: export shows the string, import ticks parts and lands what is
     ns.ShowProfileImport()
     paste.text = "NSRPACK2:abcdef"
     paste.scripts.OnTextChanged(paste, true)
-    assert(import.label == "Open Pack Import")
-    import.click()
-    assert(opened == "NSRPACK2:abcdef", "the pack goes to the pack import")
+    assert(import.shown == false and import.label == "Import", "nothing to take in")
+    assert(fonts.preview.text == "Reminder Packs are no longer supported.", fonts.preview.text)
+    assert(opened == nil and #boxes == 2)
 
     ns.Training.ImportBuild = function(t) opened = t end
     ns.ShowProfileImport()
@@ -600,7 +678,7 @@ Case("the page: the profile in use, the others with Use, a switch per part, a pa
     local tiles = view.drawn.part
     assert(#tiles == 7 and tiles[1].key == "settings" and tiles[1].switch.on == true)
     assert(tiles[1].detail.text == "2 modules", tostring(tiles[1].detail.text))
-    assert(tiles[4].detail.text == "Reminders, priorities and callouts", tiles[4].detail.text)
+    assert(tiles[4].detail.text == "The consumables your reminders watch", tiles[4].detail.text)
     assert(tiles[5].key == "builds" and tiles[5].ready == false and tiles[5].detail.text == "Nothing saved yet")
     assert(tiles[5].switch.on == false and tiles[5].switch.mouse == false and tiles[5].name.a < 1)
     assert(tiles[1].tip:find("frames sit", 1, true))
@@ -641,9 +719,11 @@ Case("the page: the profile in use, the others with Use, a switch per part, a pa
     w.db.profiles.Default.tankReminder.importedPack = { name = "Naowh's Pack" }
     ns.BuildProfileSettings(parent, -10)
     tiles = view.drawn.part
-    assert(tiles[4].key == "smartReminders" and tiles[4].detail.text == "From a pack", tiles[4].detail.text)
-    assert(tiles[4].switch.mouse == false)
+    assert(tiles[4].key == "consumables" and tiles[4].ready == true, tostring(tiles[4].key))
+    assert(tiles[4].detail.text == "The consumables your reminders watch", tiles[4].detail.text)
+    assert(tiles[4].switch.mouse == true, "a profile from a pack shares its consumables like any other")
 
+    ---@diagnostic disable-next-line: duplicate-set-field
     ns.ListProfiles = function() return { "Default" } end
     ns.BuildProfileSettings(parent, -10)
     mine = view.drawn.active[1]

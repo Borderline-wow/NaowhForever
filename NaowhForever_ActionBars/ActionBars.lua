@@ -1,0 +1,74 @@
+-- ActionBars.lua: the Action Bars module's settings, the saved sets of this class, and the module table (ns.ActionBars).
+local ns = _G.NaowhForever
+
+local F = ns.FEATURES.actionBars
+
+local S = ns.UI.ModuleSettings("actionBars", {
+    enabled = F.enabled, highestRank = false, importMacros = true, importBindings = true, saveOnLogout = false,
+    fillLater = false, windowAlpha = 1,
+})
+ns.ActionBarSettings = S
+
+local PLURAL = "%d %s%s"
+
+local A = { Settings = S }
+ns.ActionBars = A
+
+local function ByName(a, b) return a:lower() < b:lower() end
+
+function A.Account(key)
+    local account = ns.AccountSettings()
+    account[key] = account[key] or {}
+    return account[key]
+end
+
+function A.Class()
+    local _, class = UnitClass("player")
+    return class
+end
+
+function A.Sets()
+    local all = A.Account("barSets")
+    all[A.Class()] = all[A.Class()] or {}
+    return all[A.Class()]
+end
+
+function A.CharKey()
+    return UnitName("player") .. "-" .. GetRealmName()
+end
+
+function A.SetLast(name)
+    A.Account("barSetLast")[A.CharKey()] = { class = A.Class(), name = name }
+end
+
+function A.Last()
+    return A.Account("barSetLast")[A.CharKey()]
+end
+
+function A.Find(name)
+    local sets = A.Sets()
+    if sets[name] then return name end
+    local lower = name:lower()
+    for key in pairs(sets) do
+        if key:lower() == lower then return key end
+    end
+end
+
+function A.SortedNames()
+    local names = {}
+    for name in pairs(A.Sets()) do names[#names + 1] = name end
+    table.sort(names, ByName)
+    return names
+end
+
+function A.Plural(n, word)
+    return PLURAL:format(n, word, n == 1 and "" or "s")
+end
+
+function A.Refresh()
+    if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+end
+
+function A.On()
+    return S.Get("enabled") == true
+end

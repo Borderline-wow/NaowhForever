@@ -1,4 +1,5 @@
 -- Run with Lua 5.1 from the repository root. Hardware actions are recorded, not executed.
+local TocFiles = dofile('Tools/regression/toc_files.lua')
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 local function fixture(kind)
@@ -47,9 +48,9 @@ local function fixture(kind)
         return f
     end
     local S = { Get = function(k) return state.settings[k] end,
-        Set = function(k, v) state.settings[k] = v end }
-    local ns = { QoLSettings = S, Apply = function() end, Print = function() end,
-        ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
+        Set = function(k, v) state.settings[k] = v end, OnChange = function() end }
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), QoLSettings = S, Apply = function() end, Print = function() end,
+        ShowUnlockMode = function() end, HideUnlockMode = function() end,
         THEME = { bg = {}, accent = { r = 0, g = 1, b = 1 }, accentSoft = {} },
         UIFontPath = function() return 'font' end,
         Border = function() return frame() end, Solid = function() return frame() end,
@@ -71,6 +72,7 @@ local function fixture(kind)
             end },
     }
     local env = { _G = { NaowhForever = ns }, UIParent = {}, NUM_BAG_SLOTS = 0,
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
         CreateFrame = function(_, name, parent, template) return frame(name, parent, template) end,
         InCombatLockdown = function() return state.combat end,
         GetTime = function() return state.now end,
@@ -108,6 +110,9 @@ local function fixture(kind)
     function state.load(path)
         local chunk = assert(loadfile(path)); setfenv(chunk, env); chunk()
     end
+    function state.loadModule(dir)
+        for _, path in ipairs(TocFiles("^" .. dir .. "/.*%.lua$")) do state.load(path) end
+    end
     function state.fire(event)
         local copy = {}; for i, f in ipairs(state.frames) do copy[i] = f end
         for _, f in ipairs(copy) do if f.events[event] and f.scripts.OnEvent then f.scripts.OnEvent(f, event) end end
@@ -118,7 +123,7 @@ end
 
 do
     local s = fixture('gear')
-    s.load('NaowhForever_GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    s.loadModule('NaowhForever_GearSets'); s.fire('PLAYER_LOGIN')
     check('hidden set bar stays hidden', not s.named.NaowhForeverGearBar.shown)
     local swaps = false
     for _, f in ipairs(s.frames) do if f.events.PLAYER_MOUNT_DISPLAY_CHANGED then swaps = true end end
@@ -150,7 +155,7 @@ end
 do
     local s = fixture('gear')
     s.settings.trinketBar = false
-    s.load('NaowhForever_GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    s.loadModule('NaowhForever_GearSets'); s.fire('PLAYER_LOGIN')
     local function Listening(e)
         for _, f in ipairs(s.frames) do if f.events[e] then return f end end
     end
@@ -172,7 +177,7 @@ end
 do
     local s = fixture('gear')
     s.settings.gearBarVisible, s.settings.gearBarShow, s.settings.trinketBar = true, 'nocombat', false
-    s.load('NaowhForever_GearSets/NaowhForever_GearSets.lua'); s.fire('PLAYER_LOGIN')
+    s.loadModule('NaowhForever_GearSets'); s.fire('PLAYER_LOGIN')
     local bar = s.named.NaowhForeverGearBar
     check('Show Out of Combat: shown out of combat', bar.shown)
     s.fire('PLAYER_REGEN_DISABLED'); s.combat = true
@@ -195,7 +200,8 @@ end
 
 do
     local s = fixture('camp')
-    s.load('NaowhForever_AuraBuffs/NaowhForever_AuraBuffs.lua')
+    s.load('Core/Features.lua'); s.load('NaowhForever_AuraBuffs/AuraBuffs.lua')
+    s.load('NaowhForever_AuraBuffs/Constants.lua')
     local parse = s.ns.ParseConsumableEntry
     check('explicit item and buff IDs parse', parse('food', '123, 456, 789').auras[2] == 789)
     local alone = parse('food', '123')
@@ -208,14 +214,18 @@ do
     check('list string reads back', #back == 3 and back[3].auras[1] == 17539 and back[1].auras == nil)
     check('damaged list rejected', not s.ns.ParseConsumableList('NFCONSUMABLES1:food=13931,x')
         and not s.ns.ParseConsumableList('NFCONSUMABLES1:food13931'))
-    s.ns.DecodeProfile = function() return { parts = { smartReminders = { utilityReminders = {
-        consumables = { { category = 'flask', itemID = 13510 } } } } } } end
+    s.ns.DecodeProfile = function() return { parts = { consumables = { { category = 'flask', itemID = 13510 } } } } end
     check('profile string gives its consumables', s.ns.ParseConsumableList('NFPROFILE1:x')[1].itemID == 13510)
+    ---@diagnostic disable-next-line: duplicate-set-field
     s.ns.DecodeProfile = function() return nil end
     check('anything else holds no list', not s.ns.ParseConsumableList('hello'))
     check('invalid IDs rejected', not parse('food', '123, x') and not parse('food', '0, 1'))
     s.S.Set('campShowUnder', false)
-    s.load('NaowhForever_AuraBuffs/NaowhForever_Campfire.lua'); s.fire('PLAYER_LOGIN')
+    for _, file in ipairs({ 'Data/Campfire.lua', 'CampReader.lua', 'View/Style.lua', 'View/CampIcon.lua',
+        'View/CampBar.lua', 'View/CampAlert.lua', 'UI/Campfire.lua', 'UI/CampfireCards.lua' }) do
+        s.load('NaowhForever_AuraBuffs/' .. file)
+    end
+    s.fire('PLAYER_LOGIN')
     local icon = s.named.NaowhForeverCampfire
     check('no icon swipe', icon.timer.swipe == false)
     check('missing shown by default', icon.shown)
@@ -239,17 +249,19 @@ do
     local s = fixture('profile')
     local active = {}
     s.ns.DB = function() return active end
-    s.load('NaowhForever_AuraBuffs/NaowhForever_AuraBuffs.lua')
+    s.load('Core/Features.lua'); s.load('NaowhForever_AuraBuffs/AuraBuffs.lua')
+    s.load('NaowhForever_AuraBuffs/Constants.lua')
     local entry = { category = "food", itemID = 123, auras = { 456 } }
     s.S.Set("consumableEntries", { entry })
-    check('editor writes pack-backed definitions', active.utilityReminders.consumables[1] == entry)
+    check('editor writes profile-backed definitions', active.utilityReminders.consumables[1] == entry)
     active = {}
     check('profile change clears previous definitions', #s.S.Get("consumableEntries") == 0)
     local m = fixture('profile')
     m.ns.DB = function() return active end
-    m.load('NaowhForever_Macros/NaowhForever_Macros.lua')
+    m.load('Core/Features.lua')
+    m.load('NaowhForever_Macros/Macros.lua')
     m.S.Set("classMacros", { PALADIN = { { name = "Test", body = "/say test" } } })
-    check('class macros use pack-backed data', active.utilityReminders.classMacros.PALADIN[1].name == "Test")
+    check('class macros use profile-backed data', active.utilityReminders.classMacros.PALADIN[1].name == "Test")
     active = {}
     check('class macros follow active profile', next(m.S.Get("classMacros")) == nil)
 end

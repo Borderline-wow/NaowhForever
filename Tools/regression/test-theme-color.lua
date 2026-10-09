@@ -1,7 +1,7 @@
 -- ns.Color must produce the same |cffRRGGBB escapes the code wrote by hand before it.
 -- Run with Lua 5.1 from the repository root: lua5.1 Tools/regression/test-theme-color.lua .
 local root = arg[1] or "."
-local file = assert(io.open(root .. "/Core/NaowhForever_Core.lua", "rb"))
+local file = assert(io.open(root .. "/Core/Core.lua", "rb"))
 local source = file:read("*a"); file:close()
 
 local frame = setmetatable({}, { __index = function() return function() end end })

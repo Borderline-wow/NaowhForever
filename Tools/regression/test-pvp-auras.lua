@@ -8,6 +8,7 @@
 -- and moves the card only when the cursor moves.
 
 local Load = dofile("Tools/regression/load_files.lua")
+local TocFiles = dofile("Tools/regression/toc_files.lua")
 
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
@@ -88,6 +89,7 @@ end
 
 local function Fixture(qol, pvp)
     local env = { pairs = pairs, ipairs = ipairs, type = type, math = math, table = table, next = next,
+        setmetatable = setmetatable, error = error,
         select = select, tostring = tostring, tonumber = tonumber, string = string, wipe = function(t)
             for k in pairs(t) do t[k] = nil end
             return t
@@ -180,9 +182,9 @@ local function Fixture(qol, pvp)
         SetSpellByID = function(_, id) env.tip.spell = id end,
         AddLine = function(_, text) env.tip[#env.tip + 1] = text end }
 
-    local ns = { QoLSettings = Store(qol), THEME = { panel = {}, fg = {}, accentSoft = { r = 0, g = 0, b = 1 },
+    local ns = { QoLConstants = dofile("Tools/regression/qol_constants.lua"), QoLSettings = Store(qol), THEME = { panel = {}, fg = {}, accentSoft = { r = 0, g = 0, b = 1 },
         accent = { r = 0, g = 0.5, b = 1 }, muted = {} }, Apply = none,
-        ShowRaidReminderAnchorConfig = none, HideRaidReminderAnchorConfig = none }
+        ShowUnlockMode = none, HideUnlockMode = none }
     ns.UIFontPath = function() return "font" end
     env.opened = {}
     ns.OpenFromOptions = function(open) env.opened[#env.opened + 1] = "from options"; open() end
@@ -200,7 +202,8 @@ local function Fixture(qol, pvp)
         end }
     env.cards = {}
     local page = { Card = function(_, spec) env.cards[spec.id] = spec end }
-    ns.Shared = { Settings = { Page = function() return page end, Group = function(title) return { group = title } end,
+    ns.Shared = { Style = dofile("Tools/regression/shared_style.lua"), Parts = { ClassCrop = function() end },
+        Settings = { Page = function() return page end, Group = function(title) return { group = title } end,
         EditZone = function(parent, opts)
             local zone = Frame("Zone")
             zone.parent, zone.click, zone.enter, zone.leave = parent, opts.click, opts.enter, opts.leave
@@ -208,8 +211,10 @@ local function Fixture(qol, pvp)
         end } }
     env.NaowhForever = ns
     env._G = env
-    Load({ "NaowhForever_PvP/Data/NaowhForever_PvPSpells.lua", "NaowhForever_PvP/NaowhForever_PvP.lua",
-        "NaowhForever_PvP/NaowhForever_PvPAuras.lua", "QoL/NaowhForever_CursorCooldown.lua" }, env)
+    Load({ "Core/Features.lua" }, env)
+    local files = TocFiles("^NaowhForever_PvP/.*%.lua$")
+    files[#files + 1] = "NaowhForever_QoL/Combat/CursorCooldown.lua"
+    Load(files, env)
     env.Fire("PLAYER_LOGIN")
     return env, ns
 end

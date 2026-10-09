@@ -19,11 +19,11 @@ end
 
 -- Files with those words in their strings, each loaded below with the flag both ways.
 local GATED = {
-    ["Badges/NaowhForever_Badges.lua"] = true,
-    ["CharacterPanel/SettingsPage.lua"] = true,
-    ["InspectPanel/SettingsPage.lua"] = true,
-    ["Core/NaowhForever_Credits.lua"] = true,
-    ["Core/NaowhForever_PatchNotes.lua"] = true,
+    ["Core/Badges/Badges.lua"] = true,
+    ["CharacterPanel/UI/SettingsPage.lua"] = true,
+    ["InspectPanel/UI/SettingsPage.lua"] = true,
+    ["Core/Pages/Credits.lua"] = true,
+    ["Core/Pages/PatchNotes.lua"] = true,
 }
 -- The same words meaning something else: the patrons of a dungeon's bar.
 local UNRELATED = {
@@ -137,7 +137,7 @@ local texts
 local Stub
 local STUB = { __index = function(_, key)
     if key == "SetText" then return function(_, text) texts[#texts + 1] = tostring(text) end end
-    if key == "GetStringWidth" or key == "GetWidth" or key == "GetHeight" then
+    if key == "GetStringWidth" or key == "GetStringHeight" or key == "GetWidth" or key == "GetHeight" then
         return function() return 100 end
     end
     if key:find("^Create") then return function() return Stub() end end
@@ -157,7 +157,7 @@ local function Shown(flag)
     local store = { Get = function() return true end, Default = function() return true end, OnChange = NOTHING }
     local ns
     ns = {
-        FEATURE_BADGES = flag, CODE_BUILD = "test", THEME = setmetatable({}, { __index = function() return COLOR end }),
+        FEATURE_BADGES = flag, BADGES_LIVE = 1, MEDIA = dofile("Tools/regression/core_media.lua"), CODE_BUILD = "test", THEME = setmetatable({}, { __index = function() return COLOR end }),
         QoLSettings = store, Apply = NOTHING,
         BADGE_STAFF = { [1] = { [TEAM_GUID] = "developer" } },
         BADGE_PATRONS = { [1] = { ["Player-1-PATRON"] = { since = "2026-03" } } },
@@ -212,9 +212,9 @@ local function Shown(flag)
         strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end,
         date = os.date,
     }, { __index = _G })
-    Load({ Located("Badges/NaowhForever_Badges.lua"), Located("CharacterPanel/SettingsPage.lua"),
-        Located("InspectPanel/SettingsPage.lua"),
-        Located("Core/NaowhForever_Credits.lua"), Located("Core/NaowhForever_PatchNotes.lua") }, env)
+    Load({ Located("Core/Badges/Badges.lua"), Located("CharacterPanel/UI/SettingsPage.lua"),
+        Located("InspectPanel/UI/SettingsPage.lua"),
+        Located("Core/Pages/Credits.lua"), Located("Core/Pages/PatchNotes.lua") }, env)
     ns.BuildCreditsPage({ GetWidth = function() return 800 end }, 0)
 
     for _, def in ipairs(cards) do

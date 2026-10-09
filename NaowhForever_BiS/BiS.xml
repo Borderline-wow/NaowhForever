@@ -1,0 +1,8 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- BiS.xml: the BiS List addon's modules, in load order. -->
+    <Include file="NaowhScore\NaowhScore.xml"/>
+    <Include file="StatWeights\StatWeights.xml"/>
+    <Include file="BiS\BiS.xml"/>
+    <Include file="CharacterPanel\CharacterPanel.xml"/>
+    <Include file="InspectPanel\InspectPanel.xml"/>
+</Ui>

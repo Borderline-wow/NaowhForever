@@ -1,37 +1,37 @@
--------------------------------------------------------------------------------
---  UI/MapPanel.lua -- the Dungeon Journal beside the world map: open the map (M) inside a
---  dungeon and its bosses and loot sit on the map's right, or inside its right edge when the
---  map fills the screen. With Factions Beside the Map on, in a zone or a battleground the
---  page of a faction earned there sits in the same place (a switch when there are two).
---  Inside a dungeon with a map (Data/Maps.lua) the dungeon's map also fills the world map's
---  picture (UI/DungeonMap.lua); this file tells it when, and when another map is shown
---  (it steps aside, and the page offers Map to bring it back). And there the game's quest log
---  beside the map folds away, so the Journal sits against the map: the game's own setting
---  for it (questLogOpen, which the map reads each time it opens) is set on entering, and put
---  back as it was on leaving (kept for the account meanwhile, so a logout inside keeps it).
---  The panel is the addon's own frame; the map is only watched, with
---  HookScript, and the hooks go on the first time the panel is switched on. Until then, and
---  whenever it is off, nothing runs.
--------------------------------------------------------------------------------
+-- MapPanel.lua: the Dungeon Journal beside the world map: a dungeon's page inside one, a faction's in its zone.
 local ns = _G.NaowhForever
+
 local T = ns.THEME
 local J = ns.Journal
 local S = J.Settings
-
 local St = J.Style
 local PANEL_W, PANEL_PAD, PANEL_HEADER = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEADER
 
-local SCROLL_GAP = 20   -- the view's right edge to the panel's, for the scrollbar
-local PANEL_LEVEL = 100 -- over the map: above the dungeon's map on its picture too
+local SCROLL_GAP = 20
+local PANEL_LEVEL = 100
+local CARD_INSET = 4
+local VIEW_TOP = 4
+local BUTTON_W, BACK_W, BUTTON_H = 90, 50, 20
+local BUTTON_GAP = 6
+local BESIDE_GAP = 4
+local INSIDE_RIGHT, INSIDE_TOP, INSIDE_BOTTOM = 8, 70, 8
+local SCREEN_ROOM = 8
+local QUEST_LOG = "questLogOpen"
+local QUEST_LOG_SHOWN, QUEST_LOG_FOLDED = "1", "0"
+
+local TEXT_TITLE = "DUNGEON JOURNAL"
+local TEXT_OTHER_HALF = "Other half"
+local TEXT_OTHER_FACTION = "Other faction"
+local TEXT_BACK = "Back"
+local TEXT_MY_CLASS = "My class"
+local TEXT_ALL_CLASSES = "All classes"
 
 local panel, view
 local hooked, waitingForMap = false, false
--- What the panel shows: the dungeons of the instance you are in (Blackrock Spire holds two),
--- or the factions earned where you are; shownIndex is the one drawn.
 local pages, pagesAreFactions, shownIndex = nil, false, 1
 local factionsHere = {}
--- The boss whose page shows instead of its dungeon's: a pin clicked on the dungeon's map.
 local shownBoss
+local folder
 
 local function On()
     return S.Get("enabled") and (S.Get("mapPanel") or S.Get("mapFactions"))
@@ -46,11 +46,9 @@ local function DrawShown()
     else
         view:Draw(page)
     end
-    -- The dungeon's map on the world map, while its page shows.
     J.ShowMapOnWorldMap(not pagesAreFactions and page or nil)
 end
 
--- Two dungeons in one instance, or two factions in one zone: this flips between them.
 local function OtherHalf()
     if not pages then return end
     shownIndex = shownIndex % #pages + 1
@@ -60,25 +58,19 @@ local function OtherHalf()
     panel.scroll:SetVerticalScroll(0)
 end
 
--- Back from a boss's page to its dungeon's.
 local function Back()
     J.ShowBossBesideMap(nil)
     J.UnpickOnWorldMap()
 end
 
--- My Class Only, the same setting as the window's; the settings listener redraws the panel.
 local function ToggleClass()
     S.Set("usableOnly", not S.Get("usableOnly"))
 end
 
--- In the Journal window's look rather than the plain dark panel's, so the two match: its
--- gradient faded by its Opacity, its card behind the page, and its titles' blue.
 local function Paint()
     panel.backdrop:Paint(S.Get("mapAlpha") or 1)
 end
 
--- The page as wide as the panel, or less the scrollbar's room; drawn again when it changes
--- while shown (narrower makes it taller, so it only flips back once it fits again).
 local function Widen(wide)
     local gap = wide and 0 or SCROLL_GAP
     panel.scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD - gap, PANEL_PAD)
@@ -86,27 +78,35 @@ local function Widen(wide)
     if panel:IsShown() then view:Redraw() end
 end
 
-local function Narrow() Widen(false) end
-local function WidenAll() Widen(true) end
+local function Narrow()
+    Widen(false)
+end
+
+local function WidenAll()
+    Widen(true)
+end
+
+local function BuildButtons()
+    panel.switch = ns.Button(panel, TEXT_OTHER_HALF, BUTTON_W, BUTTON_H, OtherHalf)
+    panel.switch:SetPoint("RIGHT", panel.close, "LEFT", -BUTTON_GAP, 0)
+    panel.classOnly = ns.Button(panel, "", BUTTON_W, BUTTON_H, ToggleClass)
+    panel.back = ns.Button(panel, TEXT_BACK, BACK_W, BUTTON_H, Back)
+    panel.back:SetPoint("RIGHT", panel.classOnly, "LEFT", -BUTTON_GAP, 0)
+end
 
 local function Build()
-    panel = J.View.Parts.Panel("DUNGEON JOURNAL", true)
-    panel.onWorldMap = true   -- its Map shows the dungeon's map on the world map
-    panel.backdrop:Card(4, PANEL_HEADER, 4, 4)
+    panel = J.View.Parts.Panel(TEXT_TITLE, true)
+    panel.onWorldMap = true
+    panel.backdrop:Card(CARD_INSET, PANEL_HEADER, CARD_INSET, CARD_INSET)
     panel.title:SetTextColor(T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    panel.switch = ns.Button(panel, "Other half", 90, 20, OtherHalf)
-    panel.switch:SetPoint("RIGHT", panel.close, "LEFT", -6, 0)
-    panel.classOnly = ns.Button(panel, "", 90, 20, ToggleClass)
-    panel.back = ns.Button(panel, "Back", 50, 20, Back)
-    panel.back:SetPoint("RIGHT", panel.classOnly, "LEFT", -6, 0)
+    BuildButtons()
     local scroll = ns.UI.SlimScroll(panel)
-    scroll:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER - 4)
+    scroll:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEADER - VIEW_TOP)
     view = J.View.New(scroll)
-    view.onWorldMap = true   -- no Map: the dungeon's map is on the world map beside it
+    view.onWorldMap = true
     scroll:SetScrollChild(view)
     panel.scroll = scroll
     Widen(true)
-    -- Room for the scrollbar only while it shows: a page that fits takes the whole width.
     scroll.bar:HookScript("OnShow", Narrow)
     scroll.bar:HookScript("OnHide", WidenAll)
 end
@@ -114,33 +114,30 @@ end
 local function Place()
     local map = WorldMapFrame
     panel:SetFrameStrata(map:GetFrameStrata())
-    -- Above the dungeon's map over the picture (UI/DungeonMap.lua), when it sits inside it.
     panel:SetFrameLevel(map:GetFrameLevel() + PANEL_LEVEL)
     panel:SetScale(ns.UIScale())
     panel:ClearAllPoints()
     local mapRight = (map:GetRight() or 0) * map:GetEffectiveScale()
     local screenRight = UIParent:GetRight() * UIParent:GetEffectiveScale()
-    if screenRight - mapRight >= (PANEL_W + 8) * panel:GetEffectiveScale() then
-        panel:SetPoint("TOPLEFT", map, "TOPRIGHT", 4, 0)
-        panel:SetPoint("BOTTOMLEFT", map, "BOTTOMRIGHT", 4, 0)
+    if screenRight - mapRight >= (PANEL_W + SCREEN_ROOM) * panel:GetEffectiveScale() then
+        panel:SetPoint("TOPLEFT", map, "TOPRIGHT", BESIDE_GAP, 0)
+        panel:SetPoint("BOTTOMLEFT", map, "BOTTOMRIGHT", BESIDE_GAP, 0)
     else
-        panel:SetPoint("TOPRIGHT", map, "TOPRIGHT", -8, -70)
-        panel:SetPoint("BOTTOMRIGHT", map, "BOTTOMRIGHT", -8, 8)
+        panel:SetPoint("TOPRIGHT", map, "TOPRIGHT", -INSIDE_RIGHT, -INSIDE_TOP)
+        panel:SetPoint("BOTTOMRIGHT", map, "BOTTOMRIGHT", -INSIDE_RIGHT, INSIDE_BOTTOM)
     end
 end
 
--- The header's buttons for what it shows and the setting.
 local function PaintButtons()
     local two = #pages > 1
     panel.switch:SetShown(two)
-    ns.SetButtonText(panel.switch, pagesAreFactions and "Other faction" or "Other half")
+    ns.SetButtonText(panel.switch, pagesAreFactions and TEXT_OTHER_FACTION or TEXT_OTHER_HALF)
     panel.classOnly:ClearAllPoints()
-    panel.classOnly:SetPoint("RIGHT", two and panel.switch or panel.close, "LEFT", -6, 0)
-    ns.SetButtonText(panel.classOnly, S.Get("usableOnly") and "My class" or "All classes")
+    panel.classOnly:SetPoint("RIGHT", two and panel.switch or panel.close, "LEFT", -BUTTON_GAP, 0)
+    ns.SetButtonText(panel.classOnly, S.Get("usableOnly") and TEXT_MY_CLASS or TEXT_ALL_CLASSES)
     panel.back:SetShown(shownBoss ~= nil)
 end
 
--- What to show where you are: a dungeon's page inside one, else the factions earned here.
 local function Pick()
     pages, pagesAreFactions = nil, false
     if not (On() and WorldMapFrame:IsShown()) then return end
@@ -152,7 +149,6 @@ local function Pick()
     end
 end
 
--- Shown on the map where there is something to show, from its top.
 local function Refresh()
     Pick()
     if not pages then
@@ -176,18 +172,13 @@ local function Hide()
     J.ShowMapOnWorldMap(nil)
 end
 
--- The map changes size when it is maximised or made small again.
 local function MapResized()
     if panel and panel:IsShown() then Place() end
     J.FitMapOnWorldMap()
 end
 
--- Inside a dungeon the Journal has: the quest log folded, what it was kept. Elsewhere, or
--- switched off: put back. Not in combat (it waits for the next loading screen).
-local folder
 local function FoldQuestLog()
     if InCombatLockdown() then
-        -- Put back, or folded, once combat ends.
         if folder then folder:RegisterEvent("PLAYER_REGEN_ENABLED") end
         return
     end
@@ -195,16 +186,15 @@ local function FoldQuestLog()
     local account = ns.AccountSettings()
     if On() and S.Get("mapPanel") and J.Current() then
         if account.journalQuestLogWas == nil then
-            account.journalQuestLogWas = GetCVar("questLogOpen") or "1"
-            SetCVar("questLogOpen", "0")
+            account.journalQuestLogWas = GetCVar(QUEST_LOG) or QUEST_LOG_SHOWN
+            SetCVar(QUEST_LOG, QUEST_LOG_FOLDED)
         end
     elseif account.journalQuestLogWas ~= nil then
-        SetCVar("questLogOpen", account.journalQuestLogWas)
+        SetCVar(QUEST_LOG, account.journalQuestLogWas)
         account.journalQuestLogWas = nil
     end
 end
 
--- The map opening puts the Journal's window away, and closing brings it back (Window.lua).
 local function MapShown()
     J.WindowAwayForMap(true)
     Refresh()
@@ -215,15 +205,11 @@ local function MapHidden()
     J.WindowAwayForMap(false)
 end
 
--- Another map shown (Blizzard's buttons, its dropdown, a right-click up to the zone): the
--- dungeon's map steps aside, and the panel's page is drawn again, offering Map to bring it
--- back.
 local function MapChanged()
     if not (panel and panel:IsShown()) then return end
     local away = J.DungeonMapAway()
     J.WorldMapChanged()
     if J.DungeonMapAway() == away then return end
-    -- Stepped aside: its boss is no longer picked on it, so the dungeon's page shows again.
     if shownBoss and J.DungeonMapAway() then
         shownBoss = nil
         PaintButtons()
@@ -231,17 +217,6 @@ local function MapChanged()
     else
         view:Redraw()
     end
-end
-
--- A pin on the dungeon's map: its boss's page (its loot and abilities) instead of the
--- dungeon's, from the top; nil for the dungeon's again.
----@param boss? JournalBoss
-function J.ShowBossBesideMap(boss)
-    if not (panel and panel:IsShown() and pages) or pagesAreFactions then return end
-    shownBoss = boss
-    PaintButtons()
-    DrawShown()
-    panel.scroll:SetVerticalScroll(0)
 end
 
 local function Hook()
@@ -262,12 +237,10 @@ local function HookAndRefresh()
     Refresh()
 end
 
--- Hooks the map the first time the panel is on; the map may load after this file does.
 local function Sync()
     if folder then
         if On() then folder:RegisterEvent("PLAYER_ENTERING_WORLD") else folder:UnregisterAllEvents() end
     end
-    -- Folded or put back; off, a quest log left folded by a logout inside is put back too.
     FoldQuestLog()
     if not On() then
         Hide()
@@ -281,18 +254,24 @@ local function Sync()
     end
 end
 
--- Switched on or off: shown or hidden. Anything else it shows: drawn again where it is.
 local function SettingChanged(key)
     if key == "enabled" or key == "mapPanel" or key == "mapFactions" then
         Sync()
         if hooked then Refresh() end
     elseif key == "mapAlpha" then
-        -- Only the backdrop: the page itself is unchanged.
         if panel then Paint() end
     elseif panel and panel:IsShown() then
         PaintButtons()
         view:Redraw()
     end
+end
+
+function J.ShowBossBesideMap(boss)
+    if not (panel and panel:IsShown() and pages) or pagesAreFactions then return end
+    shownBoss = boss
+    PaintButtons()
+    DrawShown()
+    panel.scroll:SetVerticalScroll(0)
 end
 
 S.OnChange(SettingChanged)

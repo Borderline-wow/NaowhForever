@@ -1,11 +1,7 @@
--- Top Bar and Blizzard's top-centre display (battleground scores): PlaceWidgets cut out of
--- TopBar.lua and run against stub frames. Run from the repo root.
-local f = assert(io.open(arg[1] or "TopBar/NaowhForever_TopBar.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+-- Top Bar and Blizzard's top-centre display (battleground scores): NaowhForever_TopBar/UI/Widgets.lua loaded
+-- and run against stub frames. Run from the repo root.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
-
-local body = assert(source:match("\n(local WIDGETS_Y.-\nlocal function PlaceWidgets%(%)\n.-\nend\n)"), "PlaceWidgets")
 
 -- A 1920x1080 screen at scale 1.
 local UIParent = { GetTop = function() return 1080 end, GetRight = function() return 1920 end,
@@ -31,9 +27,19 @@ function widgets:GetEffectiveScale() return self.scale end
 function widgets:ClearAllPoints() self.points = {} end
 function widgets:SetPoint(...) self.points = { ... }; self.moves = self.moves + 1 end
 
+-- A fresh copy of the file each time, with the given container (nil: a client without one);
+-- returns the bar's PlaceWidgets.
 local function Load(container)
-    return assert(loadstring("local bar, UIParent, UIWidgetTopCenterContainerFrame = ...\n" .. body
-        .. "\nreturn PlaceWidgets"))(bar, UIParent, container)
+    local ns = { TopBar = {} }
+    local env = setmetatable({ NaowhForever = ns, UIParent = UIParent, UIWidgetTopCenterContainerFrame = container },
+        { __index = _G })
+    env._G = env
+    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/UI/Widgets.lua" }) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        chunk()
+    end
+    return function() ns.TopBar.Widgets.Place(bar) end
 end
 local Place = Load(widgets)
 local function At(y)

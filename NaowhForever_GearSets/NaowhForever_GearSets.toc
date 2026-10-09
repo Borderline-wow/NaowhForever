@@ -5,7 +5,6 @@
 ## Version: 1.0.6
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-NaowhForever_GearSets.lua
-NaowhForever_GearSetsWindow.lua
+GearSets.xml

@@ -1,14 +1,15 @@
 -- Run with Lua 5.1 from the repository root: every module's settings travel in a profile
--- string (ns.ExportModuleSettings / ns.ImportModuleSettings in Core/NaowhForever_Widgets.lua):
+-- string (ns.ExportModuleSettings / ns.ImportModuleSettings in Core/Options/Widgets.lua):
 -- set values and positions go out and come back; lists, unknown keys, wrong types and
 -- unknown modules do not.
-local f = assert(io.open("Core/NaowhForever_Widgets.lua", "rb"))
+local f = assert(io.open("Core/Options/Widgets.lua", "rb"))
 local src = f:read("*a"):gsub("\r\n", "\n")
 f:close()
 
+local constants = assert(src:match("\n(local MEDIA = .-\n)\nlocal UI = {}\n"), "Widgets constants")
 local first = assert(src:find("local moduleDefaults = {}", 1, true))
 local last = assert(src:find("    local function Row(cfg, k, on)", first, true))
-local code = src:sub(first, last - 1) .. "    return S\nend\n"
+local code = constants .. src:sub(first, last - 1) .. "    return S\nend\n"
 
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
@@ -16,7 +17,8 @@ local function check(label, value) assert(value, label); checks = checks + 1 end
 local root, account = {}, {}
 -- A fresh load of the file, as a reload is: its own registered defaults, the same saved data.
 local function Load()
-    local ns = { SettingsRoot = function() return root end, AccountSettings = function() return account end }
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), SettingsRoot = function() return root end,
+        AccountSettings = function() return account end }
     local env = setmetatable({ ns = ns, UI = {} }, { __index = _G })
     local chunk = assert(loadstring(code))
     setfenv(chunk, env)

@@ -1,12 +1,13 @@
--- The RestedXP themes and hooks (RXPThemes/NaowhForever_RXPThemes.lua), run against the real Core. Run with
+-- The RestedXP themes and hooks (Core/Integrations/RestedXP/Themes.lua), run against the real Core. Run with
 -- Lua 5.1 from the repository root.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"); f:close()
     return s
 end
-local coreSource = Read("Core/NaowhForever_Core.lua")
-local moduleSource = Read("RXPThemes/NaowhForever_RXPThemes.lua")
+local coreSource = Read("Core/Core.lua")
+local featuresSource = Read("Core/Features.lua")
+local moduleSource = Read("Core/Integrations/RestedXP/Themes.lua")
 
 local cases = 0
 local function Check(ok, label) assert(ok, label); cases = cases + 1 end
@@ -76,6 +77,9 @@ local function Load(account, installed, existing, fonts)
     local core = assert(loadstring(coreSource, "Core"))
     setfenv(core, env)
     core("NaowhForever")
+    local features = assert(loadstring(featuresSource, "Features"))
+    setfenv(features, env)
+    features()
     local coreFrames = #frames
     local module = assert(loadstring(moduleSource, "RXPThemes"))
     setfenv(module, env)
@@ -121,7 +125,7 @@ local RXP_OWN = { "RXP Blue", "RXP Red", "RXP Gold", "DarkMode", "RXP Green", "C
 local TEX = "Interface/AddOns/RXPGuides/Textures/"
 local WHITE = "Interface/BUTTONS/WHITE8X8"
 -- Written out apart from the module, so a wrong path there cannot hide behind itself.
-local BORDER = "Interface\\AddOns\\NaowhForever\\Media\\rxp_frame.tga"
+local BORDER = "Interface\\AddOns\\NaowhForever\\Core\\Integrations\\RestedXP\\Media\\rxp_frame.tga"
 
 -- Off by default: nothing is written, whatever else is going on.
 do
@@ -488,7 +492,7 @@ end
 
 -- The font and the text color.
 do
-    local NAOWH = "Interface\\AddOns\\NaowhForever\\Media\\Fonts\\Naowh.ttf"
+    local NAOWH = "Interface\\AddOns\\NaowhForever\\Core\\Media\\Fonts\\Naowh.ttf"
     local function Fonts(account, fonts)
         local env, ns, frames = Load(account, true, nil, fonts)
         Fire(frames, "NaowhForever")
@@ -677,7 +681,7 @@ do
     account.rxpArrow = "junk"
     Check(styleNs.RXPArrowStyle() == "layer", "an unknown saved style reads as the layer")
 
-    local OURS = "Interface\\AddOns\\NaowhForever\\Media\\rxp_arrow.tga"
+    local OURS = "Interface\\AddOns\\NaowhForever\\Core\\Integrations\\RestedXP\\Media\\rxp_arrow.tga"
     local imageEnv, imageFrames, imageBoot, imageList = Start({ rxpThemes = true, rxpArrow = "image" }, "NaowhForever:rosenoir")
     local drawn = imageEnv.RXPG_ARROW
     Login(imageBoot)
@@ -729,7 +733,7 @@ do
     shapeAccount.rxpArrowGlow = "yes"
     Check(shapeNs.RXPArrowGlow() == false, "only true turns the glow on")
 
-    local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\"
+    local MEDIA = "Interface\\AddOns\\NaowhForever\\Core\\Integrations\\RestedXP\\Media\\"
     styles.SetRXPArrowStyle("image")
     for _, want in ipairs({ { "kite", false, "rxp_arrow.tga" }, { "kite", true, "rxp_arrow_glow.tga" },
             { "wide", false, "rxp_arrow_wide.tga" }, { "wide", true, "rxp_arrow_wide_glow.tga" } }) do
@@ -1038,7 +1042,7 @@ end
 
 -- The corner grip image: three diagonal lines, the shortest in the corner.
 do
-    local f = assert(io.open("Media/rxp_grip.tga", "rb"))
+    local f = assert(io.open("Core/Integrations/RestedXP/Media/rxp_grip.tga", "rb"))
     local data = f:read("*a")
     f:close()
     Check(data:byte(13) + data:byte(14) * 256 == 64 and data:byte(15) + data:byte(16) * 256 == 64 and data:byte(17) == 32, "the grip image is 64 by 64, 32 bits")
@@ -1049,7 +1053,8 @@ end
 
 -- The cog, the corner grip and the scroll bar.
 do
-    local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\"
+    local MEDIA = "Interface\\AddOns\\NaowhForever\\Core\\Media\\"
+    local ARROWS = "Interface\\AddOns\\NaowhForever\\Core\\Integrations\\RestedXP\\Media\\"
     local function Texture(path, w, h)
         local t = { paints = 0, path = path, size = { w or 18, h or 24 }, alpha = 1 }
         function t:SetVertexColor(r, g, b, a) self.color = { r, g, b, a }; self.paints = self.paints + 1 end
@@ -1099,7 +1104,7 @@ do
     local up, down, thumb = bar.ScrollUpButton, bar.ScrollDownButton, bar.thumb
     Check(Hook(env, window), "RestedXP's UpdateScrollBar is hooked")
     Check(cog.path == MEDIA .. "cog.tga" and Same4(cog.color, thin), "the cog: Naowh's, in Secondary Text")
-    Check(grip.path == MEDIA .. "rxp_grip.tga" and Same4(grip.color, thin), "the corner grip: Naowh's, in Secondary Text")
+    Check(grip.path == ARROWS .. "rxp_grip.tga" and Same4(grip.color, thin), "the corner grip: Naowh's, in Secondary Text")
     Check(thumb.solid and thumb.solid[1] == thin[1] and thumb.solid[2] == thin[2] and thumb.solid[3] == thin[3] and thumb.solid[4] == 0.7
         and thumb.size[1] == 8 and thumb.size[2] == 40, "the scroll thumb: a thin bar in Secondary Text")
     Check(Faded(up, 0) and Faded(down, 0), "the scroll arrows are gone")
@@ -1117,7 +1122,7 @@ do
     Check(cog.paints + grip.paints == paints and Faded(up, 1), "and not touched again while they are RestedXP's")
     env.RXP.activeTheme = env.RXPGuides_Themes["NaowhForever:midnight"]
     Hook(env, window)()
-    Check(cog.color[1] ~= 1 and Faded(down, 0) and thumb.size[1] == 8 and grip.path == MEDIA .. "rxp_grip.tga",
+    Check(cog.color[1] ~= 1 and Faded(down, 0) and thumb.size[1] == 8 and grip.path == ARROWS .. "rxp_grip.tga",
         "back to one of ours: Naowh's look again")
 
     local own, ownWindow = Start({ rxpThemes = true }, nil)
@@ -1281,7 +1286,7 @@ end
 
 -- The frame image: a unit of black next to RestedXP's fill, which its backdrop starts 4, 2, 2 and 4 units in.
 do
-    local f = assert(io.open("Media/rxp_frame.tga", "rb"))
+    local f = assert(io.open("Core/Integrations/RestedXP/Media/rxp_frame.tga", "rb"))
     local data = f:read("*a")
     f:close()
     local w, h = data:byte(13) + data:byte(14) * 256, data:byte(15) + data:byte(16) * 256

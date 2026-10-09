@@ -1,9 +1,9 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- Stat Weights, in load order: the defaults, the rules (what each stat is worth to your
-         spec, an item's worth and how much stronger it makes you), the tooltip line, the
-         window and its card on the BiS List's settings. See README.md. -->
+    <!-- StatWeights.xml: Stat Weights' files, in load order. -->
     <Script file="Data\Defaults.lua"/>
     <Script file="StatWeights.lua"/>
+    <Script file="Worth.lua"/>
+    <Script file="Sharing.lua"/>
     <Script file="Tooltip.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\SettingsPage.lua"/>

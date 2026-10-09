@@ -14,6 +14,14 @@ local function Read(path)
     return s
 end
 
+-- The plain values at the top of the XP Bar's file (numbers, texts, its spots), which the
+-- functions loaded below on their own read. The QoL constants it names come from NaowhForever_QoL/Constants.lua.
+local function Consts(source)
+    local block = assert(source:match("\n(local MINUTE, HOUR = .-)\n\n"))
+    return "local QOL_CONSTANTS = dofile(\"Tools/regression/qol_constants.lua\")\n"
+        .. (block:gsub("ns%.QoLConstants%.", "QOL_CONSTANTS.")) .. "\n"
+end
+
 -- Runs source with env as its globals and hands back what it returns.
 local function Load(source, env)
     local fn = assert(loadstring(source))
@@ -35,7 +43,7 @@ end
 
 -- A colour swatch: opening the picker reports the colour it opens with, and so does cancel.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
     local chunk = "local SAME_COLOUR = 1 / 255\n"
         .. assert(source:match("(local function SetColour%(.-\nend\n\nlocal function ColourRow%(.-\nend)\n"))
     local S = Settings({})
@@ -60,8 +68,9 @@ end
 
 -- One spot per text.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
-    local chunk = assert(source:match("(local SAME_TEXT = .-\nlocal function OneEach%(spots%).-\nend)\n"))
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
+    local chunk = Consts(source)
+        .. assert(source:match("(local function TextOf%(which%).-\nlocal function OneEach%(spots%).-\nend)\n"))
     local spots = { { key = "a" }, { key = "b" }, { key = "c" } }
 
     local S = Settings({ a = "played", b = "xphour", c = "none" })
@@ -90,7 +99,7 @@ end
 
 -- The texts are measured again only when one of them changed.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
     local chunk = assert(source:match("(local function TextsChanged%(list%).-\nend)\n"))
     local TextsChanged = Load(chunk .. "\nreturn TextsChanged", {})
     local function FS(text) return { text = text, GetText = function(self) return self.text end } end
@@ -130,7 +139,7 @@ do
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
     }
     env._G = env
-    Load(Read("Shared/Played.lua"), env)
+    Load(Read("Shared/Game/Played.lua"), env)
     local Played = env.NaowhForever.Shared.Played
     check("nothing made or asked for at load", made == 0 and requests == 0 and #timers == 0)
     check("nothing known yet", Played.Total() == nil and Played.Level() == nil)
@@ -164,8 +173,8 @@ do
     now = now + 10
     check("and counts up", Played.Total() == 368560 and Played.Level() == 10)
 
-    local source = Read("QoL/NaowhForever_XPBar.lua")
-    local chunk = assert(source:match("(local function Duration%(seconds%).-\nend)\n"))
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
+    local chunk = Consts(source) .. assert(source:match("(local function Duration%(seconds%).-\nend)\n"))
         .. "\n" .. assert(source:match("(local function SlotText%(which, maxed, max%).-\nend)\n"))
     local SlotText = Load(chunk .. "\nreturn SlotText", { Played = Played, sessionStart = 0,
         time = function() return 0 end, ns = { Color = function() return "" end } })
@@ -188,7 +197,7 @@ end
 
 -- The bar's texture and background: flat and 85% by default, then the picked ones.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
     local chunk = assert(source:match("(local FILL_FROM = .-\nlocal function PaintBar%(b%).-\nend)\n"))
     local S = Settings({ xpBarTexture = "", xpBarBgAlpha = 0.85 })
     local function Tex()
@@ -203,7 +212,7 @@ do
     local b = { fill = Tex(), done = Tex(), open = Tex(), rested = Tex(), bg = Tex(), edge = Tex() }
     local env = { S = S, T = { accent = { r = 0, g = 0.5, b = 1 }, bg = { r = 0.1, g = 0.1, b = 0.1 } },
         CreateColor = function(r, g, bl, a) return { r = r, g = g, b = bl, a = a } end,
-        ns = { ThemeTint = function(_, c) return c end,
+        ns = { ThemeTint = function(_, c) return c end, Shared = { Style = dofile("Tools/regression/shared_style.lua") },
             UI = { TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end } } }
     local PaintBar = Load(chunk .. "\nreturn PaintBar", env)
     PaintBar(b)
@@ -222,8 +231,9 @@ end
 
 -- The texts' font: the Addon Font outlined at 13 by default, then the picked font, size and outline.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
-    local chunk = assert(source:match("(local TEXT_GAP = .-\nlocal function FitSlots%(slots, w, placeMid%).-\nend)\n"))
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
+    local chunk = Consts(source)
+        .. assert(source:match("(local function Natural%(fs%).-\nlocal function FitSlots%(slots, w, placeMid%).-\nend)\n"))
     local S = Settings({ xpBarFont = "", xpBarFontSize = 13, xpBarOutline = "OUTLINE" })
     local set = 0
     local Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline; set = set + 1 end }

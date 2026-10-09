@@ -1,13 +1,22 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- The Naowh character panel, in load order: its namespace and switch, the slots, your
-         score, your supporter badge, the stats' switch to your spec's, the frame round them all, and its
-         settings tab. Loads after the BiS List, whose lists, upgrades and
-         enchant dots it shows. -->
-    <Script file="Panel.lua"/>
+    <!-- CharacterPanel.xml: the Naowh Character Panel's files, in load order. -->
+    <Script file="CharacterPanel.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Slots.lua"/>
+    <Script file="Data\Stats.lua"/>
+    <Script file="Totals.lua"/>
+    <Script file="Worth.lua"/>
+    <Script file="Restyler.lua"/>
+    <Script file="Frame.lua"/>
     <Script file="Slots.lua"/>
     <Script file="Score.lua"/>
     <Script file="Badge.lua"/>
+    <Script file="StatRows.lua"/>
+    <Script file="StatsLook.lua"/>
+    <Script file="YourSlots.lua"/>
+    <Script file="YourScore.lua"/>
+    <Script file="YourBadge.lua"/>
     <Script file="SpecStats.lua"/>
     <Script file="Chrome.lua"/>
-    <Script file="SettingsPage.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
 </Ui>

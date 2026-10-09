@@ -1,4 +1,4 @@
--- test-roster.lua -- Shared/Roster.lua: lines on a player's tooltip in the Guild & Communities
+-- test-roster.lua -- Shared/Game/Roster.lua: lines on a player's tooltip in the Guild & Communities
 -- list and the Friends list. Nothing hooked until a module asks; each row hooked once, new and old;
 -- lines in the order modules asked; the tooltip shown again only when a line went in; secret GUIDs
 -- and a tooltip that isn't the row's are left alone; a friend's lines on our own tooltip under the
@@ -76,7 +76,7 @@ local env = setmetatable({
     ScrollBoxListMixin = { Event = { OnInitializedFrame = "OnInitializedFrame" } },
     EventUtil = { ContinueOnAddOnLoaded = function(name, fn) state.onLoaded[name] = fn end },
 }, { __index = _G })
-local chunk = assert(loadfile("Shared/Roster.lua"))
+local chunk = assert(loadfile("Shared/Game/Roster.lua"))
 setfenv(chunk, env)
 chunk()
 local Roster = ns.Shared.Roster

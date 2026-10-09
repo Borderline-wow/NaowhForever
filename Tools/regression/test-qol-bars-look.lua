@@ -40,15 +40,18 @@ local function Load(path, ns, globals)
     ns.UI = { AttachMover = function() return Widget("Mover") end,
         TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end }
     ns.Shared = {
+        Style = dofile("Tools/regression/shared_style.lua"),
         Parts = { HudFont = function(fs, font, size, outline) fs.font = font .. " " .. size .. " " .. outline end },
         Settings = { Group = function() return {} end, Look = function() return {} end,
-            Page = function() return { Card = function(_, card) cards[#cards + 1] = card end } end },
+            Page = function() return { Card = function(_, card) cards[#cards + 1] = card end, Window = Noop } end },
     }
     ns.THEME = { accent = { r = 0, g = 0.57, b = 0.93 }, bg = { r = 0.05, g = 0.06, b = 0.07 }, accentSoft = {} }
     ns.Font = function(parent) return Widget("FontString", parent) end
     ns.Solid = function(parent) return Widget("Texture", parent) end
     ns.Border, ns.PixelInset = Noop, Noop
-    ns.Apply, ns.ShowRaidReminderAnchorConfig, ns.HideRaidReminderAnchorConfig = Noop, Noop, Noop
+    ns.Apply, ns.ShowUnlockMode, ns.HideUnlockMode = Noop, Noop, Noop
+    ns.QoLConstants = dofile("Tools/regression/qol_constants.lua")
+    ns.MEDIA = dofile("Tools/regression/core_media.lua")
     local env = { _G = { NaowhForever = ns }, UIParent = Widget("Frame"),
         CreateFrame = function(kind, _, parent)
             local w = Widget(kind, parent)
@@ -60,9 +63,12 @@ local function Load(path, ns, globals)
             t[name] = function(...) orig(...); post(...) end
         end }
     for k, v in pairs(globals) do env[k] = v end
-    local chunk = assert(loadfile(path))
-    setfenv(chunk, setmetatable(env, { __index = _G }))
-    chunk()
+    setmetatable(env, { __index = _G })
+    for _, file in ipairs(type(path) == "table" and path or { path }) do
+        local chunk = assert(loadfile(file))
+        setfenv(chunk, env)
+        chunk()
+    end
     return frames, cards
 end
 
@@ -70,7 +76,7 @@ do -- Co-Tank
     local S = Store({ enabled = true, coTank = true, coTankWidth = 180, coTankHeight = 30, coTankBgAlpha = 0.6,
         coTankFont = "", coTankFontSize = 12, coTankOutline = "OUTLINE", coTankTexture = "", coTankDebuffs = false,
         coTankAnchor = "UIParent" })
-    local frames = Load("QoL/NaowhForever_CoTank.lua", { QoLSettings = S }, {
+    local frames = Load("NaowhForever_QoL/Combat/CoTank.lua", { QoLSettings = S }, {
         UnitClass = function() return "Warrior", "WARRIOR" end,
         InCombatLockdown = function() return false end,
         UnitGroupRolesAssigned = Noop, GetShapeshiftFormID = Noop, IsInRaid = Noop,
@@ -99,12 +105,17 @@ end
 do -- Total Craft Timer, drawn on its card's preview
     local S = Store({ enabled = true, craftTimer = true, craftTimerFont = "", craftTimerFontSize = 14,
         craftTimerOutline = "OUTLINE", craftTimerTexture = "", craftTimerBgAlpha = 0.9 })
-    local _, cards = Load("NaowhForever_Professions/NaowhForever_CraftTimer.lua", { ProfessionSettings = S }, {})
-    local card = cards[1]
+    local _, cards = Load({ "NaowhForever_Professions/View/Style.lua", "NaowhForever_Professions/View/Widgets.lua",
+        "NaowhForever_Professions/UI/CraftTimer.lua", "NaowhForever_Professions/UI/SettingsPage.lua" },
+        { Professions = { Settings = S } }, { CreateColor = function() return {} end })
+    local card
+    for _, c in ipairs(cards) do
+        if c.id == "craftTimer" then card = c end
+    end
     local preview = card.studio.new(Widget("Frame"))
     card.studio.paint(preview, "crafting")
     check("craft timer default: the Naowh Gradient", preview.track.texture
-        == "Interface\\AddOns\\NaowhForever\\Media\\NaowhGradient.tga")
+        == "Interface\\AddOns\\NaowhForever\\Core\\Media\\NaowhGradient.tga")
     check("craft timer default: outlined labels at 14, the time at 18", preview.labels[1].font == " 14 OUTLINE"
         and preview.time.font == " 18 OUTLINE")
     check("craft timer default: the background at 90%", preview.bg.color[4] == 0.9)

@@ -1,9 +1,9 @@
--- Loads NaowhForever_GcdTracker.lua against stubbed frames and spell APIs and checks that the
+-- Loads GcdTracker.lua against stubbed frames and spell APIs and checks that the
 -- tracker draws a cast and its busy bar, then stops updating once nothing is left on it, wakes
 -- again on the next cast, and what a frame costs while there is nothing to draw. Its busy bar
 -- is flat by default and takes the Bar Texture picked.
 -- Run from the repo root: lua Tools/regression/test-gcd-tracker.lua
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_GcdTracker.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Combat/GcdTracker.lua", "rb"))
 local source = f:read("*a"); f:close()
 
 local checks = 0
@@ -45,11 +45,12 @@ local S = { Get = function(k) return values[k] end, Set = function(k, v) values[
 local now, gcdUntil = 1000, 0
 local frames = {}
 local ns = {
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     QoLSettings = S, ThemeTint = function(_, c) return c end, PixelInset = Noop,
-    Apply = Noop, ShowRaidReminderAnchorConfig = Noop, HideRaidReminderAnchorConfig = Noop,
+    Apply = Noop, ShowUnlockMode = Noop, HideUnlockMode = Noop,
     UI = { AttachMover = function() return Widget("Mover") end,
         TexturePath = function(name, own) if name == "" then return own end return "lsm:" .. name end },
-    Shared = { Settings = { Group = function() return {} end, Look = function() return {} end,
+    Shared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = { Group = function() return {} end, Look = function() return {} end,
         Page = function() return { Card = Noop } end } },
 }
 local env = setmetatable({

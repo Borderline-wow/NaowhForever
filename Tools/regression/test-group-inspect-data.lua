@@ -1,4 +1,4 @@
--- Run with Lua 5.1 from the repository root: Group Inspect's data (GroupInspect/Data.lua) on the
+-- Run with Lua 5.1 from the repository root: Group Inspect's data (Records, Inspect, PreviewGroup) on the
 -- real Naowh Score files and the Inspect Panel's talent reading, against stubs. Off or closed it
 -- does nothing; open, the roster (party, raid of 40, a recycled unit token), the walk's pacing
 -- through the shared inspect queue (one at a time, 2 s apart, never in combat, after your own
@@ -155,9 +155,11 @@ local function Fixture()
     }, { __index = _G })
     env._G = setmetatable({ NaowhForever = ns }, { __index = env })
     state.env, state.SECRET = env, {}
-    Load({ "NaowhForever_BiS/NaowhScore/Data/Formula.lua", "NaowhForever_BiS/NaowhScore/Score.lua",
+    Load({ "NaowhForever_BiS/NaowhScore/Data/Formula.lua", "NaowhForever_BiS/NaowhScore/NaowhScore.lua",
         "NaowhForever_BiS/NaowhScore/Inspect.lua", "NaowhForever_BiS/InspectPanel/Details.lua",
-        "NaowhForever_GroupInspect/Data.lua" }, env)
+        "NaowhForever_GroupInspect/GroupInspect.lua", "NaowhForever_GroupInspect/Constants.lua",
+        "NaowhForever_GroupInspect/Data/Preview.lua", "NaowhForever_GroupInspect/Records.lua",
+        "NaowhForever_GroupInspect/Inspect.lua", "NaowhForever_GroupInspect/PreviewGroup.lua" }, env)
     function state.Fire(event, ...)
         for _, frame in ipairs(state.frames) do
             if frame.events[event] then frame.onEvent(frame, event, ...) end

@@ -8,41 +8,79 @@ through `Shared.xml`. Nothing is made or listened to at load.
 
 ```
 Shared/
-  Shared.xml   what loads, in order
-  Shared.lua   the namespace (ns.Shared), and what a character keeps by its GUID (Shared.CharacterData)
-  Decode.lua   a pasted import string read back as plain data, with size, depth and bomb caps, and
-               outside text cleaned for display (Decode.String, Decode.Text)
-  Style.lua    the house look: colors (BiS stars, worn green, looks, red and warning orange), icons, sizes
-  Items.lua    item and gear helpers: an ID from a link or URL, your loot lines, quality colour, In Bag,
-               gear slots, what fits where, what you wear, weapons in short ("1h Sword"),
-               waiting on item data, the items the server would not send, the healthstones and
-               healing potions
-  Bags.lua     the item buttons in your bags, the game's and EllesmereUI's, for the marks
-               painted on them (Bag Marks, Scrap Marker)
-  Roster.lua   our part of a player's tooltip in the Guild & Communities and Friends lists (Badges, Naowh Score)
-  Places.lua   zones by name, and showing one on the world map
-  Played.lua   the character's /played time, asked for once with the chat print muted (XP Bar, XP per Hour)
-  Parts.lua    components: rank stars, item icon and its check, an item's slot marks (item level, star, Forever's mark), links, icon buttons, the
-               backdrop and its cards, panels, the side panel, chat sharing, lined-up numbers,
-               money with its coins (Parts.Coins, made once each; compact, its largest coin only),
-               an atlas badge on an icon's top corner (Parts.ItemBadge, Bag Space's clock and quest "!"), a short label
-               in a pill of its color (Parts.Pill and Parts.SetPill, Group Inspect's "NF"), a timer line the client runs
-               down by itself (Parts.TimerLine, and Parts.StopTimer to stop any timer bar), a row of labels spread evenly (Parts.LabelRow), a HUD
-               card's background: the card, a soft fade or none (Parts.HudBackdrop), a HUD line's
-               font, size and outline (Parts.HudFont), and a window's soft drop shadow (Parts.Shadow)
-  Window.lua   a window: the frame (and its Classic+ trim and title plate: Parts.ClassicTrim,
-               Parts.TitlePlate), title bar, icons, opacity slider, switch, search, footer,
-               and a module's card on its settings page
-  Tracker.lua  a tracker's small window (Parts.TrackerPanel), and a list row's bands
-               (Parts.RowBands: stripe, hover, the line under it)
-  View.lua     the row engine: pooled rows, cards, the card grid, one redraw per burst
-  Kinds.lua    the rows every page has: section title (shorter with view.tightTitles), note, card, and an item in a list you
-               keep (icon, name in its quality colour, a line under it, a tag, a value, an X)
+  Shared.xml       what loads, in order (the core TOC's Shared load point)
+  Shared.lua       the namespace (ns.Shared), what a character keeps by its GUID (Shared.CharacterData),
+                   and how long ago a time was (Shared.Ago)
+  Style.lua        the house look: colors (BiS stars, worn green, looks, red and warning orange), icons, sizes
+  Data/            data only, generated; never edited by hand
+    Forever.lua      what is new in WoW Forever, by ID (Shared.ForeverNew), from Tools/build/forever_new.py
+    ItemFacts.lua    each dungeon item's class, subclass, item level, required level and quality before the
+                     client loads it (Shared.ItemFacts), from Tools/build/journal.py: the Journal's loot,
+                     the BiS List's levels and the Naowh Score's best read it
+    FactionItems.lua the same for the factions' rewards, added to it, from Tools/build/factions.py
+  Decode.lua       a pasted import string read back as plain data, with size, depth and bomb caps, and
+                   outside text cleaned for display (Decode.String, Decode.Text)
+  Game/Items.lua   item helpers: an ID from a link or URL, its name and quality color, In Bag and In Bank,
+                   your loot lines, waiting on item data, the items the server would not send
+  Game/Gear.lua    gear helpers on Shared.Items: gear slots, what fits where, what you wear, weapons in
+                   short ("1h Sword"), what a class can use (ns.ClassCanUse)
+  Game/Bags.lua    the item buttons in your bags, the game's and EllesmereUI's, for the marks
+                   painted on them (Bag Marks, Scrap Marker)
+  Game/Consumables.lua your best food and drink in your bags (ns.BestFoodAndDrink), and the healthstones and
+                   healing potions, best first (ns.HEALTHSTONES, ns.HEALING_POTIONS): QoL's Food & Drink
+                   Bar, the Macros' NF Food and NF Health, and Aura Buffs' low health reminder
+  Game/Roster.lua  our part of a player's tooltip in the Guild & Communities and Friends lists (Badges, Naowh Score)
+  Game/Places.lua  zones by name, and showing one on the world map
+  Game/Towns.lua   town service NPCs by world map (ns.TownNPCs) and the capitals (ns.TownCapitals), by hand:
+                   QoL's Map Pins, the Training Planner's trainers and Professions' rank alerts read it
+  Game/Played.lua  the character's /played time, asked for once with the chat print muted (XP Bar, XP per Hour)
+  UI/Parts.lua     the small parts: icons in text (Parts.Inline), smooth textures, hover cards (Parts.Tip,
+                   Parts.TipLines), the chevron, links, icon buttons, a short label in a pill of its color
+                   (Parts.Pill, Parts.SetPill: Group Inspect's "NF"), the worn bar, the Wowhead copy card
+  UI/Marks.lua     an item's marks: rank stars and lines, the upgrade line, Forever's mark, the item icon,
+                   its slot marks (item level, star, Forever's mark, upgrade arrow) and an atlas badge on
+                   its top corner (Parts.ItemBadge: Bag Space's clock and quest "!"), and a class icon's
+                   crop (Parts.ClassCrop)
+  UI/Text.lua      text made once and kept: counts ("3/10"), money with its coins (Parts.Coins; compact,
+                   its largest coin only), plain where-lines, numbers lined up to the pixel (Parts.Cells),
+                   and a row of labels packed or spread evenly (Parts.LabelRow)
+  UI/Hud.lua       the HUD look: a HUD line's shadow, font, size and outline (Parts.HudText, Parts.HudFont),
+                   a HUD card's background: the card, a soft fade or none (Parts.HudBackdrop), a window's
+                   soft drop shadow (Parts.Shadow), and a progress line that holds still (Parts.ProgressLine)
+  UI/Timer.lua     a timer line the client runs down by itself (Parts.TimerLine), its short time text
+                   (Parts.ShortTime), and stopping any timer bar (Parts.StopTimer)
+  UI/Share.lua     sharing a line in chat or on a copy card (Parts.ShareMenu), and a spot on the map with
+                   its pin link (Parts.SharePlace)
+  UI/CopyCard.lua  the copy cards: an ID with its Wowhead links (ns.ShowCopyCard), or any line
+                   (ns.ShowCopyLine)
+  UI/Panels.lua    a window's backdrop and its cards (Parts.Backdrop), the panel a view sits in, and the
+                   side panel that opens beside a window
+  UI/Window.lua    a window: the frame, its size grip, the title bar with its logo, icons and opacity
+                   slider, the link back to the window it was opened from, and the footer; on the
+                   Classic+ skin its trim (Parts.ClassicTrim), title plate (Parts.TitlePlate) and a
+                   box's bronze line (Parts.ClassicBox)
+  UI/Tabs.lua      a switch of parts side by side (Parts.Tabs), and a search box (Parts.SearchBox)
+  UI/SettingsCard.lua a module's card at the top of its settings page: the logo, a line or two, and the
+                   button that opens its window
+  UI/Tracker.lua   a tracker's small window (Parts.TrackerPanel), and a list row's bands
+                   (Parts.RowBands: stripe, hover, the line under it)
+  View/View.lua    the row engine: pooled rows, cards, the card grid, one redraw per burst
+  View/Kinds.lua   the rows every page has: section title (shorter with view.tightTitles), note, card, and
+                   an item in a list you keep (icon, name in its quality color, a line under it, a tag, a
+                   value, an X)
   Settings/
-    Settings.lua  every settings page, declared once: pages, cards, rows, reset, search index
-    Page.lua      a declared page drawn on the row engine: cards, their heads, two-column rows
-    Studio.lua    a card's live preview: a stage and the moments it can be seen in
+    Settings.lua   every settings page, declared once: pages, cards, rows, what changed, reset, search index
+    Style.lua      the numbers a settings page's controls, rows and page share (Settings.Style)
+    Controls.lua   the control on a row for each kind of setting, made once per row (Settings.Control)
+    Rows.lua       a settings page's row kinds: a setting, a card's head and foot, a group, an info line,
+                   a window card (Settings.kinds)
+    Page.lua       a declared page drawn on the row engine: cards, their heads, two-column rows
+    Studio.lua     a card's live preview: a stage and the moments it can be seen in
+    EditZone.lua   a part of a preview made editable by drag, wheel, click and right-click
 ```
+
+Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Shared.Parts`
+(`Parts`), whichever file makes it, so a module never needs to know which file that is.
 
 ## Using it
 
@@ -72,15 +110,16 @@ Shared/
   shows something on screen can carry a live preview (`studio`, see `Settings/Studio.lua`; its
   `height` a number, or a function for a stage that changes with a setting),
   drawn by the module's own drawing code on plain frames, never on its real (secure) frames.
-  `Settings.EditZone(parent, opts)` makes part of a preview editable, every option optional:
+  `Settings.EditZone(parent, opts)` (`Settings/EditZone.lua`) makes part of a preview editable, every option optional:
   `click(zone)`, `menu(owner, root)` (the house context menu on right-click), `wheel(zone, delta)`,
   `drag = { get, set, live, range, axis, factor }` (a drag along `axis`, "x" by default, snapped to
   `range` `{ low, high, step }` with `Settings.Snap`, drawn through `live` and saved through `set`
   on release), and a hover mark: `wash` (a faint fill) or `edge` (an accent line down its middle).
   Nothing runs per frame except while dragging. The Campfire's Simple bar preview uses it.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,
-  `Parts.FooterBrand`, `Parts.Resizable` (a corner grip; the size is kept). See
-  `BiS/UI/Window.lua` for a short one.
+  `Parts.FooterBrand`, `Parts.Resizable(window, sizeKey, minW, minH, onSized, onReleased)` (a corner
+  grip; the size is kept; `onSized` and `onReleased`, run as the grip is let go, are optional). See
+  `NaowhForever_BiS/BiS/UI/Window.lua` for a short one.
 - **A tracker:** `Parts.TrackerPanel(title, opts)` builds a tracker's window once, on first
   use: the window look, the title (click and drag), a scrolling body, a cog, its place kept.
   Every option is optional:
@@ -106,7 +145,7 @@ Shared/
   `{ text, sub, color, done, waypoint(entry), tip(row), click(row, button) }`, a pin column (a
   tick once done), the text in `color` (`T.fg` when nil), returning their height. Keep the
   entries and refill them, with shared functions that read the entry, and a redraw makes no
-  garbage. See `DungeonJournal/UI/QuestTracker.lua`, and the Discovery trackers for `bar`,
+  garbage. See `NaowhForever_DungeonJournal/UI/QuestTracker.lua`, and the Discovery trackers for `bar`,
   `SetRows` and `mover`.
 - **A HUD panel:** an on-screen bar or pill uses the windows' own backdrop, `Parts.Backdrop(frame)`
   painted at `Style.BACKDROP_ALPHA` (near opaque, so the world does not tint it), with the 1px black
@@ -132,8 +171,8 @@ Shared/
   lower; `icons[i]` is its texture, false for none. Anchor the row by its left edge.
   Refilling it with the same strings makes no garbage.
 - **Copying:** `Parts.CopyWowhead(kind, id, name)` opens the copy card on an item, quest or
-  NPC's Wowhead link; a menu's Copy uses `ns.ShowCopyLine(title, text, icon)` (QoL's Global
-  Copy) for any line.
+  NPC's Wowhead link; a menu's Copy uses `ns.ShowCopyLine(title, text, icon)` (`CopyCard.lua`)
+  for any line. `ns.ShowCopyCard(kind, label, id, title, mode, onClose)` opens the ID card itself.
 - **Text on the game world:** `Parts.HudText(fontString, shadow)` gives a HUD line (the XP
   Ticker, an alert) the house look: no outline, a soft drop shadow (`HUD_SHADOW_RGB`,
   `HUD_SHADOW_ALPHA`, `HUD_SHADOW_X`, `HUD_SHADOW_Y` in `Style.lua`). Pass `shadow` false to
@@ -148,7 +187,7 @@ Shared/
   at `HUD_CARD_ALPHA` with the 1px black edge (`backdrop.fill`, `backdrop.border`). Soft has no
   edge: a fade in the theme's background, `HUD_SOFT_ALPHA` behind the text and clear
   `HUD_SOFT_FADE` further out, `HUD_SOFT_INSET` of it inside the frame. It is nine pieces of one
-  round texture (`Style.SOFT_SHADE`, from `Tools/make_media.py`), so its corners are round and no
+  round texture (`Style.SOFT_SHADE`, from `Tools/media/make_media.py`), so its corners are round and no
   edge shows, made the first time Soft is picked (`backdrop.soft`). None shows nothing. `opts`, all
   optional: `alpha` (the card's fill), `color` (`T.bg`), `softAlpha`, `fade`, `inset` and `mode`.
   Pass the mode to `Parts.HudText` for each line on it; the choice row's values are
@@ -186,7 +225,7 @@ Shared/
   `Played.LeveledUp(level, total)` with `hooksecurefunc` to hear the answer and each ding. A /played
   the player types updates it too. The XP Bar and XP per Hour use it.
 - **Forever's mark:** `Parts.IsForever(kind, id)` says whether Wowhead's Forever database has
-  it as new in Forever (`Data/Forever.lua`, generated by `Tools/build_forever_new.py`; do not
+  it as new in Forever (`Data/Forever.lua`, generated by `Tools/build/forever_new.py`; do not
   edit by hand).
 
 ## The rule: always use these
@@ -199,7 +238,216 @@ Every module builds its UI from these components and the `ns.UI` widgets, never 
 - **Nothing fits:** add a new component here, list it above, and use it from your module.
   Anything another module could want belongs here, not inside one module.
 
-Colours and sizes come from `ns.THEME` and `Style.lua`, never written as numbers in a module.
+Colors and sizes come from `ns.THEME` and `Style.lua`, never written as numbers in a module.
+
+## Why
+
+What a comment in the code used to say, in short. The house rules behind it are in
+[CONTRIBUTING.md](../.github/CONTRIBUTING.md) and [STYLE.md](../.github/STYLE.md).
+
+### Loading and saved data
+
+- Nothing is made, hooked or listened to at load: a module builds what it uses the first time
+  it shows it, so Shared costs nothing for a feature that is off.
+- `Shared.CharacterData` keys a character's data by its GUID: first names are not unique on
+  Forever, so a name key collides. It returns nil before the game knows who you are.
+- `Decode.lua` loads with nothing else from the addon and returns its table, so the offline
+  tests can load it on its own.
+
+### The look (`Style.lua`)
+
+- A name ends in what it holds: `_CODE` is a color escape (`"|cffb06bff"`), `_RGB` a `{ r, g, b }`
+  table (0 to 1). Sizes are pixels at the addon's UI scale.
+- The theme's own colors (`T.fg`, `T.muted`, `T.accent`) come from the theme, read when a row
+  is made, so a theme change shows after a `/reload`.
+- Naowh's house style is a 1px black edge round cards, badges, chips, icons, buttons and
+  panels; the accent (Naowh blue) marks what is picked.
+- Your BiS is legendary orange so it stands apart from blue item names, your second pick
+  silver; new looks are cyan, clear of the BiS orange for color-blind eyes too.
+- `PICKED_RGB` (a boss picked on a dungeon map) is the game's quest gold until the player picks
+  an Accent of their own. `GUIDE_RGB` (the HUD Editor's guides) is amber so it never reads as
+  the accent's selection.
+- The addon's own icons in `Core/Media/` are white, so they take any color; `Tools/media/make_media.py`
+  draws them. `ROUND` is 128px: load it "TRILINEAR" or it is jagged small. `FOREVER` is 32 by 16;
+  `ELBOW` is 8 by 8 and drawn at that size.
+- HUD text without the card: Soft fades from `HUD_SOFT_ALPHA` behind the text to clear over
+  `HUD_SOFT_FADE`, `HUD_SOFT_INSET` of it inside the card's edge, its text shadow at full
+  strength. None has no backdrop: the shadow at full strength and as close (1px), since 2px
+  doubles small text.
+- `TRACKER_BAR_RGB` is behind a tracker's bar until the player changes the theme's panel color.
+- `TEXT_SIZE` (12) and `SMALL_SIZE` (11) are the house text sizes: body text, and muted notes.
+- `OPEN_TURN` is the quarter turn of a chevron on an open section or card head. It is written
+  with `PI`, not `math.pi`: the offline tests load `Style.lua` without the math library.
+- The slider ranges every module shares live here: `OPACITY_RANGE` (a window's opacity, from
+  `OPACITY_MIN`), `ALPHA_RANGE` (a HUD part's opacity, down to 0), `SCALE_RANGE`,
+  `PIN_SIZE_RANGE` (a map pin) and `HUD_TEXT_RANGE` (a HUD part's text size in `Settings.Look`).
+  `PERCENT_SCALE` turns a percent slider into the 0 to 1 the setting saves.
+- `STAGE_MARGIN`, `STAGE_NOTE_Y` and `STAGE_NOTE_SIZE` place a settings card's live preview and
+  the muted note under it.
+- `ICON_CROP` (and `ICON_CROP_HIGH`) trims the game's border off an icon. `CLASS_CROP` trims a
+  class icon cut from `CLASS_ICONS` (`Parts.ClassCrop`). `TIP_TITLE_RGB` is a tooltip's first line.
+- `Style.lua` writes the core's media path out rather than reading `ns.MEDIA`: the offline
+  tests load it without `Core/Core.lua`.
+
+### Items and gear
+
+- `Items.KEPT_CODE` is the worn green at 200 of 255 (`KEPT_SHADE`): where you keep an item is a
+  state of it, quieter than its name.
+- Your loot lines are found by the start of the game's own line (`LOOT_ITEM_SELF`,
+  `LOOT_ITEM_PUSHED_SELF`, up to its first `%s`), so it works in any client language. A secret
+  line (in an encounter) is nobody's: `issecretvalue` is checked before anything else.
+- `Items.OnLoaded` runs its function at most once a frame as the items load. An item the server
+  fails to load never calls back, so a ContinuableContainer over them would never finish; an
+  item already loaded is not waited on.
+- As in classic, mail and plate are learned at level 40 (`HEAVY_ARMOR_LEVEL`): below it a
+  hunter, shaman, warrior or paladin wears the lighter armor.
+- Weapons in short go by the game's weapon subclass (`Enum.ItemWeaponSubclass`), so any client
+  language gets them; one that only goes in one hand says which ("MH Sword", "OH Dagger").
+- `Items.ClassCanUse` reads an item's facts as `ItemFacts` holds them: `{ class, subclass, item
+  level, required level, quality }`, class 2 a weapon, subclass 0 no armor type, 6 a shield.
+- `Items.SlotsFor` returns shared tables: read them, never change them.
+
+### Bags, tooltips, maps and /played
+
+- Bag marks hook each bag frame's `UpdateItems` with `hooksecurefunc`, never `SetScript`, and
+  only once a module first asks. EllesmereUI's bags are painted through the
+  `RegisterItemOverlayIcon` hook it offers other addons.
+- The guild list's tooltip is GameTooltip, so our lines go on it. The Friends list's tooltip has
+  fixed lines, so ours is a tooltip of our own `TIP_GAP` under it, which hides itself as soon as
+  the Friends tooltip stops showing that row. List rows are hooked with `HookScript`, after the
+  game's own, once each. A GUID is used only when it is a readable string, never a secret value.
+- `Places.ShowMap` opens the world map only out of combat, where addon code may open it.
+- /played is asked for with `TIME_PLAYED_MSG` unregistered from the chat frames for our request
+  only. They get it back on the next frame after the answer, so they do not print it, or after
+  `MUTE_LIMIT` seconds if no answer comes. A ding starts the level's time again; a /played the
+  player types updates it too.
+
+### Parts
+
+- How much lower an icon in text sits, level with the letters: a tooltip's lines need 1
+  (`TOOLTIP_DROP`); on a card the Naowh font's capitals fill the middle of the line, so 0
+  (`CARD_DROP`). Measured in game, 2 Oct 2026.
+- `Parts.Smooth`: a texture drawn smaller than its file stays smooth when it is mipmapped
+  ("TRILINEAR", for the addon's own) and never snapped to whole screen pixels, which makes a
+  scaled icon's edges step. A text icon (`|T|t`) cannot be smoothed: draw those near their size.
+- `Parts.Tip` shows nothing while a menu is open, so moving the mouse from a menu's owner over
+  other rows to reach it does not cover the menu with their cards.
+- An action on a page is a link, not a box, so the page reads as content; boxes are for a
+  window's controls. A link's chevron sits out by its own margin (`LINK_ARROW_OUT`), so its
+  point lines up with the text above. A disabled link rests muted and says why on hover.
+- An icon button's `margin` is the empty edge on the right of its image: it moves out by it, so
+  the shapes, not their boxes, line up.
+- The game cannot put text on the clipboard for an addon, so copying opens a copy card with the
+  text selected (`Parts.CopyWowhead`, `ns.ShowCopyLine`).
+- An item's marks are the same wherever one is drawn (the BiS List's paperdoll, the character
+  panel, your bags): item level bottom right, your BiS's star bottom left, Forever's mark top
+  left, the game's green upgrade arrow top right, over a shade rising from the foot
+  (`SHADE_SHARE` of the icon tall, `SHADE_ALPHA` dark) so the numbers read on any icon's art.
+- `MARK_STAR_DROP` is -1: the star 1px over the line's middle sits level with the outlined
+  digits across the icon; 2px left it high beside a two-digit level (7 Oct 2026).
+- Forever's mark on an icon is `FOREVER_SHARE` of the icon tall, never under `FOREVER_MIN`, with
+  no box: its own dark outline keeps it readable on the icon's art.
+- The addon's lines in an item's tooltip are one fact each in one look (the mark, the words in
+  its color, then after a dot, muted, whose it is), all from the same makers, so the same fact
+  never reads two ways, or twice.
+- Text that is drawn again and again (counts, ranks, coins, plain lines, Forever marks) is made
+  once per value and kept, so a redraw makes no garbage. Coins keep at most `COINS_KEPT`.
+- A where line is shown plain: its color codes pull the eye off the titles, and the dash between
+  place and person reads as a dot.
+- `Parts.Cells`: the Naowh font's digits are not all as wide, so each character gets a cell as
+  wide as the widest digit ("-" and "/" narrower), measured once per size.
+
+### HUD, timers and panels
+
+- HUD text has no outline and a soft drop shadow; the Shadow outline gets the HUD shadow for its
+  background mode, and a player's own outline gets none.
+- Soft is nine pieces of one round texture (`SOFT_SHADE`), so its corners are round and no edge
+  shows; they are made the first time Soft is picked. `Parts.Shadow` uses the same pieces without
+  the middle, outside the window only, so a see-through window shows none of it.
+- A timer line is run down by the client (`SetTimerDuration`) and its time written by a duration
+  text binding, so no Lua runs while it counts. The game formats the time, since it can be
+  secret. Without those APIs it shows a still bar.
+- Short times count seconds up to 90, then minutes up to 90, then hours, each rounded up so a
+  time never reads less than is left.
+- `Parts.StopTimer`: `SetValue` does not repaint a bar its timer owns, but a duration that has
+  already run out (`STOP_AGO` seconds long, started that long ago) leaves it still.
+- A window's backdrop paints its opacity into the colors, not with SetAlpha: a texture's alpha
+  does not reach a gradient's colors.
+- A side panel opens beside the window it was opened from, on whichever side has room, closes
+  with it (a `HookScript` on our own window), and opening one closes the others. Its buttons
+  share its width with a count of at least 1: the game's Lua stops on a division by zero.
+- Sharing never goes through the chat box: opening it from addon code taints it, and the game
+  then blocks the next message you send. Say is offered only inside an instance, the one place
+  the game lets an addon speak; a dungeon finder group's chat is the instance's.
+
+### Windows
+
+- A window is made hidden: a frame is made shown, and `Show()` on a shown frame runs no OnShow;
+  hidden, the first open runs it too, and takes the link back to the window it was opened from.
+- A window takes the keyboard only out of combat, where that is allowed, and passes on every key
+  but Esc.
+- A window's size grip keeps its size account-wide under its `sizeKey`, as the options window's
+  is; its place is kept account-wide under `positionKey`.
+- A switch's hairlines are made once, when made: its parts are laid out again on a change.
+- A module's settings card holds itself in its button's click, made once: `ns.Button` calls its
+  click with no arguments.
+
+### The row engine and settings
+
+- A row is sized as it is placed, not only anchored, so wrapped text measures at the right
+  width; its top is kept to scroll to it. The view's height is set as it draws, so the furthest
+  it can scroll is known before the layout.
+- A burst of events makes one redraw (`REDRAW_DELAY`), and none while the view is hidden. An item
+  the server refuses (`GET_ITEM_INFO_RECEIVED` with success false) is not waited on again.
+- A redraw reuses the row a tooltip belongs to, so it hides the view's own tooltip. The tooltip
+  can be on a Blizzard frame the game forbids touching in combat (a nameplate aura): the walk
+  stops there, and none of a view's own rows is ever forbidden.
+- A card's edge is reset when it is opened: a card last used for a picked one has the accent's.
+  An empty card's note stays centered under its header when the grid stretches it.
+- A view whose rows sit on bands insets their text (`view.inset`); its section titles line up.
+  A section's link passes itself, for a window to open beside what was clicked.
+- A settings row with `field` is one entry of a table setting: its dot and reset are that
+  entry's own. A number counts as unchanged within `SAME_WITHIN`, so a value saved back through
+  a slider or color picker still reads as the default.
+- A page's only card opens by itself, as does its first card when it has a live preview. A
+  search holds a card open, so its head does not fold it.
+- A hidden row is set on the card's preview instead; it is still searched, counted and reset. A
+  search match on a hidden row shows the card whole, and part of a card shows no reset, which
+  would reset what is left out too.
+- A slider being dragged holds the settings redraw until it is let go (`DRAG_WAIT`): the redraw
+  hides and shows the rows, and hiding the slider ended its drag after one step.
+- A preview is drawn by the module's own drawing code on plain frames, never on its real
+  (secure) frames. An edit zone runs nothing per frame except while it is dragged.
+- A row's icons (its cog first) are made once per declared row, so drawing them makes no tables.
+  A cog whose settings were changed is tinted as a row's dot is.
+- A cog opens one shared panel, drawn with the page's own row kinds, so its rows' dots, controls
+  and help are the same. A redraw of the page puts it back under the cog. The page's rows hide for
+  a moment on every redraw, so the panel closes only once the page itself is gone, a frame later.
+- A settings view changed while hidden is marked stale and drawn again as it shows, so it never
+  shows an old value (an options window that stepped aside for a picker, a page another changed).
+
+### The Classic+ skin
+
+- The skin is read once per load (`ns.classicSkin`), with the theme's colors, so every part asks it
+  as it is made; a change takes a reload.
+- A window's frame steps out from its own black edge: a gold line, `CLASSIC_TRIM_BODY` pixels of
+  bronze and a black rim, with a gem on each corner. The options window's name sits on a plate
+  over its top edge, in the game's title face.
+- A window's background is the game's own rock tiled over the backdrop, darkened
+  (`CLASSIC_PATTERN_SHADE`) and partly see-through (`CLASSIC_PATTERN_ALPHA`), so text on it stays
+  readable.
+- Cards and settings heads get a bronze line inside their black edge, the way the game draws its
+  option groups (`Parts.ClassicBox`).
+- The picked tab is lit bronze under a gold line along its top; the others read in gold.
+- The help card is drawn as the game draws its tooltips: dark blue inside a grey-blue line.
+- The picked sidebar row is the game's blue list glow, fading to the right
+  (`CLASSIC_PICK_ALPHA` to `CLASSIC_PICK_FADE`), with a lit line along its top.
+- A button's colors are each state's `{ top, bottom }`; pressed turns them over. A slider is
+  filled `{ top, bottom }` too, with a gem to drag on a black edge (`CLASSIC_KNOB_EDGE`).
+- The game's tick in a check box is drawn a little larger than the box (`CLASSIC_CHECK_SCALE`), as
+  the game draws it.
+- Headings stand out as the game's titles do: a size up (`CLASSIC_HEADING_STEP`), on a black drop
+  shadow.
 
 ## Checking
 
@@ -208,4 +456,7 @@ stubs: nothing made at load, the item helpers, the Forever mark, and the row eng
 pooled and reused, one redraw per burst of events, none while hidden, no garbage). A module's
 own test loads them the same way before its files, with `Tools/regression/load_files.lua`
 and `toc_files.lua`, and times its draws with `measure.lua`: see
-`test-dungeon-journal.lua` and `test-bis-window.lua`.
+`test-dungeon-journal.lua` and `test-bis-window.lua`. A test that lists Shared files by hand
+lists every file the parts it uses are made in: `Parts.lua` with `Marks.lua`, `Text.lua`,
+`Hud.lua`, `Timer.lua`, `Share.lua` and `Panels.lua`; `Window.lua` with `Tabs.lua` and
+`SettingsCard.lua`; `Items.lua` with `Gear.lua`.

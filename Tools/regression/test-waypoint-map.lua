@@ -3,7 +3,7 @@
 -- map's own waypoint pin inside our call and taints it, and the game blocks that pin's Share
 -- (CopyToClipboard). ns.PlaceWaypoint, routes and ns.ClearWaypoint wait for the map to close,
 -- the latest change winning and a newer one of the game's dropping it; ns.WaypointLink gives no
--- link while it is open. Only Core/NaowhForever_Waypoint.lua may set or clear the waypoint.
+-- link while it is open. Only Core/Waypoint.lua may set or clear the waypoint.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
@@ -71,9 +71,9 @@ local env = setmetatable({
     UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { uiMapID = map, position = { x = x, y = y } } end },
 }, { __index = _G })
 env._G = env
-local f = assert(io.open("Core/NaowhForever_Waypoint.lua", "rb"))
+local f = assert(io.open("Core/Waypoint.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local chunk = assert(loadstring(source, "Core/NaowhForever_Waypoint.lua"))
+local chunk = assert(loadstring(source, "Core/Waypoint.lua"))
 setfenv(chunk, env)
 chunk()
 
@@ -132,7 +132,7 @@ Check(calls.set == sets + 1 and ns.placedWaypoint.title == "Grezz Ragefist" and 
     "the first stop is set as the map closes, and the route goes on")
 
 local TocFiles = dofile("Tools/regression/toc_files.lua")
-local OWNER = "Core/NaowhForever_Waypoint.lua"
+local OWNER = "Core/Waypoint.lua"
 local scanned = 0
 for _, path in ipairs(TocFiles("%.lua$")) do
     if not path:find("^Libs/") then

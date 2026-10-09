@@ -45,7 +45,7 @@ local function Load(account)
         PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end },
     }, { __index = _G })
     env._G = env
-    for _, path in ipairs({ "Core/NaowhForever_Core.lua", "Shared/Shared.lua", "Shared/Style.lua" }) do
+    for _, path in ipairs({ "Core/Core.lua", "Shared/Shared.lua", "Shared/Style.lua" }) do
         local chunk = assert(loadstring(Read(path), path))
         setfenv(chunk, env)
         chunk("NaowhForever", env.NaowhForever)

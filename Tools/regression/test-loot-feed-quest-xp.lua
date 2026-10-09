@@ -5,7 +5,7 @@
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local f = assert(io.open("QoL/NaowhForever_LootFeed.lua", "rb"))
+local f = assert(io.open("NaowhForever_QoL/Loot/LootFeed.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n")
 f:close()
 local a = assert(source:find("local UNNAMED_XP", 1, true))

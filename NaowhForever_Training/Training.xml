@@ -1,0 +1,23 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Training.xml: the Training Planner's files, in load order. -->
+    <Script file="Training.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\TrainingData.lua"/>
+    <Script file="Data\TrainingBuilds.lua"/>
+    <Script file="Plan.lua"/>
+    <Script file="Upgrades.lua"/>
+    <Script file="Coins.lua"/>
+    <Script file="Route.lua"/>
+    <Script file="Builds.lua"/>
+    <Script file="Trainer.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\Rows.lua"/>
+    <Script file="View\Spells.lua"/>
+    <Script file="View\Builds.lua"/>
+    <Script file="UI\Place.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\MiniBar.lua"/>
+    <Script file="UI\Toast.lua"/>
+    <Script file="UI\TrainerPanel.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

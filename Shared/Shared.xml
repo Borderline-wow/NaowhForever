@@ -1,22 +1,38 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- What the modules share, in load order: the namespace, the house style, item and gear
-         helpers, /played time, the components of a page and of a window, then the engine that draws a page
-         in rows and its common rows. Each file uses only the ones above it. See README.md. -->
+    <!-- Shared.xml: what every module shares, in load order. -->
     <Script file="Shared.lua"/>
-    <Script file="Decode.lua"/>
-    <Script file="Data\Forever.lua"/>
     <Script file="Style.lua"/>
-    <Script file="Items.lua"/>
-    <Script file="Bags.lua"/>
-    <Script file="Roster.lua"/>
-    <Script file="Places.lua"/>
-    <Script file="Played.lua"/>
-    <Script file="Parts.lua"/>
-    <Script file="Window.lua"/>
-    <Script file="Tracker.lua"/>
-    <Script file="View.lua"/>
-    <Script file="Kinds.lua"/>
+    <Script file="Data\Forever.lua"/>
+    <Script file="Data\ItemFacts.lua"/>
+    <Script file="Data\FactionItems.lua"/>
+    <Script file="Decode.lua"/>
+    <Script file="Game\Items.lua"/>
+    <Script file="Game\Gear.lua"/>
+    <Script file="Game\Bags.lua"/>
+    <Script file="Game\Consumables.lua"/>
+    <Script file="Game\Roster.lua"/>
+    <Script file="Game\Places.lua"/>
+    <Script file="Game\Towns.lua"/>
+    <Script file="Game\Played.lua"/>
+    <Script file="UI\Parts.lua"/>
+    <Script file="UI\Marks.lua"/>
+    <Script file="UI\Text.lua"/>
+    <Script file="UI\Hud.lua"/>
+    <Script file="UI\Timer.lua"/>
+    <Script file="UI\Share.lua"/>
+    <Script file="UI\CopyCard.lua"/>
+    <Script file="UI\Panels.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\Tabs.lua"/>
+    <Script file="UI\SettingsCard.lua"/>
+    <Script file="UI\Tracker.lua"/>
+    <Script file="View\View.lua"/>
+    <Script file="View\Kinds.lua"/>
     <Script file="Settings\Settings.lua"/>
+    <Script file="Settings\Style.lua"/>
+    <Script file="Settings\Controls.lua"/>
+    <Script file="Settings\Rows.lua"/>
     <Script file="Settings\Page.lua"/>
     <Script file="Settings\Studio.lua"/>
+    <Script file="Settings\EditZone.lua"/>
 </Ui>

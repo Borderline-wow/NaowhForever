@@ -1,12 +1,25 @@
-local f = assert(io.open(arg[1] or "NaowhForever_SwingTimer/NaowhForever_SwingTimer.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+-- The module's files in SwingTimer.xml's order, after the feature switches; a first argument names
+-- one older single-file copy to run instead.
+local FILES = arg[1] and { arg[1] } or dofile("Tools/regression/toc_files.lua")("^NaowhForever_SwingTimer/.*%.lua$")
+if not arg[1] then table.insert(FILES, 1, "Core/Features.lua") end
+local sources = {}
+for i, path in ipairs(FILES) do
+    local f = assert(io.open(path, "rb"))
+    sources[i] = f:read("*a"):gsub("\r\n", "\n"); f:close()
+end
 
 local function Compile(env)
-    if setfenv then
-        local chunk = assert(loadstring(source)); setfenv(chunk, env)
-        return chunk
+    local chunks = {}
+    for i, source in ipairs(sources) do
+        if setfenv then
+            chunks[i] = assert(loadstring(source)); setfenv(chunks[i], env)
+        else
+            chunks[i] = assert(load(source, "=SwingTimer", "t", env))
+        end
     end
-    return assert(load(source, "=SwingTimer", "t", env))
+    return function()
+        for _, chunk in ipairs(chunks) do chunk() end
+    end
 end
 
 -- The real house colours, which some bar defaults come from.
@@ -71,10 +84,10 @@ local function Session(settings, opts)
     }
     local ns = { UI = UI, THEME = { bg = { r = 0, g = 0, b = 0 }, fg = { r = 1, g = 1, b = 1 } } }
     function ns.Apply() end
-    function ns.ShowRaidReminderAnchorConfig() end
-    log.unlock = function() ns.ShowRaidReminderAnchorConfig() end
-    function ns.HideRaidReminderAnchorConfig() end
-    log.lock = function() ns.HideRaidReminderAnchorConfig() end
+    function ns.ShowUnlockMode() end
+    log.unlock = function() ns.ShowUnlockMode() end
+    function ns.HideUnlockMode() end
+    log.lock = function() ns.HideUnlockMode() end
     ns.Solid = function() return Widget("Texture", log) end
     ns.Border = function() return {} end
     ns.PixelInset = function(region) return region end

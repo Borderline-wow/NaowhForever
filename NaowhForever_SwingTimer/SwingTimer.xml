@@ -1,0 +1,9 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- SwingTimer.xml: the Swing Timer's files, in load order. -->
+    <Script file="SwingTimer.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Spells.lua"/>
+    <Script file="View\Bar.lua"/>
+    <Script file="UI\Bars.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

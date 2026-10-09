@@ -1,21 +1,17 @@
--------------------------------------------------------------------------------
---  History.lua -- the History tab of the inspect panel's pane: what Player History recorded of
---  you and the player inspected (ns.PlayerHistory.Of): a line of how often you grouped and
---  when you last saw them, your last few groups (where, how long, how long ago) and the last
---  few lines either of you said. The tab is there only while Player History is on; without it,
---  or with nothing recorded, nothing breaks. Chat is someone else's text: shown as plain text
---  only (ns.PlainText), never as a format or with its codes.
--------------------------------------------------------------------------------
+-- History.lua: the inspect panel's History tab, from Player History.
 local ns = _G.NaowhForever
+
 local T = ns.THEME
 local IP = ns.InspectPanel
 
-local TITLE_SIZE, LINE_SIZE, META_SIZE = 11, 12, 10
-local TITLE_H, ROW_H, CHAT_H, SECTION_GAP = 22, 18, 30, 6
+local TITLE_SIZE, LINE_SIZE, META_SIZE = IP.SECTION_TITLE_SIZE, IP.SECTION_LINE_SIZE, 10
+local TITLE_H, ROW_H, CHAT_H, SECTION_GAP = IP.SECTION_TITLE_H, 18, 30, IP.SECTION_GAP
 local SUMMARY_H, SUMMARY_LINES = 34, 2
 local SESSIONS, CHATS = 3, 4
 local TEXT_MAX, NAME_MAX = 200, 40
 local META_GAP = 6
+local TEXT_GAP = 2
+local MINUTE, HOUR = 60, 60
 local NO_HISTORY = "No history with them yet."
 local NOT_GROUPED = "Not grouped yet."
 local GROUPED_ONCE, GROUPED = "Grouped once", "Grouped %d times"
@@ -85,7 +81,7 @@ local function ChatRow(y)
     row.meta = Text(row, META_SIZE, T.muted)
     row.meta:SetPoint("LEFT", row.who, "RIGHT", META_GAP, 0)
     row.text = Text(row, LINE_SIZE, T.fg)
-    row.text:SetPoint("TOPLEFT", row.who, "BOTTOMLEFT", 0, -2)
+    row.text:SetPoint("TOPLEFT", row.who, "BOTTOMLEFT", 0, -TEXT_GAP)
     row.text:SetPoint("RIGHT")
     row:EnableMouse(true)
     row:SetScript("OnEnter", RowEnter)
@@ -137,10 +133,10 @@ end
 
 local function Duration(seconds)
     seconds = tonumber(seconds) or 0
-    if seconds < 60 then return SHORT end
-    local minutes = math.floor(seconds / 60)
-    if minutes < 60 then return MINUTES:format(minutes) end
-    return HOURS:format(math.floor(minutes / 60), minutes % 60)
+    if seconds < MINUTE then return SHORT end
+    local minutes = math.floor(seconds / MINUTE)
+    if minutes < HOUR then return MINUTES:format(minutes) end
+    return HOURS:format(math.floor(minutes / HOUR), minutes % HOUR)
 end
 
 local function PaintSessions(rec)

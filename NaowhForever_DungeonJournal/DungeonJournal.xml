@@ -1,16 +1,11 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- The Dungeon Journal, in load order: its core, the data, the rules, how it draws
-         a dungeon, and where it shows. Each layer uses only the ones above it. See README.md. -->
-    <Script file="Journal.lua"/>
-    <!-- The data: item facts, the dungeon quests and their chains, one generated file per
-         dungeon in level order (Tools/build_journal.py), one per faction with rewards
-         (Tools/build_factions.py), and Naowh's tips -->
+    <!-- DungeonJournal.xml: the Dungeon Journal's files, in load order. -->
+    <Script file="DungeonJournal.lua"/>
+    <Script file="Constants.lua"/>
     <Script file="Data\Build.lua"/>
     <Script file="Data\Items.lua"/>
-    <Script file="Data\FactionItems.lua"/>
     <Script file="Data\Quests.lua"/>
     <Script file="Data\QuestChains.lua"/>
-    <!-- The quests that reward a BiS (Tools/build_bis_quests.py), for the BiS List's Quests page -->
     <Script file="Data\BiSQuests.lua"/>
     <Script file="Data\Dungeons\RagefireChasm.lua"/>
     <Script file="Data\Dungeons\HallOfThanes.lua"/>
@@ -44,13 +39,10 @@
     <Script file="Data\Dungeons\UpperBlackrockSpire.lua"/>
     <Script file="Data\Dungeons\BlackmawHold.lua"/>
     <Script file="Data\Dungeons\ShapersTerrace.lua"/>
-    <!-- The raids announced for Forever -->
     <Script file="Data\Dungeons\OnyxiasLair.lua"/>
     <Script file="Data\Dungeons\BarrowDeeps.lua"/>
     <Script file="Data\Dungeons\HyjalSummit.lua"/>
-    <!-- Each dungeon's map: its art and where its bosses stand, by hand -->
     <Script file="Data\Maps.lua"/>
-    <!-- The factions: the Reputation tab's, then the PvP tab's -->
     <Script file="Data\Factions\ArgentDawn.lua"/>
     <Script file="Data\Factions\ThoriumBrotherhood.lua"/>
     <Script file="Data\Factions\TimbermawHold.lua"/>
@@ -83,14 +75,9 @@
     <Script file="Data\Factions\TheramoreExpeditionaryForce.lua"/>
     <Script file="Data\Factions\DarkspearRaiders.lua"/>
     <Script file="Data\Tips.lua"/>
-    <!-- What each boss does in its fight, as spell IDs, and its level and kind
-         (Tools/build_abilities.py), and the quests that need it (Tools/build_boss_quests.py) -->
     <Script file="Data\Abilities.lua"/>
     <Script file="Data\BossInfo.lua"/>
     <Script file="Data\BossQuests.lua"/>
-    <!-- The rules: loot, quests, your standing and PvP rank, who was in your group, the kills
-         and loot this character has counted, asking the group to share a quest, and where
-         each quartermaster stands -->
     <Script file="Loot.lua"/>
     <Script file="Quests.lua"/>
     <Script file="Reputation.lua"/>
@@ -98,31 +85,59 @@
     <Script file="Kills.lua"/>
     <Script file="Looted.lua"/>
     <Script file="Sharing.lua"/>
+    <Script file="ShareQuests.lua"/>
+    <Script file="AcceptShared.lua"/>
     <Script file="Quartermasters.lua"/>
     <Script file="ItemProbe.lua"/>
-    <!-- Drawing a page: its look, the engine, then its row kinds (a faction's and the PvP
-         rank's too), the item menu and the side panels (a quest, a boss's kills and loot) -->
     <Script file="View\Style.lua"/>
     <Script file="View\View.lua"/>
     <Script file="View\Parts.lua"/>
-    <Script file="View\Header.lua"/>
+    <Script file="View\DungeonPage.lua"/>
+    <Script file="View\BossPage.lua"/>
+    <Script file="View\FactionPage.lua"/>
+    <Script file="View\SearchPage.lua"/>
+    <Script file="View\DungeonHeader.lua"/>
     <Script file="View\QuestRows.lua"/>
+    <Script file="View\BossTips.lua"/>
+    <Script file="View\KillCount.lua"/>
     <Script file="View\BossCards.lua"/>
+    <Script file="View\BossChips.lua"/>
     <Script file="View\ItemRows.lua"/>
-    <Script file="View\BossDetails.lua"/>
-    <Script file="View\FactionRows.lua"/>
+    <Script file="View\BossHeader.lua"/>
+    <Script file="View\BossQuestRows.lua"/>
+    <Script file="View\AbilityRows.lua"/>
+    <Script file="View\FactionHeader.lua"/>
+    <Script file="View\StandingTrack.lua"/>
+    <Script file="View\RankTrack.lua"/>
+    <Script file="View\TierHeader.lua"/>
+    <Script file="View\RewardGroup.lua"/>
+    <Script file="View\FactionLinks.lua"/>
+    <Script file="View\IconLine.lua"/>
+    <Script file="View\RankReward.lua"/>
     <Script file="View\ItemMenu.lua"/>
+    <Script file="View\QuestDetailRows.lua"/>
     <Script file="View\QuestPanel.lua"/>
+    <Script file="View\HistoryRows.lua"/>
+    <Script file="View\TeamRow.lua"/>
+    <Script file="View\RollRows.lua"/>
     <Script file="View\BossPanel.lua"/>
-    <!-- Where it shows -->
+    <Script file="UI\ListParts.lua"/>
     <Script file="UI\DungeonList.lua"/>
     <Script file="UI\FactionList.lua"/>
     <Script file="UI\Recent.lua"/>
+    <Script file="UI\FiltersMenu.lua"/>
+    <Script file="UI\FactionSwitch.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\MapPanel.lua"/>
     <Include file="UI\EntrancePins.xml"/>
     <Script file="UI\Popup.lua"/>
     <Script file="UI\QuestTracker.lua"/>
-    <Script file="UI\DungeonMap.lua"/>
+    <Script file="UI\GameTrackerFade.lua"/>
+    <Script file="UI\TrackerAuto.lua"/>
+    <Script file="UI\MapView.lua"/>
+    <Script file="UI\MapList.lua"/>
+    <Script file="UI\MapWindow.lua"/>
+    <Script file="UI\MapOverlay.lua"/>
+    <Script file="UI\MapTools.lua"/>
     <Script file="UI\SettingsPage.lua"/>
 </Ui>

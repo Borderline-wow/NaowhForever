@@ -1,0 +1,89 @@
+-- Keys.lua: the Next Blessing and Next Greater Blessing key bindings, secure buttons that step through who needs one.
+local ns = _G.NaowhForever
+
+local B = ns.Blessings
+local CLASSES, BY_KEY = B.CLASSES, B.BY_KEY
+local SYMBOL_OF_KINGS = B.SYMBOL_OF_KINGS
+local Store, Assigned, HighestKnown, Due, ByUrgency = B.Store, B.Assigned, B.HighestKnown, B.Due, B.ByUrgency
+
+local NEXT, NEXT_GREATER = "NaowhForeverBlessNext", "NaowhForeverBlessNextGreater"
+
+local STEP = [[
+    local i, n = self:GetAttribute("step") or 1, self:GetAttribute("count") or 0
+    if i > n then return false end
+    self:SetAttribute("unit", self:GetAttribute("unit" .. i))
+    self:SetAttribute("spell", self:GetAttribute("spell" .. i))
+    self:SetAttribute("step", i + 1)
+]]
+
+local keyNext, keyGreater
+
+local function NewKeyButton(name, handler)
+    local btn = CreateFrame("Button", name, UIParent, "SecureActionButtonTemplate")
+    btn:RegisterForClicks("AnyDown")
+    btn:SetAttribute("useOnKeyDown", true)
+    btn:SetAttribute("type", "spell")
+    btn:SetAttribute("count", 0)
+    SecureHandlerWrapScript(btn, "OnClick", handler, STEP)
+    return btn
+end
+
+local function SetQueue(btn, list)
+    table.sort(list, ByUrgency)
+    for i, entry in ipairs(list) do
+        btn:SetAttribute("unit" .. i, entry.unit)
+        btn:SetAttribute("spell" .. i, entry.spell)
+    end
+    btn:SetAttribute("count", #list)
+    btn:SetAttribute("step", 1)
+end
+
+local function Singles(members, single, shared)
+    for _, member in ipairs(members) do
+        local key = Assigned(member)
+        if key ~= shared then shared = nil end
+        local spell = key and HighestKnown(BY_KEY[key].ranks)
+        local rank, left = Due(member, key, spell)
+        if rank then single[#single + 1] = { unit = member.unit, spell = spell, rank = rank, left = left } end
+    end
+    return shared
+end
+
+local function Greater(members, shared, symbols)
+    local spell = shared and symbols and HighestKnown(BY_KEY[shared].greater)
+    local best
+    for _, member in ipairs(spell and members or {}) do
+        local rank, left = Due(member, shared, spell)
+        if rank and (not best or ByUrgency({ rank = rank, left = left }, best)) then
+            best = { unit = member.unit, spell = spell, rank = rank, left = left }
+        end
+    end
+    return best
+end
+
+local Keys = {}
+B.Keys = Keys
+
+function Keys.Build(handler)
+    keyNext = NewKeyButton(NEXT, handler)
+    keyGreater = NewKeyButton(NEXT_GREATER, handler)
+end
+
+function Keys.Clear()
+    if keyNext then keyNext:SetAttribute("count", 0) end
+    if keyGreater then keyGreater:SetAttribute("count", 0) end
+end
+
+function Keys.Fill(byClass)
+    local single, greater = {}, {}
+    local symbols = C_Item.GetItemCount(SYMBOL_OF_KINGS) > 0
+    for _, class in ipairs(CLASSES) do
+        local members = byClass[class]
+        if members then
+            local shared = Singles(members, single, Store().classes[class])
+            greater[#greater + 1] = Greater(members, shared, symbols)
+        end
+    end
+    SetQueue(keyNext, single)
+    SetQueue(keyGreater, greater)
+end

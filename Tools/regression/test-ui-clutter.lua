@@ -1,4 +1,4 @@
-local f = assert(io.open(arg[1] or "QoL/NaowhForever_HideClutter.lua", "rb"))
+local f = assert(io.open(arg[1] or "NaowhForever_QoL/Interface/HideClutter.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
 
 local function Compile(env)

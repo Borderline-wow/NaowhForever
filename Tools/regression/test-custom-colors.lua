@@ -1,6 +1,6 @@
 -- Settings > COLORS: theme presets and Custom colors. The real Core is loaded; presets are
 -- written into ns.THEME in place on our ADDON_LOADED. Run with Lua 5.1 from the repository root.
-local file = assert(io.open("Core/NaowhForever_Core.lua", "rb"))
+local file = assert(io.open("Core/Core.lua", "rb"))
 local source = file:read("*a"); file:close()
 
 local frames = {}

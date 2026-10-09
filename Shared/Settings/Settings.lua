@@ -1,39 +1,40 @@
--------------------------------------------------------------------------------
---  Settings.lua -- every settings page, declared once (ns.Shared.Settings): pages, cards
---  and their settings, what was changed, reset, and the search's index. Each module declares
---  its cards next to its code; Page.lua draws them in the options window (/nf).
--------------------------------------------------------------------------------
+-- Settings.lua: every settings page, declared once (ns.Shared.Settings): pages, cards, rows, what was changed, reset and the search index.
 local ns = _G.NaowhForever
 local Shared = ns.Shared
+
+local KINDS = { "toggle", "slider", "choice", "colour", "font", "texture", "sound", "text", "button", "binding" }
+local FONT_SIZE_RANGE = { 6, 32, 1 }
+local BG_ALPHA_RANGE = Shared.Style.ALPHA_RANGE
+local BG_ALPHA_SCALE = Shared.Style.PERCENT_SCALE
+local DEFAULT_ORDER = 100
+local SAME_WITHIN = 0.002
+local NO_KEYS = {}
+local CARD_UID = "^(.*):([^:]+)$"
+local TEXT_TEXT = "Text"
+local TEXT_BAR = "Bar"
+local TEXT_BACKGROUND = "Background"
+local TEXT_FONT = "Font"
+local TEXT_FONT_SIZE = "Font Size"
+local TEXT_OUTLINE = "Outline"
+local TEXT_BAR_TEXTURE = "Bar Texture"
+local TEXT_BG_ALPHA = "Background Opacity"
+local TEXT_PERCENT = "%"
+local TEXT_OUTLINE_HELP = "A black outline round the text, in place of the soft shadow."
+local TEXT_BACKGROUND_HELP = "A card behind the text, a soft dark fade, or nothing at all."
+local TEXT_NEEDS = "Needs "
+local ERROR_NO_KIND = "Settings: a row without a kind on "
+local ERROR_CARD = "Settings: a card needs an id and a name"
+local ERROR_TWO_CARDS = "Settings: two cards named "
+local ERROR_INFO = "Settings: an info card needs an id and a name"
 
 local Settings = {}
 Shared.Settings = Settings
 
 local pages = {}
-Settings.pages = pages
-
-local KINDS = { "toggle", "slider", "choice", "colour", "font", "texture", "sound", "text", "button", "binding" }
+local open = {}
 
 local Page = {}
 Page.__index = Page
-
-function Settings.Page(key, store)
-    local page = pages[key]
-    if not page then
-        page = setmetatable({ key = key, items = {}, cards = {} }, Page)
-        pages[key] = page
-    end
-    page.store = store or page.store
-    return page
-end
-
-function Settings.Group(title)
-    return { group = title }
-end
-
-local TEXT_SIZE = { 6, 32, 1 }
-local BG_ALPHA = { 0, 100, 5 }
-local NO_KEYS = {}
 
 local function LookKey(prefix, keys, suffix)
     local key = keys[suffix]
@@ -42,44 +43,38 @@ local function LookKey(prefix, keys, suffix)
     return prefix .. suffix
 end
 
--- The standard look rows of a HUD element, as one entry of a card's rows: Text (<prefix>Font,
--- <prefix>FontSize, <prefix>Outline), Bar (<prefix>Texture) and Background (<prefix>Background
--- card/soft/none, or <prefix>BgAlpha, which joins the Bar group when there is one). opts: text,
--- size (the font size slider's range), bar (the name of the element's own texture, shown for ""),
--- background ("card" or "alpha"), needs and why for every row, and keys: a suffix to the key an
--- element already saves under, or false to leave that row out.
-function Settings.Look(prefix, opts)
-    local keys, rows, group = opts.keys or NO_KEYS, {}, nil
-    local function Add(title, suffix, row)
-        local key = LookKey(prefix, keys, suffix)
-        if not key then return end
-        if group ~= title then
-            group = title
-            rows[#rows + 1] = Settings.Group(title)
-        end
-        row.key, row.needs, row.why = key, opts.needs, opts.why
-        rows[#rows + 1] = row
+local function AddLook(look, title, suffix, row)
+    local key = LookKey(look.prefix, look.keys, suffix)
+    if not key then return end
+    local rows = look.rows
+    if look.group ~= title then
+        look.group = title
+        rows[#rows + 1] = Settings.Group(title)
     end
-    if opts.text then
-        Add("Text", "Font", { label = "Font", font = true })
-        Add("Text", "FontSize", { label = "Font Size", slider = opts.size or TEXT_SIZE })
-        Add("Text", "Outline", { label = "Outline", choice = Shared.Parts.HUD_OUTLINES,
-            help = "A black outline round the text, in place of the soft shadow." })
-    end
-    if opts.bar then
-        Add("Bar", "Texture", { label = "Bar Texture", texture = opts.bar })
-    end
-    if opts.background == "card" then
-        Add("Background", "Background", { label = "Background", choice = Shared.Parts.HUD_BACKGROUNDS,
-            help = "A card behind the text, a soft dark fade, or nothing at all." })
-    elseif opts.background == "alpha" then
-        Add(opts.bar and "Bar" or "Background", "BgAlpha", { label = "Background Opacity", slider = BG_ALPHA,
-            unit = "%", scale = 0.01 })
-    end
-    return rows
+    row.key, row.needs, row.why = key, look.opts.needs, look.opts.why
+    rows[#rows + 1] = row
 end
 
--- A card's rows may hold a list of rows (Settings.Look), drawn in its place.
+local function AddLookText(look)
+    local opts = look.opts
+    if not opts.text then return end
+    AddLook(look, TEXT_TEXT, "Font", { label = TEXT_FONT, font = true })
+    AddLook(look, TEXT_TEXT, "FontSize", { label = TEXT_FONT_SIZE, slider = opts.size or FONT_SIZE_RANGE })
+    AddLook(look, TEXT_TEXT, "Outline", { label = TEXT_OUTLINE, choice = Shared.Parts.HUD_OUTLINES,
+        help = TEXT_OUTLINE_HELP })
+end
+
+local function AddLookBackground(look)
+    local opts = look.opts
+    if opts.background == "card" then
+        AddLook(look, TEXT_BACKGROUND, "Background", { label = TEXT_BACKGROUND,
+            choice = Shared.Parts.HUD_BACKGROUNDS, help = TEXT_BACKGROUND_HELP })
+    elseif opts.background == "alpha" then
+        AddLook(look, opts.bar and TEXT_BAR or TEXT_BACKGROUND, "BgAlpha", { label = TEXT_BG_ALPHA,
+            slider = BG_ALPHA_RANGE, unit = TEXT_PERCENT, scale = BG_ALPHA_SCALE })
+    end
+end
+
 local function Flatten(rows)
     local out = {}
     for _, row in ipairs(rows) do
@@ -92,11 +87,45 @@ local function Flatten(rows)
     return out
 end
 
--- A row's icons, left of its control (Page.lua draws them): row.icons = { { texture, tip, open,
--- enabled }, ... }, from the control outward; enabled(), when given, greys one out while false.
--- row.cog = { title, tip } puts a cog first. It opens a panel of the rows declared `under` this
--- row's label: hidden rows, set in the cog's panel, still searched, counted and reset with the
--- card. Made once per row, so drawing makes no tables.
+local function KindOf(row)
+    for _, kind in ipairs(KINDS) do
+        if row[kind] ~= nil then return kind end
+    end
+end
+
+local function BindColour(row, store, key)
+    row.get = function()
+        local c = store.Get(key)
+        if type(c) ~= "table" then return 1, 1, 1, 1 end
+        return c.r, c.g, c.b, c.a
+    end
+    row.set = function(r, g, b, a)
+        store.Set(key, { r = r, g = g, b = b, a = row.colour == "alpha" and a or nil })
+    end
+end
+
+local function BindStore(row)
+    local store, key = row.store, row.key
+    if not (key and store and not row.get) then return end
+    if row.kind == "colour" then
+        BindColour(row, store, key)
+        return
+    end
+    row.get = function() return store.Get(key) end
+    row.set = function(v) store.Set(key, v) end
+end
+
+local function BindScale(row)
+    local scale = row.scale
+    if not (scale and row.get) then return end
+    local get, set = row.get, row.set
+    row.get = function()
+        local v = get()
+        return v and math.floor(v / scale + 0.5) or nil
+    end
+    row.set = function(v) set(v * scale) end
+end
+
 local function Icons(row)
     if not row.cog or row.cogIcon then return end
     local cog = { tip = row.cog.tip, cogFor = row }
@@ -111,42 +140,13 @@ local function Normalise(row, card)
         row.kind = "group"
         return row
     end
-    -- A row set in another row's cog is hidden from the list.
     if row.under ~= nil then row.hidden = true end
     Icons(row)
-    for _, kind in ipairs(KINDS) do
-        if row[kind] ~= nil then
-            row.kind = kind
-            break
-        end
-    end
-    assert(row.kind, "Settings: a row without a kind on " .. card.uid .. ": " .. tostring(row.label))
+    row.kind = KindOf(row) or row.kind
+    assert(row.kind, ERROR_NO_KIND .. card.uid .. ": " .. tostring(row.label))
     row.store = row.store or card.store
-    local store, key = row.store, row.key
-    if key and store and not row.get then
-        if row.kind == "colour" then
-            row.get = function()
-                local c = store.Get(key)
-                if type(c) ~= "table" then return 1, 1, 1, 1 end
-                return c.r, c.g, c.b, c.a
-            end
-            row.set = function(r, g, b, a)
-                store.Set(key, { r = r, g = g, b = b, a = row.colour == "alpha" and a or nil })
-            end
-        else
-            row.get = function() return store.Get(key) end
-            row.set = function(v) store.Set(key, v) end
-        end
-    end
-    local scale = row.scale
-    if scale and row.get then
-        local get, set = row.get, row.set
-        row.get = function()
-            local v = get()
-            return v and math.floor(v / scale + 0.5) or nil
-        end
-        row.set = function(v) set(v * scale) end
-    end
+    BindStore(row)
+    BindScale(row)
     return row
 end
 
@@ -172,58 +172,11 @@ local function Insert(page, item)
     table.sort(page.items, Before)
 end
 
-function Settings.Rows(card)
-    if card.rowsFn then
-        card.rows = Flatten(card.rowsFn())
-        for _, row in ipairs(card.rows) do
-            if row.card ~= card then Normalise(row, card) end
-        end
-    end
-    return card.rows
-end
-
-function Page:Card(spec)
-    assert(spec.id and spec.name, "Settings: a card needs an id and a name")
-    assert(not self.cards[spec.id], "Settings: two cards named " .. spec.id .. " on " .. self.key)
-    spec.page = self
-    spec.uid = self.key .. ":" .. spec.id
-    spec.store = spec.store or self.store
-    spec.order = spec.order or 100
-    if type(spec.rows) == "function" then
-        spec.rowsFn, spec.rows = spec.rows, {}
-    end
-    spec.rows = Flatten(spec.rows or {})
-    Switch(spec)
-    for _, row in ipairs(spec.rows) do Normalise(row, spec) end
-    self.cards[spec.id] = spec
-    Insert(self, spec)
-    return spec
-end
-
-function Page:Window(spec)
-    spec.window = true
-    spec.order = spec.order or 0
-    Insert(self, spec)
-    return spec
-end
-
-function Page:Info(spec)
-    assert(spec.id and spec.name, "Settings: an info card needs an id and a name")
-    spec.info = true
-    spec.page = self
-    spec.uid = self.key .. ":" .. spec.id
-    spec.order = spec.order or #self.items + 1
-    spec.rows = spec.lines or {}
-    self.cards[spec.id] = spec
-    Insert(self, spec)
-    return spec
-end
-
 local function Same(a, b)
     if type(a) ~= "table" or type(b) ~= "table" then return a == b end
     for k, v in pairs(a) do
         if type(v) == "number" and type(b[k]) == "number" then
-            if math.abs(v - b[k]) > 0.002 then return false end
+            if math.abs(v - b[k]) > SAME_WITHIN then return false end
         elseif type(v) == "table" then
             if not Same(v, b[k]) then return false end
         elseif b[k] ~= v then
@@ -243,7 +196,115 @@ local function Copy(value)
     return out
 end
 
--- A row with `field` is one entry of a table setting: its dot and reset are that entry's own.
+local function LabelOf(card, key)
+    for _, row in ipairs(card.rows) do
+        if row.key == key then return row.label end
+    end
+end
+
+local function Needing(row, key)
+    local label = LabelOf(row.card, key)
+    return true, row.why or (label and (TEXT_NEEDS .. label))
+end
+
+local function CountCards(page)
+    local cards, first = 0, nil
+    for _, item in ipairs(page.items) do
+        if not item.window then
+            cards = cards + 1
+            first = first or item
+        end
+    end
+    return cards, first
+end
+
+local function IndexCard(item, add)
+    add(item.uid, item.name, item.help)
+    local group
+    for _, row in ipairs(Settings.Rows(item)) do
+        if row.kind == "group" then
+            group = row.group
+        elseif row.label then
+            add(item.uid, row.label, row.help, item.name, group)
+        end
+    end
+end
+
+function Page:Card(spec)
+    assert(spec.id and spec.name, ERROR_CARD)
+    assert(not self.cards[spec.id], ERROR_TWO_CARDS .. spec.id .. " on " .. self.key)
+    spec.page = self
+    spec.uid = self.key .. ":" .. spec.id
+    spec.store = spec.store or self.store
+    spec.order = spec.order or DEFAULT_ORDER
+    if type(spec.rows) == "function" then
+        spec.rowsFn, spec.rows = spec.rows, {}
+    end
+    spec.rows = Flatten(spec.rows or {})
+    Switch(spec)
+    for _, row in ipairs(spec.rows) do Normalise(row, spec) end
+    self.cards[spec.id] = spec
+    Insert(self, spec)
+    return spec
+end
+
+function Page:Window(spec)
+    spec.window = true
+    spec.order = spec.order or 0
+    Insert(self, spec)
+    return spec
+end
+
+function Page:Info(spec)
+    assert(spec.id and spec.name, ERROR_INFO)
+    spec.info = true
+    spec.page = self
+    spec.uid = self.key .. ":" .. spec.id
+    spec.order = spec.order or #self.items + 1
+    spec.rows = spec.lines or {}
+    self.cards[spec.id] = spec
+    Insert(self, spec)
+    return spec
+end
+
+Settings.pages = pages
+
+function Settings.Page(key, store)
+    local page = pages[key]
+    if not page then
+        page = setmetatable({ key = key, items = {}, cards = {} }, Page)
+        pages[key] = page
+    end
+    page.store = store or page.store
+    return page
+end
+
+function Settings.Group(title)
+    return { group = title }
+end
+
+function Settings.Look(prefix, opts)
+    local look = { prefix = prefix, keys = opts.keys or NO_KEYS, rows = {}, opts = opts }
+    AddLookText(look)
+    if opts.bar then AddLook(look, TEXT_BAR, "Texture", { label = TEXT_BAR_TEXTURE, texture = opts.bar }) end
+    AddLookBackground(look)
+    return look.rows
+end
+
+function Settings.Rows(card)
+    if card.rowsFn then
+        card.rows = Flatten(card.rowsFn())
+        for _, row in ipairs(card.rows) do
+            if row.card ~= card then Normalise(row, card) end
+        end
+    end
+    return card.rows
+end
+
+function Settings.Openable(card)
+    return card.studio ~= nil or card.info or #Settings.Rows(card) > 0
+end
+
 function Settings.Changed(row)
     local store, key, field = row.store, row.key, row.field
     if not (key and store and store.Raw) then return false end
@@ -280,25 +341,17 @@ function Settings.Reset(card)
     for _, row in ipairs(card.rows) do Settings.ResetRow(row) end
 end
 
--- The label of the row whose cog sets this hidden row, or nil for a row set in the list.
 function Settings.UnderOf(card, label)
     for _, row in ipairs(card.rows) do
         if row.label == label and row.under ~= nil then return row.under end
     end
 end
 
--- Whether a setting behind a row's cog differs from its default: the cog shows it.
 function Settings.CogChanged(card, label)
     for _, row in ipairs(card.rows) do
         if row.under == label and Settings.Changed(row) then return true end
     end
     return false
-end
-
-local function LabelOf(card, key)
-    for _, row in ipairs(card.rows) do
-        if row.key == key then return row.label end
-    end
 end
 
 function Settings.Off(row)
@@ -313,31 +366,19 @@ function Settings.Off(row)
     local store = row.store
     if type(needs) == "string" then
         if store.Get(needs) then return false end
-        local label = LabelOf(card, needs)
-        return true, row.why or (label and ("Needs " .. label))
+        return Needing(row, needs)
     end
     for i = 1, #needs do
-        if not store.Get(needs[i]) then
-            local label = LabelOf(card, needs[i])
-            return true, row.why or (label and ("Needs " .. label))
-        end
+        if not store.Get(needs[i]) then return Needing(row, needs[i]) end
     end
     return false
 end
-
-local open = {}
 
 function Settings.IsOpen(card)
     local state = open[card.uid]
     if state ~= nil then return state end
     if card.info then return card.open == true end
-    local cards, first = 0, nil
-    for _, item in ipairs(card.page.items) do
-        if not item.window then
-            cards = cards + 1
-            first = first or item
-        end
-    end
+    local cards, first = CountCards(card.page)
     return cards == 1 or (first == card and card.studio ~= nil)
 end
 
@@ -349,23 +390,13 @@ function Settings.Index(pageKey, add)
     local page = pages[pageKey]
     if not page then return false end
     for _, item in ipairs(page.items) do
-        if not (item.window or item.info) then
-            add(item.uid, item.name, item.help)
-            local group
-            for _, row in ipairs(Settings.Rows(item)) do
-                if row.kind == "group" then
-                    group = row.group
-                elseif row.label then
-                    add(item.uid, row.label, row.help, item.name, group)
-                end
-            end
-        end
+        if not (item.window or item.info) then IndexCard(item, add) end
     end
     return true
 end
 
 function Settings.CardOf(uid)
-    local pageKey, id = uid:match("^(.*):([^:]+)$")
+    local pageKey, id = uid:match(CARD_UID)
     local page = pageKey and pages[pageKey]
     return page and page.cards[id]
 end

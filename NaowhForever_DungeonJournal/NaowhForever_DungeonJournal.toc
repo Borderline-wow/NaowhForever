@@ -3,10 +3,9 @@
 ## Notes: Every dungeon's bosses, loot and quests.
 ## Author: Naowh
 ## Version: 1.0.6
-## Dependencies: NaowhForever, NaowhForever_BiS
+## Dependencies: NaowhForever
+## OptionalDeps: NaowhForever_BiS
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-# Its own XML loads its files in order (see README.md). Needs BiS, whose list and class
-# rules it reads; BiS in turn opens the journal, so the window turns the two off together.
 DungeonJournal.xml

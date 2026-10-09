@@ -5,6 +5,6 @@
 ## Version: 1.0.6
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-NaowhForever_SwingTimer.lua
+SwingTimer.xml

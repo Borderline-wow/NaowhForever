@@ -1,3 +1,6 @@
+# Claude Code's local settings, worktrees and notes.
+/.claude/
+
 __pycache__/
 *.pyc
 
@@ -8,5 +11,5 @@ __pycache__/
 /Libs/*
 !/Libs/embeds.xml
 
-# Pages fetched by Tools/wowsrc.py, kept to save asking again.
-/Tools/wowsrc_pages/
+# Pages fetched by Tools/sources/wowsrc.py, kept to save asking again.
+/Tools/data/wowsrc_pages/

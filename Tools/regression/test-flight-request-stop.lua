@@ -39,7 +39,7 @@ local function fixture(settings, extra)
     local S = { Get = function(k) if s.settings[k] ~= nil then return s.settings[k] end return defaults[k] end,
         Set = function(k, v) s.settings[k] = v end, DB = function() return s.settings end,
         Raw = function(k) return s.settings[k] end }
-    local ns = { QoLSettings = S, THEME = { accent = {}, bg = {}, muted = { r = 0.5 }, accentSoft = {}, fg = { r = 1 },
+    local ns = { QoLConstants = dofile("Tools/regression/qol_constants.lua"), QoLSettings = S, THEME = { accent = {}, bg = {}, muted = { r = 0.5 }, accentSoft = {}, fg = { r = 1 },
             line = {} },
         Font = function() return frame() end, Solid = function() return frame() end,
         Border = function() return { _frame = frame() } end,
@@ -51,10 +51,11 @@ local function fixture(settings, extra)
         end,
         AccentBorder = function(f) return f end, PixelInset = function() end,
         Tooltip = function() end, AccountSettings = function() return {} end, FLIGHT_ROUTES = {},
-        Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
+        Apply = function() end, ShowUnlockMode = function() end, HideUnlockMode = function() end,
         UI = { AttachMover = function() return frame() end, FontPath = function(name) return 'font:' .. name end,
             TexturePath = function(name, own) if name == '' then return own end return 'lsm:' .. name end },
-        Shared = { Style = { ROUND = 'round', BORDER_RGB = { r = 0, g = 0, b = 0 }, PLACE_DOT = ' . ' },
+        Shared = { Style = setmetatable({ ROUND = 'round', BORDER_RGB = { r = 0, g = 0, b = 0 }, PLACE_DOT = ' . ' },
+                { __index = dofile('Tools/regression/shared_style.lua') }),
             Parts = { Arrow = function() return frame() end, HudText = function(fs, shadow) fs.shadow = shadow end } },
         QuizOffer = function(reason) s.offers[#s.offers + 1] = 'quiz:' .. reason end,
         AimOffer = function(reason) s.offers[#s.offers + 1] = 'aim:' .. reason end,
@@ -76,7 +77,7 @@ local function fixture(settings, extra)
     end
     for k, v in pairs(extra or {}) do env[k] = v end
     setmetatable(env, { __index = _G })
-    local chunk = assert(loadfile('QoL/NaowhForever_Flight.lua')); setfenv(chunk, env); chunk()
+    local chunk = assert(loadfile('NaowhForever_QoL/Travel/Flight.lua')); setfenv(chunk, env); chunk()
     function s.fire(event)
         local all = {}; for i, f in ipairs(s.frames) do all[i] = f end
         for _, f in ipairs(all) do if f.events[event] then f.scripts.OnEvent(f, event) end end
@@ -141,9 +142,9 @@ do
 end
 do
     local s = fixture({ flightEarlyLanding = true })
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check('the Unlock Mode sample flight does not fade', s.leave.alpha == 1 and s.leave.mouseCalls == 0)
-    s.ns.HideRaidReminderAnchorConfig()
+    s.ns.HideUnlockMode()
     check('leaving Unlock Mode touches nothing', s.leave.mouseCalls == 0)
 end
 -- Landing early on a timed route: the flight now ends at the first stop still ahead.
@@ -174,7 +175,7 @@ do
 end
 do
     local s = fixture({ flightEarlyLanding = true })
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     local key, name = s.text('Next'), s.text('Refuge Pointe')
     check('the sample flight names its next stop', key and key.shown and name and name.shown)
     check('with the time to it', s.text('0:50') and s.text('2:30'))
@@ -261,7 +262,7 @@ do
         f:close()
         return text
     end
-    local qol, quiz = read('QoL/NaowhForever_QoL.lua'), read('QoL/NaowhForever_Quiz.lua')
+    local qol, quiz = read('Core/Settings.lua'), read('NaowhForever_QoL/Travel/Quiz.lua')
     check('Flight Games defaults to the Aim Trainer', qol:find('flightGame = "aim"', 1, true) ~= nil)
     check('the old flight toggles are gone', not qol:find('quizFlight', 1, true) and not qol:find('aimAutoFlight', 1, true)
         and not quiz:find('quizFlight', 1, true))

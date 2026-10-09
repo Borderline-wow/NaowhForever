@@ -30,9 +30,10 @@ local function Load(path, settings)
         for _, fn in ipairs(hooks) do fn(k) end
     end
     local fonts = {}
-    local ns = {
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
         AuraBuffSettings = S, ProfessionSettings = S, THEME = { accentSoft = {}, muted = {} },
-        Apply = NOTHING, ShowRaidReminderAnchorConfig = NOTHING, HideRaidReminderAnchorConfig = NOTHING,
+        HEALTHSTONES = { 5509 }, HEALING_POTIONS = { 13446 },
+        Apply = NOTHING, ShowUnlockMode = NOTHING, HideUnlockMode = NOTHING,
         Border = NOTHING,
         Font = function()
             local fs = New()
@@ -40,11 +41,10 @@ local function Load(path, settings)
             fonts[#fonts + 1] = fs
             return fs
         end,
-        UI = { AttachMover = function() return Frame() end },
+        UI = { AttachMover = function() return Frame() end, ModuleSettings = function() return S end },
         Shared = { Parts = { HudFont = function(fs, font, size, outline)
             fs.font, fs.size, fs.outline = font, size, outline
-        end },
-            Items = { HEALTHSTONES = { 5509 }, HEALING_POTIONS = { 13446 } } },
+        end } },
     }
     local frames = {}
     local env = setmetatable({
@@ -65,9 +65,11 @@ local function Load(path, settings)
         GameTooltip_Hide = NOTHING,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile(path))
-    setfenv(chunk, env)
-    chunk()
+    for _, file in ipairs(type(path) == "table" and path or { path }) do
+        local chunk = assert(loadfile(file))
+        setfenv(chunk, env)
+        chunk()
+    end
     for _, f in ipairs(frames) do
         if f.scripts.OnEvent and f.events.PLAYER_LOGIN then f.scripts.OnEvent(f, "PLAYER_LOGIN") end
     end
@@ -85,7 +87,10 @@ do
     local settings = { enabled = true, lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
         lowHealthIconSize = 48, lowHealthGlow = false, lowHealthSound = false,
         lowHealthFont = "", lowHealthFontSize = 16, lowHealthOutline = "OUTLINE" }
-    local S, fonts = Load("NaowhForever_AuraBuffs/NaowhForever_LowHealth.lua", settings)
+    local S, fonts = Load({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
+        "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/LowHealth.lua", "NaowhForever_AuraBuffs/View/Style.lua",
+        "NaowhForever_AuraBuffs/View/LowHealthLook.lua", "NaowhForever_AuraBuffs/UI/LowHealth.lua",
+        "NaowhForever_AuraBuffs/UI/LowHealthCard.lua" }, settings)
     local label, count = Find(fonts, "LOW HEALTH"), fonts[1]
     check("Low Health: the warning as today", label.font == "" and label.size == 16 and label.outline == "OUTLINE")
     check("Low Health: the count as today", count ~= label and count.size == 14 and count.outline == "OUTLINE")
@@ -101,7 +106,8 @@ end
 do
     local settings = { enabled = true, gatherReminder = true, gatherInInstances = false, gatherIconSize = 40,
         gatherFish = false, gatherFont = "", gatherFontSize = 13, gatherOutline = "OUTLINE" }
-    local S, fonts = Load("NaowhForever_Professions/NaowhForever_GatherTracking.lua", settings)
+    local S, fonts = Load({ "Core/Features.lua", "NaowhForever_Professions/Professions.lua",
+        "NaowhForever_Professions/View/Style.lua", "NaowhForever_Professions/UI/GatherTracking.lua" }, settings)
     local label = Find(fonts, "Track ")
     check("Tracking: the line as today", label and label.font == "" and label.size == 13
         and label.outline == "OUTLINE")

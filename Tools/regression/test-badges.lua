@@ -61,7 +61,7 @@ local function fixture(withChatUtil, settings, flag)
         -- in EU (the default region here) their own name has no badge.
         BADGE_STAFF = { [1] = { ["Player-1-SELF"] = "developer" }, [3] = {} },
         BADGE_PATRONS = { [3] = {} },
-        FEATURE_BADGES = flag or 1,
+        FEATURE_BADGES = flag or 1, BADGES_LIVE = 1,
         Shared = { Roster = { AddTooltip = function(fn) state.roster[#state.roster + 1] = fn end },
             Settings = { Page = function(key)
             return { Card = function(_, def) state.cards[key .. ":" .. def.id] = def end }
@@ -141,7 +141,7 @@ local function fixture(withChatUtil, settings, flag)
         }
     end
     setmetatable(env, { __index = _G })
-    local chunk = assert(loadfile("Badges/NaowhForever_Badges.lua")); setfenv(chunk, env); chunk()
+    local chunk = assert(loadfile("Core/Badges/Badges.lua")); setfenv(chunk, env); chunk()
     ns.Apply()  -- what login does
     state.names = names
     state.env = env
@@ -531,6 +531,14 @@ do  -- regions, staff over patrons, the badge code and who may preview
     s.staff("Player-1-BOTH", { tier = "moderator" })
     check("staff wins over patron", say(filter, "Both", 3, "Player-1-BOTH"):find("BadgeModerator", 1, true))
 
+    s.staff("Player-4613-OLD", { tier = "developer" }, 90)
+    s.region = 110
+    s.api.BuildRoster()
+    check("a region the game renumbered (90 is now 110) keeps its badges",
+        say(filter, "Old", 4, "Player-4613-OLD"):find("BadgeDeveloper", 1, true))
+    s.region = 3
+    s.api.BuildRoster()
+
     s.fire("PLAYER_ENTERING_WORLD")
     s.me = "Player-1-ALT2"
     s.fire("PLAYER_ENTERING_WORLD")  -- the event is unregistered after the first; log in again
@@ -562,7 +570,7 @@ end
 
 do  -- the real staff and patron files load and make sense
     local ns = {}
-    for _, path in ipairs({ "Badges/NaowhForever_BadgesStaff.lua", "Badges/NaowhForever_BadgesPatrons.lua" }) do
+    for _, path in ipairs({ "Core/Badges/Staff.lua", "Core/Badges/Patrons.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, setmetatable({ _G = { NaowhForever = ns } }, { __index = _G }))
         chunk()
@@ -687,8 +695,8 @@ end
 
 do  -- the settings card, with the flag on
     local s = fixture(true)
-    local card = s.cards["QoL/Character:supporterBadges"]
-    check("flag 1: the Supporter Badges card is on QoL > Character", card and card.name == "Supporter Badges"
+    local card = s.cards["QoL/Interface:supporterBadges"]
+    check("flag 1: the Supporter Badges card is on QoL > Interface", card and card.name == "Supporter Badges"
         and #card.rows == 5)
     check("flag 1: /nf badges answers", type(s.ns.BadgesCommand) == "function" and s.ns.BADGE_TIERS ~= nil)
 end
@@ -750,7 +758,7 @@ do
     local s = fixture(true)
     s.staff("Player-1-DEV", "developer")
     local filter = s.nameFilters[1]
-    local fake = "Naowh |TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0:0:0:-1|t"
+    local fake = "Naowh |TInterface\\AddOns\\NaowhForever\\Core\\Badges\\Media\\BadgeNaowhChat.tga:0:0:0:-1|t"
     check("a name wearing the badge's texture gets no badge of ours", say(filter, fake, 1, "Player-1-FAKE") == fake)
     check("a name like the team's, on another GUID, gets nothing", say(filter, "Glyalith", 2, "Player-1-NOPE") == "Glyalith")
     local long = ("|cffff0000Naowh Forever:|r "):rep(160)
@@ -766,7 +774,7 @@ do
     local enter = s.callbacks["ChatFrame.OnHyperlinkEnter"]
     for _, link in ipairs({ "player", "player:", "player::", "player:Glyalith-Realm:abc:SAY",
         "player:Glyalith-Realm:" .. ("9"):rep(400) .. ":SAY", "player:%s%d:5:SAY",
-        "player:|TInterface\\AddOns\\NaowhForever\\Media\\Badges\\BadgeNaowhChat.tga:0|t:7:SAY",
+        "player:|TInterface\\AddOns\\NaowhForever\\Core\\Badges\\Media\\BadgeNaowhChat.tga:0|t:7:SAY",
         "garrmission:1:2", ("player:" .. ("x"):rep(4000)) }) do
         enter.fn(enter.owner, {}, link, "[x]")
     end

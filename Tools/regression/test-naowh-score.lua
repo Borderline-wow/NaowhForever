@@ -31,7 +31,7 @@ local function Fixture()
         OnChange = function(fn) listeners[#listeners + 1] = fn end,
     }
     state.roster, state.account, state.clock = {}, {}, 2000000000
-    local ns = { QoLSettings = S, Apply = NOTHING, Shared = { Style = { LOGO_SMALL = "logo" },
+    local ns = { QoLSettings = S, Apply = NOTHING, Shared = { ItemFacts = {}, Style = { LOGO_SMALL = "logo" },
         Roster = { AddTooltip = function(fn) state.roster[#state.roster + 1] = fn end },
         Ago = function(when) return (state.clock - when) .. "s ago" end },
         AccountSettings = function() return state.account end,
@@ -136,7 +136,7 @@ local function Fixture()
         end,
     }, { __index = _G })
     state.UnitGUID, state.units, state.SECRET = env.UnitGUID, units, {}
-    Load({ "Core/NaowhForever_Senders.lua", "NaowhForever_BiS/NaowhScore/Data/Formula.lua", "NaowhForever_BiS/NaowhScore/Score.lua", "NaowhForever_BiS/NaowhScore/Inspect.lua", "NaowhForever_BiS/NaowhScore/Share.lua" },
+    Load({ "Core/Senders.lua", "NaowhForever_BiS/NaowhScore/Data/Formula.lua", "NaowhForever_BiS/NaowhScore/NaowhScore.lua", "NaowhForever_BiS/NaowhScore/Inspect.lua", "NaowhForever_BiS/NaowhScore/Share.lua" },
         env)
     -- An event, to every frame listening for it (Share always; Inspect while on).
     function state.Fire(event, ...)
@@ -598,8 +598,9 @@ do
         [5] = { 60, 0, 4, "INVTYPE_CHEST" },   -- a faction reward: no required level
         [6] = { 60, 55, 4, "INVTYPE_2HWEAPON" }, [7] = { 60, 55, 4, "INVTYPE_WEAPON" },
     }
-    ns.Journal = { Items = {}, NotYet = { [8] = { 4, 0, 90, 60, 5, 134400, "Not Yet" } } }
-    for id, g in pairs(GEAR) do ns.Journal.Items[id] = { 4, 0, g[1], g[2], g[3] } end
+    ns.Journal = { NotYet = { [8] = { 4, 0, 90, 60, 5, 134400, "Not Yet" } } }
+    ns.Shared.ItemFacts = {}
+    for id, g in pairs(GEAR) do ns.Shared.ItemFacts[id] = { 4, 0, g[1], g[2], g[3] } end
     state.instant = {}
     for id, g in pairs(GEAR) do state.instant[id] = g[4] end
     state.instant[8] = "INVTYPE_HEAD"

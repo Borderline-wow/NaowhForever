@@ -110,8 +110,8 @@ local function Fixture(class)
             GetItemCount = function() return 0 end,
         },
     }, { __index = _G })
-    local files = { "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua",
-        "Shared/Parts.lua" }
+    local files = { "Core/Features.lua", "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Game/Items.lua", "Shared/Game/Gear.lua",
+        "Shared/UI/Parts.lua", "Shared/UI/Marks.lua", "Shared/UI/Text.lua", "Shared/UI/Hud.lua", "Shared/UI/Timer.lua", "Shared/UI/Share.lua", "Shared/UI/Panels.lua" }
     for _, path in ipairs(TocFiles("^NaowhForever_BiS/StatWeights/.*%.lua$")) do files[#files + 1] = path end
     Load(files, env)
     ns.Shared.Decode = dofile("Tools/regression/load_decode.lua")(env)
@@ -491,6 +491,7 @@ do
     ns.Font = function(parent) return Frame(parent) end
     ns.Solid = function(parent) return Frame(parent) end
     ns.Border = function() return { SetColor = NOTHING } end
+    ns.NewEditBox = function(parent) return Frame(parent) end
     ns.THEME = setmetatable({}, { __index = function() return { r = 1, g = 1, b = 1 } end })
     ns.UIScale = function() return 1 end
     ns.L = function(text) return text end

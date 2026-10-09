@@ -1,35 +1,46 @@
--------------------------------------------------------------------------------
---  UI/SettingsPage.lua -- the BiS List's settings page (BiS List/Settings in the options
---  window): a card that says where your list stands and opens the BiS List, then the list's
---  marks, Drop Alert with its live preview (UI/AlertPreview.lua), your lists and the window.
---  Stat Weights, the Character Panel and the Naowh Score add their own cards to this page.
--------------------------------------------------------------------------------
+-- SettingsPage.lua: the BiS List's settings page (BiS List/Settings), declared as cards.
 local ns = _G.NaowhForever
+
 local B = ns.BiS
 local S = B.Settings
 local L, R, A = B.Lists, B.Rankings, B.Actions
+local St = B.Style
 
 local Settings = ns.Shared and ns.Shared.Settings
 if not Settings then return end
 
-local St = B.Style
 local PLACE_DOT = St.PLACE_DOT
+local PERCENT, ROUND = B.C.PERCENT, B.C.ROUND
+local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_WINDOW = 10, 20, 30, 80
+local SCALE_RANGE = { 60, 160, 5 }
+local TIME_RANGE = { 2, 15, 1 }
+local ALPHA_RANGE = St.ALPHA_RANGE
+local FONT_RANGE = { 10, 20, 1 }
+local OPACITY_RANGE = St.OPACITY_RANGE
+local TO_FRACTION = St.PERCENT_SCALE
 local BIS_OFF = "Turn on the BiS List"
 local NEEDS_LOOKS = { "bis", "bisToast" }
+local TEXT_HEADLINE = "Your list: %s%s"
+local TEXT_NOTHING_PICKED = "Nothing picked yet: open it and pick each slot's BiS, or import a list."
+local TEXT_HAVE = "You have %d of your %d BiS.%s"
+local TEXT_RUN_NEXT = " Run next: %s, for %d."
+local TEXT_MARKS_BOTH, TEXT_MARKS_TIPS = "On tooltips and in your bags", "On tooltips"
+local TEXT_MARKS_BAGS, TEXT_MARKS_NONE = "In your bags", "Only in its window"
+local TEXT_ON_SCREEN, TEXT_IN_CHAT = ", on screen", ", in chat"
+local TEXT_OPACITY = "%d%% opacity"
 
 local function Headline()
     local list, spec = L.List(), L.CurrentSpec()
-    return ("Your list: %s%s"):format(ns.Color("accentSoft", (list.name:gsub("||", "|"))),
+    return TEXT_HEADLINE:format(ns.Color("accentSoft", (list.name:gsub("||", "|"))),
         spec and ns.Color("muted", PLACE_DOT .. spec.name) or "")
 end
 
 local function Detail()
     local list = L.List()
     local have, total = R.Had(list)
-    if total == 0 then return "Nothing picked yet: open it and pick each slot's BiS, or import a list." end
+    if total == 0 then return TEXT_NOTHING_PICKED end
     local place = R.RunNext(list)[1]
-    return ("You have %d of your %d BiS.%s"):format(have, total,
-        place and (" Run next: %s, for %d."):format(place.name, place.bis) or "")
+    return TEXT_HAVE:format(have, total, place and TEXT_RUN_NEXT:format(place.name, place.bis) or "")
 end
 
 local ALERT_FOR = { { bis = "Your BiS only", top2 = "Your top two", all = "Every pick" }, { "bis", "top2", "all" } }
@@ -38,12 +49,11 @@ local STARS = { { icon = "On the icon, left", iconRight = "On the icon, right", 
 local BORDERS = { { none = "None", black = "Black", quality = "The item's quality",
     rank = "Your rank's colour (BiS orange)" }, { "none", "black", "quality", "rank" } }
 
--- The addon's sounds, with the game's two Drop Alert has always used first.
 local function Sounds()
     local _, names, order = ns.SoundChoices()
     local values, keys = {}, {}
     for key, name in pairs(B.Alerts.GAME_SOUND_NAMES) do values[key] = name end
-    keys[1], keys[2] = "game:raidwarning", "game:epicloot"
+    for i, key in ipairs(B.Alerts.GAME_SOUND_ORDER) do keys[i] = key end
     for _, key in ipairs(order) do
         values[key] = names[key]
         keys[#keys + 1] = key
@@ -51,7 +61,6 @@ local function Sounds()
     return values, keys
 end
 
--- A sound plays as you pick it, the game's own as well as the addon's.
 local function SoundRow(key, label, help)
     return { key = key, label = label, choice = Sounds, needs = "bis", why = BIS_OFF, help = help,
         get = function() return S.Get(key) end,
@@ -61,7 +70,10 @@ local function SoundRow(key, label, help)
         end }
 end
 
-local function ListGet() return select(3, ns.BisListChoices()) end
+local function ListGet()
+    local _, _, id = ns.BisListChoices()
+    return id
+end
 
 local function SpecChoices()
     local values, order = {}, {}
@@ -79,15 +91,15 @@ end
 
 local function MarksSummary(store)
     local tips, bags = store.Get("bisTooltip"), store.Get("bisBagMarks")
-    if tips and bags then return "On tooltips and in your bags" end
-    if tips then return "On tooltips" end
-    if bags then return "In your bags" end
-    return "Only in its window"
+    if tips and bags then return TEXT_MARKS_BOTH end
+    if tips then return TEXT_MARKS_TIPS end
+    if bags then return TEXT_MARKS_BAGS end
+    return TEXT_MARKS_NONE
 end
 
 local function AlertSummary(store)
     local which = ALERT_FOR[1][store.Get("bisAlertFor")] or ALERT_FOR[1].all
-    return which .. (store.Get("bisToast") and ", on screen" or "") .. (store.Get("bisAlertChat") and ", in chat" or "")
+    return which .. (store.Get("bisToast") and TEXT_ON_SCREEN or "") .. (store.Get("bisAlertChat") and TEXT_IN_CHAT or "")
 end
 
 local function ListsSummary()
@@ -96,7 +108,11 @@ local function ListsSummary()
 end
 
 local function WindowSummary(store)
-    return ("%d%% opacity"):format(math.floor((store.Get("bisWindowAlpha") or 1) * 100 + 0.5))
+    return TEXT_OPACITY:format(math.floor((store.Get("bisWindowAlpha") or 1) * PERCENT + ROUND))
+end
+
+local function RefreshPage()
+    if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
 end
 
 local page = Settings.Page("BiS List/Settings", S)
@@ -109,7 +125,7 @@ page:Window({
 })
 
 page:Card({
-    id = "marks", name = "BiS List", order = 10,
+    id = "marks", name = "BiS List", order = ORDER_MARKS,
     help = "Your list's marks on items out in the game.",
     summary = MarksSummary,
     rows = {
@@ -124,7 +140,7 @@ page:Card({
 })
 
 page:Card({
-    id = "dropAlert", name = "Drop Alert", order = 20, switch = "bisLootAlert",
+    id = "dropAlert", name = "Drop Alert", order = ORDER_DROP_ALERT, switch = "bisLootAlert",
     help = "When an item on your list is up for a roll or in the loot window, and again when it is yours. "
         .. "Move the on-screen alert in the HUD Editor.",
     summary = AlertSummary,
@@ -144,11 +160,11 @@ page:Card({
         Settings.Group("On-Screen Alert"),
         { key = "bisToast", label = "On-Screen Alert", toggle = true, needs = "bis", why = BIS_OFF,
           help = "The item, your star and what happened, on screen for a while." },
-        { key = "bisToastScale", label = "Size", slider = { 60, 160, 5 }, unit = "%", scale = 0.01,
+        { key = "bisToastScale", label = "Size", slider = SCALE_RANGE, unit = "%", scale = TO_FRACTION,
           needs = NEEDS_LOOKS, help = "How big the on-screen alert is." },
-        { key = "bisToastTime", label = "Stays For", slider = { 2, 15, 1 }, unit = "s", needs = NEEDS_LOOKS,
+        { key = "bisToastTime", label = "Stays For", slider = TIME_RANGE, unit = "s", needs = NEEDS_LOOKS,
           help = "Seconds before it fades." },
-        { key = "bisToastAlpha", label = "Background", slider = { 0, 100, 5 }, unit = "%", scale = 0.01,
+        { key = "bisToastAlpha", label = "Background", slider = ALPHA_RANGE, unit = "%", scale = TO_FRACTION,
           needs = NEEDS_LOOKS, help = "How solid its background is." },
         { key = "bisToastGlow", label = "Glow", toggle = true, needs = NEEDS_LOOKS,
           help = "A soft glow round it in your rank's colour." },
@@ -156,7 +172,7 @@ page:Card({
           help = "Where your star sits: on the icon's corner, before the name, or hidden." },
         { key = "bisToastBorder", label = "Border", choice = BORDERS, needs = NEEDS_LOOKS,
           help = "Its edge: none, black, the item's quality, or your rank's colour." },
-        Settings.Look("bisToast", { text = true, size = { 10, 20, 1 }, needs = NEEDS_LOOKS }),
+        Settings.Look("bisToast", { text = true, size = FONT_RANGE, needs = NEEDS_LOOKS }),
         Settings.Group("Line Under the Name"),
         { key = "bisToastEvent", label = "What Happened", toggle = true, needs = NEEDS_LOOKS,
           help = "Up for a roll, dropped, or yours." },
@@ -172,7 +188,7 @@ page:Card({
 })
 
 page:Card({
-    id = "lists", name = "Lists", order = 30,
+    id = "lists", name = "Lists", order = ORDER_LISTS,
     help = "Lists are shared by every character of your class; each character keeps using the one picked "
         .. "here. New, Rename, Import, Export and Delete are in the BiS List's window.",
     summary = ListsSummary,
@@ -187,16 +203,13 @@ page:Card({
 })
 
 page:Card({
-    id = "window", name = "Window", order = 80,
+    id = "window", name = "Window", order = ORDER_WINDOW,
     help = "The BiS List's own window, and its Stat Weights window.",
     summary = WindowSummary,
     rows = {
-        { key = "bisWindowAlpha", label = "Window Opacity", slider = { St.OPACITY_MIN, 100, 5 }, unit = "%",
-          scale = 0.01, help = "How solid the BiS List's windows are, in percent. Also on their title bars." },
+        { key = "bisWindowAlpha", label = "Window Opacity", slider = OPACITY_RANGE, unit = "%",
+          scale = TO_FRACTION, help = "How solid the BiS List's windows are, in percent. Also on their title bars." },
     },
 })
 
--- A list picked, renamed or made in the window: the page names it.
-B.OnListChange(function()
-    if ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
-end)
+B.OnListChange(RefreshPage)

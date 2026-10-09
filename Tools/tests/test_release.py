@@ -1,4 +1,4 @@
-"""Tests for Tools/release.py, each in a throwaway git repo. From the repo root:
+"""Tests for Tools/release/release.py, each in a throwaway git repo. From the repo root:
 
     python -m unittest discover -s Tools/tests
 """
@@ -9,12 +9,13 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import paths  # noqa: E402,F401
 import release  # noqa: E402
 
 CHANGELOG = ("# Changelog\r\n\r\n## Unreleased\r\n\r\n### Fixed\r\n- A fix.\r\n\r\n"
              "## 0.5.16-beta\r\n\r\n- Old.\r\n")
 TOC = ("## Interface: 16001\r\n## Title: Naowh Forever\r\n## Version: 0.5.16-beta\r\n"
-       "Core\\NaowhForever_Core.lua\r\n")
+       "Core\\Core.lua\r\n")
 CORE = 'local ns = {}\r\nns.CODE_BUILD = "0.5.16-beta"\r\nreturn ns\r\n'
 FILES = (release.CHANGELOG, release.TOC, release.CORE)
 

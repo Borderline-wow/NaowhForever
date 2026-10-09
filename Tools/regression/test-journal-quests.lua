@@ -93,9 +93,11 @@ local function Fixture(opts)
         QuestDifficultyColors = COLORS,
         GetQuestDifficultyColor = function(questLevel) return DifficultyColor(questLevel, level) end,
     }, { __index = _G })
-    local chunk = assert(loadfile("NaowhForever_DungeonJournal/Quests.lua"))
-    setfenv(chunk, env)
-    chunk()
+    for _, path in ipairs({ "NaowhForever_DungeonJournal/Constants.lua", "NaowhForever_DungeonJournal/Quests.lua" }) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        chunk()
+    end
     local byID = {}
     for _, quest in ipairs(J.QuestData[1].quests) do byID[quest[1]] = quest end
     return J.Quests, byID, seen, J
@@ -517,7 +519,7 @@ Case("every quest in a generated chain is in its own chain", function()
     local ns = { Journal = J }
     local env = setmetatable({ _G = { NaowhForever = ns }, C_QuestLog = {} }, { __index = _G })
     for _, path in ipairs({ "NaowhForever_DungeonJournal/Data/Quests.lua", "NaowhForever_DungeonJournal/Data/QuestChains.lua",
-                            "NaowhForever_DungeonJournal/Quests.lua" }) do
+                            "NaowhForever_DungeonJournal/Constants.lua", "NaowhForever_DungeonJournal/Quests.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()

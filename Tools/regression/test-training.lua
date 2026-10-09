@@ -1,9 +1,5 @@
-local f = assert(io.open(arg[1] or "NaowhForever_Training/NaowhForever_Training.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local function Slice(a, b)
-    local first = assert(source:find(a, 1, true))
-    return source:sub(first, assert(source:find(b, first + #a, true)) - 1)
-end
+local DIR = arg[1] or "NaowhForever_Training"
+local Load = dofile("Tools/regression/load_files.lua")
 
 local NAMES = { [133] = "Fireball", [143] = "Fireball", [145] = "Fireball", [10151] = "Fireball",
     [25306] = "Fireball", [11366] = "Pyroblast", [12505] = "Pyroblast", [3561] = "Teleport: Stormwind",
@@ -19,13 +15,27 @@ local DATA = { [8] = {
 
 -- The module's planner and trainer scan for a mage of the given level and race who knows
 -- `known`, has `ignored` ignored, standing at a trainer offering `services` ({ name, level, cost }).
+-- The module's own files are loaded; the scan runs as the trainer window's event starts it.
 local function Fixture(o)
     local refreshes, account = 0, { trainingIgnored = { ["Me-Realm"] = o.ignored or {} } }
     local known = o.known or {}
+    local frames = {}
+    local S = { Get = function() return true end, OnChange = function() end }
+    local ns = { TrainingData = DATA, AccountSettings = function() return account end,
+        UI = { ModuleSettings = function() return S end, RefreshPage = function() refreshes = refreshes + 1 end } }
     local env = {
-        ns = { TrainingData = DATA, AccountSettings = function() return account end },
-        UI = { RefreshPage = function() refreshes = refreshes + 1 end },
-        S = { Get = function() return true end },
+        NaowhForever = ns,
+        CreateFrame = function()
+            local f = { scripts = {} }
+            function f:SetScript(k, fn) self.scripts[k] = fn end
+            function f.RegisterEvent() end
+            function f.UnregisterEvent() end
+            function f.UnregisterAllEvents() end
+            frames[#frames + 1] = f
+            return f
+        end,
+        hooksecurefunc = function() end,
+        C_Timer = { After = function(_, fn) fn() end },
         UnitClass = function() return "Mage", "MAGE", 8 end,
         UnitRace = function() return "Human", "Human", o.race or 1 end,
         UnitLevel = function() return o.level or 1 end,
@@ -41,11 +51,14 @@ local function Fixture(o)
         end,
         GetTrainerServiceCost = function(i) return o.services[i][3], false end,
     }
-    setmetatable(env, { __index = _G })
-    local code = "local ns, UI, S, Training = ns, UI, S, {}\n" .. Slice("local SOON", "\nlocal scanQueued")
-        .. "\nreturn Plan, ScanTrainer"
-    local chunk = assert(loadstring(code)); setfenv(chunk, env)
-    local plan, scan = chunk()
+    env._G = env
+    Load({ "Core/Features.lua", DIR .. "/Training.lua", DIR .. "/Constants.lua", DIR .. "/Plan.lua",
+        DIR .. "/Builds.lua", DIR .. "/Trainer.lua" }, setmetatable(env, { __index = _G }))
+    local Training = ns.Training
+    local plan = Training.Plan
+    Training.Apply()
+    local trainerEvents = frames[#frames]
+    local function scan() trainerEvents.scripts.OnEvent(trainerEvents, "TRAINER_SHOW") end
     return {
         -- "state: id id; state: id" for the states that have spells.
         Plan = function()
@@ -133,8 +146,10 @@ Case("a profession trainer is not read", function()
 end)
 
 -- What a rank adds, from two ranks' descriptions as the client writes them.
-local compare = assert(loadstring("local Training = {}\n"
-    .. Slice("local STOP", "-- spellID -> what it adds") .. "\nreturn Training.Compare"))()
+local upgrades = { NaowhForever = { Training = {} } }
+upgrades._G = upgrades
+Load({ DIR .. "/Constants.lua", DIR .. "/Upgrades.lua" }, setmetatable(upgrades, { __index = _G }))
+local compare = upgrades.NaowhForever.Training.Compare
 local function Upgrade(old, new)
     local up = compare(old, new)
     return up and ("+%d%% %s %s>%s"):format(up.pct, up.what, up.from, up.to) or "none"

@@ -1,0 +1,119 @@
+{
+  "_about": [
+    "The Dungeon Journal's factions, kept by hand; Tools/build/factions.py turns this into one Lua",
+    "file per faction in NaowhForever_DungeonJournal/Data/Factions, its rewards from the game's item tables",
+    "(every item that needs a standing with the faction). tab is the Journal's tab it is listed",
+    "under: reputation, or pvp for a battleground's faction (side Alliance or Horde: only that",
+    "side sees it). id is the game's faction ID. zone is where its quartermaster is. dungeons are",
+    "the Journal's keys of the dungeons and raids where the reputation is earned, linked both",
+    "ways. group puts factions under one title in the list (the Steamwheedle Cartel's four",
+    "towns). new marks a faction new in WoW Forever. name, when given, replaces the game's.",
+    "side on a reputation faction (a city) lists it only for that side.",
+    "unreleased marks a faction whose raids WoW Forever has not announced: listed apart, closed.",
+    "alsoIn names other zones it is earned in: there too, the map (M) shows it beside it.",
+    "By hand, on top of the game's tables: a faction's \"add\" list adds rewards they do not",
+    "have yet, e.g. { \"item\": 272063, \"standing\": \"Honored\", \"price\": \"9g 1s 14c\",",
+    "\"note\": \"on the PTR\" } (price and note optional), and its \"remove\" list drops item IDs",
+    "they have wrong. Its \"turnins\" list names its repeatable hand-ins, which the game's",
+    "tables do not have (a quest's rewards come from the server): { \"name\": the quest's,",
+    "\"quests\": its IDs (one per side), \"rep\": what one hand-in gives, \"takes\": [[item ID,",
+    "count], ...] }, from the quest's page on Wowhead Forever. See NaowhForever_DungeonJournal/README.md,",
+    "Adding things."
+  ],
+  "factions": [
+    {"key": "ArgentDawn", "id": 529, "tab": "reputation", "zone": "Eastern Plaguelands", "alsoIn": ["Western Plaguelands"], "dungeons": ["Stratholme", "Scholomance"], "quartermaster": {"name": "Quartermaster Miranda Breechlock", "map": 1423, "x": 81.4, "y": 60},
+     "turnins": [
+     {"name": "Minion's Scourgestones", "quests": [5402, 5408, 5510], "rep": 25, "takes": [[12840, 20]], "level": 55, "at": {"5402": ["A", "Argent Officer Pureheart", "Western Plaguelands", 43, 83.6], "5408": ["H", "Argent Officer Garush", "Tirisfal Glades", 83.2, 68.4], "5510": ["B", "Duke Nicholas Zverenhoff", "Eastern Plaguelands", 81.4, 59.8]}, "from": [["Western Plaguelands", 20, ["Blighted Zombie", "Festering Ghoul", "Fetid Zombie", "Foulmane", "Freezing Ghoul", "Hungering Wraith"]], ["Eastern Plaguelands", 20, ["Cannibal Ghoul", "Crypt Fiend", "Crypt Horror", "Crypt Walker", "Cursed Mage", "Dark Caster"]]]},
+     {"name": "Invader's Scourgestones", "quests": [5403, 5407, 5509], "rep": 25, "takes": [[12841, 10]], "level": 55, "at": {"5403": ["A", "Argent Officer Pureheart", "Western Plaguelands", 43, 83.6], "5407": ["H", "Argent Officer Garush", "Tirisfal Glades", 83.2, 68.4], "5509": ["B", "Duke Nicholas Zverenhoff", "Eastern Plaguelands", 81.4, 59.8]}, "from": [["Western Plaguelands", 9, ["Cauldron Lord Bilemaw", "Cauldron Lord Malvinious", "Cauldron Lord Razarch", "Cauldron Lord Soulwrath", "Flesh Golem", "Haunting Vision"]], ["Eastern Plaguelands", 20, ["Abomination", "Bone Witch", "Crypt Slayer", "Dark Adept", "Death Singer", "Diseased Flayer"]]]},
+     {"name": "Corruptor's Scourgestones", "quests": [5404, 5406, 5508], "rep": 25, "takes": [[12843, 1]], "level": 55, "at": {"5404": ["A", "Argent Officer Pureheart", "Western Plaguelands", 43, 83.6], "5406": ["H", "Argent Officer Garush", "Tirisfal Glades", 83.2, 68.4], "5508": ["B", "Duke Nicholas Zverenhoff", "Eastern Plaguelands", 81.4, 59.8]}, "from": [["Western Plaguelands", 2, ["Araj the Summoner", "Putridius"]], ["Eastern Plaguelands", 4, ["Gish the Unmoving", "Hed'mush the Rotting", "Lord Darkscythe", "Shadow of Doom"]]]},
+     {"name": "Felstone Field Cauldron", "quests": [5218], "rep": 25, "takes": [[13320, 1], [13357, 1], [14047, 6]], "level": 53, "at": {"5218": ["B", "Scourge Cauldron", "Western Plaguelands", 37.2, 56.9]}, "from": [["Western Plaguelands", 57, ["Araj the Summoner", "Blighted Zombie", "Cauldron Lord Malvinious", "Cauldron Lord Razarch", "Cavalier Durgen", "Crimson Elite"]]]},
+     {"name": "Dalson's Tears Cauldron", "quests": [5221], "rep": 25, "takes": [[13320, 1], [13356, 1], [14047, 5]], "level": 55, "at": {"5221": ["B", "Scourge Cauldron", "Western Plaguelands", 46.2, 52]}, "from": [["Western Plaguelands", 57, ["Araj the Summoner", "Blighted Zombie", "Cauldron Lord Bilemaw", "Cavalier Durgen", "Crimson Elite", "Fallen Hero"]]]},
+     {"name": "Writhing Haunt Cauldron", "quests": [5224], "rep": 25, "takes": [[13320, 1], [13356, 1], [14047, 5]], "level": 55, "at": {"5224": ["B", "Scourge Cauldron", "Western Plaguelands", 53, 65.7]}, "from": [["Western Plaguelands", 57, ["Araj the Summoner", "Blighted Zombie", "Cauldron Lord Bilemaw", "Cavalier Durgen", "Crimson Elite", "Fallen Hero"]]]},
+     {"name": "Gahrron's Withering Cauldron", "quests": [5227], "rep": 25, "takes": [[13320, 1], [13354, 1], [14047, 4]], "level": 58, "at": {"5227": ["B", "Scourge Cauldron", "Western Plaguelands", 62.5, 58.6]}, "from": [["Western Plaguelands", 56, ["Araj the Summoner", "Blighted Zombie", "Cauldron Lord Soulwrath", "Cavalier Durgen", "Crimson Elite", "Fallen Hero"]]]}
+     ]},
+    {"key": "ThoriumBrotherhood", "id": 59, "tab": "reputation", "zone": "Blackrock Depths", "alsoIn": ["Searing Gorge"], "dungeons": ["BlackrockDepths"],
+     "turnins": [
+     {"name": "Gaining Acceptance", "quests": [7737], "rep": 25, "takes": [[18945, 4]], "level": 60, "at": {"7737": ["B", "Master Smith Burninate", "Searing Gorge", 38.6, 28.4]}, "from": []},
+     {"name": "Restoring Fiery Flux Supplies via Kingsblood", "quests": [7736], "rep": 25, "takes": [[18944, 2], [3356, 2], [3857, 4]], "level": 60, "at": {"7736": ["B", "Master Smith Burninate", "Searing Gorge", 38.6, 28.4]}, "from": [["Searing Gorge", 10, ["Blazing Elemental", "Duke Searbrand", "Firelands Drudge", "Firelands Invader", "Incendosaur", "Inferno Elemental"]]]},
+     {"name": "Restoring Fiery Flux Supplies via Iron", "quests": [8241], "rep": 25, "takes": [[18944, 2], [3575, 2], [3857, 4]], "level": 60, "at": {"8241": ["B", "Master Smith Burninate", "Searing Gorge", 38.6, 28.4]}, "from": [["Searing Gorge", 9, ["Blazing Elemental", "Duke Searbrand", "Firelands Drudge", "Firelands Invader", "Incendosaur", "Inferno Elemental"]], ["The Barrens", 1, ["Fel Interloper"]], ["Redridge Mountains", 1, ["Fel Interloper"]], ["Ashenvale", 1, ["Fel Interloper"]], ["Swamp of Sorrows", 1, ["Fel Interloper"]], ["Desolace", 1, ["Fel Interloper"]], ["Blasted Lands", 1, ["Fel Interloper"]], ["Azshara", 1, ["Fel Interloper"]], ["Feralas", 1, ["Fel Interloper"]]]},
+     {"name": "Restoring Fiery Flux Supplies via Heavy Leather", "quests": [8242], "rep": 25, "takes": [[18944, 2], [4234, 2], [3857, 10]], "level": 60, "at": {"8242": ["B", "Master Smith Burninate", "Searing Gorge", 38.6, 28.4]}, "from": [["Searing Gorge", 10, ["Blazing Elemental", "Duke Searbrand", "Firelands Drudge", "Firelands Invader", "Incendosaur", "Inferno Elemental"]]]},
+     {"name": "Favor Amongst the Brotherhood, Dark Iron Ore", "quests": [6642], "rep": 50, "takes": [[11370, 10]], "level": 60, "at": {"6642": ["B", "Lokhtos Darkbargainer", "Blackrock Depths", null, null]}, "from": [["Blackrock Depths", 7, ["Marshal Windsor", "Molten War Golem", "Panzor the Invincible", "Phalanx", "Ragereaver Golem", "Warbringer Construct"]]]},
+     {"name": "Favor Amongst the Brotherhood, Core Leather", "quests": [6645], "rep": 150, "takes": [[17012, 2]], "level": 60, "at": {"6645": ["B", "Lokhtos Darkbargainer", "Blackrock Depths", null, null]}, "from": []},
+     {"name": "Favor Amongst the Brotherhood, Fiery Core", "quests": [6643], "rep": 200, "takes": [[17010, 1]], "level": 60, "at": {"6643": ["B", "Lokhtos Darkbargainer", "Blackrock Depths", null, null]}, "from": []},
+     {"name": "Favor Amongst the Brotherhood, Lava Core", "quests": [6644], "rep": 200, "takes": [[17011, 1]], "level": 60, "at": {"6644": ["B", "Lokhtos Darkbargainer", "Blackrock Depths", null, null]}, "from": []},
+     {"name": "Favor Amongst the Brotherhood, Blood of the Mountain", "quests": [6646], "rep": 200, "takes": [[11382, 1]], "level": 60, "at": {"6646": ["B", "Lokhtos Darkbargainer", "Blackrock Depths", null, null]}, "from": []}
+     ]},
+    {"key": "TimbermawHold", "id": 576, "tab": "reputation", "zone": "Felwood", "alsoIn": ["Winterspring"], "quartermaster": {"name": "Meilosh", "map": 1448, "x": 65.4, "y": 2.8},
+     "turnins": [
+     {"name": "Feathers for Grazle", "quests": [8466], "rep": 50, "takes": [[21377, 5]], "level": 55, "at": {"8466": ["B", "Grazle", "Felwood", 51, 85]}, "from": [["Felwood", 10, ["Chieftain Bloodmaw", "Cleansed Songflower", "Deadwood Avenger", "Deadwood Den Watcher", "Deadwood Gardener", "Deadwood Pathfinder"]]]},
+     {"name": "Feathers for Nafien", "quests": [8467], "rep": 50, "takes": [[21377, 5]], "level": 55, "at": {"8467": ["B", "Nafien", "Felwood", 64.8, 8.2]}, "from": [["Felwood", 10, ["Chieftain Bloodmaw", "Cleansed Songflower", "Deadwood Avenger", "Deadwood Den Watcher", "Deadwood Gardener", "Deadwood Pathfinder"]]]},
+     {"name": "Beads for Salfa", "quests": [8469], "rep": 50, "takes": [[21383, 5]], "level": 56, "at": {"8469": ["B", "Salfa", "Winterspring", 27.8, 34.4]}, "from": [["Winterspring", 7, ["High Chief Winterfall", "Winterfall Den Watcher", "Winterfall Pathfinder", "Winterfall Runner", "Winterfall Shaman", "Winterfall Totemic"]]]}
+     ]},
+    {"key": "CenarionCircle", "id": 609, "tab": "reputation", "zone": "Silithus", "alsoIn": ["Moonglade"], "quartermaster": {"name": "Kania", "map": 1451, "x": 52, "y": 39.4},
+     "turnins": [
+     {"name": "Encrypted Twilight Texts", "quests": [8319], "rep": 100, "takes": [[20404, 10]], "level": 60, "at": {"8319": ["B", "Bor Wildmane", "Silithus", 48.6, 37.6]}, "from": [["Silithus", 10, ["Twilight Avenger", "Twilight Flamereaver", "Twilight Geolord", "Twilight Lord Everun", "Twilight Marauder", "Twilight Marauder Morna"]]]},
+     {"name": "Abyssal Crests", "quests": [8362], "rep": 50, "takes": [[20513, 3]], "level": 60, "at": {"8362": ["B", "Bor Wildmane", "Silithus", 48.6, 37.6]}, "from": [["Silithus", 4, ["Azure Templar", "Crimson Templar", "Earthen Templar", "Hoary Templar"]]]},
+     {"name": "Abyssal Signets", "quests": [8363], "rep": 100, "takes": [[20514, 3]], "level": 60, "at": {"8363": ["B", "Bor Wildmane", "Silithus", 48.6, 37.6]}, "from": [["Silithus", 4, ["The Duke of Cynders", "The Duke of Fathoms", "The Duke of Shards", "The Duke of Zephyrs"]]]},
+     {"name": "Abyssal Scepters", "quests": [8364], "rep": 150, "takes": [[20515, 3]], "level": 60, "at": {"8364": ["B", "Bor Wildmane", "Silithus", 48.6, 37.6]}, "from": [["Silithus", 4, ["Baron Kazum", "High Marshal Whirlaxis", "Lord Skwol", "Prince Skaldrenox"]]]},
+     {"name": "The Four Dukes", "quests": [8538], "rep": 100, "takes": [[20948, 1]], "level": 60, "at": {"8538": ["B", "Commander Mar'alith", "Silithus", 49.2, 34.2]}, "from": []}
+     ]},
+    {"key": "ZandalarTribe", "id": 270, "tab": "reputation", "zone": "Stranglethorn Vale", "unreleased": true},
+    {"key": "BroodOfNozdormu", "id": 910, "tab": "reputation", "zone": "Tanaris", "unreleased": true},
+    {"key": "HydraxianWaterlords", "id": 749, "tab": "reputation", "zone": "Azshara", "unreleased": true},
+    {"key": "BootyBay", "id": 21, "tab": "reputation", "group": "Steamwheedle Cartel", "zone": "Stranglethorn Vale", "quartermaster": {"name": "Gezzy Gunkgear", "map": 1434, "x": 28.2, "y": 74.8}},
+    {"key": "Gadgetzan", "id": 369, "tab": "reputation", "group": "Steamwheedle Cartel", "zone": "Tanaris", "quartermaster": {"name": "Rettrick", "map": 1446, "x": 51.6, "y": 28.6},
+     "turnins": [
+     {"name": "Water Pouch Bounty", "quests": [1878], "rep": 10, "takes": [[8483, 5]], "level": 44, "at": {"1878": ["B", "Spigot Operator Luglunket", "Tanaris", 52.4, 28.4]}, "from": [["Tanaris", 6, ["Wastewander Assassin", "Wastewander Bandit", "Wastewander Rogue", "Wastewander Scofflaw", "Wastewander Shadow Mage", "Wastewander Thief"]]]}
+     ]},
+    {"key": "Ratchet", "id": 470, "tab": "reputation", "group": "Steamwheedle Cartel", "zone": "The Barrens", "quartermaster": {"name": "Winklespark", "map": 1413, "x": 62.4, "y": 37.6}},
+    {"key": "Everlook", "id": 577, "tab": "reputation", "group": "Steamwheedle Cartel", "zone": "Winterspring", "quartermaster": {"name": "Zippie Fizzbolt", "map": 1452, "x": 61.4, "y": 38.6}},
+    {"key": "NightclawDruids", "id": 2758, "tab": "reputation", "zone": "Zephras Isle", "new": true, "quartermaster": {"name": "Vayn Moongaze", "map": 2521, "x": 63.8, "y": 36}},
+    {"key": "KirinTor", "id": 2740, "tab": "reputation", "zone": "Dalaran", "alsoIn": ["Alterac Mountains"], "new": true, "quartermaster": {"name": "Archmage Alvareaux", "map": 1416, "x": 14, "y": 63.2}},
+    {"key": "EarthenRing", "id": 2787, "tab": "reputation", "zone": "Mulgore", "new": true, "quartermaster": {"name": "Sutara Plainstalker", "map": 1412, "x": 34.4, "y": 22.8}},
+    {"key": "GuardiansOfHyjal", "id": 2765, "tab": "reputation", "zone": "Mount Hyjal", "new": true, "quartermaster": {"name": "Rhylin Stonethorn", "map": 2482, "x": 70.6, "y": 51.2}},
+    {"key": "Powderfuse", "id": 2827, "tab": "reputation", "zone": "Riverglades", "new": true, "quartermaster": {"name": "Friz Frazzlespark", "map": 2548, "x": 77, "y": 52.8}},
+    {"key": "TheWatchers", "id": 2819, "tab": "reputation", "new": true},
+    {"key": "Stormwind", "id": 72, "tab": "reputation", "group": "Cities", "side": "Alliance", "zone": "Stormwind City",
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7796], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7796": ["A", "Clavicus Knavingham", "Stormwind City", 44.2, 73.6]}, "from": [["Stormwind City", 1, ["Stormwind Royal Guard"]]]}
+     ]},
+    {"key": "Ironforge", "id": 47, "tab": "reputation", "group": "Cities", "side": "Alliance", "zone": "Ironforge",
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7806], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7806": ["A", "Mistina Steelshield", "Ironforge", 43.2, 32]}, "from": []}
+     ]},
+    {"key": "GnomereganExiles", "id": 54, "tab": "reputation", "group": "Cities", "side": "Alliance", "zone": "Ironforge",
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7812], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7812": ["A", "Bubulo Acerbus", "Ironforge", 73.8, 47.8]}, "from": []}
+     ]},
+    {"key": "Darnassus", "id": 69, "tab": "reputation", "group": "Cities", "side": "Alliance", "zone": "Darnassus", "alsoIn": ["Teldrassil"],
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7801], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7801": ["A", "Raedon Duskstriker", "Darnassus", 63.8, 22.8]}, "from": []},
+     {"name": "Morrowgrain to Darnassus", "quests": [3803], "rep": 50, "takes": [[11040, 10]], "level": 55, "at": {"3803": ["A", "Mathrengyl Bearwalker", "Darnassus", 35.2, 8]}, "from": []},
+     {"name": "Morrowgrain to Feathermoon Stronghold", "quests": [3792], "rep": 25, "takes": [[11040, 5]], "level": 55, "at": {"3792": ["A", "Quintis Jonespyre", "Feralas", 32.4, 43.8]}, "from": []}
+     ]},
+    {"key": "Orgrimmar", "id": 76, "tab": "reputation", "group": "Cities", "side": "Horde", "zone": "Orgrimmar",
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7832], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7832": ["H", "Rashona Straglash", "Orgrimmar", 63.4, 51]}, "from": []},
+     {"name": "Chen's Empty Keg", "quests": [822], "rep": 50, "takes": [[4898, 5], [4897, 5], [4896, 1]], "level": 24, "at": {"822": ["H", "Brewmaster Drohn", "The Barrens", 62.2, 38.4]}, "from": [["The Barrens", 8, ["Barrens Kodo", "Brontus", "Greater Barrens Kodo", "Greater Thunderhawk", "Lakota'mani", "Lost Barrens Kodo"]]]}
+     ]},
+    {"key": "ThunderBluff", "id": 81, "tab": "reputation", "group": "Cities", "side": "Horde", "zone": "Thunder Bluff", "alsoIn": ["Mulgore"],
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7825], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7825": ["H", "Rumstag Proudstrider", "Thunder Bluff", 43.2, 42.8]}, "from": []},
+     {"name": "Morrowgrain to Thunder Bluff", "quests": [3804], "rep": 50, "takes": [[11040, 10]], "level": 55, "at": {"3804": ["H", "Bashana Runetotem", "Thunder Bluff", 70.8, 33.8]}, "from": []}
+     ]},
+    {"key": "Undercity", "id": 68, "tab": "reputation", "group": "Cities", "side": "Horde", "zone": "Undercity",
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7819], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7819": ["H", "Ralston Farnsley", "Undercity", 71.6, 28.8]}, "from": []}
+     ]},
+    {"key": "DarkspearTrolls", "id": 530, "tab": "reputation", "group": "Cities", "side": "Horde", "zone": "Orgrimmar", "alsoIn": ["Durotar"],
+     "turnins": [
+     {"name": "Additional Runecloth", "quests": [7837], "rep": 50, "takes": [[14047, 20]], "level": 60, "at": {"7837": ["H", "Vehena", "Orgrimmar", 37.8, 87.6]}, "from": []}
+     ]},
+    {"key": "AzerothCommerceAuthority", "id": 2586, "tab": "reputation", "zone": "Redridge Mountains", "new": true, "quartermaster": {"name": "Tamelyn Aldridge", "map": 1433, "x": 10.4, "y": 71.4}},
+    {"key": "DurotarSupplyAndLogistics", "id": 2587, "tab": "reputation", "zone": "The Barrens", "new": true, "quartermaster": {"name": "Gishah", "map": 1413, "x": 49.4, "y": 29.4}},
+    {"key": "LeagueOfArathor", "id": 509, "tab": "pvp", "side": "Alliance", "zone": "Arathi Highlands", "battleground": "Arathi Basin", "quartermaster": {"name": "Samuel Hawke", "map": 1417, "x": 46, "y": 45.2}},
+    {"key": "Defilers", "id": 510, "tab": "pvp", "side": "Horde", "zone": "Arathi Highlands", "battleground": "Arathi Basin", "quartermaster": {"name": "Rutherford Twing", "map": 1417, "x": 73.4, "y": 29.8}},
+    {"key": "TheramoreExpeditionaryForce", "id": 2799, "tab": "pvp", "side": "Alliance", "zone": "The Barrens", "battleground": "Darkspear Islands", "new": true},
+    {"key": "DarkspearRaiders", "id": 2798, "tab": "pvp", "side": "Horde", "zone": "The Barrens", "battleground": "Darkspear Islands", "new": true, "quartermaster": {"name": "Creeg Bothunk", "map": 1413, "x": 65, "y": 34.4}}
+  ]
+}

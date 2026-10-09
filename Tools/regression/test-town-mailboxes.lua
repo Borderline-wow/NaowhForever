@@ -11,7 +11,7 @@ local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
 local ns = {}
-local chunk = assert(loadstring(Read("QoL/NaowhForever_TownMailboxes.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/TownMailboxes.lua")))
 setfenv(chunk, { _G = { NaowhForever = ns } })
 chunk()
 
@@ -29,10 +29,10 @@ for _, capital in ipairs({ 1453, 1454, 1455, 1456, 1457, 1458 }) do
     Check(ns.TownMailboxes[capital] ~= nil, "the capital has mailboxes: " .. capital)
 end
 
-local map = Read("QoL/NaowhForever_TownMap.lua")
+local map = Read("NaowhForever_QoL/Interface/TownMap.lua")
 Check(map:find('mail       = { "townMail",', 1, true), "the town map knows the mail category")
 Check(map:find("ns.TownMailboxes[mapID]", 1, true), "and draws the mailboxes")
 Check(map:find('if S.Get("townMail") then', 1, true), "everywhere: Town Pins Only in Capitals is for vendors and trainers")
-Check(Read("QoL/NaowhForever_QoL.lua"):find("townMail = true", 1, true), "Mailboxes start on")
+Check(Read("Core/Settings.lua"):find("townMail = true", 1, true), "Mailboxes start on")
 
 print(("test-town-mailboxes: %d checks passed"):format(checks))
