@@ -5,11 +5,11 @@
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local f = assert(io.open("NaowhForever_Blessings/NaowhForever_Blessings.lua", "rb"))
+local f = assert(io.open("NaowhForever_Blessings/AutoAssign.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n")
 f:close()
 local first = assert(source:find("local WANTED = {", 1, true))
-local last = assert(source:find("-- Your own plan, and everyone else's", first, true))
+local last = assert(source:find("local function ApplyPlans(plans)", first, true))
 local chunk = source:sub(first, last - 1) .. "return AutoPlans"
 
 local CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }

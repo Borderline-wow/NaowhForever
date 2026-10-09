@@ -1,0 +1,417 @@
+-- TownMap.lua: the QoL town map: service NPCs, mailboxes and spirit healers on the world map and minimap.
+local ns = _G.NaowhForever
+
+local S = ns.QoLSettings
+
+local TEMPLATE = "NaowhForeverTownPinTemplate"
+local LINK_TEMPLATE = "NaowhForeverZoneLinkPinTemplate"
+local TRAVEL_ATLAS = "vehicle-templeofkotmogu-cyanball"
+local EXIT_ATLAS = "house-reward-green-arrow-up"
+local EXIT_LENGTH = 1.8
+local CAPITALS = ns.TownCapitals
+local PERCENT = ns.QoLConstants.PERCENT
+local PERMILLE, TENTHS, ROUND = ns.QoLConstants.PERMILLE, ns.QoLConstants.TENTHS, ns.QoLConstants.ROUND
+local ICON_CROP_LOW, ICON_CROP_HIGH = ns.QoLConstants.ICON_CROP, ns.QoLConstants.ICON_CROP_HIGH
+local CLASS_ICON = "Interface\\Icons\\ClassIcon_"
+local HINT = ns.QoLConstants.HINT_RGB
+local EMPTY = {}
+local MINI_SIZE = 12
+local MINI_INTERVAL = 0.05
+local PIN_RANGE = { 10, 28, 1 }
+local MINI_EVENTS = { "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_ENTERING_WORLD" }
+local MOVE_EVENTS = { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING", "MINIMAP_UPDATE_ZOOM" }
+local AUDIT_EVENTS = { "GOSSIP_SHOW", "MERCHANT_SHOW", "TRAINER_SHOW", "TAXIMAP_OPENED",
+    "BANKFRAME_OPENED", "AUCTION_HOUSE_SHOW", "PET_STABLE_SHOW" }
+local TOWN_SHOW = { "townSpiritHealers", "townZoneLinks", "townTravel", "townClass", "townProfession", "townFlight",
+    "townInn", "townBank", "townRepair", "townSupplies", "townStable", "townVendors", "townMail" }
+
+local CATEGORIES = {
+    spirit     = { "townSpiritHealers", "Interface\\Icons\\Spell_Holy_GuardianSpirit", "Spirit Healer" },
+    class      = { "townClass", nil, "Class Trainer" },
+    profession = { "townProfession", "Interface\\Icons\\INV_Misc_Book_09", "Trainer" },
+    flight     = { "townFlight", "Interface\\Icons\\Ability_Mount_Gryphon_01", "Flight Master" },
+    inn        = { "townInn", "Interface\\Icons\\INV_Misc_Rune_01", "Innkeeper" },
+    bank       = { "townBank", "Interface\\Icons\\INV_Misc_Bag_10", "Banker" },
+    auction    = { "townBank", "Interface\\Icons\\INV_Misc_Coin_01", "Auctioneer" },
+    stable     = { "townStable", "Interface\\Icons\\Ability_Hunter_BeastTaming", "Stable Master" },
+    repair     = { "townRepair", "Interface\\Icons\\Trade_BlackSmithing", "Repairs" },
+    reagents   = { "townSupplies", "Interface\\Icons\\INV_Misc_Dust_01", "Reagents" },
+    ammo       = { "townSupplies", "Interface\\Icons\\INV_Ammo_Arrow_01", "Ammunition" },
+    food       = { "townSupplies", "Interface\\Icons\\INV_Misc_Food_14", "Food & Drink" },
+    trade      = { "townVendors", "Interface\\Icons\\INV_Fabric_Linen_01", "Trade Goods" },
+    vendor     = { "townVendors", "Interface\\Icons\\INV_Misc_Bag_07", "Vendor" },
+    mail       = { "townMail", "Interface\\Icons\\INV_Letter_15", "Send and collect mail" },
+}
+local EVERYWHERE = { flight = true, inn = true, stable = true }
+
+local TEXT_LEFT = "Left-click: "
+local TEXT_RIGHT = "Right-click: "
+local TEXT_OPEN_ZONE = "Click to open this zone"
+local TEXT_AUDIT_NEAR = "%s: you %.1f, %.1f / data %.1f, %.1f, %.1f apart"
+local TEXT_AUDIT_MISSING = "%s: you %.1f, %.1f on map %d, not in the data"
+local TEXT_AUDIT = "Town audit %s. %d NPCs recorded so far."
+local TEXT_AUDIT_ON = "on: open an NPC's window while standing next to them"
+local TEXT_AUDIT_OFF = "off"
+local TEXT_SUMMARY = "%d of %d shown%s"
+local TEXT_CAPITALS = ", vendors and trainers in cities only"
+
+local miniPins, miniSpots = {}, {}
+local miniMap, miniWidth, miniHeight
+local miniCont, miniOX, miniOY, miniUX, miniUY, miniVX, miniVY, miniDet
+local moving, elapsed = false, 0
+local added
+local auditing = false
+local mini = CreateFrame("Frame")
+local audit = CreateFrame("Frame")
+
+local function SoftBlue(r, g, b)
+    local c = ns.ThemeTint("accentSoft", nil)
+    if c then return c.r, c.g, c.b end
+    return r, g, b
+end
+
+local function On()
+    return S.Get("enabled") and S.Get("townMap")
+end
+
+local function Tenths(share)
+    return math.floor(share * PERMILLE + ROUND) / TENTHS
+end
+
+local function ClassIcon(token)
+    return CLASS_ICON .. token:lower():gsub("^%l", string.upper)
+end
+
+NaowhForeverTownPinMixin = CreateFromMixins(MapCanvasPinMixin)
+
+function NaowhForeverTownPinMixin:OnLoad()
+    self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
+end
+
+function NaowhForeverTownPinMixin:CheckMouseButtonPassthrough() end
+
+function NaowhForeverTownPinMixin:OnAcquired(npc)
+    self.npc = npc
+    local size = S.Get("townPinSize")
+    self:SetSize(size, size)
+    self.Icon:SetTexture(CATEGORIES[npc[3]][2] or ClassIcon(npc[6]))
+    self.Icon:SetTexCoord(ICON_CROP_LOW, ICON_CROP_HIGH, ICON_CROP_LOW, ICON_CROP_HIGH)
+    self:SetPosition(npc[1] / PERCENT, npc[2] / PERCENT)
+end
+
+function NaowhForeverTownPinMixin:OnMouseEnter()
+    local npc = self.npc
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(npc[4], 1, 1, 1)
+    local title = npc[5] ~= "" and npc[5] or CATEGORIES[npc[3]][3]
+    GameTooltip:AddLine(title, SoftBlue(HINT.r, HINT.g, HINT.b))
+    GameTooltip:Show()
+end
+
+function NaowhForeverTownPinMixin:OnMouseLeave()
+    GameTooltip:Hide()
+end
+
+NaowhForeverZoneLinkPinMixin = CreateFromMixins(MapCanvasPinMixin)
+
+function NaowhForeverZoneLinkPinMixin:OnLoad()
+    self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
+end
+
+function NaowhForeverZoneLinkPinMixin:CheckMouseButtonPassthrough() end
+
+function NaowhForeverZoneLinkPinMixin:OnAcquired(link)
+    self.link = link
+    local size = S.Get("townPinSize")
+    local length = link.atlasName == EXIT_ATLAS and size * EXIT_LENGTH or size
+    self:SetSize(length, length)
+    self.Icon:SetAtlas(link.atlasName)
+    self.Icon:SetSize(size, length)
+    self.Icon:SetRotation(link.rotation or 0)
+    self:SetPosition(link.position:GetXY())
+end
+
+function NaowhForeverZoneLinkPinMixin:OnClick(button)
+    local link = self.link
+    if button == "RightButton" and link.rightUiMapID then
+        self:GetMap():SetMapID(link.rightUiMapID)
+    elseif button == "LeftButton" then
+        self:GetMap():SetMapID(link.linkedUiMapID)
+    end
+end
+
+function NaowhForeverZoneLinkPinMixin:OnMouseEnter()
+    local link = self.link
+    local r, g, b = SoftBlue(HINT.r, HINT.g, HINT.b)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(link.name)
+    if link.rightUiMapID then
+        GameTooltip:AddLine(link.rightName, 1, 1, 1)
+        GameTooltip:AddLine(TEXT_LEFT .. C_Map.GetMapInfo(link.linkedUiMapID).name, r, g, b)
+        GameTooltip:AddLine(TEXT_RIGHT .. C_Map.GetMapInfo(link.rightUiMapID).name, r, g, b)
+    elseif link.linkedUiMapID ~= self:GetMap():GetMapID() then
+        GameTooltip:AddLine(TEXT_OPEN_ZONE, r, g, b)
+    end
+    GameTooltip:Show()
+end
+
+function NaowhForeverZoneLinkPinMixin:OnMouseLeave() GameTooltip:Hide() end
+
+local provider = CreateFromMixins(MapCanvasDataProviderMixin)
+
+function provider:RemoveAllData()
+    self:GetMap():RemoveAllPinsByTemplate(TEMPLATE)
+    self:GetMap():RemoveAllPinsByTemplate(LINK_TEMPLATE)
+end
+
+local function AddExits(map, mapID)
+    for _, exit in ipairs(ns.ZoneExits[mapID] or EMPTY) do
+        map:AcquirePin(LINK_TEMPLATE, { name = C_Map.GetMapInfo(exit[4]).name,
+            atlasName = EXIT_ATLAS, position = CreateVector2D(exit[1] / PERCENT, exit[2] / PERCENT),
+            rotation = exit[3], linkedUiMapID = exit[4] })
+    end
+end
+
+local function AddDocks(map, mapID, faction)
+    for _, dock in ipairs(ns.TownTravel[mapID] or EMPTY) do
+        if dock[3]:find(faction, 1, true) then
+            map:AcquirePin(LINK_TEMPLATE, { name = dock[4], atlasName = TRAVEL_ATLAS,
+                position = CreateVector2D(dock[1] / PERCENT, dock[2] / PERCENT), linkedUiMapID = dock[5],
+                rightName = dock[6], rightUiMapID = dock[7] })
+        end
+    end
+end
+
+local function AddNPCs(map, list, faction, class, shops)
+    for _, npc in ipairs(list or EMPTY) do
+        local kind = npc[3]
+        if (shops or EVERYWHERE[kind]) and npc[7]:find(faction, 1, true) and S.Get(CATEGORIES[kind][1])
+            and (kind ~= "class" or npc[6] == class) then
+            map:AcquirePin(TEMPLATE, npc)
+        end
+    end
+end
+
+local function AddAll(map, list)
+    for _, entry in ipairs(list or EMPTY) do
+        map:AcquirePin(TEMPLATE, entry)
+    end
+end
+
+function provider:RefreshAllData()
+    self:RemoveAllData()
+    if not On() then return end
+    local map = self:GetMap()
+    local mapID = map:GetMapID()
+    local shops = not S.Get("townCapitalsOnly") or CAPITALS[mapID]
+    if S.Get("townZoneLinks") then AddExits(map, mapID) end
+    local faction = UnitFactionGroup("player") == "Horde" and "H" or "A"
+    local _, class = UnitClass("player")
+    if S.Get("townTravel") then AddDocks(map, mapID, faction) end
+    AddNPCs(map, ns.TownNPCs[mapID], faction, class, shops)
+    if S.Get("townMail") then
+        AddAll(map, ns.TownMailboxes[mapID])
+    end
+    if S.Get("townSpiritHealers") then
+        AddAll(map, ns.TownSpiritHealers[mapID])
+    end
+end
+
+local function MiniOn()
+    return On() and (S.Get("townMinimap") or S.Get("townMinimapSpirit"))
+end
+
+local function MiniFit(map)
+    local cont, o = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(0, 0))
+    local _, u = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(1, 0))
+    local _, v = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(0, 1))
+    if not (o and u and v) then return false end
+    miniCont, miniOX, miniOY = cont, o:GetXY()
+    local ux, uy = u:GetXY()
+    local vx, vy = v:GetXY()
+    miniUX, miniUY, miniVX, miniVY = ux - miniOX, uy - miniOY, vx - miniOX, vy - miniOY
+    miniDet = miniUX * miniVY - miniUY * miniVX
+    return miniDet ~= 0
+end
+
+local function HideMiniPins()
+    for _, pin in ipairs(miniPins) do pin:Hide() end
+end
+
+local function Inside(dx, dy, radius, square)
+    if square then return math.abs(dx) <= radius and math.abs(dy) <= radius end
+    return dx * dx + dy * dy <= radius * radius
+end
+
+local function MiniPlace()
+    local wx, wy, _, cont = UnitPosition("player")
+    if not wx or cont ~= miniCont then
+        HideMiniPins()
+        return
+    end
+    local rx, ry = wx - miniOX, wy - miniOY
+    local px = (rx * miniVY - ry * miniVX) / miniDet
+    local py = (miniUX * ry - miniUY * rx) / miniDet
+    local radius = C_Minimap.GetViewRadius()
+    local facing = C_CVar.GetCVarBool("rotateMinimap") and GetPlayerFacing() or 0
+    local sin, cos = math.sin(facing), math.cos(facing)
+    local square = GetMinimapShape and GetMinimapShape() == "SQUARE"
+    local scaleX, scaleY = Minimap:GetWidth() / 2 / radius, Minimap:GetHeight() / 2 / radius
+    for i, spot in ipairs(miniSpots) do
+        local dx = (spot[1] / PERCENT - px) * miniWidth
+        local dy = (py - spot[2] / PERCENT) * miniHeight
+        dx, dy = dx * cos + dy * sin, dy * cos - dx * sin
+        local pin = miniPins[i]
+        pin:SetPoint("CENTER", Minimap, "CENTER", dx * scaleX, dy * scaleY)
+        pin:SetShown(Inside(dx, dy, radius, square))
+    end
+end
+
+local function MiniTick(_, delta)
+    elapsed = elapsed + delta
+    if elapsed < MINI_INTERVAL then return end
+    elapsed = 0
+    MiniPlace()
+end
+
+local function MiniUpdate()
+    local live = #miniSpots > 0 and (moving or C_CVar.GetCVarBool("rotateMinimap"))
+    mini:SetScript("OnUpdate", live and MiniTick or nil)
+end
+
+local function AddSpots(list)
+    for _, spot in ipairs(list or EMPTY) do miniSpots[#miniSpots + 1] = spot end
+end
+
+local function MiniPin(i)
+    local pin = miniPins[i]
+    if pin then return pin end
+    pin = CreateFrame("Frame", nil, Minimap, TEMPLATE)
+    pin:SetSize(MINI_SIZE, MINI_SIZE)
+    pin.Icon:SetTexCoord(ICON_CROP_LOW, ICON_CROP_HIGH, ICON_CROP_LOW, ICON_CROP_HIGH)
+    pin:SetScript("OnEnter", pin.OnMouseEnter)
+    pin:SetScript("OnLeave", pin.OnMouseLeave)
+    miniPins[i] = pin
+    return pin
+end
+
+local function WatchMoving(on)
+    for _, event in ipairs(MOVE_EVENTS) do
+        if on then mini:RegisterEvent(event) else mini:UnregisterEvent(event) end
+    end
+end
+
+local function MiniRefresh()
+    wipe(miniSpots)
+    miniMap = MiniOn() and C_Map.GetBestMapForUnit("player")
+    if miniMap and MiniFit(miniMap) then
+        if S.Get("townMinimap") then AddSpots(ns.TownMailboxes[miniMap]) end
+        if S.Get("townMinimapSpirit") then AddSpots(ns.TownSpiritHealers[miniMap]) end
+        miniWidth, miniHeight = C_Map.GetMapWorldSize(miniMap)
+    end
+    for i = #miniSpots + 1, #miniPins do miniPins[i]:Hide() end
+    for i, spot in ipairs(miniSpots) do
+        local pin = MiniPin(i)
+        pin.npc = spot
+        pin.Icon:SetTexture(CATEGORIES[spot[3]][2])
+    end
+    WatchMoving(#miniSpots > 0)
+    if #miniSpots > 0 then
+        moving = IsPlayerMoving()
+        MiniPlace()
+    end
+    MiniUpdate()
+end
+
+local function OnMiniEvent(_, event)
+    if event == "PLAYER_STARTED_MOVING" or event == "PLAYER_STOPPED_MOVING" then
+        moving = event == "PLAYER_STARTED_MOVING"
+        MiniPlace()
+        MiniUpdate()
+    elseif event == "MINIMAP_UPDATE_ZOOM" then
+        MiniPlace()
+    else
+        MiniRefresh()
+    end
+end
+
+local function MiniApply()
+    for _, event in ipairs(MINI_EVENTS) do
+        if MiniOn() then mini:RegisterEvent(event) else mini:UnregisterEvent(event) end
+    end
+    MiniRefresh()
+end
+
+local function Apply()
+    if not added then
+        WorldMapFrame:AddDataProvider(provider)
+        added = true
+    end
+    if WorldMapFrame:IsShown() then provider:RefreshAllData() end
+    MiniApply()
+end
+
+local function Record(map, name, x, y)
+    local log = ns.AccountSettings()
+    log.townAudit = log.townAudit or {}
+    log.townAudit[map] = log.townAudit[map] or {}
+    log.townAudit[map][name] = { x, y }
+end
+
+local function OnAuditEvent()
+    local name = UnitName("npc")
+    local map = C_Map.GetBestMapForUnit("player")
+    local pos = map and C_Map.GetPlayerMapPosition(map, "player")
+    if not (name and pos) then return end
+    local x, y = pos:GetXY()
+    x, y = Tenths(x), Tenths(y)
+    Record(map, name, x, y)
+    for _, npc in ipairs(ns.TownNPCs[map] or EMPTY) do
+        if npc[4] == name then
+            ns.Print(TEXT_AUDIT_NEAR:format(name, x, y, npc[1], npc[2], math.sqrt((x - npc[1]) ^ 2 + (y - npc[2]) ^ 2)))
+            return
+        end
+    end
+    ns.Print(TEXT_AUDIT_MISSING:format(name, x, y, map))
+end
+
+function ns.TownAudit()
+    auditing = not auditing
+    for _, event in ipairs(AUDIT_EVENTS) do
+        if auditing then audit:RegisterEvent(event) else audit:UnregisterEvent(event) end
+    end
+    local count = 0
+    for _, names in pairs(ns.AccountSettings().townAudit or EMPTY) do
+        for _ in pairs(names) do count = count + 1 end
+    end
+    ns.Print(TEXT_AUDIT:format(auditing and TEXT_AUDIT_ON or TEXT_AUDIT_OFF, count))
+end
+
+local function TownSummary(store)
+    local shown = 0
+    for i = 1, #TOWN_SHOW do
+        if store.Get(TOWN_SHOW[i]) then shown = shown + 1 end
+    end
+    return TEXT_SUMMARY:format(shown, #TOWN_SHOW, store.Get("townCapitalsOnly") and TEXT_CAPITALS or "")
+end
+
+mini:SetScript("OnEvent", OnMiniEvent)
+audit:SetScript("OnEvent", OnAuditEvent)
+
+hooksecurefunc(S, "Set", function(key)
+    if key == "enabled" or key:find("^town") then Apply() end
+end)
+hooksecurefunc(ns, "Apply", Apply)
+
+local boot = CreateFrame("Frame")
+boot:RegisterEvent("PLAYER_LOGIN")
+boot:SetScript("OnEvent", Apply)
+
+ns.Shared.Settings.Page("QoL/Interface", S):Card({
+    id = "townMap", name = "Map Pins", order = 40, switch = "townMap",
+    help = "Service NPCs for your faction on the world map; pick which with its Map Pins button.",
+    summary = TownSummary,
+    rows = {
+        { key = "townPinSize", label = "Pin Size", slider = PIN_RANGE },
+    },
+})

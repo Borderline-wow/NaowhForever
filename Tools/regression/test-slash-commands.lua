@@ -70,7 +70,7 @@ local env = {
 }
 env._G = env
 setmetatable(env, { __index = _G })
-local chunk = assert(loadstring(Read("QoL/NaowhForever_SlashCommands.lua"), "SlashCommands"))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/System/SlashCommands.lua"), "SlashCommands"))
 setfenv(chunk, env)
 chunk()
 local ns = env.NaowhForever
@@ -163,7 +163,7 @@ check("a window command still opens its window", kb.shown)
 check("the chat box was never touched: " .. table.concat(touched, ", "), #touched == 0)
 
 -- No code in the module reaches for the game's chat box.
-local source = Read("QoL/NaowhForever_SlashCommands.lua")
+local source = Read("NaowhForever_QoL/System/SlashCommands.lua")
 for _, word in ipairs({ "SendText", "ChatFrame1EditBox", "DEFAULT_CHAT_FRAME", "ChatEdit_" }) do
     check("the module does not use " .. word, not source:find(word, 1, true))
 end

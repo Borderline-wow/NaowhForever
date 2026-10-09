@@ -14,7 +14,7 @@ local frames = 0
 local ns
 ns = { THEME = { bg = {}, panel = {}, line = {}, fg = {}, muted = {}, accent = {}, grey = {} },
     L = function(text) return ns.translations and ns.translations[text] or text end,
-    Color = function(token, text) return "<" .. token .. ":" .. (text or "") .. ">" end, Shared = {}, UI = {} }
+    Color = function(token, text) return "<" .. token .. ":" .. (text or "") .. ">" end, Shared = { Style = dofile("Tools/regression/shared_style.lua") }, UI = { PROFILES_PAGE = "Profiles" } }
 local env = { _G = { NaowhForever = ns }, CreateFrame = function() frames = frames + 1; return {} end }
 setmetatable(env, { __index = _G })
 local function Load(path)
@@ -23,7 +23,8 @@ local function Load(path)
     chunk()
 end
 Load("Shared/Settings/Settings.lua")
-Load("Core/NaowhForever_Search.lua")
+Load("Shared/Settings/Style.lua")
+Load("Core/Options/Search.lua")
 local UI, Settings = ns.UI, ns.Shared.Settings
 
 local store = { Get = function() end, Set = function() end, Default = function() end, OnChange = function() end }
@@ -54,6 +55,7 @@ local pages = {
 }
 meter.tabs = { pages[2], pages[3] }
 solo.tabs = { pages[4] }
+---@diagnostic disable-next-line: duplicate-set-field
 function UI.SearchPages() return pages end
 
 local list = UI.Search.Collect()
@@ -130,6 +132,89 @@ do
     Check(f and #f.order == 0 and next(f.count) == nil, "nothing found is a filter with no pages")
 end
 
+-- The Profiles page is drawn by its own builder and carries the Setups card, a declared settings
+-- page of its own (the real ProfilesPage.lua and SetupsCard.lua): the card and its settings are
+-- found on the Profiles page, which then shows that card alone, its words lit.
+do
+    ns.QoLSettings = store
+    ns.PRESETS = { order = { "minimalist" }, minimalist = { name = "Minimalist" } }
+    Load("Core/Options/ProfilesPage.lua")
+    Load("Core/Profiles/SetupsCard.lua")
+    local profiles = { key = "Profiles", name = "Profiles", title = "Profiles" }
+    local shown = UI.SearchPages
+    ---@diagnostic disable-next-line: duplicate-set-field
+    UI.SearchPages = function() return { pages[1], profiles, pages[2] } end
+    local carried = UI.Search.Collect()
+    local function Hit(query)
+        local hits = UI.Search.Find(carried, query)
+        return hits[1], #hits
+    end
+    for _, query in ipairs({ "setups", "setup", "tailor setup", "before tailoring", "restore" }) do
+        local hit = Hit(query)
+        Check(hit and hit.page == "Profiles" and hit.card == "Profiles/Setups:setups" and hit.tag == "Profiles",
+            "'" .. query .. "' is found on the Profiles page, in the Setups card")
+    end
+    local card, n = Hit("setups")
+    Check(card.isCard and card.trail == "" and n == 4, "the card itself is a target, named by its page, then its three settings")
+    local row = Hit("questions")
+    Check(row.label == "Tailor Setup" and not row.isCard and row.trail == "Setups", "a row names its card")
+    local f = UI.Search.Build(carried, "questions")
+    Check(f.count.Profiles == 1 and f.first.Profiles == "Profiles/Setups:setups" and f.order[1] == "Profiles"
+        and f.cards["Profiles/Setups:setups"]["Tailor Setup"], "the filter counts it on the Profiles page")
+    Check(UI.Search.Build(carried, "profiles").all.Profiles, "the page's own name still keeps all of it")
+
+    local rendered, built = {}, 0
+    local render, view = Settings.Render, ns.Shared.View
+    Settings.Render = function(_, key, _, filter)
+        rendered[#rendered + 1] = { key = key, filter = filter }
+        return 50
+    end
+    local profilesView = { Hide = function(self) self.hidden = true end }
+    ns.Shared.View = { New = function() built = built + 1; return profilesView end }
+    local host = { GetWidth = function() return 700 end }
+    local function Frame()
+        return { ClearAllPoints = function() end, SetPoint = function() end, SetWidth = function() end,
+            SetHeight = function() end }
+    end
+    env.CreateFrame = Frame
+    UI.filter = UI.Search.Build(carried, "questions")
+    local y = ns.BuildProfileSettings(host, -10)
+    Check(rendered[1].key == "Profiles/Setups" and rendered[1].filter == UI.filter,
+        "found, the Setups card draws with the search's filter")
+    Check(y == -60 and built == 0, "and the rest of the Profiles page is left out")
+    host.profilesView = profilesView
+    ns.BuildProfileSettings(host, -10)
+    Check(profilesView.hidden, "a profiles list drawn before hides while the search narrows the page")
+    UI.filter = UI.Search.Build(carried, "profiles")
+    Check(UI.Search.Narrowed("Profiles") == nil, "the page found by its name is not narrowed")
+    UI.filter = UI.Search.Build(carried, "bar size")
+    Check(UI.Search.Narrowed("Profiles") == nil, "nor the page with no match on it")
+    UI.filter = nil
+    Check(UI.Search.Narrowed("Profiles") == nil, "nor with no search")
+
+    local refreshed = 0
+    function UI.RefreshPage() refreshed = refreshed + 1 end
+    local input
+    ns.Shared.Parts = { SearchBox = function(_, _, onText)
+        input = onText
+        return { SetText = function() end, GetText = function() return "" end, ClearFocus = function() end }
+    end }
+    function UI.RegisterOnHide() end
+    UI.AttachSearchBox({}, function() end)
+    input("bar size")
+    Check(refreshed == 0, "a search that does not touch the Profiles page redraws nothing more")
+    input("tailor")
+    Check(refreshed == 1, "one that finds the Setups card redraws the Profiles page with it")
+    input("tailor setup")
+    Check(refreshed == 2, "and again as the words change")
+    input("")
+    Check(refreshed == 3 and UI.filter == nil, "cleared, the Profiles page is drawn whole again")
+    input("bar")
+    Check(refreshed == 3, "then a search elsewhere redraws nothing more")
+
+    Settings.Render, ns.Shared.View, UI.SearchPages = render, view, shown
+end
+
 -- The typed words, lit in the accent where they start a word.
 do
     local Mark, f = UI.Search.Mark, UI.Search.Build(list, "tim sou")
@@ -142,8 +227,8 @@ end
 
 -- The builder scan, its row tags, the jump's glow and the old bar are gone for good.
 do
-    local widgets = Read("Core/NaowhForever_Widgets.lua")
-    local window = Read("Core/NaowhForever_Window.lua")
+    local widgets = Read("Core/Options/Widgets.lua")
+    local window = Read("Core/Options/Window.lua")
     Check(not widgets:find("searchScan", 1, true) and not widgets:find("_searchL", 1, true), "no scan in the widgets")
     Check(not window:find("noscan", 1, true) and not window:find("Flash", 1, true), "no scan flags or glow in the window")
     Check(window:find("searchBox = UI.AttachSearchBox(sidebar", 1, true), "the sidebar holds the search box")

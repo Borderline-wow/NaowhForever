@@ -70,7 +70,7 @@ Case("the Looting card no longer offers it", function()
         hooksecurefunc = function() end,
     }, { __index = _G })
     env._G = env
-    local chunk = assert(loadfile("QoL/NaowhForever_DeleteConfirm.lua"))
+    local chunk = assert(loadfile("NaowhForever_QoL/Loot/DeleteConfirm.lua"))
     setfenv(chunk, env)
     chunk()
     assert(card and card.id == "looting", "Looting card not built")

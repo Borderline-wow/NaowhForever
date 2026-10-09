@@ -1,0 +1,8 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Core.xml: the namespace, the feature switches, presets, message senders and waypoints. -->
+    <Script file="Core.lua"/>
+    <Script file="Features.lua"/>
+    <Script file="Profiles\Presets.lua"/>
+    <Script file="Senders.lua"/>
+    <Script file="Waypoint.lua"/>
+</Ui>

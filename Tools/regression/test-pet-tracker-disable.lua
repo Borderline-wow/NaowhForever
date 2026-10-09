@@ -1,7 +1,7 @@
-local file = assert(io.open("QoL/NaowhForever_PetTracker.lua", "rb"))
+local file = assert(io.open("NaowhForever_QoL/Combat/PetTracker.lua", "rb"))
 local source = file:read("*a"):gsub("\r\n", "\n"); file:close()
-local first = assert(source:find("local function Apply()", 1, true))
-local last = assert(source:find('hooksecurefunc(S, "Set"', first, true))
+local first = assert(source:find("local function CancelDismount()", 1, true))
+local last = assert(source:find('events:SetScript("OnEvent", OnEvent)', first, true))
 local cancelled, hidden, cleared = 0, 0, 0
 local env = {
  On = function() return false end,

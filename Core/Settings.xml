@@ -1,0 +1,6 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Settings.xml: the QoL settings store, Naowh's setups applied to it, and the Alerts group. -->
+    <Script file="Settings.lua"/>
+    <Script file="Profiles\Setups.lua"/>
+    <Script file="AlertStack.lua"/>
+</Ui>

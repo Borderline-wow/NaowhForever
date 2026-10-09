@@ -1,41 +1,39 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- The BiS List, in load order: its core, the data, the rules, how it draws a page, and
-         where it shows. Each layer uses only the ones above it and Shared. See README.md. -->
+    <!-- BiS.xml: the BiS List's files, in load order. -->
     <Script file="BiS.lua"/>
-    <!-- The data, generated: wowsrc.com's rankings per spec (Tools/build_bis_data.py), where
-         out in the world the NPC that drops a BiS stands (Tools/build_bis_spots.py) and every
-         enchant (Tools/build_enchants.py). What drops in a dungeon is the Dungeon Journal's, and
-         what each stat is worth the Stat Weights module's -->
+    <Script file="Constants.lua"/>
     <Script file="Data\BiS.lua"/>
     <Script file="Data\Spots.lua"/>
     <Script file="Data\Enchants.lua"/>
-    <!-- The rules: rankings and class rules, your lists, what your BiS gets you and how much
-         stronger each makes you, the best
-         enchant, sharing a list, its marks on tooltips, clicks and loot, the quests that
-         reward your picks, and where a click on an item's source goes -->
     <Script file="Rankings.lua"/>
     <Script file="Lists.lua"/>
     <Script file="Gains.lua"/>
     <Script file="Upgrades.lua"/>
     <Script file="Enchants.lua"/>
     <Script file="Sharing.lua"/>
+    <Script file="Marks.lua"/>
     <Script file="Alerts.lua"/>
     <Script file="Quests.lua"/>
     <Script file="Sources.lua"/>
-    <!-- Drawing a page: its look, the view, its rows, a pick's menu, the paperdoll, the drop
-         toast, the marks on your bags' items and the Quests page -->
     <Script file="View\Style.lua"/>
     <Script file="View\View.lua"/>
-    <Script file="View\Rows.lua"/>
+    <Script file="View\Cells.lua"/>
+    <Script file="View\Summary.lua"/>
+    <Script file="View\EnchantBadge.lua"/>
+    <Script file="View\SlotRow.lua"/>
+    <Script file="View\PickRow.lua"/>
+    <Script file="View\BackupRow.lua"/>
+    <Script file="View\PlaceRow.lua"/>
     <Script file="View\ScoreCard.lua"/>
     <Script file="View\Paperdoll.lua"/>
     <Script file="View\Toast.lua"/>
+    <Script file="View\RollBadge.lua"/>
     <Script file="View\Bags.lua"/>
     <Script file="View\QuestsPage.lua"/>
-    <!-- Where it shows: what you can do with a list, a slot's picker, the window, the settings page -->
     <Script file="UI\Actions.lua"/>
     <Script file="UI\Picker.lua"/>
     <Script file="UI\Window.lua"/>
+    <Script file="UI\AlertTest.lua"/>
     <Script file="UI\AlertPreview.lua"/>
     <Script file="UI\SettingsPage.lua"/>
 </Ui>

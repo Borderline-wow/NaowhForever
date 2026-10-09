@@ -55,7 +55,7 @@ env._G = env
 local function Check(editBox) editBox:GetParent():GetButton1():SetEnabled(editBox:GetText() == "DELETE") end
 env.StaticPopupDialogs = { DELETE_GOOD_ITEM = { EditBoxOnTextChanged = Check }, DELETE_ITEM = {},
     DELETE_QUEST_ITEM = {}, DELETE_GOOD_QUEST_ITEM = { EditBoxOnTextChanged = Check } }
-local chunk = assert(loadfile("QoL/NaowhForever_DeleteConfirm.lua"))
+local chunk = assert(loadfile("NaowhForever_QoL/Loot/DeleteConfirm.lua"))
 setfenv(chunk, env)
 chunk()
 

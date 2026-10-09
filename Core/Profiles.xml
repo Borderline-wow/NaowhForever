@@ -1,0 +1,6 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Profiles.xml: the profile strings, their Export and Import dialogs and the Profiles page. -->
+    <Script file="Profiles\ProfileShare.lua"/>
+    <Script file="Profiles\ProfileDialogs.lua"/>
+    <Script file="Options\ProfilesPage.lua"/>
+</Ui>

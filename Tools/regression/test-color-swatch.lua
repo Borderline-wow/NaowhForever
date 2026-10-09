@@ -1,8 +1,10 @@
 -- The shared color swatch: UI.BuildColorSwatchControl cut out of Widgets.lua and run against a
 -- color picker that behaves like Blizzard's (swatchFunc fires as it opens, cancelFunc on Escape).
-local f = assert(io.open("Core/NaowhForever_Widgets.lua", "rb"))
+local f = assert(io.open("Core/Options/Widgets.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local body = assert(source:match("\n(function UI%.BuildColorSwatchControl%(.-\nend)\n"), "BuildColorSwatchControl")
+local constants = assert(source:match("\n(local MEDIA = .-\n)\nlocal UI = {}\n"), "Widgets constants")
+local body = constants .. assert(source:match("\n(local function Near%(a, b%).-\nfunction UI%.BuildColorSwatchControl%(.-\nend)\n"),
+    "BuildColorSwatchControl")
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
@@ -26,7 +28,7 @@ end
 local function Swatch(get, hasAlpha)
     local sets = {}
     local env = setmetatable({ UI = {}, CreateFrame = Frame, ColorPickerFrame = picker,
-        ns = { Border = function() end, Solid = function() return Frame() end },
+        ns = { MEDIA = dofile("Tools/regression/core_media.lua"), Border = function() end, Solid = function() return Frame() end },
         T = { fg = {} } }, { __index = _G })
     local chunk = assert(loadstring(body))
     setfenv(chunk, env)

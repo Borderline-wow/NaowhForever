@@ -1,0 +1,21 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Blessings.xml: the Blessings module's files, in load order. -->
+    <Script file="Blessings.lua"/>
+    <Script file="Data\Spells.lua"/>
+    <Script file="Lookup.lua"/>
+    <Script file="Group.lua"/>
+    <Script file="Buffs.lua"/>
+    <Script file="Plans.lua"/>
+    <Script file="AutoAssign.lua"/>
+    <Script file="View\Look.lua"/>
+    <Script file="View\Watch.lua"/>
+    <Include file="UI\BlessButton.xml"/>
+    <Script file="UI\Recipient.lua"/>
+    <Script file="UI\Keys.lua"/>
+    <Script file="UI\Menus.lua"/>
+    <Script file="UI\PlayerList.lua"/>
+    <Script file="UI\Bar.lua"/>
+    <Script file="UI\Assignments.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+    <Script file="UI\Window.lua"/>
+</Ui>

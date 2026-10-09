@@ -1,12 +1,15 @@
--- Loads QoL's Food & Drink Bar and NaowhForever_Macros.lua against stubbed macro, bag and item
--- APIs and checks what they write. Run from the repo root: lua Tools/regression/test-macros.lua
+-- Loads the shared food lists, QoL's Food & Drink Bar and the Macros module's rules (Macros.lua through Profile.lua)
+-- against stubbed macro, bag and item APIs and checks what they write. Run from the repo root:
+-- lua Tools/regression/test-macros.lua
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local text = f:read("*a"); f:close()
     return text
 end
-local foodSource = Read("QoL/NaowhForever_FoodBar.lua")
-local source = Read(arg[1] or "NaowhForever_Macros/NaowhForever_Macros.lua")
+local foodSource = Read("NaowhForever_QoL/Loot/FoodBar.lua")
+local MACRO_FILES = { "Macros.lua", "Constants.lua", "Data/Items.lua", "Commands.lua", "Smart.lua", "Profile.lua" }
+local sources = { Read("Core/Features.lua"), Read("Shared/Game/Consumables.lua"), foodSource }
+for _, file in ipairs(MACRO_FILES) do sources[#sources + 1] = Read("NaowhForever_Macros/" .. file) end
 
 local FOOD, DRINK = "Food", "Drink"
 -- itemID -> { spell, required level }
@@ -63,13 +66,13 @@ local function Fixture(opts)
     local mover
     local ns = {
         QoLSettings = Q,
+        Shared = { Style = dofile("Tools/regression/shared_style.lua") },
         SettingsRoot = function() return { macros = settings, qol = qol } end,
-        Shared = { Items = { HEALTHSTONES = { 9421, 5509 }, HEALING_POTIONS = { 13446, 929 } } },
         Print = function(msg) printed[#printed + 1] = msg end,
         AccountSettings = function() return account end,
         Apply = function() end,
-        ShowRaidReminderAnchorConfig = function() end,
-        HideRaidReminderAnchorConfig = function() end,
+        ShowUnlockMode = function() end,
+        HideUnlockMode = function() end,
         Font = function() return Frame() end,
         Border = function() end,
         PixelInset = function() end,
@@ -108,6 +111,7 @@ local function Fixture(opts)
         IsInRaid = function() return group == "raid" end,
         IsInGroup = function() return group ~= nil end,
         UnitClass = function() return "Class", opts.class or "MAGE" end,
+        wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
         C_Container = {
             GetContainerNumSlots = function() return #bags end,
             GetContainerItemID = function(_, slot) return bags[slot] end,
@@ -155,7 +159,7 @@ local function Fixture(opts)
     env._G = { NaowhForever = ns, SLASH_SAY1 = "/say", SLASH_CAST1 = "/cast", SLASH_SCRIPT1 = "/run",
         SLASH_TARGET_MARKER1 = "/tm", EMOTE1_CMD1 = "/wave" }
     setmetatable(env, { __index = _G })
-    for _, text in ipairs({ foodSource, source }) do
+    for _, text in ipairs(sources) do
         local chunk
         if setfenv then
             chunk = assert(loadstring(text)); setfenv(chunk, env)
@@ -212,7 +216,8 @@ do
     t.Fire("BAG_UPDATE_DELAYED")
     Check("no writes before PLAYER_ENTERING_WORLD", #t.macros, 0)
     t.Fire("PLAYER_ENTERING_WORLD")
-    Check("health, healthstone first", t.Body("NF Health"), "#showtooltip\n/use item:5509")
+    Check("health, healthstone then potion", t.Body("NF Health"),
+        "#showtooltip\n/castsequence reset=combat item:5509, item:929")
     Check("trinket 1", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
     Check("mana not made while off", t.Body("NF Mana"), nil)
 end
@@ -221,10 +226,36 @@ end
 do
     local t = Fixture({ settings = { health = true, healthOrder = "potion" }, bags = { 929, 5509 } })
     t.Fire("PLAYER_ENTERING_WORLD")
-    Check("health, potion first", t.Body("NF Health"), "#showtooltip\n/use item:929")
+    Check("health, potion then healthstone", t.Body("NF Health"),
+        "#showtooltip\n/castsequence reset=combat item:929, item:5509")
     t.Bags({ 5509 })
     t.Fire("BAG_UPDATE_DELAYED")
     Check("potion first falls back to a stone", t.Body("NF Health"), "#showtooltip\n/use item:5509")
+end
+
+-- Forever's Discolored potions count; battleground draughts and Whipper Root Tuber do not.
+do
+    local t = Fixture({ settings = { health = true, healthOrder = "potion" }, bags = { 17348, 11951, 247241, 858 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("health, Discolored over a lower potion", t.Body("NF Health"),
+        "#showtooltip\n/castsequence reset=combat item:247241, item:858")
+    t = Fixture({ settings = { health = true, healthOrder = "potion" }, bags = { 17348, 11951 } })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("health, no draught or tuber", t.Body("NF Health"), nil)
+end
+
+-- One step per potion carried, so running out of one kind mid-fight moves on to the next.
+do
+    local bags = { 13446, 3928, 3928, 3928, 3928, 3928, 3928, 3928, 3928, 3928, 5509 }
+    local superiors = string.rep(", item:3928", 7)
+    local t = Fixture({ settings = { health = true }, bags = bags })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("health, stone then eight potion steps", t.Body("NF Health"),
+        "#showtooltip\n/castsequence reset=combat item:5509, item:13446" .. superiors)
+    t = Fixture({ settings = { health = true, healthOrder = "potion" }, bags = bags })
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("health, potion first puts the stone second", t.Body("NF Health"),
+        "#showtooltip\n/castsequence reset=combat item:13446, item:5509" .. superiors)
 end
 
 -- Food and drink: conjured wins over a higher level, the best level wins otherwise.

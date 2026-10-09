@@ -1,4 +1,4 @@
-"""Tests for Tools/wowsrc.py's daily check: what wowsrc's pages say now that wowsrc_loot.json
+"""Tests for Tools/sources/wowsrc.py's daily check: what wowsrc's pages say now that wowsrc_loot.json
 (what the Journal was built from) does not. Offline, made-up pages. From the repo root:
 
     python -m unittest discover -s Tools/tests
@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import paths  # noqa: E402,F401
 import wowsrc  # noqa: E402
 
 

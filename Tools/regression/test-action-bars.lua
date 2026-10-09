@@ -1,6 +1,12 @@
 -- Bar sets against a small fake of the action bars, spellbook, macros and cursor, driven
 -- through the /nf bars command the way a player would.
-local PATH = arg[1] or "NaowhForever_ActionBars/NaowhForever_ActionBars.lua"
+-- The module's rules as ActionBars.xml lists them, and the saved sets page; not its window.
+local FILES = { "Core/Features.lua" }
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_ActionBars/.*%.lua$")) do
+    if not path:find("/View/") and (not path:find("/UI/") or path:find("/UI/SetsPage%.lua$")) then
+        FILES[#FILES + 1] = path
+    end
+end
 
 -- Spells by id: name, rank and the level it is learned at.
 local SPELLS = {
@@ -174,7 +180,9 @@ local function World(known)
     }
     env._G.NaowhForever = ns
     setmetatable(env, { __index = _G })
-    local chunk = assert(loadfile(PATH)); setfenv(chunk, env); chunk()
+    for _, path in ipairs(FILES) do
+        local chunk = assert(loadfile(path)); setfenv(chunk, env); chunk()
+    end
     w.run = ns.ActionBarsCommand
     return w
 end

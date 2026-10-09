@@ -1,76 +1,65 @@
--------------------------------------------------------------------------------
---  UI/FactionList.lua -- the list down the left of the Journal's window on its Reputation
---  and PvP tabs (ns.Journal.FactionList), where the Dungeon List is on the first. The
---  Reputation tab's factions under their titles (new in Forever, the classic ones, the
---  Steamwheedle Cartel's towns); the PvP tab's rank, then the battleground factions of the
---  sides the faction switch lists. Each row: the one shown marked, NEW before the ones new
---  in Forever, your BiS among its rewards counted, and your standing in its colour over a
---  small bar; a check after its name at Exalted. A card on hover. Made by the window the
---  first time it opens.
--------------------------------------------------------------------------------
+-- FactionList.lua: the faction list on the window's Reputation and PvP tabs (J.FactionList).
 local ns = _G.NaowhForever
+
 local T = ns.THEME
 local J = ns.Journal
 local Loot = J.Loot
 local Rep = J.Reputation
 local S = J.Settings
-
+local Parts = ns.Shared.Parts
+local LP = J.ListParts
 local St = J.Style
 local BIS_RGB, BIS_CODE, TERRITORY_CODE, PLACE_DOT = St.BIS_RGB, St.BIS_CODE, St.TERRITORY_CODE, St.PLACE_DOT
-local LIST_W, LIST_ROW, GROUP_H, STRIPE = St.LIST_W, St.LIST_ROW, St.GROUP_H, St.STRIPE
-local NAME_SIZE, COUNT_SIZE, FOREVER_H = St.LIST_NAME_SIZE, St.LIST_COUNT_SIZE, St.FOREVER_H
-local Parts = ns.Shared.Parts
-local BAR, BAR_GAP, STANDING_W, ROUND = St.LIST_BAR, St.LIST_BAR_GAP, St.LIST_STANDING_W, St.ROUND
-local TERRITORY_ICON, FACTION_ATLAS = St.TERRITORY_ICON, St.FACTION_ATLAS
+local LIST_ROW, GROUP_H, NAME_SIZE, COUNT_SIZE = St.LIST_ROW, St.GROUP_H, St.LIST_NAME_SIZE, St.LIST_COUNT_SIZE
+local STANDING_W, ROUND, TERRITORY_ICON, FACTION_ATLAS = St.LIST_STANDING_W, St.ROUND, St.TERRITORY_ICON,
+    St.FACTION_ATLAS
+local STAR_TAG, DONE_MARK = St.STAR_TAG, St.DONE_MARK
+local NAME_LEFT, ICON_DROP, GROUP_GAP, STRIPE_EVERY = LP.NAME_LEFT, LP.ICON_DROP, LP.GROUP_GAP, LP.STRIPE_EVERY
 
-local STAR_TAG = ("|T%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t "):format(St.STAR, BIS_RGB.r * 255,
-    BIS_RGB.g * 255, BIS_RGB.b * 255)
-local DONE = ("|T%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t"):format(St.CHECK, St.HAVE_RGB.r * 255,
-    St.HAVE_RGB.g * 255, St.HAVE_RGB.b * 255)
-
--- A row as the Dungeon List's: the accent bar, Forever's mark in its column, the name; then
--- on the right your BiS count, the standing and its bar, and a battleground faction's crest.
-local ROW_W = LIST_W - BAR - BAR_GAP - 2
-local SELECTED_BAR = 3
--- The mark with as much room before it, after the bar, as it leaves before the name.
-local MARK_GAP = 9
-local NEW_LEFT = SELECTED_BAR + MARK_GAP
-local NAME_LEFT = NEW_LEFT + St.FOREVER_H * 2 + MARK_GAP
 local GAP, RIGHT = 8, 8
-local PILL = 4              -- the standing's bar: as thick as a drop chance's
-local ICON_DROP = 1         -- the crest level with the digits, as the Dungeon List's
-local GROUP_GAP = 4
-local UNMET = 0.45          -- a faction you have not met: its row this faint
--- The columns on the right, each at a fixed width so they line up down the list: the rewards
--- your standing has reached ("6/49") and the standing's name, both right-aligned.
+local PILL = 4
+local MIN_FILL = 0.1
+local UNMET = 0.45
 local UNLOCKED_W, STANDING_NAME_W = 30, 56
-local UNRELEASED = "Not in Forever yet"   -- closed until opened (openUnreleased)
 
-local List = {}
-J.FactionList = List
-
--- Each tab's titles, in order, and which a faction is under.
+local TEXT_UNRELEASED = "Not in Forever yet"
+local TEXT_YOUR_RANK = "Your Rank"
+local TEXT_BATTLEGROUNDS = "Battlegrounds"
+local TEXT_NEW = "New in Forever"
+local TEXT_CLASSIC = "Classic"
 local GROUPS = {
-    reputation = { "New in Forever", "Classic", "Cities", "Steamwheedle Cartel", UNRELEASED },
-    pvp = { "Your Rank", "Battlegrounds" },
+    reputation = { TEXT_NEW, TEXT_CLASSIC, "Cities", "Steamwheedle Cartel", TEXT_UNRELEASED },
+    pvp = { TEXT_YOUR_RANK, TEXT_BATTLEGROUNDS },
 }
+local TEXT_YOUR_PVP_RANK = "Your PvP Rank"
+local TEXT_PVP_RANK = "PvP Rank"
+local TEXT_RANK = "Rank "
+local TEXT_RANK_HELP = "Your rank this season, and what each rank gives."
+local TEXT_QUARTERMASTER = "Quartermaster in "
+local TEXT_NOT_MET = "Not met yet"
+local TEXT_VALUE = "  %s / %s"
+local TEXT_UNLOCKED = "%d of its %d rewards for you unlocked"
+local TEXT_NO_REWARDS = "No rewards for you in this build yet"
+local TEXT_BIS = "%s%d of your %d BiS among its rewards are yours|r"
+local TEXT_NOT_ANNOUNCED = "Its raids are not announced for WoW Forever yet."
+local TEXT_FRACTION = "%s/%s"
+local TEXT_CODE_END = "|r"
+local TEXT_DONE_GAP = "  "
 
-local function GroupOf(page)
-    if page.rank then return "Your Rank" end
-    if page.tab == "pvp" then return "Battlegrounds" end
-    if page.unreleased then return UNRELEASED end
-    return page.group or (page.new and "New in Forever" or "Classic")
-end
-
-local rows, headers = {}, {}   -- every row, both tabs'; each tab's titles by name
+local rows, headers = {}, {}
 local onSelect, shownTab
-local filters = {}             -- read when a count is shown (JournalFilters)
-local order = {}               -- the shown rows' pages in order, for Up and Down; reused
+local filters = {}
+local order = {}
+local counted = {}
 local scroll, content
 
--------------------------------------------------------------------------------
---  A row's small standing bar: a track with round ends, and a fill with round ends
--------------------------------------------------------------------------------
+local function GroupOf(page)
+    if page.rank then return TEXT_YOUR_RANK end
+    if page.tab == "pvp" then return TEXT_BATTLEGROUNDS end
+    if page.unreleased then return TEXT_UNRELEASED end
+    return page.group or (page.new and TEXT_NEW or TEXT_CLASSIC)
+end
+
 local function Dot(row, layer, color)
     local dot = row:CreateTexture(nil, layer)
     dot:SetTexture(ROUND, nil, nil, "TRILINEAR")
@@ -102,243 +91,150 @@ local function SetPill(row, share, color)
     row.fillStart:SetShown(any)
     row.fillEnd:SetShown(any)
     if not any then return end
-    row.fill:SetWidth(math.max(0.1, (STANDING_W - PILL) * math.min(1, share)))
+    row.fill:SetWidth(math.max(MIN_FILL, (STANDING_W - PILL) * math.min(1, share)))
     row.fill:SetVertexColor(color.r, color.g, color.b, 1)
     row.fillStart:SetVertexColor(color.r, color.g, color.b, 1)
     row.fillEnd:SetVertexColor(color.r, color.g, color.b, 1)
 end
 
--------------------------------------------------------------------------------
---  A row and its card
--------------------------------------------------------------------------------
-local function RowEnter(row)
-    local page = row.page
-    if not row.selected then row.band:SetAlpha(0.05) end
-    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-    GameTooltip:SetText(page.rank and "Your PvP Rank" or page.name)
-    if page.rank then
-        local info = Rep.Rank()
-        if info then
-            GameTooltip:AddLine("Rank " .. info.renownLevel .. PLACE_DOT .. Rep.RankTitle(info.renownLevel), 1, 1, 1)
-        end
-        GameTooltip:AddLine("Your rank this season, and what each rank gives.", T.muted.r, T.muted.g, T.muted.b,
-            true)
-        GameTooltip:Show()
+local function RankLines()
+    local info = Rep.Rank()
+    if info then
+        GameTooltip:AddLine(TEXT_RANK .. info.renownLevel .. PLACE_DOT .. Rep.RankTitle(info.renownLevel), 1, 1, 1)
+    end
+    GameTooltip:AddLine(TEXT_RANK_HELP, T.muted.r, T.muted.g, T.muted.b, true)
+end
+
+local function StandingLine(reaction, value, max)
+    if not reaction then
+        GameTooltip:AddLine(TEXT_NOT_MET, T.muted.r, T.muted.g, T.muted.b)
         return
     end
-    if page.new then GameTooltip:AddLine(Parts.ForeverLine()) end
-    if page.side then
-        GameTooltip:AddLine(TERRITORY_CODE[page.side] .. page.side .. "|r"
-            .. (page.battleground and PLACE_DOT .. page.battleground or ""), 1, 1, 1)
-    end
-    if page.zone then GameTooltip:AddLine("Quartermaster in " .. page.zone, 1, 1, 1) end
-    local reaction, value, max = Rep.Standing(page)
-    if not reaction then
-        GameTooltip:AddLine("Not met yet", T.muted.r, T.muted.g, T.muted.b)
-    else
-        local color = Rep.Color(reaction)
-        GameTooltip:AddLine(Rep.Label(reaction) .. (reaction < Rep.EXALTED and ("  %s / %s"):format(BreakUpLargeNumbers(value),
-            BreakUpLargeNumbers(max)) or ""), color.r, color.g, color.b)
-    end
+    local color = Rep.Color(reaction)
+    local far = reaction < Rep.EXALTED and TEXT_VALUE:format(BreakUpLargeNumbers(value), BreakUpLargeNumbers(max)) or ""
+    GameTooltip:AddLine(Rep.Label(reaction) .. far, color.r, color.g, color.b)
+end
+
+local function RewardLines(page, reaction)
     Loot.ReadFilters(filters)
     local unlocked, total = Rep.Unlocked(page, reaction, filters)
     if total > 0 then
-        GameTooltip:AddLine(("%d of its %d rewards for you unlocked"):format(unlocked, total), 1, 1, 1)
+        GameTooltip:AddLine(TEXT_UNLOCKED:format(unlocked, total), 1, 1, 1)
     else
-        GameTooltip:AddLine("No rewards for you in this build yet", T.muted.r, T.muted.g, T.muted.b)
+        GameTooltip:AddLine(TEXT_NO_REWARDS, T.muted.r, T.muted.g, T.muted.b)
     end
     local bis, haveBis = Rep.Bis(page)
-    if bis > 0 then
-        GameTooltip:AddLine(("%s%d of your %d BiS among its rewards are yours|r"):format(BIS_CODE, haveBis, bis))
-    end
-    if page.unreleased then
-        GameTooltip:AddLine("Its raids are not announced for WoW Forever yet.", T.muted.r, T.muted.g, T.muted.b, true)
-    end
-    GameTooltip:Show()
+    if bis > 0 then GameTooltip:AddLine(TEXT_BIS:format(BIS_CODE, haveBis, bis)) end
 end
 
-local function RowLeave(row)
-    if not row.selected then row.band:SetAlpha(0) end
-    GameTooltip:Hide()
+local function FactionLines(page)
+    if page.new then GameTooltip:AddLine(Parts.ForeverLine()) end
+    if page.side then
+        GameTooltip:AddLine(TERRITORY_CODE[page.side] .. page.side .. TEXT_CODE_END
+            .. (page.battleground and PLACE_DOT .. page.battleground or ""), 1, 1, 1)
+    end
+    if page.zone then GameTooltip:AddLine(TEXT_QUARTERMASTER .. page.zone, 1, 1, 1) end
+    local reaction, value, max = Rep.Standing(page)
+    StandingLine(reaction, value, max)
+    RewardLines(page, reaction)
+    if page.unreleased then GameTooltip:AddLine(TEXT_NOT_ANNOUNCED, T.muted.r, T.muted.g, T.muted.b, true) end
+end
+
+local function RowEnter(row)
+    local page = row.page
+    LP.Hover(row)
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    GameTooltip:SetText(page.rank and TEXT_YOUR_PVP_RANK or page.name)
+    if page.rank then RankLines() else FactionLines(page) end
+    GameTooltip:Show()
 end
 
 local function RowClicked(row)
     onSelect(row.page)
 end
 
-local function Row(parent, page)
-    local row = CreateFrame("Button", nil, parent)
-    row:SetSize(ROW_W, LIST_ROW)
-    row.page, row.group = page, GroupOf(page)
-    row.tab = page.tab
-    row.stripe = ns.Solid(row, "BACKGROUND", T.fg, STRIPE)
-    row.stripe:SetAllPoints()
-    row.band = ns.Solid(row, "BACKGROUND", T.fg, 1)
-    row.band:SetAllPoints()
-    row.band:SetAlpha(0)
-    row.bar = ns.Solid(row, "ARTWORK", T.accent, 1)
-    row.bar:SetPoint("TOPLEFT")
-    row.bar:SetPoint("BOTTOMLEFT")
-    row.bar:SetWidth(SELECTED_BAR)
-    -- A battleground faction's crest at the right edge; the bar left of it, or at the edge.
-    -- None on Reputation: only your side's cities are listed there.
+local function Crest(row, side)
+    local crest = row:CreateTexture(nil, "ARTWORK")
+    crest:SetSize(TERRITORY_ICON, TERRITORY_ICON)
+    crest:SetPoint("RIGHT", -RIGHT, -ICON_DROP)
+    crest:SetAtlas(FACTION_ATLAS[side])
+end
+
+local function CountFont(row, width)
+    local font = ns.Font(row, COUNT_SIZE, nil, T.muted)
+    font:SetWidth(width)
+    font:SetJustifyH("RIGHT")
+    return font
+end
+
+local function RightColumns(row, page)
     local right = -RIGHT
     if page.side and page.tab == "pvp" then
-        local crest = row:CreateTexture(nil, "ARTWORK")
-        crest:SetSize(TERRITORY_ICON, TERRITORY_ICON)
-        crest:SetPoint("RIGHT", -RIGHT, -ICON_DROP)
-        crest:SetAtlas(FACTION_ATLAS[page.side])
+        Crest(row, page.side)
         right = right - TERRITORY_ICON - GAP
     end
     Pill(row, right)
-    row.standing = ns.Font(row, COUNT_SIZE, nil, T.muted)
+    row.standing = CountFont(row, STANDING_NAME_W)
     row.standing:SetPoint("RIGHT", row.track, "LEFT", -GAP - PILL / 2, 0)
-    row.standing:SetWidth(STANDING_NAME_W)
-    row.standing:SetJustifyH("RIGHT")
-    row.unlocked = ns.Font(row, COUNT_SIZE, nil, T.muted)
+    row.unlocked = CountFont(row, UNLOCKED_W)
     row.unlocked:SetPoint("RIGHT", row.standing, "LEFT", -GAP, 0)
-    row.unlocked:SetWidth(UNLOCKED_W)
-    row.unlocked:SetJustifyH("RIGHT")
     row.bis = ns.Font(row, COUNT_SIZE, nil, BIS_RGB)
     row.bis:SetPoint("RIGHT", row.unlocked, "LEFT", -GAP, 0)
+end
+
+local function Row(parent, page)
+    local row = LP.Row(parent)
+    row.page, row.group = page, GroupOf(page)
+    row.tab = page.tab
+    RightColumns(row, page)
     row.name = ns.Font(row, NAME_SIZE)
     row.name:SetPoint("LEFT", NAME_LEFT, 0)
     row.name:SetPoint("RIGHT", row.bis, "LEFT", -GAP, 0)
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
-    row.label = page.rank and "PvP Rank" or page.name
+    row.label = page.rank and TEXT_PVP_RANK or page.name
     row.name:SetText(row.label)
-    if page.new then
-        row.new = Parts.ForeverMark(row, FOREVER_H)
-        row.new:SetPoint("LEFT", NEW_LEFT, 0)
-    end
+    if page.new then LP.ForeverMark(row) end
     row:SetScript("OnClick", RowClicked)
     row:SetScript("OnEnter", RowEnter)
-    row:SetScript("OnLeave", RowLeave)
+    row:SetScript("OnLeave", LP.Leave)
     return row
 end
 
--- A title over a tab's rows, as the Dungeon List's. Only "Not in Forever yet" opens and
--- closes (closed at first, by a click anywhere on it, its count shown while closed), with the
--- Dungeon List's chevron: the others are short enough to show whole.
-local function HeaderColor(header, color)
-    header.label:SetTextColor(color.r, color.g, color.b)
-    if header.arrow then header.arrow:SetVertexColor(color.r, color.g, color.b) end
-end
-
-local function HeaderClicked() S.Set("openUnreleased", not S.Get("openUnreleased")) end
-local function HeaderEnter(header) HeaderColor(header, T.fg) end
-local function HeaderLeave(header) HeaderColor(header, T.accentSoft) end
-
-local function Header(parent, text)
-    local folds = text == UNRELEASED
-    local header = CreateFrame(folds and "Button" or "Frame", nil, parent)
-    header:SetSize(ROW_W, GROUP_H)
-    header.label = ns.Font(header, 10, nil, T.accentSoft)
-    header.label:SetText(text:upper())
-    if folds then
-        header.arrow = J.View.Parts.Arrow(header, 10, T.accentSoft)
-        header.arrow:SetPoint("BOTTOMLEFT", 3, 5)
-        header.label:SetPoint("BOTTOMLEFT", 16, 4)
-        header.count = ns.Font(header, 10, nil, T.muted)
-        header.count:SetPoint("LEFT", header.label, "RIGHT", 8, 0)
-        header:SetScript("OnClick", HeaderClicked)
-        header:SetScript("OnEnter", HeaderEnter)
-        header:SetScript("OnLeave", HeaderLeave)
-    else
-        header.label:SetPoint("BOTTOMLEFT", 3, 4)
-    end
-    local line = ns.Solid(header, "ARTWORK", T.line, 1)
-    line:SetPoint("BOTTOMLEFT", 0, 0)
-    line:SetPoint("BOTTOMRIGHT", 0, 0)
-    ns.Hairline(line, "h")
-    return header
-end
-
--------------------------------------------------------------------------------
---  The list
--------------------------------------------------------------------------------
--- Makes the list in parent, scrolling once it runs past the window. select(page) is called
--- when a row is clicked: a faction, or J.RANK.
----@param parent Frame
----@param select fun(page: JournalFaction|table)
-function List.Build(parent, select)
-    onSelect = select
-    scroll = ns.UI.SlimScroll(parent, BAR, BAR_GAP)
-    scroll:SetPoint("TOPLEFT")
-    scroll:SetPoint("BOTTOMLEFT")
-    scroll:SetWidth(ROW_W)
-    content = CreateFrame("Frame", nil, scroll)
-    content:SetWidth(ROW_W)
-    scroll:SetScrollChild(content)
-    for _, titles in pairs(GROUPS) do
-        for _, title in ipairs(titles) do headers[title] = Header(content, title) end
-    end
-    rows[1] = Row(content, J.RANK)
-    for _, tab in ipairs({ "reputation", "pvp" }) do
-        for _, faction in ipairs(J.Factions(tab)) do rows[#rows + 1] = Row(content, faction) end
-    end
+local function HeaderClicked()
+    S.Set("openUnreleased", not S.Get("openUnreleased"))
 end
 
 local function Listed(row, tab)
     return row.tab == tab and Rep.Shown(row.page)
 end
 
--- Lays out the tab's rows under their titles; a title with nothing under it is left out,
--- and the other tab's rows and titles are hidden.
----@param tab "reputation"|"pvp"
-function List.Layout(tab)
-    shownTab = tab
-    for _, header in pairs(headers) do header:Hide() end
-    for _, row in ipairs(rows) do row:Hide() end
-    local y = 0
-    for _, title in ipairs(GROUPS[tab]) do
-        local count, header = 0, headers[title]
-        local closed = title == UNRELEASED and not S.Get("openUnreleased")
-        for _, row in ipairs(rows) do
-            if row.group == title and Listed(row, tab) then
-                if count == 0 then
-                    header:ClearAllPoints()
-                    header:SetPoint("TOPLEFT", 0, -y)
-                    header:Show()
-                    y = y + GROUP_H
-                end
-                count = count + 1
-                if not closed then
-                    row.stripe:SetShown(count % 2 == 0)
-                    row:ClearAllPoints()
-                    row:SetPoint("TOPLEFT", 0, -y)
-                    row:Show()
-                    row.top = y
-                    y = y + LIST_ROW
-                end
+local function LayoutGroup(title, tab, y)
+    local count, header = 0, headers[title]
+    local closed = title == TEXT_UNRELEASED and not S.Get("openUnreleased")
+    for _, row in ipairs(rows) do
+        if row.group == title and Listed(row, tab) then
+            if count == 0 then
+                header:ClearAllPoints()
+                header:SetPoint("TOPLEFT", 0, -y)
+                header:Show()
+                y = y + GROUP_H
+            end
+            count = count + 1
+            if not closed then
+                row.stripe:SetShown(count % STRIPE_EVERY == 0)
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", 0, -y)
+                row:Show()
+                row.top = y
+                y = y + LIST_ROW
             end
         end
-        if header.arrow then
-            header.arrow:SetRotation(closed and 0 or -math.pi / 2)
-            header.count:SetText(closed and count or "")
-        end
-        if count > 0 then y = y + GROUP_GAP end
     end
-    content:SetHeight(math.max(1, y))
-    scroll.bar:SetValue(0)
+    if header.arrow then LP.Fold(header, closed, count) end
+    if count > 0 then y = y + GROUP_GAP end
+    return y
 end
-
--- Scrolls just enough to show the row.
-local function ShowRow(row)
-    if not (row.top and row:IsShown()) then return end
-    local offset, height = scroll:GetVerticalScroll(), scroll:GetHeight()
-    if row.top < offset then
-        scroll.bar:SetValue(row.top)
-    elseif row.top + LIST_ROW > offset + height then
-        scroll.bar:SetValue(row.top + LIST_ROW - height)
-    end
-end
-
--- Each faction's unlocked count, kept until your standing or what is listed changes: the
--- filters that decide it (with Missing BiS Only, which follows your bags, it is counted each
--- time). The cache holds one record per faction, made once.
-local counted = {}
 
 local function SkillsKey()
     local key = 0
@@ -362,12 +258,10 @@ local function Unlocked(faction, reaction)
     return c.unlocked, c.total
 end
 
--- The rank's row: your rank, and how far to the next, in the accent.
 local function PaintRank(row)
     local info = Rep.Rank()
     local level = info and info.renownLevel or 0
-    -- No rank yet: the game's own word for it (Civilian), as the rank's page title says.
-    row.standing:SetText(level > 0 and "Rank " .. level or Rep.RankTitle(0))
+    row.standing:SetText(level > 0 and TEXT_RANK .. level or Rep.RankTitle(0))
     row.standing:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
     local share = 0
     if info then
@@ -375,59 +269,80 @@ local function PaintRank(row)
     end
     SetPill(row, share, T.accent)
     row.bis:SetText("")
+    row.name:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
 end
 
--- The one shown: the accent bar and a lighter band. Factions you have met in white, the
--- rest faint; your standing with each in its colour, the BiS among its rewards you still
--- miss in orange (nothing once you have them all), and a check after the name at Exalted.
----@param selected? JournalFaction|table
+local function PaintMarks(row, page, reaction)
+    local bis, haveBis = Rep.Bis(page)
+    local missing = bis - haveBis
+    if missing ~= row.missing then
+        row.missing = missing
+        row.bis:SetText(missing > 0 and STAR_TAG .. missing or "")
+    end
+    local exalted = reaction == Rep.EXALTED
+    if exalted ~= row.exalted then
+        row.exalted = exalted
+        row.name:SetText(exalted and row.label .. TEXT_DONE_GAP .. DONE_MARK or row.label)
+    end
+end
+
+local function PaintFaction(row, page, chosen)
+    local reaction, value, max = Rep.Standing(page)
+    local color = reaction and Rep.Color(reaction) or T.muted
+    row.standing:SetText(reaction and Rep.Label(reaction) or "")
+    local unlocked, total = Unlocked(page, reaction)
+    row.unlocked:SetText(TEXT_FRACTION:format(unlocked, total))
+    row.standing:SetTextColor(color.r, color.g, color.b)
+    SetPill(row, reaction and value / max or 0, color)
+    local name = (chosen or reaction) and T.fg or T.muted
+    row.name:SetTextColor(name.r, name.g, name.b)
+    row:SetAlpha((reaction or chosen) and 1 or UNMET)
+    PaintMarks(row, page, reaction)
+end
+
+local function PaintRow(row, selected)
+    local page = row.page
+    local chosen = page == selected
+    LP.Select(row, chosen)
+    if chosen then LP.ShowRow(scroll, row) end
+    if page.rank then PaintRank(row) else PaintFaction(row, page, chosen) end
+end
+
+local List = {}
+J.FactionList = List
+
+function List.Build(parent, select)
+    onSelect = select
+    scroll, content = LP.NewScroll(parent)
+    for _, titles in pairs(GROUPS) do
+        for _, title in ipairs(titles) do
+            headers[title] = LP.Header(content, title, title == TEXT_UNRELEASED and HeaderClicked or nil)
+        end
+    end
+    rows[1] = Row(content, J.RANK)
+    for _, tab in ipairs(J.TABS) do
+        for _, faction in ipairs(J.Factions(tab)) do rows[#rows + 1] = Row(content, faction) end
+    end
+end
+
+function List.Layout(tab)
+    shownTab = tab
+    for _, header in pairs(headers) do header:Hide() end
+    for _, row in ipairs(rows) do row:Hide() end
+    local y = 0
+    for _, title in ipairs(GROUPS[tab]) do y = LayoutGroup(title, tab, y) end
+    content:SetHeight(math.max(1, y))
+    scroll.bar:SetValue(0)
+end
+
 function List.Paint(selected)
     if not shownTab then return end
     Loot.ReadFilters(filters)
     for _, row in ipairs(rows) do
-        if row:IsShown() then
-            local page = row.page
-            local chosen = page == selected
-            row.selected = chosen
-            row.bar:SetShown(chosen)
-            if chosen then ShowRow(row) end
-            row.band:SetAlpha(chosen and 0.10 or 0)
-            if page.rank then
-                PaintRank(row)
-                row.name:SetTextColor(T.fg.r, T.fg.g, T.fg.b)
-            else
-                local reaction, value, max = Rep.Standing(page)
-                local color = reaction and Rep.Color(reaction) or T.muted
-                row.standing:SetText(reaction and Rep.Label(reaction) or "")
-                local unlocked, total = Unlocked(page, reaction)
-                -- Always, as 0/0 when the build has nothing for you yet: every row reads alike.
-                row.unlocked:SetText(unlocked .. "/" .. total)
-                row.standing:SetTextColor(color.r, color.g, color.b)
-                SetPill(row, reaction and value / max or 0, color)
-                local name = (chosen or reaction) and T.fg or T.muted
-                row.name:SetTextColor(name.r, name.g, name.b)
-                row:SetAlpha((reaction or chosen) and 1 or UNMET)
-                local bis, haveBis = Rep.Bis(page)
-                -- How many you still miss, as the Dungeon List: nothing once all are yours.
-                local missing = bis - haveBis
-                if missing ~= row.missing then
-                    row.missing = missing
-                    row.bis:SetText(missing > 0 and STAR_TAG .. missing or "")
-                end
-                local exalted = reaction == Rep.EXALTED
-                if exalted ~= row.exalted then
-                    row.exalted = exalted
-                    row.name:SetText(exalted and row.label .. "  " .. DONE or row.label)
-                end
-            end
-        end
+        if row:IsShown() then PaintRow(row, selected) end
     end
 end
 
--- The row above (by -1) or below (1) the one shown, in the list's order, wrapping round.
----@param from JournalFaction|table
----@param by -1|1
----@return JournalFaction|table
 function List.Next(from, by)
     local n, at = 0, nil
     for _, title in ipairs(GROUPS[shownTab]) do
@@ -444,8 +359,6 @@ function List.Next(from, by)
     return order[(at - 1 + by) % n + 1]
 end
 
--- The first row of the tab, for a tab opened with nothing picked on it yet.
----@param tab "reputation"|"pvp"
 function List.First(tab)
     for _, title in ipairs(GROUPS[tab]) do
         for _, row in ipairs(rows) do

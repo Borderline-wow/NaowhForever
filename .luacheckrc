@@ -1,7 +1,7 @@
 -- luacheck settings for Naowh Forever. From the repo root: luacheck .
 -- Lua 5.1, as the game runs it. Libs/ is fetched by the packager and not ours to lint.
 std = "lua51"
-exclude_files = { "Libs/" }
+exclude_files = { "Libs/", ".claude/" }
 
 -- WoW calls handlers with fixed arguments (self, event, ...), so unused ones are normal.
 ignore = { "212" }
@@ -13,12 +13,11 @@ max_line_length = false
 -- key bindings, map pin mixins, popups, the Global Font setting's font paths, and the table
 -- RestedXP imports its themes from.
 globals = {
-    "NaowhForever", "NaowhForever_API", "NaowhForeverDB", "NaowhUI_SmartRemindersDB",
+    "NaowhForever", "NaowhForever_API", "NaowhForeverDB",
     "NaowhForever_OnCompartmentClick", "NaowhForever_BagSpacePickUp", "NaowhForever_BossLoot", "NaowhForever_ToggleJournal", "NaowhForever_ToggleBis", "NaowhForever_ToggleCompleto",
     "NaowhForever_ToggleGroupInspect", "BINDING_NAME_NAOWHFOREVER_GROUPINSPECT",
     "SLASH_NAOWHFOREVER1", "SLASH_NAOWHFOREVER2", "SLASH_NAOWHFOREVER3",
-    "SLASH_NAOWHFOREVER4", "SLASH_NAOWHFOREVER5",
-    "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHUITANK1", "SLASH_NAOWHFOREVERAIM1",
+    "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHFOREVERAIM1",
     "BINDING_HEADER_NAOWHFOREVER", "BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP",
     "BINDING_NAME_NAOWHFOREVER_BOSSLOOT", "BINDING_NAME_NAOWHFOREVER_JOURNAL", "BINDING_NAME_NAOWHFOREVER_BIS", "BINDING_NAME_NAOWHFOREVER_COMPLETO",
     "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverUnexploredPinMixin", "NaowhForeverSkybornePinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverSleepingBagPinMixin", "NaowhForeverEntrancePinMixin",
@@ -32,12 +31,12 @@ globals = {
 -- how a misspelled global, or one Forever does not have, gets caught.
 read_globals = {
     "AcceptQuest", "ActionBarButtonEventsFrame", "ActionStatus", "AlertFrame", "Ambiguate",
-    "AnchorUtil", "AuraContainerSortMethod", "AuraUtil", "BACKPACK_CONTAINER", "BigWigsLoader",
+    "AnchorUtil", "AuraContainerSortMethod", "AuraUtil", "BACKPACK_CONTAINER",
     "bit", "BNET_CLIENT_WOW", "BNGetInfo", "BNGetNumFriends", "BreakUpLargeNumbers", "BuyMerchantItem", "BuyTrainerService",
-    "canaccessallvalues", "canaccesstable", "canaccessvalue", "CanInspect", "CanMerchantRepair",
+    "canaccessallvalues", "canaccessvalue", "CanInspect", "CanMerchantRepair",
     "ContainerFrameContainer", "ContainerFrameCombinedBags",
     "GameMenuFrame", "GAMEMENU_OPTIONS",
-    "CharacterFrame", "CharacterFrameTitleText", "CharacterLevelText", "CharacterLevelTextBackground",
+    "CharacterFrame", "CharacterFrameTitleText", "CharacterLevelText", "CharacterLevelTextBackground", "PaperDollFrame", "PaperDollLevelInfo", "PaperDollSidebarTabs", "CharacterHeadSlot",
     "CharacterModelScene", "CharacterStatsPaneScrollBox", "CharacterFrameRightPaneHostStoneBg", "ScrollUtil",
     "CLASS_ICON_TCOORDS", "CR_HIT_MELEE", "CR_HIT_SPELL", "GetBlockChance", "GetCombatRatingBonus", "GetCritChance", "GetDodgeChance",
     "GetAverageItemLevel", "GetHitModifier", "GetManaRegen", "GetMeleeHaste", "GetSpellBonusDamage", "GetSpellBonusHealing",
@@ -50,31 +49,30 @@ read_globals = {
     "ClearCursor", "CloseQuest", "ColorPickerFrame", "CombatTextFont",
     "CombatTextFontOutline", "CompleteQuest", "ConfirmAcceptQuest",
     "Constants", "COPPER_AMOUNT", "CopyTable", "CreateAndInitFromMixin", "CreateAtlasMarkup", "CreateColor",
-    "CreateFont", "CreateFrame", "CreateFromMixins", "CreateMacro", "CreateVector2D", "CUSTOM_CLASS_COLORS",
-    "CVarCallbackRegistry", "C_AddOns", "C_AuctionHouse", "C_BattleNet", "C_ChallengeMode",
-    "C_ChatInfo", "C_ClassColor", "C_ClassTalents", "C_CombatLog", "C_Container", "C_CooldownViewer",
-    "C_CurrencyInfo", "C_CurveUtil", "C_CVar", "C_DeathInfo", "C_DurationUtil",
-    "C_EncounterEvents", "C_EncounterJournal", "C_EncounterTimeline", "C_EquipmentSet",
-    "C_ActionBar", "C_FriendList", "C_GamepadUI", "C_GossipInfo", "C_GuildInfo", "C_InstanceEncounter",
+    "CreateFrame", "CreateFromMixins", "CreateMacro", "CreateVector2D", "CUSTOM_CLASS_COLORS",
+    "C_AddOns", "C_AuctionHouse", "C_BattleNet",
+    "C_ChatInfo", "C_ClassColor", "C_ClassTalents", "C_Container",
+    "C_CurrencyInfo", "C_CurveUtil", "C_CVar", "C_DurationUtil",
+    "C_EquipmentSet",
+    "C_ActionBar", "C_FriendList", "C_GamepadUI", "C_GossipInfo", "C_GuildInfo",
     "C_Item", "C_KeyBindings", "C_LFGList", "C_LootHistory", "C_MajorFactions", "C_Map", "C_Navigation", "C_MountJournal", "C_Transmog", "C_MerchantFrame", "C_NamePlate", "C_PaperDollInfo",
     "C_PartyInfo", "C_QuestLog", "C_Reputation", "C_SeasonInfo",
-    "C_RestrictedActions", "C_Secrets", "C_SpecializationInfo", "C_Spell", "C_SpellBook",
+    "C_Secrets", "C_SpecializationInfo", "C_Spell", "C_SpellBook",
     "C_StringUtil", "C_SuperTrack", "SuperTrackedFrame", "C_SwingTimer", "C_TaxiMap", "C_Texture", "C_Timer",
-    "C_TooltipInfo", "C_TradeSkillUI", "C_Traits", "C_TransmogCollection", "C_TTSSettings",
-    "C_UnitAuras", "C_VoiceChat", "date", "debugprofilestop", "DEFAULT_CHAT_FRAME",
+    "C_TooltipInfo", "C_TradeSkillUI", "C_Traits", "C_TransmogCollection",
+    "C_UnitAuras", "C_VoiceChat", "date", "DEFAULT_CHAT_FRAME",
     "DeleteCursorItem", "DeleteMacro", "DELETE_GOOD_ITEM", "DELETE_ITEM_CONFIRM_STRING",
-    "EditMacro", "EJ_GetCurrentTier", "EJ_GetEncounterInfo", "EJ_GetEncounterInfoByIndex",
-    "EJ_GetInstanceByIndex", "EJ_GetInstanceInfo", "EJ_SelectInstance", "EJ_SelectTier",
+    "EditMacro",
     "COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED", "CommunitiesFrame", "FRIENDS_BUTTON_TYPE_BNET", "FRIENDS_BUTTON_TYPE_WOW", "FriendsFrame_UpdateFriendButton", "FriendsTooltip", "InspectUnit", "PlayerSpellsFrame", "GameTooltipText", "WOW_PROJECT_ID", "EncounterJournal", "Enum", "EnumerateFrames", "ERR_BAG_FULL", "ERR_INV_FULL", "ERR_QUEST_PUSH_BUSY_S", "ERR_QUEST_PUSH_SUCCESS_S",
     "EventRegistry", "EventToastManagerFrame", "EventUtil", "ScrollBoxListMixin",
-    "FACTION_STANDING_INCREASED", "ChatFontNormal", "GameFontHighlight", "GameFontNormal", "GameTooltip",
+    "FACTION_STANDING_INCREASED", "GameFontHighlight", "GameFontNormal", "GameTooltip",
     "GameTooltipTextLeft1", "GameTooltip_Hide", "GetActionInfo", "GetActionText", "GetActiveTitle",
     "GetActionTexture", "GetAddOnMemoryUsage", "GetBinding", "GetBindingAction", "GetBindingKey", "GetBindingName", "GetBuildInfo",
     "GetBindingText", "GetBindLocation", "GetChannelList", "GetClassInfo", "GetCurrentBindingSet",
     "GetCurrentArenaSeason", "GetCurrentKeyBoardFocus", "GetCurrentRegion", "GetText", "UnitSex",
     "GetCursorInfo", "GetCursorPosition", "GetCVar",
-    "PVP_RANK_0_NAME", "PVP_RANK_REWARDS_VENDOR_ALLIANCE", "PVP_RANK_REWARDS_VENDOR_HORDE", "ITEM_SPELL_KNOWN",
-    "GetDifficultyInfo", "GetFileIDFromPath", "GetFonts", "GetFramerate", "GetGuildInfo", "GetGuildRosterInfo",
+    "PVP_RANK_0_NAME", "PVP_RANK_REWARDS_VENDOR_ALLIANCE", "ITEM_SPELL_KNOWN",
+    "GetFileIDFromPath", "GetFonts", "GetFramerate", "GetGuildInfo", "GetGuildRosterInfo",
     "GetInstanceInfo", "GetInventoryItemDurability", "GetInventoryItemID",
     "GetInventoryItemLink", "GetInventoryItemQuality", "GetInventoryItemTexture",
     "GetLootRollItemLink", "GetLootSlotInfo", "GetLootSlotLink", "GetLootSourceInfo", "GetLootThreshold",
@@ -85,7 +83,7 @@ read_globals = {
     "GetNumAvailableQuests", "GetAvailableQuestInfo", "GetAvailableTitle", "GetNumClasses", "GetNumGroupMembers", "GetNumGuildMembers", "GetNumSavedInstances",
     "GetNumLootItems", "GetNumBindings", "GetNumMacros", "GetNumQuestChoices", "GetNumRoutes",
     "GetNumShapeshiftForms", "GetNumSubgroupMembers", "GetNumTrainerServices",
-    "GetPartyAssignment", "GetPetActionInfo", "GetPhysicalScreenSize", "GetPlayerInfoByGUID",
+    "GetPartyAssignment", "GetPetActionInfo", "GetPlayerInfoByGUID",
     "GetProfessionInfo", "GetProfessions", "GetQuestDifficultyColor", "GetQuestGreenRange", "GetQuestID", "GetQuestLink", "GetQuestLogChoiceInfo",
     "GetQuestLogQuestText", "GetQuestLogRewardInfo", "GetQuestLogRewardMoney", "GetQuestLogRewardXP",
     "GetNumQuestLogChoices", "GetNumQuestLogRewards", "QuestUtils_IsQuestWatched",
@@ -110,7 +108,7 @@ read_globals = {
     "GetMinimapShape", "GetPlayerFacing", "Minimap",
     "C_MapExplorationInfo", "CreateTexturePool",
     "MAX_PARTY_MEMBERS", "MAX_RAID_MEMBERS", "Menu", "MenuUtil", "MenuVariants",
-    "MerchantFrame", "Mixin", "MovieFrame", "MuteSoundFile", "NumTaxiNodes",
+    "MerchantFrame", "Mixin", "MovieFrame", "NumTaxiNodes",
     "NUM_BAG_SLOTS", "NUM_CHAT_WINDOWS", "NUM_PET_ACTION_SLOTS",
     "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "OTHER", "PetHasActionBar", "PickupAction", "PickupMacro", "PlaceAction",
     "PixelUtil", "PlaySound", "PlaySoundFile", "ProfessionsFrame", "PROFESSIONS_COOKING",
@@ -125,7 +123,7 @@ read_globals = {
     "StaticPopup_FindVisible", "StaticPopup_Hide", "StaticPopup_Show", "StatusTrackingBarInfo",
     "StatusTrackingBarManager", "strlower", "strsplit", "strsub", "strtrim", "strupper",
     "SubZoneTextFrame", "TaxiGetNodeSlot", "TaxiNodeGetType", "TaxiNodeName", "TaxiNodeOnButtonEnter", "TaxiRequestEarlyLanding",
-    "tContains", "TextToSpeech_GetSelectedVoice", "time", "ToggleCalendar", "TomTom",
+    "TextToSpeech_GetSelectedVoice", "time", "ToggleCalendar", "TomTom",
     "TooltipDataProcessor", "TRADE_SKILLS", "TSM_API", "UIErrorsFrame", "UiMapPoint",
     "TimerTracker", "UIParent", "UIWidgetTopCenterContainerFrame", "UNKNOWNOBJECT", "UnitAffectingCombat", "UnitAttackSpeed", "UnitCanAttack",
     "UnitCastingDuration", "UnitCastingInfo", "UnitChannelDuration", "UnitChannelInfo",
@@ -136,8 +134,8 @@ read_globals = {
     "UnitIsFriend", "UnitIsGroupAssistant", "UnitIsGroupLeader", "UnitIsInMyGuild", "UnitIsPlayer",
     "UnitIsUnit", "UnitIsVisible",
     "UnitLevel", "UnitName", "UnitPower", "UnitPowerMax", "UnitPowerPercent", "UnitNameFromGUID", "UnitOnTaxi", "UnitPosition", "UnitRace", "UnitStat",
-    "UnitShouldDisplaySpellTargetName", "UnitSpellTargetClass", "UnitSpellTargetName",
-    "UnitThreatSituation", "UnitXP", "UnitXPMax", "UnmuteSoundFile", "UnregisterStateDriver",
+    "UnitSpellTargetClass", "UnitSpellTargetName",
+    "UnitXP", "UnitXPMax", "UnregisterStateDriver",
     "UpdateAddOnMemoryUsage", "WHITE_FONT_COLOR", "wipe", "WorldFrame", "WorldMapFrame",
     "ZoneTextFrame",
     "ClickSendMailItemButton", "GetInboxHeaderInfo", "GetInboxItem", "GetInboxNumItems",
@@ -150,15 +148,9 @@ read_globals = {
 files["Tools/regression/"] = {
     globals = { "strmatch" },
 }
-files["Tools/build_presets.lua"] = { globals = { "strmatch" } }
+files["Tools/build/presets.lua"] = { globals = { "strmatch" } }
 
 -- Baseline: warnings that were already in the code when this config was added, silenced
 -- only where they are (file, warning code, name) so any new warning still fails. Remove
 -- an entry once its warning is fixed; don't add new ones to get a check passing.
-files["Core/NaowhForever_Core.lua"] = { ignore = { "432/key" } }
-files["DungeonQuests/NaowhForever_DungeonQuests.lua"] = { ignore = { "421/id" } }
-files["NaowhForever_Professions/NaowhForever_Professions.lua"] = { ignore = { "431/rows", "421/bar", "431/W" } }
-files["NaowhForever_Professions/NaowhForever_RecipeFinder.lua"] = { ignore = { "431/list" } }
-files["QoL/NaowhForever_QoL.lua"] = { ignore = { "211/DRUID_FORM_VALUES", "211/DRUID_FORM_ORDER" } }
-files["NaowhForever_SmartReminders/NaowhForever_Bosses.lua"] = { ignore = { "311/y", "431/set" } }
 files["Tools/regression/test-buff-reminders.lua"] = { ignore = { "432/self" } }

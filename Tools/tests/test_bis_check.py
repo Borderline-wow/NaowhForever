@@ -1,5 +1,5 @@
-"""Tests for the daily checks' reports: Tools/build_bis_data.py's BiS changes, and the short
-list a pull request shows (Tools/wowsrc.py). Offline, made-up data. From the repo root:
+"""Tests for the daily checks' reports: Tools/build/bis_data.py's BiS changes, and the short
+list a pull request shows (Tools/sources/wowsrc.py). Offline, made-up data. From the repo root:
 
     python -m unittest discover -s Tools/tests
 """
@@ -10,7 +10,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import build_bis_data  # noqa: E402
+import paths  # noqa: E402,F401
+import bis_data  # noqa: E402
 import wowsrc  # noqa: E402
 
 
@@ -19,14 +20,14 @@ def item(name, quality=3, ilvl=21, icon="inv_x"):
 
 
 MANTLE, NEW = item("Magician's Mantle"), item("Fairywing Mantle")
-CACHE = {build_bis_data.item_key(MANTLE): 4000}
+CACHE = {bis_data.item_key(MANTLE): 4000}
 OURS = {"arcane-mage": {3: [4000]}}
 
 
 class BisChanges(unittest.TestCase):
     def test_a_new_top_pick(self):
         theirs = {"arcane-mage": ("Arcane Mage", {3: [NEW, MANTLE]})}
-        lines = build_bis_data.bis_changes(OURS, theirs, CACHE, lambda i: CACHE.get(build_bis_data.item_key(i)) or 5000)
+        lines = bis_data.bis_changes(OURS, theirs, CACHE, lambda i: CACHE.get(bis_data.item_key(i)) or 5000)
         text = "\n".join(lines)
         self.assertIn("top pick is now Fairywing Mantle (was Magician's Mantle)", text)
         self.assertIn("added Fairywing Mantle.", text, "found in the game's tables: no mark")
@@ -34,20 +35,20 @@ class BisChanges(unittest.TestCase):
 
     def test_one_the_tables_do_not_have(self):
         theirs = {"arcane-mage": ("Arcane Mage", {3: [MANTLE, NEW]})}
-        text = "\n".join(build_bis_data.bis_changes(OURS, theirs, CACHE))
+        text = "\n".join(bis_data.bis_changes(OURS, theirs, CACHE))
         self.assertIn("added Fairywing Mantle (not in the game's tables yet)", text)
 
 
 class Updated(unittest.TestCase):
     def test_the_page_date_as_the_addon_shows_it(self):
         page = '<p class="updated">\nLast updated <time datetime="2026-09-30">30 September 2026</time>'
-        self.assertEqual(build_bis_data.updated_on(page), "30 Sep 2026")
-        self.assertIsNone(build_bis_data.updated_on("<p>no date</p>"))
+        self.assertEqual(bis_data.updated_on(page), "30 Sep 2026")
+        self.assertIsNone(bis_data.updated_on("<p>no date</p>"))
 
     def test_the_data_still_reads_with_dates(self):
-        text = build_bis_data.OUT.read_text(encoding="utf-8")
+        text = bis_data.OUT.read_text(encoding="utf-8")
         self.assertIn("updated = ", text, "the data carries each spec page's date")
-        self.assertGreater(len(build_bis_data.current_specs()), 20)
+        self.assertGreater(len(bis_data.current_specs()), 20)
 
 
 class ShortList(unittest.TestCase):

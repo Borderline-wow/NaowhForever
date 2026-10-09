@@ -1,140 +1,27 @@
 ## Interface: 16001
 ## Title: |cff0091edNaowh|r Forever
-## Notes: Naowh's Forever companion: QoL, the Top Bar and the window every module shares.
+## Notes: Naowh's Forever companion: the window every module shares.
 ## Author: Naowh
-## Version: 1.0.6
-## OptionalDeps: NaowhUI_Media, BigWigs, DBM-Core
-## SavedVariables: NaowhForeverDB, NaowhUI_SmartRemindersDB
+## Version: 1.1.1
+## OptionalDeps: NaowhUI_Media
+## SavedVariables: NaowhForeverDB
 ## Group: NaowhForever
-## IconTexture: Interface\AddOns\NaowhForever\Media\LogoAddon.tga
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 ## AddonCompartmentFunc: NaowhForever_OnCompartmentClick
 
 Libs\embeds.xml
 
-# Locale tables must load before Core creates the addon namespace.
-Locales\enUS.lua
-Locales\deDE.lua [AllowLoadTextLocale deDE]
-Locales\ruRU.lua [AllowLoadTextLocale ruRU]
+# Locales stay in the TOC: AllowLoadTextLocale is a TOC option. Each area loads its own
+# files through its XML, in this order; add a file to that XML, never here.
+Core\Locales\enUS.lua
+Core\Locales\deDE.lua [AllowLoadTextLocale deDE]
+Core\Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 
-# Core first: theme, chrome primitives, the DB and profiles -- everything later files
-# hang off.
-Core\NaowhForever_Core.lua
-Core\NaowhForever_Presets.lua
-
-# ns.SenderIs: whether an addon message's sender is the player its GUID names. Needs the Core.
-Core\NaowhForever_Senders.lua
-
-# ns.PlaceWaypoint: a waypoint (or TomTom's) for any module. Needs the Core.
-Core\NaowhForever_Waypoint.lua
-
-# NaowhUI, the Naowh themes and your own theme in RestedXP Guides, when Settings > RESTEDXP turns it
-# on. Needs the Core's theme palettes.
-RXPThemes\NaowhForever_RXPThemes.lua
-
-# The widget kit: ns.UI, the shim every options page calls in place of EllesmereUI's
-# factory. Needs ns.THEME and the Core primitives.
-Core\NaowhForever_Widgets.lua
-
-# Unlock Mode: the movers and their anchors. Needs the widget kit.
-Core\NaowhForever_UnlockMode.lua
-
-# The standalone options window: tabs, scroll, RefreshPage, slash/compartment entry.
-# The page builders it dispatches to live in the later files, resolved at open time.
-Core\NaowhForever_Window.lua
-Core\NaowhForever_GameMenu.lua
-
-# The settings search: finds a setting on any page and jumps to it. Loads after the window,
-# which calls into it when it is made.
-Core\NaowhForever_Search.lua
-
-# What the modules share: the house style, item helpers, components, windows and the engine
-# a page is drawn with. Its own XML loads its files in order (see Shared/README.md).
+Core\Core.xml
+Core\Integrations\RestedXP\RestedXP.xml
+Core\Options.xml
 Shared\Shared.xml
-
-# Shareable Reminder Packs: a curator's lists, priorities and written reminders as one
-# string, with preview-before-apply, and the installer's NaowhForever_API. They carry every
-# module's settings, so they stay in the core while Smart Reminders is a module of its own.
-# Signature check for naowh.gg's personalized pack downloads. Loads before Packs, which
-# calls into it.
-Core\NaowhForever_Verify.lua
-Core\NaowhForever_Packs.lua
-
-# The Profiles page's Export and Import: the whole profile as one string. Uses the pack
-# dialogs' text box and hands pack strings to them.
-Core\NaowhForever_ProfileShare.lua
-
-# The Naowh Forever modules and the Patch Notes page. Page builders only, resolved by
-# the window at open time.
-QoL\NaowhForever_QoL.lua
-QoL\NaowhForever_AlertStack.lua
-QoL\NaowhForever_DeathRelease.lua
-QoL\NaowhForever_StealthReminder.lua
-QoL\NaowhForever_CoTank.lua
-QoL\NaowhForever_HealerMana.lua
-QoL\NaowhForever_DeleteConfirm.lua
-QoL\NaowhForever_Durability.lua
-QoL\NaowhForever_TalentPoints.lua
-QoL\NaowhForever_BuffThanks.lua
-QoL\NaowhForever_CombatAlert.lua
-QoL\NaowhForever_QuestAutomation.lua
-QoL\NaowhForever_GroupButtons.lua
-QoL\NaowhForever_LootConfirm.lua
-QoL\NaowhForever_CursorClip.lua
-QoL\NaowhForever_CombatTimer.lua
-QoL\NaowhForever_CursorCooldown.lua
-QoL\NaowhForever_CombatLogger.lua
-QoL\NaowhForever_GlobalCopy.lua
-QoL\NaowhForever_SlashCommands.lua
-QoL\NaowhForever_HideClutter.lua
-QoL\NaowhForever_Crosshair.lua
-QoL\NaowhForever_MouseRing.lua
-QoL\NaowhForever_PetTracker.lua
-QoL\NaowhForever_EquipmentReminder.lua
-QoL\NaowhForever_SummonEmote.lua
-QoL\NaowhForever_ChatZones.lua
-QoL\NaowhForever_GcdTracker.lua
-QoL\NaowhForever_FocusCastBar.lua
-QoL\NaowhForever_Performance.lua
-QoL\NaowhForever_Defaults.lua
-QoL\NaowhForever_LootFeed.lua
-QoL\NaowhForever_AuctionPrices.lua
-QoL\NaowhForever_XPTicker.lua
-QoL\NaowhForever_XPBar.lua
-QoL\NaowhForever_GroupXP.lua
-QoL\NaowhForever_PlayerHistory.lua
-QoL\NaowhForever_Restock.lua
-QoL\NaowhForever_FoodBar.lua
-QoL\NaowhForever_BagSpace.lua
-QoL\NaowhForever_ScrapMarker.lua
-QoL\NaowhForever_ScrapList.lua
-QoL\NaowhForever_Alts.lua
-QoL\NaowhForever_Mail.lua
-QoL\NaowhForever_TownData.lua
-QoL\NaowhForever_TownMailboxes.lua
-QoL\NaowhForever_TownSpiritHealers.lua
-QoL\NaowhForever_TownTravel.lua
-QoL\NaowhForever_ZoneExits.lua
-QoL\NaowhForever_TownMap.xml
-QoL\NaowhForever_MapOverlays.lua
-QoL\NaowhForever_Unexplored.xml
-QoL\NaowhForever_SkyborneData.lua
-QoL\NaowhForever_SkyborneSpots.xml
-QoL\NaowhForever_ZoneLevels.lua
-QoL\NaowhForever_Trainer.lua
-TopBar\NaowhForever_TopBar.lua
-QoL\NaowhForever_FlightData.lua
-QoL\NaowhForever_Flight.lua
-QoL\NaowhForever_Waypoints.lua
-QoL\NaowhForever_QuizData.lua
-QoL\NaowhForever_Quiz.lua
-QoL\NaowhForever_AimTrainer.lua
-QoL\NaowhForever_AimBoard.lua
-# Supporter badges: the staff and patron lists, then the chat name filter and card that read it.
-Badges\NaowhForever_BadgesStaff.lua
-Badges\NaowhForever_BadgesPatrons.lua
-Badges\NaowhForever_Badges.lua
-Core\NaowhForever_PatchNotes.lua
-Core\NaowhForever_Credits.lua
-# The welcome window, once per account at the first login. Loads after the Badges, whose
-# Discord link it shares.
-Core\NaowhForever_Welcome.lua
+Core\Profiles.xml
+Core\Settings.xml
+Core\Badges\Badges.xml
+Core\Pages.xml

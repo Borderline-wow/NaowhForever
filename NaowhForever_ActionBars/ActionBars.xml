@@ -1,0 +1,17 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- ActionBars.xml: the Action Bars module's files, in load order. -->
+    <Script file="ActionBars.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Bars.lua"/>
+    <Script file="Capture.lua"/>
+    <Script file="Import.lua"/>
+    <Script file="Pending.lua"/>
+    <Script file="Sets.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\Parts.lua"/>
+    <Script file="UI\SetsPage.lua"/>
+    <Script file="UI\Builder.lua"/>
+    <Script file="UI\Preview.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

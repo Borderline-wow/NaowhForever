@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- ThreatMeter.xml: the Threat Meter's files, in load order. -->
+    <Script file="ThreatMeter.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Samples.lua"/>
+    <Script file="Threat.lua"/>
+    <Script file="View\Meter.lua"/>
+    <Script file="UI\Meter.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

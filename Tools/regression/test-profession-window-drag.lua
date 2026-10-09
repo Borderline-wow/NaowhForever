@@ -11,7 +11,7 @@ local function Read(path)
     return s
 end
 
-local source = Read("NaowhForever_Professions/NaowhForever_Professions.lua")
+local source = Read("NaowhForever_Professions/UI/Takeover.lua")
 local first = assert(source:find("local Drag = {}", 1, true))
 local save = assert(source:find("function Drag.Save()", first, true))
 local last = assert(source:find("\nend\n", save, true))

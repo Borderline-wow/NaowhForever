@@ -11,7 +11,7 @@ local function Read(path)
     return s
 end
 
-local source = Read("NaowhForever_Professions/NaowhForever_Professions.lua")
+local source = Read("NaowhForever_Professions/UI/Takeover.lua")
 local first = assert(source:find("local function Deactivate()", 1, true))
 local last = assert(source:find("\nend\n", first, true))
 local chunk = "local win\n" .. source:sub(first, last + 4)
@@ -28,7 +28,7 @@ local function Frame(protected)
 end
 local pf = Frame()
 local env = {
-    Reuse = { waiting = {} },
+    waiting = {},
     ns = { ProfBagChanges = 0 },
     wipe = function(t) for k in pairs(t) do t[k] = nil end end,
     InCombatLockdown = function() return combat end,

@@ -104,7 +104,7 @@ local UI = {
         Button = function() return nil, 30 end,
     },
 }
-local ns = {
+local ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
     THEME = setmetatable({}, { __index = function() return WHITE end }),
     UI = UI,
     Color = function(_, text) return tostring(text) end,
@@ -201,12 +201,18 @@ local env = setmetatable({
 env._G = env
 
 Load({
-    "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua", "Shared/Places.lua",
-    "Shared/Parts.lua", "Shared/Window.lua", "Shared/View.lua", "Shared/Kinds.lua",
+    "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Game/Items.lua", "Shared/Game/Gear.lua", "Shared/Game/Places.lua",
+    "Shared/UI/Parts.lua", "Shared/UI/Marks.lua", "Shared/UI/Text.lua", "Shared/UI/Hud.lua", "Shared/UI/Timer.lua", "Shared/UI/Share.lua", "Shared/UI/Panels.lua", "Shared/UI/Window.lua", "Shared/UI/Tabs.lua", "Shared/UI/SettingsCard.lua", "Shared/View/View.lua", "Shared/View/Kinds.lua",
     "Shared/Settings/Settings.lua",
-    "NaowhForever_Training/NaowhForever_TrainingData.lua", "NaowhForever_Training/NaowhForever_TrainingBuilds.lua",
-    "NaowhForever_Training/NaowhForever_Training.lua", "NaowhForever_Training/NaowhForever_TrainingWindow.lua",
+    "Core/Features.lua",
 }, env)
+-- The planner's own files, as Training.xml lists them.
+local xml = assert(io.open("NaowhForever_Training/Training.xml", "rb")):read("*a"):gsub("<!%-%-.-%-%->", "")
+local planner = {}
+for file in xml:gmatch("<Script%s+file=\"([^\"]+)\"") do
+    planner[#planner + 1] = "NaowhForever_Training/" .. file:gsub("\\", "/")
+end
+Load(planner, env)
 
 -------------------------------------------------------------------------------
 --  Opening it, and every part of it
@@ -295,7 +301,7 @@ local declared = ns.Shared.Settings.pages["Training Planner/Settings"]
 local windowCard, trainer = declared and declared.items[1], declared and declared.cards.trainer
 check("the settings page is declared, the planner's window card first", windowCard and windowCard.window
     and windowCard.text == "Open Training Planner")
-check("with the trainer popup's card, switched by its own setting", trainer and trainer.switch == "trainerPopup")
+check("and no trainer popup card of its own: QoL's Trainer declares it, so it goes with QoL", trainer == nil)
 
 local backed = 0
 window:Hide()

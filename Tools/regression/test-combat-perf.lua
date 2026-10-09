@@ -131,8 +131,8 @@ do
             raw = 50000 - i * 1700, scaled = 100 - i * 3, rawPct = 100 - i * 3 }
     end
     local values = { enabled = true, visibility = "always", height = 700 }
-    local ns = { THEME = THEME, Print = function() end, Apply = function() end,
-        ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), THEME = THEME, Print = function() end, Apply = function() end,
+        ShowUnlockMode = function() end, HideUnlockMode = function() end,
         Font = function(parent) return New("FontString", nil, parent) end,
         Border = function(parent) return { _frame = New("Frame", nil, parent) } end,
         AllowOffscreen = function() end, Tooltip = function() end,
@@ -148,7 +148,8 @@ do
             TexturePath = function(_, fallback) return fallback end,
             SoundPathFor = function() return "sound" end, _PlayLSMSound = function() end },
         Shared = { Parts = { HudFont = function(fs, _, size, outline) fs:SetFont("font", size, outline) end },
-            Style = { RED_RGB = {}, HAVE_RGB = {}, WARN_RGB = {} } },
+            Style = setmetatable({ RED_RGB = {}, HAVE_RGB = {}, WARN_RGB = {} },
+                { __index = dofile("Tools/regression/shared_style.lua") }) },
     }
     ns.UI.ModuleSettings = function(_, defaults) return Settings(values, defaults) end
     local env = BaseEnv(ns, {
@@ -169,7 +170,12 @@ do
         UnitGroupRolesAssigned = function() return "DAMAGER" end, GetShapeshiftFormID = function() return nil end,
         C_Timer = { After = function() end, NewTicker = function() return { Cancel = function() end } end },
     })
-    Run(Source("NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua"), "ThreatMeter", env)
+    for _, file in ipairs({ "Core/Features.lua", "NaowhForever_ThreatMeter/ThreatMeter.lua",
+        "NaowhForever_ThreatMeter/Constants.lua", "NaowhForever_ThreatMeter/Data/Samples.lua",
+        "NaowhForever_ThreatMeter/Threat.lua", "NaowhForever_ThreatMeter/View/Meter.lua",
+        "NaowhForever_ThreatMeter/UI/Meter.lua", "NaowhForever_ThreatMeter/UI/SettingsPage.lua" }) do
+        Run(Source(file), file, env)
+    end
     Fire("PLAYER_LOGIN")
     local meter = named.NaowhForeverThreatMeter
     local wheel = meter.scripts.OnMouseWheel
@@ -235,8 +241,8 @@ do
             { category = "flask", itemID = 13510, auras = { 17626 } },
         } }
     local bags = { [13931] = 2, [13510] = 1 }
-    local ns = { AuraBuffSettings = Settings(values), THEME = THEME, Apply = function() end,
-        ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), AuraBuffSettings = Settings(values), THEME = THEME, Apply = function() end,
+        ShowUnlockMode = function() end, HideUnlockMode = function() end,
         Border = function() end, Solid = function(parent) return New("Texture", nil, parent) end,
         Font = function(parent) return New("FontString", nil, parent) end,
         UI = { AttachMover = function() return New("Mover") end },
@@ -266,8 +272,13 @@ do
         C_SpellBook = { IsSpellKnown = function() return false end },
         C_Timer = { After = function(_, fn) lastAfter = fn end, NewTimer = function() return timer end },
     })
-    Run(Source("NaowhForever_AuraBuffs/NaowhForever_BuffReminderData.lua"), "BuffReminderData", env)
-    Run(Source("NaowhForever_AuraBuffs/NaowhForever_BuffReminders.lua"), "BuffReminders", env)
+    ns.UI.ModuleSettings = function() return ns.AuraBuffSettings end
+    for _, file in ipairs({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
+        "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/Data/BuffReminders.lua", "NaowhForever_AuraBuffs/BuffReminders.lua",
+        "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/BuffCell.lua",
+        "NaowhForever_AuraBuffs/UI/BuffMenu.lua", "NaowhForever_AuraBuffs/UI/BuffReminders.lua" }) do
+        Run(Source(file), file, env)
+    end
     Fire("PLAYER_LOGIN")
     Fire("UNIT_AURA", "raid3")
     local Refresh = lastAfter
@@ -300,13 +311,14 @@ end
 --  Blessings: every ask in one bar refresh reads a member's buffs once
 -------------------------------------------------------------------------------
 do
-    local source = Source("NaowhForever_Blessings/NaowhForever_Blessings.lua")
+    local source = Source("NaowhForever_Blessings/Buffs.lua")
     local first = source:find("local memoAt", 1, true) or source:find("-- Present, with the time left", 1, true)
     local last = assert(source:find("local function InRange(member, spell)", first, true))
     local SECRET = {}
     local state = { reads = 0, now = 500, secretAuras = false }
     local auras = {}
     local env = {
+        MAX_AURAS = tonumber((assert(source:match("\nlocal MAX_AURAS = (%d+)\n"), "MAX_AURAS is missing"))),
         FAMILY = { [19740] = "might", [25291] = "might", [20217] = "kings", [25898] = "kings",
             [19742] = "wisdom", [465] = "devotion" },
         Secret = function(v) return v == SECRET end,

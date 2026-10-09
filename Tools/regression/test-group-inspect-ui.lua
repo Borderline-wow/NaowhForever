@@ -108,7 +108,7 @@ local S = {
 }
 
 -------------------------------------------------------------------------------
---  The records, as the contract shapes them, made once and reused as Data.lua's are
+--  The records, as the contract shapes them, made once and reused as Records.lua's are
 -------------------------------------------------------------------------------
 local CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 local ROLES = { "TANK", "HEALER", "DAMAGER", "DAMAGER", "DAMAGER" }
@@ -194,7 +194,7 @@ tooltip.IsForbidden = function(self) return self.forbidden == true end
 local MANAGER = { IsAnyMenuOpen = function() return false end }
 local menus = { modified = {} }
 local ns
-ns = {
+ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
     THEME = setmetatable({}, { __index = function() return WHITE end }),
     QoLSettings = S,
     GroupInspect = GI,
@@ -222,7 +222,7 @@ ns = {
     AccountSettings = function() return {} end,
     Print = function(text) printed[#printed + 1] = text end,
     PlainText = function(text) return type(text) == "string" and text or nil end,
-    FEATURE_BADGES = 1,
+    FEATURE_BADGES = 1, BADGES_LIVE = 1,
     BadgeOf = function(guid)
         if guid == "Player-0002" then return ns.DEVELOPER end
     end,
@@ -323,14 +323,24 @@ env._G = env
 --  Loading: off, nothing made, nothing listened to
 -------------------------------------------------------------------------------
 local mine = TocFiles("^NaowhForever_GroupInspect/.*%.lua$")
-check("GroupInspect.xml loads its six files in the contract's order", #mine == 6
-    and mine[1]:find("Data%.lua$") and mine[2]:find("Share%.lua$") and mine[3]:find("Window%.lua$")
-    and mine[4]:find("Party%.lua$") and mine[5]:find("Raid%.lua$") and mine[6]:find("SettingsPage%.lua$"))
+local ORDER = { "/GroupInspect%.lua$", "/Constants%.lua$", "/Data/Preview%.lua$", "/Records%.lua$", "/Inspect%.lua$",
+    "/PreviewGroup%.lua$", "/Stats%.lua$", "/OwnStats%.lua$", "/Message%.lua$", "/Share%.lua$", "/View/Style%.lua$",
+    "/View/Texts%.lua$", "/View/Parts%.lua$", "/View/Pill%.lua$", "/View/Gear%.lua$", "/View/Card%.lua$",
+    "/View/CardPaint%.lua$", "/View/Party%.lua$", "/View/RaidOrder%.lua$", "/View/RaidBar%.lua$", "/View/Row%.lua$",
+    "/View/Raid%.lua$", "/View/Solo%.lua$", "/UI/Window%.lua$", "/UI/Menu%.lua$", "/UI/SettingsPage%.lua$" }
+check("GroupInspect.xml loads its files in the contract's order", #mine == #ORDER and (function()
+    for i, pattern in ipairs(ORDER) do
+        if not mine[i]:find(pattern) then return false end
+    end
+    return true
+end)())
 local files = TocFiles("^Shared/.*%.lua$")
 local before = made
 Load(files, env)
 local shared = made
-for i = 3, 6 do Load({ mine[i] }, env) end
+for i = 1, #mine do
+    if mine[i]:find("/Constants%.lua$") or mine[i]:find("/View/") or mine[i]:find("/UI/") then Load({ mine[i] }, env) end
+end
 local UI = GI.UI
 check("off: nothing made at load, nothing listened to, no timer", made == shared and #GI.fns == 0 and #timers == 0
     and before <= shared)
@@ -343,11 +353,13 @@ local function Source(path)
     f:close()
     return text
 end
-local qol = Source("QoL/NaowhForever_QoL.lua")
-check("its defaults: off, sharing on, by score, the gear view", qol:find("groupInspect = false", 1, true)
-    and qol:find("groupInspectShare = true", 1, true) and qol:find('groupInspectSort = "score"', 1, true)
+local qol = Source("Core/Settings.lua")
+local switches = Source("Core/Features.lua")
+check("its defaults: off, sharing on, by score, the gear view", qol:find("groupInspect = F.groupInspect,", 1, true)
+    and switches:find("groupInspect = false,", 1, true) and switches:find("groupInspectShare = true,", 1, true)
+    and qol:find("groupInspectShare = F.groupInspectShare,", 1, true) and qol:find('groupInspectSort = "score"', 1, true)
     and qol:find('groupInspectView = "gear"', 1, true) and qol:find("groupInspectAlpha = 1", 1, true))
-check("/nf group and its key binding", Source("Core/NaowhForever_Window.lua"):find('cmd == "group"', 1, true)
+check("/nf group and its key binding", Source("Core/Commands.lua"):find('cmd == "group"', 1, true)
     and Source("Bindings.xml"):find("NaowhForever_ToggleGroupInspect()", 1, true))
 
 local Settings = ns.Shared.Settings
@@ -368,7 +380,7 @@ check("the key binding and the window's opacity", pageCards.binding.rows[1].bind
 check("the banner says you are not in a group", banner.headline() == "Not in a group" and banner.detail():find("preview"))
 check("nothing hooks the unit menus while off", #menus.modified == 0)
 
-local core = Source("Core/NaowhForever_Window.lua")
+local core = Source("Core/Options/Modules.lua")
 local list = assert(core:match("local MODULES = (%b{})"))
 local MODULES = assert(loadstring("return " .. list))()
 local module
@@ -390,7 +402,7 @@ check("its window from /nfgroup, the Top Bar and its minimap button", module.com
     and module.short == "Group" and module.open == "ToggleGroupInspect" and module.icon ~= nil
     and module.navIcon == "group" and module.tabs[1].name == "Settings")
 do
-    local chunk = assert(core:match("(local launcherEvents = CreateFrame.*)"))
+    local chunk = assert(Source("Core/Options/Launchers.lua"):match("(local LOGO = .*)"))
     local objects, opened, event = {}, nil, nil
     local frame = { SetScript = function(_, _, fn) event = fn end, RegisterEvent = NOTHING, UnregisterEvent = NOTHING }
     local libs = {
@@ -398,7 +410,7 @@ do
         ["LibDBIcon-1.0"] = { Register = NOTHING },
     }
     local account = {}
-    local launchEnv = setmetatable({ ns = { AccountSettings = function() return account end, L = function(t) return t end,
+    local launchEnv = setmetatable({ ns = { MEDIA = dofile("Tools/regression/core_media.lua"), AccountSettings = function() return account end, L = function(t) return t end,
             SaveModuleDefaults = NOTHING, ThemeTint = function(_, literal) return literal end, ToggleOptionsWindow = NOTHING },
         CreateFrame = function() return frame end, LibStub = function(name) return libs[name] end,
         MODULES = MODULES, MinimapButtonOn = function() return false end,

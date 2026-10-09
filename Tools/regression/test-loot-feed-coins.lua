@@ -45,8 +45,9 @@ local S = { Get = function(k) return defaults[k] end, Set = function(k, v) defau
 local THEME = { fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
     accent = { r = 0, g = 0.57, b = 0.93 }, bg = { r = 0, g = 0, b = 0 } }
 local ns = {
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     QoLSettings = S, THEME = THEME,
-    Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
+    Apply = function() end, ShowUnlockMode = function() end, HideUnlockMode = function() end,
     Border = function(parent)
         local border = New("Border", parent)
         border._frame = New("Frame", parent)
@@ -58,6 +59,7 @@ local ns = {
     OnePixel = function() return 1 end,
     UI = { FontPath = function() return "font" end, AttachMover = function(f) return New("Mover", f) end },
     Shared = {
+        Style = dofile("Tools/regression/shared_style.lua"),
         Parts = { HUD_OUTLINES = { {}, {} }, HudFont = function(fs) return fs end },
         Settings = {
             Group = function(name) return { group = name } end,
@@ -85,7 +87,7 @@ local env = setmetatable({
     COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED = "You gain %d experience.",
 }, { __index = _G })
 env._G = env
-local chunk = assert(loadfile("QoL/NaowhForever_LootFeed.lua"))
+local chunk = assert(loadfile("NaowhForever_QoL/Loot/LootFeed.lua"))
 setfenv(chunk, env)
 chunk()
 

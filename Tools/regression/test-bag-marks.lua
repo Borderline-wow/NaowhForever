@@ -160,6 +160,7 @@ env._G = env
 env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 
 local files = TocFiles("^Shared/.*%.lua$")
+files[#files + 1] = "NaowhForever_BiS/BiS/Constants.lua"
 files[#files + 1] = "NaowhForever_BiS/BiS/View/Bags.lua"
 check("the TOC loads the bag marks", #TocFiles("^NaowhForever_BiS/BiS/View/Bags%.lua$") == 1)
 Load(files, env)

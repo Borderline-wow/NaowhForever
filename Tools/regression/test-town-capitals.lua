@@ -26,6 +26,7 @@ local function Town()
     }
 end
 local ns = {
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     QoLSettings = S, Apply = function() end, ThemeTint = function() end,
     TownCapitals = { [2] = true }, TownNPCs = { [1] = Town(), [2] = Town() },
     TownMailboxes = {}, TownSpiritHealers = {}, ZoneExits = {}, TownTravel = {},
@@ -60,7 +61,7 @@ local env = setmetatable({
     UnitClass = function() return "Warrior", "WARRIOR" end,
     wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
 }, { __index = _G })
-local chunk = assert(loadstring(Read("QoL/NaowhForever_TownMap.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/TownMap.lua")))
 setfenv(chunk, env)
 chunk()
 for _, f in ipairs(frames) do

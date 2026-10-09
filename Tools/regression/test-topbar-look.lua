@@ -1,8 +1,16 @@
 -- Top Bar text: the clock keeps its own font with no outline, the FPS / MS readout and the online
 -- counts keep the outlined Addon Font, until Font, Outline or Clock Outline is picked; and the card's
--- rows in the standard groups. Cut out of TopBar.lua and run on stubs. Run from the repo root.
-local f = assert(io.open(arg[1] or "TopBar/NaowhForever_TopBar.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+-- rows in the standard groups. Its look (NaowhForever_TopBar/View/Look.lua) is loaded and the card's rows cut out
+-- of NaowhForever_TopBar/UI/SettingsPage.lua, run on stubs. Run from the repo root.
+
+-- The Top Bar's files as TopBar.xml lists them, read as one source.
+local parts = {}
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do
+    local f = assert(io.open(path, "rb"))
+    parts[#parts + 1] = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+end
+local source = table.concat(parts, "\n")
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
@@ -13,19 +21,8 @@ end
 
 local code = table.concat({
     "local S, Parts, UI, ns, Group, ResetLayout = ...",
-    "local BADGE_SIZE, BTN_PAD, GAP, EDGE, CLOCK_GAP = 10, 8, 4, 14, 22",
-    "local SEG_PAD, PILL_BG = 6, 0.85",
-    "local function Tone() return 1, 1, 1, 1 end",
-    "local function IconColor() return 1, 1, 1 end",
-    "local function BtnSize() return S.Get('iconSize') + BTN_PAD end",
-    "local Look = {}",
-    Slice("function Look.PaintPills(", "\nfunction Look.ClockFont(clock)"),
-    Slice("function Look.ClockFont(clock)", "\nfunction Look.ClockText()"),
-    Slice("function Look.Row(group, list, n)", "\nfunction Look.Fit("),
-    Slice("function Look.Fit(", "\nfunction Look.SystemFont("),
-    Slice("function Look.SystemFont(text)", "\nlocal SYSTEM_TEXT"),
     Slice("local ROWS = {", "\nns.Shared.Settings.Page("),
-    "return { Look = Look, ROWS = ROWS }",
+    "return { ROWS = ROWS }",
 }, "\n")
 
 local defaults = {}
@@ -33,6 +30,7 @@ for key, value in source:match("UI%.ModuleSettings%(\"topBar\", (%b{})"):gmatch(
     defaults[key] = loadstring("return " .. value)()
 end
 defaults.iconSize, defaults.sysSize, defaults.clockSize = 22, 13, 27
+defaults.iconColor = { r = 1, g = 1, b = 1 }
 local settings = {}
 local S = { Get = function(k) if settings[k] == nil then return defaults[k] end return settings[k] end }
 
@@ -66,7 +64,22 @@ end
 
 local chunk = assert(loadstring(code))
 local api = chunk(S, Parts, UI, ns, function(name) return { group = name } end, function() end)
-local Look = api.Look
+
+-- The real look and its constants, on the stubs above.
+ns.TopBar = { Settings = S }
+ns.Shared = { Style = {}, Parts = Parts }
+ns.THEME = { accent = { r = 0, g = 0, b = 0 } }
+ns.UI = UI
+do
+    local env = setmetatable({ NaowhForever = ns }, { __index = _G })
+    env._G = env
+    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/View/Style.lua", "NaowhForever_TopBar/View/Look.lua" }) do
+        local fileChunk = assert(loadfile(path))
+        setfenv(fileChunk, env)
+        fileChunk()
+    end
+end
+local Look = ns.TopBar.Look
 local clock, sys = Text(), Text()
 local group = { SetSize = function() end }
 local friends, journal = Button(), Button()
@@ -131,7 +144,16 @@ local function Box(w)
 end
 local frame, left, right = Box(0), Box(60), Box(90)
 local clockText = { GetStringWidth = function() return 70 end }
-check("the clock is off by default", source:find("enabled = true,%s+showClock = false,") ~= nil)
+local features = { }
+do
+    local env = setmetatable({ NaowhForever = features }, { __index = _G })
+    env._G = env
+    local fileChunk = assert(loadfile("Core/Features.lua"))
+    setfenv(fileChunk, env)
+    fileChunk()
+end
+check("the clock is off by default", features.FEATURES.topBar.showClock == false
+    and source:find("enabled = F.enabled,%s+showClock = F.showClock,") ~= nil)
 Look.Fit(frame, left, right, clockText, 2, 3)
 check("no clock: the row is both sides and a button's gap, no clock-sized hole", frame.w == 2 * 14 + 60 + 4 + 90
     and left.points.LEFT == 14 and right.points.RIGHT == -14)

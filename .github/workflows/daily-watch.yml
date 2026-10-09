@@ -1,9 +1,9 @@
 name: daily-watch
 
 # Daily, two checks. The watch job: is there a newer WoW Forever build than the one the Journal's data is read from
-# (BUILD in Tools/wago.py)? If so, a pull request that moves to it, with the faction data
+# (BUILD in Tools/sources/wago.py)? If so, a pull request that moves to it, with the faction data
 # rebuilt, a changelog line saying the Journal's data is updated to the build (and what it
-# changes), and a report of what the build changes for the Journal (Tools/watch_build.py).
+# changes), and a report of what the build changes for the Journal (Tools/release/watch_build.py).
 # If not, and the data still carries hotfixed rewards over from an older build, whether
 # wago.tools has recorded the build's own hotfixes yet: then a pull request that rebuilds
 # from them, dropping what Blizzard removed.
@@ -14,12 +14,12 @@ name: daily-watch
 # Only the game's own tables are read, through wago.tools. Run workflow does the same on
 # demand, for a build of your choice or as a report only.
 # With the move, the Naowh Score's constants are refitted to the build's item table
-# (Tools/fit_naowh_score.py): NaowhForever_BiS/NaowhScore/Data/Formula.lua changes in the same pull request
+# (Tools/build/fit_naowh_score.py): NaowhForever_BiS/NaowhScore/Data/Formula.lua changes in the same pull request
 # when they move enough and pass its quality gates, and the report gets a "Naowh Score"
 # section either way (a manual run reports it too). A fit that fails only says so. A refit
 # that changes Formula.lua gets its own changelog line: every player's score moves.
 # The loot job: whether wowsrc.com's Forever loot pages list something the Journal was not
-# built from (Tools/wowsrc_loot.json): items a boss gained or lost, new bosses and pages.
+# built from (Tools/data/wowsrc_loot.json): items a boss gained or lost, new bosses and pages.
 # If so, the Journal is rebuilt from them and a pull request says what. The bis job: the
 # same for wowsrc's BiS lists and the BiS List's data. Both ask Wowhead nothing (--offline):
 # a new item's facts come from the game's own tables, and what those cannot settle is listed
@@ -116,7 +116,7 @@ jobs:
           if [ "$FORCE" = "true" ]; then args+=(--force); fi
           if [ "$OPEN_PR" = "true" ]; then args+=(--update); fi
           if [ "$ALLOW_LOSSES" = "true" ]; then args+=(--allow-losses); fi
-          python Tools/watch_build.py "${args[@]}"
+          python Tools/release/watch_build.py "${args[@]}"
           cat "$RUNNER_TEMP/watch.md" >> "$GITHUB_STEP_SUMMARY"
 
       # The Naowh Score's constants, refitted to the build moved to: Formula.lua is rewritten
@@ -130,7 +130,7 @@ jobs:
         run: |
           args=(--build "$BUILD" --report "$RUNNER_TEMP/score.md")
           if [ "$WRITE" = "true" ]; then args+=(--write); fi
-          if ! python Tools/fit_naowh_score.py "${args[@]}"; then
+          if ! python Tools/build/fit_naowh_score.py "${args[@]}"; then
             echo "::warning::The Naowh Score refit failed: its constants stay as they are."
             {
               echo "### Naowh Score"
@@ -154,20 +154,20 @@ jobs:
             CHANGELOG="${CHANGELOG:+$CHANGELOG$nl}Changed: Naowh Score: refitted to the latest Forever items."
           fi
           $PR add watch "${TITLE#chore(data): }" "$RUNNER_TEMP/watch.md" "$CHANGELOG" \
-            Tools/wago.py NaowhForever_DungeonJournal/Data NaowhForever_BiS/NaowhScore/Data
+            Tools/sources/wago.py NaowhForever_DungeonJournal/Data NaowhForever_BiS/NaowhScore/Data Shared/Data
 
       - name: Compare wowsrc.com's loot pages with ours
         id: loot
         if: ${{ !cancelled() }}
         continue-on-error: true
         run: |
-          git reset -q --hard HEAD && git clean -fdq -- Tools DungeonJournal BiS NaowhScore
-          python Tools/wowsrc.py --check --report "$RUNNER_TEMP/loot.md" --github-output "$GITHUB_OUTPUT"
+          git reset -q --hard HEAD && git clean -fdq -- Tools NaowhForever_DungeonJournal NaowhForever_BiS Shared
+          python Tools/sources/wowsrc.py --check --report "$RUNNER_TEMP/loot.md" --github-output "$GITHUB_OUTPUT"
           if grep -q "^changes=true" "$GITHUB_OUTPUT"; then
-            # The pages the check read (Tools/wowsrc_pages), their names to item IDs, the Journal.
-            python Tools/wowsrc.py
-            python Tools/wowsrc.py --resolve --offline 2> "$RUNNER_TEMP/resolve.txt"
-            python Tools/build_journal.py --offline > /dev/null 2> "$RUNNER_TEMP/build.txt"
+            # The pages the check read (Tools/data/wowsrc_pages), their names to item IDs, the Journal.
+            python Tools/sources/wowsrc.py
+            python Tools/sources/wowsrc.py --resolve --offline 2> "$RUNNER_TEMP/resolve.txt"
+            python Tools/build/journal.py --offline > /dev/null 2> "$RUNNER_TEMP/build.txt"
             {
               echo
               echo "### What the build said"
@@ -185,17 +185,17 @@ jobs:
         run: |
           $PR add loot "boss loot" "$RUNNER_TEMP/loot.md" \
             "Changed: Dungeon Journal: boss loot updated from the latest Forever loot lists." \
-            Tools/wowsrc_loot.json Tools/item_names.json Tools/journal_cache.json NaowhForever_DungeonJournal/Data
+            Tools/data/wowsrc_loot.json Tools/data/item_names.json Tools/data/journal_cache.json NaowhForever_DungeonJournal/Data Shared/Data
 
       - name: Compare wowsrc.com's BiS lists with ours
         id: bis
         if: ${{ !cancelled() }}
         continue-on-error: true
         run: |
-          git reset -q --hard HEAD && git clean -fdq -- Tools DungeonJournal BiS NaowhScore
-          python Tools/build_bis_data.py --check --report "$RUNNER_TEMP/bis.md" --github-output "$GITHUB_OUTPUT"
+          git reset -q --hard HEAD && git clean -fdq -- Tools NaowhForever_DungeonJournal NaowhForever_BiS Shared
+          python Tools/build/bis_data.py --check --report "$RUNNER_TEMP/bis.md" --github-output "$GITHUB_OUTPUT"
           if grep -q "^changes=true" "$GITHUB_OUTPUT"; then
-            python Tools/build_bis_data.py --offline 2> "$RUNNER_TEMP/bis-build.txt"
+            python Tools/build/bis_data.py --offline 2> "$RUNNER_TEMP/bis-build.txt"
             {
               echo
               echo "### What the build said"
@@ -212,7 +212,7 @@ jobs:
         run: |
           $PR add bis "BiS lists" "$RUNNER_TEMP/bis.md" \
             "Changed: BiS List: picks updated from wowsrc.com's latest lists." \
-            NaowhForever_BiS/BiS/Data/BiS.lua Tools/bis_item_ids.json Tools/bis_sources.json
+            NaowhForever_BiS/BiS/Data/BiS.lua Tools/data/bis_item_ids.json Tools/data/bis_sources.json
 
       # A new pick CI could not find a source for (it may not read Wowhead) fails the
       # regression test every pull request runs: the pull request stays a draft, saying what
@@ -228,7 +228,7 @@ jobs:
           missing="$(grep -o 'no source: [0-9, ]*' "$RUNNER_TEMP/sources.txt" | head -n 1 | sed 's/^no source: //')"
           {
             echo "Some new BiS picks have no source (CI may not read Wowhead): ${missing:-see the run}."
-            echo "On a branch from main, run \`python Tools/build_bis_data.py --sources-only\` and add what"
+            echo "On a branch from main, run \`python Tools/build/bis_data.py --sources-only\` and add what"
             echo "Wowhead has no source for either to the known list in"
             echo "\`Tools/regression/test-bis-dungeon-drops.lua\`, in a pull request of its own (as #57"
             echo "did). Once it is merged, the next run rebuilds this one on it and marks it ready."
@@ -238,7 +238,7 @@ jobs:
       # A check that failed half way: its files as the last good check left them.
       - name: Leave out what a failed check left
         if: ${{ !cancelled() }}
-        run: git reset -q --hard HEAD && git clean -fdq -- Tools DungeonJournal BiS NaowhScore
+        run: git reset -q --hard HEAD && git clean -fdq -- Tools NaowhForever_DungeonJournal NaowhForever_BiS Shared
 
       - name: Open the pull request
         if: ${{ !cancelled() && env.OPEN_PR == 'true' }}

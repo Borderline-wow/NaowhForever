@@ -8,7 +8,7 @@ local function Read(path)
     return s
 end
 
-local coreSource = Read("Core/NaowhForever_Core.lua")
+local coreSource = Read("Core/Core.lua")
 local function LoadCore(account)
     local frames = {}
     local function NewFrame()
@@ -54,12 +54,19 @@ local PICKS = { themePreset = "custom", themeColors = {
     bg = { r = 0.1, g = 0.2, b = 0.3 }, panel = { r = 0.4, g = 0.5, b = 0.6 },
     line = { r = 0.7, g = 0.8, b = 0.9 } } }
 
+-- The Top Bar's files as TopBar.xml lists them, read as one source.
+local function ReadTopBar()
+    local parts = {}
+    for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do parts[#parts + 1] = Read(path) end
+    return table.concat(parts, "\n")
+end
+
 -- Every ThemeTint call is inside a function, so it is read when a frame is built or
 -- refreshed and never at file load.
-local files = { "NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua", "TopBar/NaowhForever_TopBar.lua",
-    "NaowhForever_AuraBuffs/NaowhForever_Campfire.lua", "QoL/NaowhForever_LootFeed.lua",
-    "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryMap.lua",
-    "QoL/NaowhForever_TownMap.lua", "QoL/NaowhForever_CombatTimer.lua" }
+local files = { "NaowhForever_ThreatMeter/View/Meter.lua", "NaowhForever_TopBar/View/Look.lua", "NaowhForever_TopBar/UI/Tooltips.lua",
+    "NaowhForever_AuraBuffs/View/CampIcon.lua", "NaowhForever_QoL/Loot/LootFeed.lua",
+    "NaowhForever_Discovery/UI/BookTracker.lua", "NaowhForever_Discovery/UI/BookPins.lua",
+    "NaowhForever_QoL/Interface/TownMap.lua", "NaowhForever_QoL/Combat/CombatTimer.lua" }
 for _, path in ipairs(files) do
     local source = Read(path)
     local count = 0
@@ -74,7 +81,7 @@ end
 
 -- Campfire plate.
 do
-    local source = Read("NaowhForever_AuraBuffs/NaowhForever_Campfire.lua")
+    local source = Read("NaowhForever_AuraBuffs/View/CampIcon.lua")
     local PLATE = Const(source, "PLATE")
     Check(IsRGB(PLATE, 0.14, 0.15, 0.16), "plate literal is the original")
     local stmt = assert(source:match('(local plate = ns%.ThemeTint%("panel", PLATE%)\n[^\n]*)'))
@@ -90,13 +97,17 @@ do
     Check(Same(Paint(PICKS), { 0.4, 0.5, 0.6, 1 }), "plate: on follows Panels")
     Check(Same(Paint({ themePreset = "custom", themeColors = { bg = PICKS.themeColors.bg } }),
         { 0.14, 0.15, 0.16, 1 }), "plate: no Panels pick keeps the literal")
-    Check(source:find("SetColorTexture(0, 0, 0, 1)", 1, true), "campfire ring stays black")
+    Check(IsRGB(Const(source, "RING_RGB"), 0, 0, 0)
+        and source:find("icon.ring:SetColorTexture(RING_RGB.r, RING_RGB.g, RING_RGB.b, 1)", 1, true),
+        "campfire ring stays black")
 end
 
 -- TopBar pills, with the player's opacity on top.
 do
-    local source = Read("TopBar/NaowhForever_TopBar.lua")
-    local PILL_BG = Const(source, "PILL_BG")
+    local source = Read("NaowhForever_TopBar/View/Look.lua")
+    local PILL_BG = assert(loadstring("return " .. assert(Read("NaowhForever_TopBar/View/Style.lua"):match("\n    PILL_BG = (%b{})"),
+        "PILL_BG is missing")))()
+    local PERCENT = tonumber((assert(Read("NaowhForever_TopBar/Constants.lua"):match("\n    PERCENT = (%d+),"), "PERCENT is missing")))
     Check(IsRGB(PILL_BG, 0.03, 0.03, 0.04), "pill literal is the original")
     local stmt = assert(source:match(
         '(local pill = ns%.ThemeTint%("bg", PILL_BG%)\n[^\n]*ipairs%(segs%)[^\n]*end)'))
@@ -106,7 +117,7 @@ do
         for i = 1, 3 do
             segs[i] = { SetColorTexture = function(_, ...) painted[i] = { ... } end }
         end
-        Run(stmt, { ns = LoadCore(account), PILL_BG = PILL_BG, segs = segs,
+        Run(stmt, { ns = LoadCore(account), PILL_BG = PILL_BG, PERCENT = PERCENT, segs = segs,
             S = { Get = function() return 85 end } })
         return painted
     end
@@ -122,7 +133,7 @@ end
 
 -- ThreatMeter: the literals, the token each surface follows, and what stays as it was.
 do
-    local source = Read("NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua")
+    local source = Read("NaowhForever_ThreatMeter/View/Meter.lua")
     Check(IsRGB(Const(source, "WINDOW_BG"), 0.025, 0.04, 0.055), "window literal is the original")
     Check(IsRGB(Const(source, "WINDOW_EDGE"), 0.10, 0.19, 0.24), "border literal is the original")
     Check(IsRGB(Const(source, "HEADER_BG"), 0.04, 0.075, 0.095), "header literal is the original")
@@ -134,15 +145,17 @@ do
     Check(source:find('ns.Solid(frame.header, "BACKGROUND", ns.ThemeTint("panel", HEADER_BG), 1)', 1, true),
         "header follows Panels")
     Check(source:find('local rowBg = ns.ThemeTint("panel", ROW_BG)', 1, true), "rows follow Panels")
-    Check(source:find("row.bg:SetColorTexture(0.04, 0.19, 0.25, 1)", 1, true),
+    Check(IsRGB(Const(source, "OWN_ROW"), 0.04, 0.19, 0.25)
+        and source:find("row.bg:SetColorTexture(OWN_ROW.r, OWN_ROW.g, OWN_ROW.b, 1)", 1, true),
         "the own-row highlight keeps its tint")
 end
 
 -- XP Bar: the border with no colour picked is black, and follows Borders & Lines once the
 -- theme changes it, in the bar and its settings swatch alike.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
-    local EDGE = Const(source, "EDGE")
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
+    Check(source:find("\nlocal EDGE = ns.Shared.Style.BORDER_RGB\n", 1, true), "xp bar border is the house edge")
+    local EDGE = dofile("Tools/regression/shared_style.lua").BORDER_RGB
     Check(IsRGB(EDGE, 0, 0, 0), "xp bar border literal is black")
     local body = assert(source:match('\nlocal function BorderDefault%(%)\n(.-)\nend\n'))
     Check(source:find('S.Get("xpBarBorderColor") or BorderDefault()', 1, true), "the bar paints the default border")
@@ -162,9 +175,11 @@ local ACCENT_PRESET = { themePreset = "midnight" }
 local function AccentOf(account) return LoadCore(account).THEME.accent end
 
 do
-    local source = Read("QoL/NaowhForever_GcdTracker.lua")
+    local source = Read("NaowhForever_QoL/Combat/GcdTracker.lua")
     local GCD_BLUE = Const(source, "GCD_BLUE")
     Check(IsRGB(GCD_BLUE, 0.01, 0.56, 0.91), "gcd literal is the original")
+    local GLOW_ALPHA = tonumber((assert(source:match("\nlocal GLOW_ALPHA = ([%d%.]+)\r?\n"), "GLOW_ALPHA is missing")))
+    local BORDER_ALPHA = tonumber((assert(source:match("\nlocal BORDER_ALPHA = ([%d%.]+)\r?\n"), "BORDER_ALPHA is missing")))
     local glow = assert(source:match('(local blue = ns%.ThemeTint%("accent", GCD_BLUE%)\n[^\n]*f%.glow:SetColorTexture[^\n]*)'))
     local border = assert(source:match('(local blue = ns%.ThemeTint%("accent", GCD_BLUE%)\n[^\n]*f%.border:SetColorTexture[^\n]*)'))
     local function Paint(account)
@@ -172,8 +187,8 @@ do
         local f = { glow = { SetColorTexture = function(_, ...) out.glow = { ... } end },
             border = { SetColorTexture = function(_, ...) out.border = { ... } end } }
         local ns = LoadCore(account)
-        Run(glow, { ns = ns, GCD_BLUE = GCD_BLUE, f = f })
-        Run(border, { ns = ns, GCD_BLUE = GCD_BLUE, f = f })
+        Run(glow, { ns = ns, GCD_BLUE = GCD_BLUE, GLOW_ALPHA = GLOW_ALPHA, f = f })
+        Run(border, { ns = ns, GCD_BLUE = GCD_BLUE, BORDER_ALPHA = BORDER_ALPHA, f = f })
         return out
     end
     local off = Paint({})
@@ -188,11 +203,13 @@ do
 end
 
 do
-    local source = Read("NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua")
-    local block = assert(source:match('(if own then\n%s+local mark = ns%.ThemeTint%("accent", nil%).-\n        end)'))
+    local source = Read("NaowhForever_ThreatMeter/View/Meter.lua")
+    local block = assert(source:match('(if own then\n%s+local mark = ns%.ThemeTint%("accent", nil%).-\n    end)'))
+    local OWN_ROW = Const(source, "OWN_ROW")
+    local OWN_DARKEN = tonumber((assert(source:match("\nlocal OWN_DARKEN = ([%d%.]+)\r?\n"), "OWN_DARKEN is missing")))
     local function Row(account)
         local color
-        Run(block, { ns = LoadCore(account), own = true,
+        Run(block, { ns = LoadCore(account), own = true, OWN_ROW = OWN_ROW, OWN_DARKEN = OWN_DARKEN,
             row = { bg = { SetColorTexture = function(_, ...) color = { ... } end } } })
         return color
     end
@@ -202,7 +219,7 @@ do
 end
 
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
     local fn = assert(source:match('(local function FillGradient%(%).-\nend)'))
     local FILL_DARK = assert(tonumber(source:match('\nlocal FILL_DARK = ([%d%.]+)')))
     -- pick is the player's own Fill Colour, nil while it is on the default.
@@ -231,8 +248,8 @@ end
 -- or the theme's lighter Accent once the theme changed the Accent.
 do
     local LITERALS = { { 0.3, 0.71, 0.96 }, { 0.3, 0.7, 0.95 } }
-    for _, path in ipairs({ "NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua", "NaowhForever_Discovery/NaowhForever_DiscoveryMap.lua",
-            "QoL/NaowhForever_TownMap.lua" }) do
+    for _, path in ipairs({ "NaowhForever_Discovery/UI/BookTracker.lua", "NaowhForever_Discovery/UI/BookPins.lua",
+            "NaowhForever_QoL/Interface/TownMap.lua" }) do
         local source = Read(path)
         local helper = assert(source:match("(local function SoftBlue%(r, g, b%).-\nend)"), path .. ": SoftBlue")
         local function Blue(account, lit)
@@ -263,8 +280,8 @@ end
 -- The TopBar's clock and tooltips: the greys and whites they always were, or the player's
 -- Secondary Text and Text when the theme changed those.
 do
-    local source = Read("TopBar/NaowhForever_TopBar.lua")
-    local toneSource = assert(source:match("(local shades = {}\nlocal function Tone%(key, v%).-\nend)"))
+    local source = ReadTopBar()
+    local toneSource = assert(source:match("(local shades = {}\n\n?local function Tone%(key, v%).-\nend)"))
     local function ToneFor(account)
         local chunk = assert(loadstring(toneSource .. "\nreturn Tone"))
         setfenv(chunk, setmetatable({ ns = LoadCore(account) }, { __index = _G }))
@@ -289,7 +306,8 @@ do
     local function Grey(account)
         local chunk = assert(loadstring(greyLine .. "\nreturn grey"))
         local core = LoadCore(account)
-        setfenv(chunk, setmetatable({ ns = core }, { __index = _G }))
+        local away = assert(Read("NaowhForever_TopBar/View/Style.lua"):match('\n    AWAY_GREY = "([^"]+)"'), "AWAY_GREY is missing")
+        setfenv(chunk, setmetatable({ ns = core, St = { AWAY_GREY = away } }, { __index = _G }))
         return chunk(), core
     end
     Check(Grey({}) == "|cff808080", "topbar: the AFK and DND tags keep their grey with the default theme")
@@ -300,7 +318,7 @@ end
 
 -- The launcher tooltips: the game's gold title and white lines, or the theme's Accent and Text.
 do
-    local source = Read("Core/NaowhForever_Window.lua")
+    local source = Read("Core/Options/Launchers.lua")
     local TIP_TITLE, TIP_TEXT = Const(source, "TIP_TITLE"), Const(source, "TIP_TEXT")
     Check(IsRGB(TIP_TITLE, 1, 0.82, 0) and IsRGB(TIP_TEXT, 1, 1, 1), "launcher tooltip literals are the originals")
     local code = assert(source:match("(local function TipTitle%(tooltip, text%).-\nend\nlocal function TipLine%(tooltip, text%).-\nend)"))
@@ -325,8 +343,9 @@ end
 
 -- The FPS / MS readout's labels follow Text; its numbers keep their status colors.
 do
-    local source = Read("TopBar/NaowhForever_TopBar.lua")
-    Check(source:find('text:SetTextColor(Tone("fg", 1))', 1, true) and source:find("Look.SystemFont(bar.sys.text)", 1, true),
+    local source = ReadTopBar()
+    Check(source:find('text:SetTextColor(Tone("fg", WHITE))', 1, true) and source:find("Look.SystemFont(bar.sys.text)", 1, true)
+        and source:find("\n    WHITE = 1,", 1, true),
         "topbar: the FPS / MS labels are set from Text")
 end
 
@@ -334,7 +353,7 @@ end
 -- follow Panels and Borders & Lines (same opacity), the glow follows Accent; nothing changes
 -- with the default theme.
 do
-    local source = Read("QoL/NaowhForever_LootFeed.lua")
+    local source = Read("NaowhForever_QoL/Loot/LootFeed.lua")
     local DARK_BG, LIGHT_BG, LIGHT_EDGE, GLOW =
         Const(source, "DARK_BG"), Const(source, "LIGHT_BG"), Const(source, "LIGHT_EDGE"), Const(source, "GLOW")
     Check(IsRGB(DARK_BG, 0.05, 0.05, 0.06) and IsRGB(LIGHT_BG, 0.32, 0.23, 0.14), "loot feed fill literals are the originals")
@@ -369,7 +388,8 @@ do
     local function Glow(account)
         local from, to
         local function CreateColor(r, g, b, a) return { r, g, b, a } end
-        Run(glowStmt, { ns = LoadCore(account), GLOW = GLOW, CreateColor = CreateColor,
+        local alpha = assert(tonumber(source:match("local GLOW_ALPHA, GLOW_W = ([%d%.]+),")))
+        Run(glowStmt, { ns = LoadCore(account), GLOW = GLOW, GLOW_ALPHA = alpha, CreateColor = CreateColor,
             row = { glow = { SetGradient = function(_, _, a, b) from, to = a, b end } } })
         return from, to
     end
@@ -382,7 +402,7 @@ end
 
 -- The XP bar's rested segment and its text follow a changed accent; quest gold stays gold.
 do
-    local source = Read("QoL/NaowhForever_XPBar.lua")
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
     local RESTED = assert(loadstring("return " .. assert(source:match("\nlocal RESTED%s+= (%b{})"))))()
     Check(IsRGB(RESTED, 0x1e / 255, 0x40 / 255, 0xaf / 255), "xpbar rested literal is the original")
     local restedFn = assert(source:match('(local function RestedDefault%(%).-\nend)'))
@@ -433,14 +453,15 @@ end
 -- Apply Theme to Your Bar (Threat Meter): off by default, the picked color; on, a darker shade of the
 -- theme's Accent for your bar only. The tank and pull aggro bars keep their picked colors.
 do
-    local path = "NaowhForever_ThreatMeter/NaowhForever_ThreatMeter.lua"
-    local source = Read(path)
-    local helper = assert(source:match("(local yourShade\nlocal function ThemedColor%(key%).-\nend\n\n%-%- The color a bar setting.-\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
+    local path = "NaowhForever_ThreatMeter/View/Meter.lua"
+    local source = Read(path) .. "\n" .. Read("NaowhForever_ThreatMeter/UI/SettingsPage.lua")
+    local helper = assert(source:match("(local function ThemedColor%(key%).-\nend\n\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
+    local YOUR_SHADE = tonumber((assert(source:match("\nlocal YOUR_SHADE = ([%d%.]+)\r?\n"), "YOUR_SHADE is missing")))
     local PICKED = { playerColor = { r = 0.97, g = 0.44, b = 0.44 }, tankColor = { r = 0.3, g = 0.82, b = 0.48 },
         pullColor = { r = 0.98, g = 0.57, b = 0.24 } }
     local function Bar(account, key, themed)
         local core = LoadCore(account)
-        local env = { T = core.THEME, S = { Get = function(k)
+        local env = { T = core.THEME, YOUR_SHADE = YOUR_SHADE, S = { Get = function(k)
             if k == "themeColors" then return themed end
             return PICKED[k]
         end } }
@@ -467,13 +488,14 @@ end
 -- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's
 -- Accent, lighter Accent and a deeper Accent for the main hand, off hand and ranged bars.
 do
-    local path = "NaowhForever_SwingTimer/NaowhForever_SwingTimer.lua"
-    local source = Read(path)
+    local path = "NaowhForever_SwingTimer/SwingTimer.lua"
+    local source = Read(path) .. "\n" .. Read("NaowhForever_SwingTimer/UI/SettingsPage.lua")
     local helper = assert(source:match("(local function ThemedBar%(key%).-\nend\n\nlocal function Color%(key%).-\nend)"), path .. ": Color")
+    local RANGED_SHADE = tonumber((assert(source:match("\nlocal RANGED_SHADE = ([%d%.]+)\r?\n"), "RANGED_SHADE is missing")))
     local PICKED = { mhColor = { r = 0.9, g = 0.7, b = 0.27 }, ohColor = { r = 0.9, g = 0.45, b = 0.27 }, rColor = { r = 0.27, g = 0.73, b = 0.9 } }
     local function Bar(account, key, themed)
         local core = LoadCore(account)
-        local env = { T = core.THEME, S = { Get = function(k)
+        local env = { T = core.THEME, RANGED_SHADE = RANGED_SHADE, S = { Get = function(k)
             if k == "themeColors" then return themed end
             return PICKED[k]
         end } }
@@ -511,7 +533,7 @@ local function BackdropOf(stmt, account, env)
 end
 
 do
-    local source = Read("QoL/NaowhForever_CombatTimer.lua")
+    local source = Read("NaowhForever_QoL/Combat/CombatTimer.lua")
     local color, alpha = source:match("\nlocal CARD_COLOR, CARD_ALPHA = (%b{}), ([%d%.]+)")
     local env = { frame = {}, CARD_COLOR = assert(loadstring("return " .. color))(), CARD_ALPHA = tonumber(alpha) }
     local stmt = assert(source:match('(frame%.backdrop = Parts%.HudBackdrop%(frame, { color = ns%.ThemeTint%("bg", '

@@ -64,6 +64,7 @@ local function Fixture(settings, units)
         if settings[k] == nil then settings[k] = v end
     end
     local env = { pairs = pairs, ipairs = ipairs, type = type, math = math, table = table, select = select,
+        setmetatable = setmetatable,
         tostring = tostring, tonumber = tonumber, string = string, wipe = function(t)
             for k in pairs(t) do t[k] = nil end
             return t
@@ -156,7 +157,7 @@ local function Fixture(settings, units)
     env.InCombatLockdown = function() return units.combat == true end
     local ns = { THEME = { accent = {}, muted = { r = 0.66 }, fg = {}, panel = {}, accentSoft = {}, bg = {} },
         Apply = function() end,
-        ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end }
+        ShowUnlockMode = function() end, HideUnlockMode = function() end }
     ns.AccountSettings = function() return account end
     ns.Font = function() return Region() end
     ns.Solid = function(parent)
@@ -181,6 +182,7 @@ local function Fixture(settings, units)
     env.UIParent.GetRight = function() return 1000 end
     -- The card, by its frame name.
     local create = env.CreateFrame
+    ---@diagnostic disable-next-line: duplicate-set-field
     env.CreateFrame = function(kind, name, ...)
         local f = create(kind, name, ...)
         if name == "NaowhForeverRareAlert" then ns.alert = f end
@@ -201,7 +203,7 @@ local function Fixture(settings, units)
     end
     ns.CompletoSettings = { Get = function(k) return settings[k] end, Set = function(k, v) settings[k] = v end,
         DB = function() return settings end }
-    ns.Completo = {}
+    ns.Completo = { Settings = ns.CompletoSettings }
     -- The settings pages' cards, by id, to reach their rows.
     ns.cards = {}
     local page = { Window = function() end, Card = function(_, spec) ns.cards[spec.id] = spec end }
@@ -333,9 +335,12 @@ local function Fixture(settings, units)
     env.worldMap = map
     env.NaowhForever = ns
     env._G = env
-    Load({ "NaowhForever_Completo/NaowhForever_CompletoRares.lua",
-        "NaowhForever_Completo/NaowhForever_CompletoRareAlert.lua",
-        "NaowhForever_Completo/NaowhForever_CompletoRareMap.lua" }, env)
+    Load({ "NaowhForever_Completo/Constants.lua", "NaowhForever_Completo/Data/AlertSounds.lua",
+        "NaowhForever_Completo/Data/RaidMarks.lua", "NaowhForever_Completo/Rares.lua",
+        "NaowhForever_Completo/Kills.lua", "NaowhForever_Completo/Sounds.lua", "NaowhForever_Completo/Marks.lua",
+        "NaowhForever_Completo/View/Style.lua", "NaowhForever_Completo/View/AlertCard.lua",
+        "NaowhForever_Completo/UI/RareAlert.lua", "NaowhForever_Completo/UI/RarePins.lua",
+        "NaowhForever_Completo/UI/RaresSettings.lua" }, env)
     env.Fire("PLAYER_LOGIN")
     return ns, env, account
 end
@@ -539,13 +544,13 @@ do
     Check(ns.alert.name.text:find("Tapped Rare", 1, true) and #env.marks == 3,
         "a rare someone else tapped alerts, but gets no mark")
     Check(ns.alert.detail.text:find("[warn]Tapped by someone else", 1, true), "and says it is tapped")
-    ns.ShowRaidReminderAnchorConfig()
+    ns.ShowUnlockMode()
     Check(ns.alert:IsShown() and ns.alert.name.text:find("Tapped Rare", 1, true) and mover.shown
         and env.Listening("UNIT_FLAGS"), "Unlock Mode with a real alert up places that one, still followed")
-    ns.HideRaidReminderAnchorConfig()
+    ns.HideUnlockMode()
     Check(ns.alert:IsShown() and not mover.shown, "and leaving Unlock Mode leaves it up")
     ns.alert.OnClick(ns.alert, "RightButton")
-    ns.ShowRaidReminderAnchorConfig()
+    ns.ShowUnlockMode()
     Check(ns.alert:IsShown() and ns.alert.mark.shown and ns.alert.mark.texture == "Interface\\TargetingFrame\\UI-RaidTargetingIcon_5",
         "Unlock Mode previews the card with Mark Rare's mark")
     Check(mover.shown and not ns.alert.fade.playing, "with its HUD Editor plate, and it does not fade")
@@ -556,14 +561,14 @@ do
     Check(not ns.alert.detail.text:find("Tapped", 1, true), "so a real Mist Howler does not take it over")
     ns.alert.OnClick(ns.alert, "RightButton")
     Check(mover.shown, "the plate stays when the card is put away")
-    ns.HideRaidReminderAnchorConfig()
+    ns.HideUnlockMode()
     Check(not mover.shown and not ns.alert:IsShown(), "leaving Unlock Mode takes both away")
     settings.rareMarker = "none"
     units.nameplate7 = { guid = Guid(9998), name = "Unmarked Rare", kind = "rare" }
     env.Fire("NAME_PLATE_UNIT_ADDED", "nameplate7")
     Check(#env.marks == 3 and not ns.alert.mark.shown, "None: no mark, and none on the card")
     ns.alert:Hide()
-    ns.ShowRaidReminderAnchorConfig()
+    ns.ShowUnlockMode()
     Check(ns.alert:IsShown() and not ns.alert.mark.shown, "and none on Unlock Mode's preview")
 
     ns.CompletoSettings.Set("rareAlert", false)

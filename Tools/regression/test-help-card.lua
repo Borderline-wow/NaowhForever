@@ -5,11 +5,13 @@
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
-local f = assert(io.open("Core/NaowhForever_Widgets.lua", "rb"))
+local f = assert(io.open("Core/Options/Widgets.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local first = assert(source:find("%-%-  Tooltip: the house help card"))
-local last = assert(source:find("\n%-+\n%-%-  Bare controls", first))
-local section = source:sub(first, last)
+-- The file's named values, then the card: from its state to the toggle's first helper.
+local constants = assert(source:match("\n(local MEDIA = .-\n)\nlocal UI = {}\n"), "Widgets constants")
+local first = assert(source:find("\nlocal card\n", 1, true))
+local last = assert(source:find("\nlocal function Smooth(tex)", first, true))
+local section = constants .. source:sub(first, last)
 
 local CHAR_W, LINE_H = 6, 13
 local secret = {}
@@ -45,7 +47,8 @@ local function FontString()
 end
 
 local UI = {}
-local ns = { Solid = function() return { SetAllPoints = function() end } end, Border = function() end,
+local ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
+    Solid = function() return { SetAllPoints = function() end } end, Border = function() end,
     Font = function() return FontString() end }
 local cursor = { 500, 300 }
 local env = setmetatable({

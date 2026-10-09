@@ -13,7 +13,7 @@ local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
 local ns = {}
-local chunk = assert(loadstring(Read("QoL/NaowhForever_MapOverlays.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/MapOverlays.lua")))
 setfenv(chunk, { _G = { NaowhForever = ns } })
 chunk()
 
@@ -35,7 +35,8 @@ local settings = { enabled = true, mapUnexplored = false, mapUnexploredDark = 0.
 local S = { Get = function(key) return settings[key] end, Set = function() end }
 local card
 ns.QoLSettings = S
-ns.Shared = { Settings = { Page = function() return { Card = function(_, c) card = c end } end } }
+ns.QoLConstants = dofile("Tools/regression/qol_constants.lua")
+ns.Shared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = { Page = function() return { Card = function(_, c) card = c end } end } }
 ns.Apply = function() end
 ns.MapOverlays = { [1] = { { 300, 100, 10, 20, 11, 12 }, { 64, 64, 500, 400, 13 } } }
 
@@ -77,9 +78,10 @@ local env = setmetatable({
         return { RegisterEvent = function() end, UnregisterEvent = function() end, SetScript = function() end }
     end,
     hooksecurefunc = function() end,
+    wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
     WorldMapFrame = { IsShown = function() return false end },
 }, { __index = _G })
-chunk = assert(loadstring(Read("QoL/NaowhForever_Unexplored.lua")))
+chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/Unexplored.lua")))
 setfenv(chunk, env)
 chunk()
 
@@ -115,7 +117,8 @@ pin:Refresh()
 Check(#textures == 1 and textures[1].file == 13, "an explored area is left to the game")
 
 Check(card and card.switch == "mapUnexplored", "the card switches the setting")
-Check(Read("QoL/NaowhForever_QoL.lua"):find("mapUnexplored = true, mapUnexploredDark = 0.5", 1, true),
+Check(Read("Core/Settings.lua"):find("mapUnexplored = F.mapUnexplored, mapUnexploredDark = 0.5", 1, true)
+    and Read("Core/Features.lua"):find("mapUnexplored = true,", 1, true),
     "Unexplored Areas starts on, half dark")
 Check(card.rows[1].key == "mapUnexploredDark" and card.rows[1].slider[2] == 90, "the slider sets the darkness, never to black")
 

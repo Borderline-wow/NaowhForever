@@ -42,9 +42,12 @@ estimate: it orders upgrades, it does not promise a number on a meter.
 
 ```
 StatWeights/
-  StatWeights.xml      what loads, in order (the TOC includes only this file)
+  StatWeights.xml      what loads, in order (the addon's BiS.xml includes it)
   Data/Defaults.lua    each spec's default weights, by hand (ns.StatWeightDefaults)
-  StatWeights.lua      the rules: specs, your changes, an item's worth and gain, sharing (ns.StatWeights)
+  StatWeights.lua      its settings, the stats and the game's keys for them, specs, your talents' spec,
+                       your changes (ns.StatWeights)
+  Worth.lua            an item's stats and worth, your power, the gain and best gain (SW.Gain, SW.BestGain)
+  Sharing.lua          a spec's weights as a line, and back, or a simulator's export (SW.Export, SW.Import)
   Tooltip.lua          the tooltip line, installed the first time the module is turned on
   UI/Window.lua        its window: your spec's stats as bars and numbers, your best upgrades, reset, share
   UI/SettingsPage.lua  its card on the BiS List's settings page: the switch and your spec
@@ -55,8 +58,38 @@ StatWeights/
 | What | Where |
 | --- | --- |
 | A spec's default weights | `Data/Defaults.lua` (its role's, then the spec's own) |
-| A stat players can weigh | `STATS` and `KEYS` in `StatWeights.lua`, and its group in `UI/Window.lua` |
+| A stat players can weigh | `STATS` and `GAME_KEYS` in `StatWeights.lua`, and its group in `UI/Window.lua` |
 | The tooltip line | `Tooltip.lua` |
+
+## Why
+
+- The defaults are for level 60, measured in the spec's anchor at 1: its main stat for a fighter,
+  Spell Damage for a caster, Healing for a healer, Stamina for a tank. A percent is worth that many
+  anchor points per 1%, and dps a point of a weapon's damage per second (14 attack power's worth).
+- `PER_PERCENT` is a rating's points per 1% at 60, as the game's tooltips read them (10 hit rating is
+  "1.0%"); the weights are per 1%.
+- A weapon's damage per second counts whole in the main hand, half in the off hand, and a hunter's
+  ranged weapon's only. `SPEED` (2.6) stands in when the game has no weapon speed to give.
+- A druid's Feral tree is weighed for damage; a bear picks Feral Tank by hand. Forever keeps one spec
+  per class and its three classic trees as the talent tree's groups, which its own talent frame reads
+  the same way (`C_Traits`' group display and currency info); read once, and again after a talent
+  change.
+- The spec you weigh by: the one picked on the page, else your talents' (Automatic), else your BiS
+  list's, else your class's first.
+- Your changes are kept only where they differ from the default (closer than `SAME` is the default).
+- An item's stats are read once, at most `CACHE_MAX` items; then the cache starts over, so hovering
+  everything stays bounded.
+- While the game keeps your stats secret, a gain is measured against your stats' worth and weapon
+  speeds from just before; they are forgotten when your gear or level changes, so no gain is shown
+  from numbers that no longer hold.
+- Under `MIN_GAIN` (half a percent) is no upgrade. A ring or trinket is weighed against the weaker of
+  the two you wear, a two-hander against both hands. The game files a cloak under cloth; everyone
+  wears one, so its subclass is read as 0 for the class rules.
+- The comparison tooltips beside an item's (what you wear) have no `GetItem` on this client: those go
+  by the ID. An item's own link is read where there is one, for its random stats.
+- A simulator's export is WoWSims' EP export: `( <tool>: v1: "Name": Class=Rogue, Agility=2.1, ... )`.
+  A spell and a melee version of a stat count for the one we have, summed; keys we have no stat for
+  are left out, and a hunter's weapon is its ranged one.
 
 ## Checking
 

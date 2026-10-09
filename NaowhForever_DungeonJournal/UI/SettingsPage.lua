@@ -1,29 +1,41 @@
--------------------------------------------------------------------------------
---  UI/SettingsPage.lua -- the Dungeon Journal's settings, three tabs in the options window:
---  Journal (a card that says where you stand and opens it, what it lists, its window and its
---  key), Quest Tracker (the tracker and sharing quests) and Map (the Journal beside the world
---  map, the entrances on it, and Boss Loot at Cursor's key). What it lists comes from J.OPTION_GROUPS, the same list
---  the window's Filters menu is built from, so the two always match. Your latest kills and loot are in the window (UI/Recent.lua).
--------------------------------------------------------------------------------
+-- SettingsPage.lua: the Dungeon Journal's settings page, declared as cards.
 local ns = _G.NaowhForever
+
 local J = ns.Journal
 local S = J.Settings
 local Loot = J.Loot
 local Quests = J.Quests
-
-S.OnChange(function(key)
-    if key == "enabled" then ns.UI:RefreshPage(true) end
-end)
-
 local Settings = ns.Shared and ns.Shared.Settings
-if not Settings then return end
 
-local OPACITY_MIN = J.Style.OPACITY_MIN
-local JOURNAL_OFF = "Turn on the Dungeon Journal"
-local BIS_OFF = "Needs the BiS List"
+local OPACITY_RANGE, SCALE_RANGE = J.Style.OPACITY_RANGE, J.Style.SCALE_RANGE
+local ICON_MIN, ICON_MAX, ICON_STEP = 50, 200, 10
+local TO_FRACTION = J.Style.PERCENT_SCALE
+local PERCENT = J.C.PERCENT
+local ROUND_HALF = J.C.ROUND_HALF
+local ORDER_FIRST, ORDER_SECOND, ORDER_THIRD, ORDER_FOURTH, ORDER_LAST = 10, 15, 20, 30, 90
 
--- The dungeon for you right now: the one you are in, else the first dungeon (not a raid)
--- whose range holds your level; nil when none does.
+local TEXT_JOURNAL_OFF = "Turn on the Dungeon Journal"
+local TEXT_BIS_OFF = "Needs the BiS List"
+local TEXT_ENTRANCES_OFF = "Turn on Dungeon and Raid Entrances"
+local TEXT_EVERY_DUNGEON = "Every dungeon and raid: what drops, your quests, and more."
+local TEXT_YOU_ARE_IN = "You are in %s."
+local TEXT_FOR_YOUR_LEVEL = "%s is for your level (%s)."
+local TEXT_TO_PICK_UP = "%d to pick up"
+local TEXT_IN_LOG = "%d in your log"
+local TEXT_YOUR_QUESTS = "Your quests there: %s."
+local TEXT_LIST = ", "
+local TEXT_ONE_FILTER = ", 1 filter on"
+local TEXT_FILTERS = ", %d filters on"
+local TEXT_OPACITY = "%d%% opacity"
+local TEXT_OFF = "Off"
+local FACTION_VALUES = { both = "Both Factions", Alliance = "Alliance Ground", Horde = "Horde Ground" }
+local FACTION_ORDER = { "both", "Alliance", "Horde" }
+local MAP_SUMMARY = { both = "Dungeons and zones", panel = "In dungeons", factions = "In zones", none = "Nothing beside the map" }
+local SHARE_SUMMARY = { both = "Asks and accepts shared quests", ask = "Asks for shared quests",
+    accept = "Accepts shared quests" }
+local TRACKER_EVERYWHERE, TRACKER_INSIDE, TRACKER_OUTSIDE = "everywhere", "in dungeons", "outside dungeons"
+local TEXT_TRACKER, TEXT_AND_TRACKER = "Tracker ", ", tracker "
+
 local function ForYou()
     local here = J.Current()
     if here then return here[1], true end
@@ -36,34 +48,34 @@ end
 
 local function Headline()
     local dungeon, inside = ForYou()
-    if not dungeon then return "Every dungeon and raid: what drops, your quests, and more." end
+    if not dungeon then return TEXT_EVERY_DUNGEON end
     local name = ns.Color("accentSoft", dungeon.name)
-    if inside then return ("You are in %s."):format(name) end
-    return ("%s is for your level (%s)."):format(name, J.LevelRange(dungeon))
+    if inside then return TEXT_YOU_ARE_IN:format(name) end
+    return TEXT_FOR_YOUR_LEVEL:format(name, J.LevelRange(dungeon))
 end
 
--- Your quests there, as the Journal counts them; nil when there are none.
 local function Detail()
     local dungeon = ForYou()
     if not (dungeon and dungeon.quests) then return end
     local toPickUp, inLog = Quests.Count(dungeon.quests)
     if toPickUp + inLog == 0 then return end
     local parts = {}
-    if toPickUp > 0 then parts[#parts + 1] = ("%d to pick up"):format(toPickUp) end
-    if inLog > 0 then parts[#parts + 1] = ("%d in your log"):format(inLog) end
-    return "Your quests there: " .. table.concat(parts, ", ") .. "."
+    if toPickUp > 0 then parts[#parts + 1] = TEXT_TO_PICK_UP:format(toPickUp) end
+    if inLog > 0 then parts[#parts + 1] = TEXT_IN_LOG:format(inLog) end
+    return TEXT_YOUR_QUESTS:format(table.concat(parts, TEXT_LIST))
 end
 
-local function JournalOn() return S.Get("enabled") == true end
-local ENTRANCES_OFF = "Turn on Dungeon and Raid Entrances"
-local function EntrancesOn() return JournalOn() and S.Get("mapEntrances") == true end
-local function BisOn() return Loot.BisOn() end
+local function JournalOn()
+    return S.Get("enabled") == true
+end
 
--- Which side's dungeons are listed: the faction switch beside the window's search, as a
--- dropdown. Both settings are kept, so the switch and this always agree; the one turned on
--- is set first, so the list is never left with neither.
-local FACTION_VALUES = { both = "Both Factions", Alliance = "Alliance Ground", Horde = "Horde Ground" }
-local FACTION_ORDER = { "both", "Alliance", "Horde" }
+local function EntrancesOn()
+    return JournalOn() and S.Get("mapEntrances") == true
+end
+
+local function BisOn()
+    return Loot.BisOn()
+end
 
 local function FactionGet()
     local alliance, horde = S.Get("showAlliance"), S.Get("showHorde")
@@ -73,22 +85,25 @@ end
 
 local function FactionSet(value)
     if value == "Horde" then
-        S.Set("showHorde", true); S.Set("showAlliance", false)
-    else
-        S.Set("showAlliance", true); S.Set("showHorde", value ~= "Alliance")
+        S.Set("showHorde", true)
+        S.Set("showAlliance", false)
+        return
     end
+    S.Set("showAlliance", true)
+    S.Set("showHorde", value ~= "Alliance")
 end
 
--- One of J.OPTION_GROUPS as a row: the same words as the Filters menu.
+local function OptionRow(option)
+    local row = { key = option.key, label = option.label, toggle = true, help = option.tooltip }
+    if option.needsBis then
+        row.needs, row.why, row.help = BisOn, TEXT_BIS_OFF, option.tooltip .. " " .. J.NEEDS_BIS
+    end
+    return row
+end
+
 local function ListRows()
     local rows = {}
-    for _, option in ipairs(J.OPTION_GROUPS[1].options) do
-        local row = { key = option.key, label = option.label, toggle = true, help = option.tooltip }
-        if option.needsBis then
-            row.needs, row.why, row.help = BisOn, BIS_OFF, option.tooltip .. " " .. J.NEEDS_BIS
-        end
-        rows[#rows + 1] = row
-    end
+    for _, option in ipairs(J.OPTION_GROUPS[1].options) do rows[#rows + 1] = OptionRow(option) end
     rows[#rows + 1] = { label = "Dungeons Listed", choice = { FACTION_VALUES, FACTION_ORDER },
         get = FactionGet, set = FactionSet,
         help = "The dungeons on whose ground the list shows. Contested ones and the raids are always listed. "
@@ -101,161 +116,167 @@ local function ListSummary(store)
     for _, option in ipairs(J.OPTION_GROUPS[1].options) do
         if option.hides ~= nil and store.Get(option.key) == option.hides then hiding = hiding + 1 end
     end
-    return FACTION_VALUES[FactionGet()] .. (hiding == 1 and ", 1 filter on" or (", %d filters on"):format(hiding))
+    return FACTION_VALUES[FactionGet()] .. (hiding == 1 and TEXT_ONE_FILTER or TEXT_FILTERS:format(hiding))
 end
 
 local function MapSummary(store)
     local panel, factions = store.Get("mapPanel"), store.Get("mapFactions")
-    if panel and factions then return "Dungeons and zones" end
-    if panel then return "In dungeons" end
-    if factions then return "In zones" end
-    return "Nothing beside the map"
+    if panel and factions then return MAP_SUMMARY.both end
+    if panel then return MAP_SUMMARY.panel end
+    if factions then return MAP_SUMMARY.factions end
+    return MAP_SUMMARY.none
+end
+
+local function ShareSummary(store)
+    local ask, accept = store.Get("shareRequests"), store.Get("acceptShared")
+    if ask and accept then return SHARE_SUMMARY.both end
+    if ask then return SHARE_SUMMARY.ask end
+    if accept then return SHARE_SUMMARY.accept end
+    return TEXT_OFF
+end
+
+local function TrackerWhere(store)
+    local outside = store.Get("trackerOutside")
+    if store.Get("trackerAuto") then return outside and TRACKER_EVERYWHERE or TRACKER_INSIDE end
+    return outside and TRACKER_OUTSIDE
 end
 
 local function QuestsSummary(store)
-    local ask, accept = store.Get("shareRequests"), store.Get("acceptShared")
-    local text = "Off"
-    if ask and accept then
-        text = "Asks and accepts shared quests"
-    elseif ask then
-        text = "Asks for shared quests"
-    elseif accept then
-        text = "Accepts shared quests"
-    end
-    local where = store.Get("trackerAuto") and (store.Get("trackerOutside") and "everywhere" or "in dungeons")
-        or store.Get("trackerOutside") and "outside dungeons"
-    if where then text = text == "Off" and "Tracker " .. where or text .. ", tracker " .. where end
-    return text
+    local text = ShareSummary(store)
+    local where = TrackerWhere(store)
+    if not where then return text end
+    return text == TEXT_OFF and TEXT_TRACKER .. where or text .. TEXT_AND_TRACKER .. where
 end
 
--- "80% opacity", for the part whose setting is key.
+local function EntrancesSummary(store)
+    return store.Get("mapEntrances") and "Entrances shown" or TEXT_OFF
+end
+
 local function OpacitySummary(key)
     return function(store)
-        return ("%d%% opacity"):format(math.floor((store.Get(key) or 1) * 100 + 0.5))
+        return TEXT_OPACITY:format(math.floor((store.Get(key) or 1) * PERCENT + ROUND_HALF))
     end
 end
 
--------------------------------------------------------------------------------
---  Journal
--------------------------------------------------------------------------------
-local page = Settings.Page("Dungeon Journal/Journal", S)
+local function OpenJournal()
+    ns.OpenJournalWindow()
+end
 
-page:Window({
-    text = "Open Dungeon Journal",
-    open = function() ns.OpenJournalWindow() end,
-    headline = Headline,
-    detail = Detail,
-})
+local function OnSettingChanged(key)
+    if key == "enabled" then ns.UI:RefreshPage(true) end
+end
 
-page:Card({
-    id = "lists", name = "What It Lists", order = 10,
-    help = "What the Journal lists on a boss. The same switches as the Filters icon on its title bar.",
-    summary = ListSummary,
-    rows = ListRows(),
-})
+local function OpacityRow(key, help)
+    return { key = key, label = "Window Opacity", slider = OPACITY_RANGE, unit = "%",
+        scale = TO_FRACTION, help = help }
+end
 
-page:Card({
-    id = "window", name = "Window", order = 90,
-    help = "The Journal's own window.",
-    summary = OpacitySummary("windowAlpha"),
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
-          help = "How solid the Journal's window and its side panels are." },
-    },
-})
+local function Toggle(key, label, help)
+    return { key = key, label = label, toggle = true, needs = JournalOn, why = TEXT_JOURNAL_OFF, help = help }
+end
 
-page:Card({
-    id = "keys", name = "Key Binding", order = 30,
-    help = "The key that opens the Journal.",
-    rows = {
-        { label = "Open Dungeon Journal", binding = "NAOWHFOREVER_JOURNAL",
-          help = "Press it to open or close the Dungeon Journal." },
-    },
-})
+local function DeclareJournal()
+    local page = Settings.Page("Dungeon Journal/Journal", S)
+    page:Window({ text = "Open Dungeon Journal", open = OpenJournal, headline = Headline, detail = Detail })
+    page:Card({
+        id = "lists", name = "What It Lists", order = ORDER_FIRST,
+        help = "What the Journal lists on a boss. The same switches as the Filters icon on its title bar.",
+        summary = ListSummary,
+        rows = ListRows(),
+    })
+    page:Card({
+        id = "window", name = "Window", order = ORDER_LAST,
+        help = "The Journal's own window.",
+        summary = OpacitySummary("windowAlpha"),
+        rows = { OpacityRow("windowAlpha", "How solid the Journal's window and its side panels are.") },
+    })
+    page:Card({
+        id = "keys", name = "Key Binding", order = ORDER_FOURTH,
+        help = "The key that opens the Journal.",
+        rows = {
+            { label = "Open Dungeon Journal", binding = "NAOWHFOREVER_JOURNAL",
+              help = "Press it to open or close the Dungeon Journal." },
+        },
+    })
+end
 
--------------------------------------------------------------------------------
---  Quest Tracker
--------------------------------------------------------------------------------
-local tracker = Settings.Page("Dungeon Journal/Quest Tracker", S)
+local function DeclareTracker()
+    local tracker = Settings.Page("Dungeon Journal/Quest Tracker", S)
+    tracker:Card({
+        id = "quests", name = "Quests", order = ORDER_FIRST,
+        help = "The quest tracker, and sharing dungeon quests with your group.",
+        summary = QuestsSummary,
+        rows = {
+            Toggle("trackerAuto", "Open Tracker in Dungeons",
+                "Opens the quest tracker when you enter a dungeon with quests for you."),
+            Toggle("trackerOutside", "Show Outside Dungeons",
+                "Opens the quest tracker out in the world, on the dungeon your quests are for."),
+            Toggle("hideGameTracker", "Hide the Game's Quest Tracker",
+                "Fades out the game's quest tracker while this one is open in a dungeon."),
+            Toggle("shareRequests", "Quest Share Requests",
+                "Ask your group to share a dungeon quest you don't have, from its group icon."),
+            Toggle("acceptShared", "Accept Shared Dungeon Quests",
+                "Accepts dungeon quests your group shares with you straight away."),
+        },
+    })
+    tracker:Card({
+        id = "trackerwindow", name = "Window", order = ORDER_LAST,
+        help = "The Dungeon Quest Tracker's window.",
+        summary = OpacitySummary("trackerAlpha"),
+        rows = {
+            OpacityRow("trackerAlpha", "How solid the Dungeon Quest Tracker is."),
+            { key = "trackerScale", label = "Window Scale", slider = SCALE_RANGE, unit = "%",
+              scale = TO_FRACTION, help = "How big the Dungeon Quest Tracker is." },
+        },
+    })
+end
 
-tracker:Card({
-    id = "quests", name = "Quests", order = 10,
-    help = "The quest tracker, and sharing dungeon quests with your group.",
-    summary = QuestsSummary,
-    rows = {
-        { key = "trackerAuto", label = "Open Tracker in Dungeons", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "Opens the quest tracker when you enter a dungeon with quests for you." },
-        { key = "trackerOutside", label = "Show Outside Dungeons", toggle = true, needs = JournalOn,
-          why = JOURNAL_OFF,
-          help = "Opens the quest tracker out in the world, on the dungeon your quests are for." },
-        { key = "hideGameTracker", label = "Hide the Game's Quest Tracker", toggle = true, needs = JournalOn,
-          why = JOURNAL_OFF,
-          help = "Fades out the game's quest tracker while this one is open in a dungeon." },
-        { key = "shareRequests", label = "Quest Share Requests", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "Ask your group to share a dungeon quest you don't have, from its group icon." },
-        { key = "acceptShared", label = "Accept Shared Dungeon Quests", toggle = true, needs = JournalOn,
-          why = JOURNAL_OFF,
-          help = "Accepts dungeon quests your group shares with you straight away." },
-    },
-})
+local function DeclareMap()
+    local map = Settings.Page("Dungeon Journal/Map", S)
+    map:Card({
+        id = "map", name = "Beside the World Map", order = ORDER_FIRST,
+        help = "The Journal beside the world map: bosses and loot in dungeons, factions outside.",
+        summary = MapSummary,
+        rows = {
+            Toggle("mapPanel", "Bosses and Loot in Dungeons",
+                "Shows a dungeon's bosses and loot beside the world map while you are inside."),
+            Toggle("mapFactions", "Factions Beside the Map",
+                "Shows the factions earned where you are beside the world map."),
+        },
+    })
+    map:Card({
+        id = "mapentrances", name = "On the World Map", order = ORDER_SECOND,
+        help = "The dungeon and raid entrances on the world map.",
+        summary = EntrancesSummary,
+        rows = {
+            Toggle("mapEntrances", "Dungeon and Raid Entrances", "A door on each dungeon and raid entrance on the "
+                .. "world map, for the sides the Journal lists. Hover it for the levels, click it for a waypoint."),
+            { key = "mapEntranceScale", label = "Icon Size", slider = { ICON_MIN, ICON_MAX, ICON_STEP }, unit = "%",
+              scale = TO_FRACTION, needs = EntrancesOn, why = TEXT_ENTRANCES_OFF,
+              help = "How big the entrance icons are. They are already largest on a zone's map, smaller on a "
+                  .. "continent's and the world's, and smaller while the map fills the screen." },
+        },
+    })
+    map:Card({
+        id = "mapwindow", name = "Window", order = ORDER_LAST,
+        help = "The map's window, the Journal beside the world map and Boss Loot at Cursor.",
+        summary = OpacitySummary("mapAlpha"),
+        rows = { OpacityRow("mapAlpha",
+            "How solid the map's window, the Journal beside the map and Boss Loot at Cursor are.") },
+    })
+    map:Card({
+        id = "lootkey", name = "Boss Loot at Cursor", order = ORDER_THIRD,
+        help = "A key that shows a boss's loot at your cursor.",
+        rows = {
+            { label = "Boss Loot at Cursor", binding = "NAOWHFOREVER_BOSSLOOT",
+              help = "Press it over a boss, or with one targeted, to see what it drops." },
+        },
+    })
+end
 
-tracker:Card({
-    id = "trackerwindow", name = "Window", order = 90,
-    help = "The Dungeon Quest Tracker's window.",
-    summary = OpacitySummary("trackerAlpha"),
-    rows = {
-        { key = "trackerAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
-          help = "How solid the Dungeon Quest Tracker is." },
-        { key = "trackerScale", label = "Window Scale", slider = { 50, 150, 5 }, unit = "%", scale = 0.01,
-          help = "How big the Dungeon Quest Tracker is." },
-    },
-})
-
--------------------------------------------------------------------------------
---  Map
--------------------------------------------------------------------------------
-local map = Settings.Page("Dungeon Journal/Map", S)
-
-map:Card({
-    id = "map", name = "Beside the World Map", order = 10,
-    help = "The Journal beside the world map: bosses and loot in dungeons, factions outside.",
-    summary = MapSummary,
-    rows = {
-        { key = "mapPanel", label = "Bosses and Loot in Dungeons", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "Shows a dungeon's bosses and loot beside the world map while you are inside." },
-        { key = "mapFactions", label = "Factions Beside the Map", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "Shows the factions earned where you are beside the world map." },
-    },
-})
-
-map:Card({
-    id = "mapentrances", name = "On the World Map", order = 15,
-    help = "The dungeon and raid entrances on the world map.",
-    summary = function(store) return store.Get("mapEntrances") and "Entrances shown" or "Off" end,
-    rows = {
-        { key = "mapEntrances", label = "Dungeon and Raid Entrances", toggle = true, needs = JournalOn, why = JOURNAL_OFF,
-          help = "A door on each dungeon and raid entrance on the world map, for the sides the Journal lists. Hover it for the levels, click it for a waypoint." },
-        { key = "mapEntranceScale", label = "Icon Size", slider = { 50, 200, 10 }, unit = "%", scale = 0.01,
-          needs = EntrancesOn, why = ENTRANCES_OFF,
-          help = "How big the entrance icons are. They are already largest on a zone's map, smaller on a continent's and the world's, and smaller while the map fills the screen." },
-    },
-})
-
-map:Card({
-    id = "mapwindow", name = "Window", order = 90,
-    help = "The map's window, the Journal beside the world map and Boss Loot at Cursor.",
-    summary = OpacitySummary("mapAlpha"),
-    rows = {
-        { key = "mapAlpha", label = "Window Opacity", slider = { OPACITY_MIN, 100, 5 }, unit = "%", scale = 0.01,
-          help = "How solid the map's window, the Journal beside the map and Boss Loot at Cursor are." },
-    },
-})
-
-map:Card({
-    id = "lootkey", name = "Boss Loot at Cursor", order = 20,
-    help = "A key that shows a boss's loot at your cursor.",
-    rows = {
-        { label = "Boss Loot at Cursor", binding = "NAOWHFOREVER_BOSSLOOT",
-          help = "Press it over a boss, or with one targeted, to see what it drops." },
-    },
-})
+S.OnChange(OnSettingChanged)
+if Settings then
+    DeclareJournal()
+    DeclareTracker()
+    DeclareMap()
+end

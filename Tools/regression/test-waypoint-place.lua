@@ -52,9 +52,9 @@ local env = setmetatable({
     UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { map = map, x = x, y = y } end },
 }, { __index = _G })
 env._G = env
-local f = assert(io.open("Core/NaowhForever_Waypoint.lua", "rb"))
+local f = assert(io.open("Core/Waypoint.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local chunk = assert(loadstring(source, "Core/NaowhForever_Waypoint.lua"))
+local chunk = assert(loadstring(source, "Core/Waypoint.lua"))
 setfenv(chunk, env)
 chunk()
 

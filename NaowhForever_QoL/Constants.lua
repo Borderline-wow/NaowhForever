@@ -1,0 +1,33 @@
+-- Constants.lua: the numbers, colors and patterns several QoL features share (ns.QoLConstants).
+local ns = _G.NaowhForever
+
+ns.QoLConstants = {
+    PERCENT = 100,
+    ROUND = 0.5,
+    ICON_CROP = ns.Shared.Style.ICON_CROP,
+    ICON_CROP_HIGH = ns.Shared.Style.ICON_CROP_HIGH,
+    ICON_CROP_TIGHT = 0.07,
+    ICON_CROP_TIGHT_HIGH = 0.93,
+    HINT_RGB = { r = 0.3, g = 0.71, b = 0.96 },
+    WHITE_RGB = { r = 1, g = 1, b = 1 },
+    SECONDS_PER_MINUTE = 60,
+    SECONDS_PER_HOUR = 3600,
+    SECONDS_PER_DAY = 86400,
+    THOUSAND = 1000,
+    MILLION = 1000000,
+    PERMILLE = 1000,
+    TENTHS = 10,
+    PARTY_SIZE = 4,
+    RAID_SIZE = 40,
+    PLAIN_BAG = 0,
+    SELL_PRICE = 11,
+    EDGE_OUT = -1,
+    CURSOR_PREVIEW_FIT = 120,
+    CURSOR_PREVIEW_Y = 10,
+    GUID_PATTERN = "^Player%-%d+%-%x+$",
+    VOLUME_RANGE = { 0, 100, 1 },
+    SPEECH_RATE_RANGE = { -10, 10, 1 },
+    OPACITY_RANGE = { 10, 100, 5 },
+    DOT_RANGE = { 1, 20, 1 },
+    SOUND_REPEAT_RANGE = { 0, 10, 1 },
+}

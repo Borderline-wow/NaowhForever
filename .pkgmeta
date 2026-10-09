@@ -18,6 +18,8 @@ move-folders:
   NaowhForever/NaowhForever_ThreatMeter: NaowhForever_ThreatMeter
   NaowhForever/NaowhForever_SwingTimer: NaowhForever_SwingTimer
   NaowhForever/NaowhForever_PvP: NaowhForever_PvP
+  NaowhForever/NaowhForever_QoL: NaowhForever_QoL
+  NaowhForever/NaowhForever_TopBar: NaowhForever_TopBar
 
 externals:
   Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1
@@ -36,4 +38,3 @@ manual-changelog:
 ignore:
   - Tools
   - RELEASE_NOTES.md
-  - NaowhForever_SmartReminders

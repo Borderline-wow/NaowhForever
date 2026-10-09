@@ -11,7 +11,7 @@ local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
 local ns = {}
-local chunk = assert(loadstring(Read("QoL/NaowhForever_TownSpiritHealers.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/TownSpiritHealers.lua")))
 setfenv(chunk, { _G = { NaowhForever = ns } })
 chunk()
 
@@ -27,7 +27,7 @@ end
 Check(total >= 90, "every spirit healer found (" .. total .. ")")
 Check(#ns.TownSpiritHealers[1413] == 3, "the Barrens has its three")
 
-local map = Read("QoL/NaowhForever_TownMap.lua")
+local map = Read("NaowhForever_QoL/Interface/TownMap.lua")
 Check(map:find("ns.TownSpiritHealers[mapID]", 1, true), "the town map draws them")
 Check(not map:find("GetGraveyardsForMap", 1, true), "and no longer asks the game")
 

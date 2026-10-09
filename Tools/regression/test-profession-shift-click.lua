@@ -11,7 +11,7 @@ local function Read(path)
     return s
 end
 
-local source = Read("NaowhForever_Professions/NaowhForever_Professions.lua")
+local source = Read("NaowhForever_Professions/AuctionHouse.lua")
 local first = assert(source:find("local function TypingInChat()", 1, true))
 local shift = assert(source:find("local function ShiftClick(itemID, link)", first, true))
 local last = assert(source:find("\nend\n", shift, true))

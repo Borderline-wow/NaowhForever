@@ -4,12 +4,14 @@
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local f = assert(io.open("Core/NaowhForever_Core.lua", "rb"))
+local f = assert(io.open("Core/Core.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n")
 f:close()
-local a = assert(source:find("local LIBRARIES = {", 1, true))
-local b = assert(source:find("\nend)\n", a, true))
-local chunk = source:sub(a, b + 5)
+local constants = assert(source:match("\n(local MODULE_KEY = .-\n)\nlocal ns = {}\n"), "Core constants")
+local a = assert(source:find("local function OnLibraryCheck()", 1, true))
+local wired = 'libCheck:SetScript("OnEvent", OnLibraryCheck)\n'
+local b = assert(source:find(wired, a, true))
+local chunk = constants .. source:sub(a, b + #wired - 1)
 
 local printed, handler
 local env = {

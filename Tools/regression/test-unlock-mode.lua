@@ -230,7 +230,7 @@ local ns = {
         prompt = { title = title, text = text, maxLetters = maxLetters, accept = onAccept }
     end,
     Confirm = function(text, onYes) confirm = { text = text, yes = onYes } end,
-    HideRaidReminderAnchorConfig = function() printed[#printed + 1] = "left HUD Editor" end,
+    HideUnlockMode = function() printed[#printed + 1] = "left HUD Editor" end,
     OpenOptionsWindow = function(page) printed[#printed + 1] = "opened " .. page end,
     Apply = NOOP,
 }
@@ -271,11 +271,14 @@ local env = setmetatable({
     end,
 }, { __index = _G })
 env._G = env
-local f = assert(io.open("Core/NaowhForever_UnlockMode.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local chunk = assert(loadstring(source, "Core/NaowhForever_UnlockMode.lua"))
-setfenv(chunk, env)
-chunk()
+-- The HUD Editor is several files (Core/Options.xml lists them in load order).
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^Core/Unlock/.-%.lua$")) do
+    local f = assert(io.open(path, "rb"))
+    local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+    local chunk = assert(loadstring(source, path))
+    setfenv(chunk, env)
+    chunk()
+end
 
 local function Display(label, w, h, x, y, ownAnchor)
     local frame = NewFrame("Frame", UIParent)
@@ -624,7 +627,7 @@ Check(settings.anchors == nil, "and a switched-to profile's are dropped too")
 -- element out of the way while editing and its padlock holds it in place.
 local timer, timerMover, timerSaved = Display("Combat Timer", 120, 32, 300, 100)
 timerMover._placement.page = "Threat Meter/Settings"
-ns.ShowRaidReminderAnchorConfig()
+ns.ShowUnlockMode()
 Flush()
 local panel, toolbar
 for _, fr in ipairs(made) do
@@ -721,7 +724,7 @@ Fire(toolbar._elements, "OnClick")
 Check(not panel:IsShown() and settings.elementsPanel == false, "Elements hides the panel, and it stays hidden")
 Fire(toolbar._elements, "OnClick")
 Check(panel:IsShown() and settings.elementsPanel == true, "and shows it again")
-ns.HideRaidReminderAnchorConfig()
+ns.HideUnlockMode()
 Check(not panel:IsShown(), "leaving the HUD Editor hides the panel")
 
 -- Several selected: Shift-click adds and takes away, the tag gives way to a bar over an outline
@@ -730,7 +733,7 @@ for _, m in ipairs({ meterMover, swingMover, timerMover }) do m:Hide() end
 local a1, a1Mover, a1Saved = Display("A1", 100, 20, -300, -300)
 local a2, a2Mover = Display("A2", 60, 20, -200, -260)
 local a3, a3Mover, a3Saved = Display("A3", 80, 20, -50, -320)
-ns.ShowRaidReminderAnchorConfig()
+ns.ShowUnlockMode()
 Flush()
 local function Bar()
     for _, fr in ipairs(made) do
@@ -814,7 +817,7 @@ alt = false
 Check(Near(a1:GetBottom() - a2:GetTop(), gapBefore), "an anchored one in the selection moves once, keeping its gap")
 Fire(keys, "OnKeyDown", "ESCAPE")
 settings.anchoredTo = nil
-ns.HideRaidReminderAnchorConfig()
+ns.HideUnlockMode()
 
 -- Layouts: every spot and anchor kept under a name, loaded back as one change; a locked element
 -- stays where it is.
@@ -841,7 +844,7 @@ local function Texts(entries)
     for _, e in ipairs(entries) do out[#out + 1] = e.text or "-" end
     return table.concat(out, ", ")
 end
-ns.ShowRaidReminderAnchorConfig()
+ns.ShowUnlockMode()
 Flush()
 Check(toolbar._layout.label:GetText() == "Layouts" and Texts(Menu()) == "Layouts, -, Save as New Layout",
     "with none saved the Layouts menu only saves a new one")
@@ -910,11 +913,11 @@ Check(not settings.layouts.Dungeon and settings.layouts.Raid and settings.layout
     and toolbar._layout.label:GetText() == "Layouts", "and deletes it, nothing current")
 UI.ClearMoverSelection()
 settings.anchoredTo = nil
-ns.HideRaidReminderAnchorConfig()
+ns.HideUnlockMode()
 
 -- Even gaps: a drag lands midway between two elements in line with it, a pair's gap past the
 -- pair, or mirrored about the screen's centre, drawn as two equal gaps.
-ns.ShowRaidReminderAnchorConfig()
+ns.ShowUnlockMode()
 for _, fr in ipairs(made) do
     if fr._placement then fr:Hide() end
 end
@@ -965,6 +968,6 @@ local v3, v3Mover = Display("V3", 100, 20, 500, -200)
 DragTo(v3Mover, v3, v3:GetLeft(), 413)
 Check(Near(v3:GetBottom(), 410) and LabelAt(1460, 450) == "40" and LabelAt(1460, 510) == "40", "and up and down")
 UI.StopMoverDrag(v3Mover)
-ns.HideRaidReminderAnchorConfig()
+ns.HideUnlockMode()
 
 print(("test-unlock-mode: %d checks passed"):format(checks))

@@ -1,6 +1,6 @@
--- Regression: QoL > System > Defaults is a Setup dropdown of the presets (ns.PRESETS). Picking one
--- asks, then puts the profile in use to it: every module's settings and positions, keeping Smart
--- Reminders and what this player answered about EllesmereUI's windows, telling the character and
+-- Regression: the Profiles page's Setups card is a Setup dropdown of the presets (ns.PRESETS). Picking one
+-- asks, then puts the profile in use to it: every module's settings and positions, keeping the
+-- reminders' store and what this player answered about EllesmereUI's windows, telling the character and
 -- inspect panels so they swap back, remembering which it is, and offering the reload. Hovering
 -- it lists what each other preset turns on and off, read from the modules' and the feature
 -- cards' switches.
@@ -52,7 +52,7 @@ function S.Set(k, v)
     root.qol[k] = v
     sets[#sets + 1] = k .. "=" .. tostring(v)
 end
-local pages = { ["QoL/Character"] = { cards = {
+local pages = { ["BiS List/Character"] = { cards = {
     characterPanel = { name = "Character Panel", switch = "characterPanel", store = S },
     lootFeed = { name = "Loot Feed", switch = "lootFeed", store = S },
     custom = { name = "Not A Switch", switch = { get = function() return true end }, store = S },
@@ -73,18 +73,35 @@ local ns = {
     Confirm = function(text, yes) asked = text; yes() end,
     ConfirmReload = function(text) reload = text end,
     Color = function(_, text) return text end,
+    SETUPS_PAGE = "Profiles/Setups",
     Shared = { Settings = { pages = pages, Page = function(key)
         return { Card = function(_, c) c.page = key; card = c end }
     end } },
 }
 local env = setmetatable({ _G = { NaowhForever = ns }, CopyTable = Copy }, { __index = _G })
-local chunk = assert(loadfile("QoL/NaowhForever_Defaults.lua"))
-setfenv(chunk, env)
-chunk()
+for _, path in ipairs({ "Core/Profiles/Setups.lua", "Core/Profiles/SetupsCard.lua" }) do
+    local chunk = assert(loadfile(path))
+    setfenv(chunk, env)
+    chunk()
+end
 
 local row = card and card.rows[1]
-check("the card sits on QoL > System with one Setup dropdown", card.page == "QoL/System" and #card.rows == 1
+check("the card sits on the Profiles page with the Setup dropdown first", card.page == "Profiles/Setups" and #card.rows == 3
     and row.label == "Setup" and row.always == true and row.choice[2] == PRESETS.order)
+local tailor, before = card.rows[2], card.rows[3]
+check("then Tailor Setup, which opens the questions", tailor.label == "Tailor Setup" and tailor.buttonText == "Start")
+local opened = false
+ns.ShowSetup = function() opened = true end
+tailor.button()
+check("Start opens Tailor my setup", opened)
+check("Before Tailoring stays hidden with nothing saved", before.label == "Before Tailoring" and before.hidden() == true)
+local restored = false
+ns.Setup = { CanRestore = function() return true end, Restore = function() restored = true; return true end }
+check("it shows once tailoring saved your settings", before.hidden() == false)
+before.button()
+check("Restore asks first, puts them back and offers the reload", asked and asked:find("before tailoring", 1, true)
+    and restored and reload ~= nil)
+asked, reload, ns.Setup = nil, nil, nil
 check("its choices are the presets by name", row.choice[1].minimalist == "Minimalist"
     and row.choice[1].recommended == "Recommended")
 check("a profile no preset was applied to reads Custom", row.get() == "custom" and card.summary() == "Custom")
@@ -93,13 +110,24 @@ check("hovering lists what each preset turns on and off against yours now, modul
     tip:find("Minimalist turns off: Character Panel, Threat Meter", 1, true) ~= nil
     and tip:find("Recommended turns on: Loot Feed", 1, true) ~= nil
     and not tip:find("Not A Switch", 1, true))
+local rewards, ignore = { [123] = 456 }, { [6948] = true }
+root.qol.questRewards, root.qol.bagSpaceIgnore, root.qol.slashList = rewards, ignore, { { name = "rl" } }
+root.qol.equipEnchantRules = { [16] = 1900 }
+root.auraBuffs = root.auraBuffs or {}
+root.auraBuffs.campHiddenBonuses = { [1] = true }
+root.unlockMode = { layouts = { Raid = {} }, hidden = { Loot = true } }
 row.set("minimalist")
 check("picking one asks first, naming it", asked and asked:find("Minimalist", 1, true)
-    and asked:find("Cannot be undone", 1, true))
+    and asked:find("Cannot be undone", 1, true) and asked:find("saved picks stay", 1, true))
+check("saved quest rewards, the Bag Space ignore list and slash commands stay", root.qol.questRewards == rewards
+    and root.qol.bagSpaceIgnore == ignore and root.qol.slashList[1].name == "rl")
+check("enchant rules, hidden campfire bonuses and HUD layouts stay", root.qol.equipEnchantRules[16] == 1900
+    and root.auraBuffs.campHiddenBonuses[1] == true and root.unlockMode.layouts.Raid ~= nil)
+check("the rest of the HUD Editor's state follows the preset", root.unlockMode.hidden == nil)
 check("every module to the preset", root.qol.fastLoot == nil and root.topBar.use24h == true
     and root.topBar.extra == nil and root.auraBuffs.iconSize == 48 and root.oldModule == nil)
 check("positions too", root.qol.lootFeedPos.point == "CENTER" and root.qol.lootFeedPos.y == -124)
-check("Smart Reminders kept", root.tankReminder.leadTime == 9)
+check("the reminders' store kept", root.tankReminder.leadTime == 9)
 check("what you answered about EllesmereUI's windows kept", root.qol.characterPanelAsked == true
     and root.qol.characterPanelTookOver == true)
 check("the character panel told it changed, the inspect panel not", #sets == 1 and sets[1] == "characterPanel=false")

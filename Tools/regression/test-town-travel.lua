@@ -12,7 +12,7 @@ local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
 local ns = {}
-local chunk = assert(loadstring(Read("QoL/NaowhForever_TownTravel.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/TownTravel.lua")))
 setfenv(chunk, { _G = { NaowhForever = ns } })
 chunk()
 
@@ -48,15 +48,15 @@ Check(ns.TownTravel[1413][1][4] == "Boat to Booty Bay" and ns.TownTravel[1413][1
     "Ratchet's boat opens Stranglethorn")
 Check(#ns.TownTravel[1411] == 1 and ns.TownTravel[1411][1][7] == 1420, "Durotar's tower: Grom'gol, then Undercity")
 
-local map = Read("QoL/NaowhForever_TownMap.lua")
+local map = Read("NaowhForever_QoL/Interface/TownMap.lua")
 Check(map:find("ns.TownTravel[mapID]", 1, true) and map:find('S.Get("townTravel")', 1, true),
     "the town map draws them on their own switch")
 Check(map:find("linkedUiMapID = dock[5]", 1, true) and map:find("rightUiMapID = dock[7]", 1, true),
     "as clickable zone links, a tower's second destination on right click")
-Check(Read("QoL/NaowhForever_TownMap.xml"):find('registerForClicks="LeftButtonUp, RightButtonUp"', 1, true),
+Check(Read("NaowhForever_QoL/Interface/TownMap.xml"):find('registerForClicks="LeftButtonUp, RightButtonUp"', 1, true),
     "and the pin takes right clicks: a Button gets only left clicks unless it asks")
 Check(map:find("elseif link.linkedUiMapID ~= self:GetMap():GetMapID() then", 1, true),
     "no click hint on a pin that opens the map you are on")
-Check(Read("QoL/NaowhForever_QoL.lua"):find("townTravel = false", 1, true), "Boats & Zeppelins starts off")
+Check(Read("Core/Settings.lua"):find("townTravel = false", 1, true), "Boats & Zeppelins starts off")
 
 print(("test-town-travel: %d checks passed"):format(checks))

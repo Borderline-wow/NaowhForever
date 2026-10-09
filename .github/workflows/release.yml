@@ -1,7 +1,7 @@
 name: Release
 
 # A push to main builds a package. A tag publishes a release. Run workflow makes the release
-# commit and tag (Tools/release.py) and pushes them with the release deploy key, which is on
+# commit and tag (Tools/release/release.py) and pushes them with the release deploy key, which is on
 # Protect main's bypass list; that tag push then runs the release.
 on:
   push:
@@ -59,7 +59,7 @@ jobs:
         run: |
           args=(prepare --bump "$BUMP" --no-beta)
           if [ -n "$VERSION" ]; then args+=(--version "$VERSION"); fi
-          version=$(python3 Tools/release.py "${args[@]}")
+          version=$(python3 Tools/release/release.py "${args[@]}")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Nothing to commit when main already has the release commit (a version bumped by
@@ -69,7 +69,7 @@ jobs:
           fi
           git tag -a "$version" -m "$version"
           # The tag stays on the release commit; main goes on with an empty "## Unreleased".
-          python3 Tools/release.py start-next
+          python3 Tools/release/release.py start-next
           if ! git diff --quiet; then
             git commit -q -am "chore: start the next changelog"
           fi
@@ -94,7 +94,6 @@ jobs:
 
     env:
       CF_API_KEY: ${{ secrets.CF_API_KEY }}
-      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
       GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
       # The release being published; empty for a plain push to main.
       TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
@@ -113,7 +112,7 @@ jobs:
       - name: Release notes
         run: |
           if [ -n "$TAG" ]; then
-            python3 Tools/release.py notes "$TAG" > RELEASE_NOTES.md
+            python3 Tools/release/release.py notes "$TAG" > RELEASE_NOTES.md
           else
             printf 'Development build of %s.\n' "$GITHUB_SHA" > RELEASE_NOTES.md
           fi
@@ -133,7 +132,7 @@ jobs:
         run: |
           # One message per line, made before any is sent; notes past an embed's 4096
           # characters come as "(1/2)", "(2/2)", split at a heading. A second apart, in order.
-          python3 Tools/release.py discord "$TAG" > discord.jsonl
+          python3 Tools/release/release.py discord "$TAG" > discord.jsonl
           first=1
           while IFS= read -r payload; do
             [ -n "$first" ] || sleep 1

@@ -1,7 +1,7 @@
--- The real ns.PlainText cut out of Core/NaowhForever_Core.lua, for tests that stub the rest of
+-- The real ns.PlainText cut out of Core/Core.lua, for tests that stub the rest of
 -- the Core: local PlainText = dofile("Tools/regression/plain_text.lua")(). Not a test itself.
 return function(root)
-    local f = assert(io.open((root or ".") .. "/Core/NaowhForever_Core.lua", "rb"))
+    local f = assert(io.open((root or ".") .. "/Core/Core.lua", "rb"))
     local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
     local first = assert(source:find("function ns.PlainText(", 1, true))
     local last = assert(source:find("\nend\n", first, true))

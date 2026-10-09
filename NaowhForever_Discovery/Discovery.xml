@@ -1,0 +1,23 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Discovery.xml: Discovery's files, in load order. -->
+    <Script file="Discovery.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Books.lua"/>
+    <Script file="Data\SleepingBag.lua"/>
+    <Script file="Library.lua"/>
+    <Script file="SleepingBag.lua"/>
+    <Script file="Nearby.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\View.lua"/>
+    <Script file="View\BooksHero.lua"/>
+    <Script file="View\BookRow.lua"/>
+    <Script file="View\BagHero.lua"/>
+    <Script file="View\StepRow.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\BookTracker.lua"/>
+    <Script file="UI\BagTracker.lua"/>
+    <Include file="UI\BookPins.xml"/>
+    <Include file="UI\BagPins.xml"/>
+    <Script file="UI\BooksSettings.lua"/>
+    <Script file="UI\BagSettings.lua"/>
+</Ui>

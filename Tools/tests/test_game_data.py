@@ -1,5 +1,5 @@
-"""Tests for the tools that read the game's own tables: Tools/wago.py and
-Tools/build_factions.py (the rewards added by hand on top). Offline: wago.tools is never
+"""Tests for the tools that read the game's own tables: Tools/sources/wago.py and
+Tools/build/factions.py (the rewards added by hand on top). Offline: wago.tools is never
 asked; its answers are made up here. From the repo root:
 
     python -m unittest discover -s Tools/tests
@@ -10,7 +10,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import build_factions  # noqa: E402
+import paths  # noqa: E402,F401
+import factions  # noqa: E402
 import wago  # noqa: E402
 
 
@@ -23,24 +24,24 @@ def reward(item_id, standing, **more):
 
 class HandAddedRewards(unittest.TestCase):
     def test_standing_by_name(self):
-        self.assertEqual(build_factions.standing("Revered", "here"), 7)
-        self.assertEqual(build_factions.standing(" exalted ", "here"), 8)
+        self.assertEqual(factions.standing("Revered", "here"), 7)
+        self.assertEqual(factions.standing(" exalted ", "here"), 8)
         with self.assertRaises(SystemExit):
-            build_factions.standing("Liked", "here")
+            factions.standing("Liked", "here")
 
     def test_price_in_coins(self):
-        self.assertEqual(build_factions.copper("9g 1s 14c", "here"), 90114)
-        self.assertEqual(build_factions.copper("50s", "here"), 5000)
-        self.assertEqual(build_factions.copper(1234, "here"), 1234)
+        self.assertEqual(factions.copper("9g 1s 14c", "here"), 90114)
+        self.assertEqual(factions.copper("50s", "here"), 5000)
+        self.assertEqual(factions.copper(1234, "here"), 1234)
         with self.assertRaises(SystemExit):
-            build_factions.copper("nine gold", "here")
+            factions.copper("nine gold", "here")
         with self.assertRaises(SystemExit):
-            build_factions.copper("9g and 5s", "here")
+            factions.copper("9g and 5s", "here")
 
     def test_adds_an_item_the_tables_lack(self):
         notes = []
         faction = {"key": "Darkspear", "add": [{"item": 900001, "standing": "Honored", "price": "2g"}]}
-        items = build_factions.by_hand(faction, [reward(1, 5)], {}, notes)
+        items = factions.by_hand(faction, [reward(1, 5)], {}, notes)
         added = items[-1]
         self.assertEqual((added["id"], added["standing"], added["price"]), (900001, 6, 20000))
         self.assertTrue(added["hand"])
@@ -49,7 +50,7 @@ class HandAddedRewards(unittest.TestCase):
 
     def test_uses_what_the_tables_know_of_it(self):
         known = reward(900002, 0, quality=4, level=63)
-        items = build_factions.by_hand({"key": "K", "add": [{"item": 900002, "standing": "Revered"}]},
+        items = factions.by_hand({"key": "K", "add": [{"item": 900002, "standing": "Revered"}]},
                                        [], {900002: known}, [])
         self.assertEqual((items[0]["quality"], items[0]["level"], items[0]["standing"]), (4, 63, 7))
         self.assertEqual(known["standing"], 0, "the table's own facts are copied, not changed")
@@ -57,26 +58,26 @@ class HandAddedRewards(unittest.TestCase):
     def test_the_tables_win_once_they_have_it(self):
         notes = []
         faction = {"key": "K", "add": [{"item": 5, "standing": "Exalted"}]}
-        items = build_factions.by_hand(faction, [reward(5, 7)], {}, notes)
+        items = factions.by_hand(faction, [reward(5, 7)], {}, notes)
         self.assertEqual([(i["id"], i["standing"]) for i in items], [(5, 7)])
         self.assertEqual(len(notes), 1)
         self.assertIn("can go", notes[0])
         self.assertIn("the game says 7, not 8", notes[0])
 
     def test_removes(self):
-        items = build_factions.by_hand({"key": "K", "remove": [2]}, [reward(1, 5), reward(2, 5)], {}, [])
+        items = factions.by_hand({"key": "K", "remove": [2]}, [reward(1, 5), reward(2, 5)], {}, [])
         self.assertEqual([i["id"] for i in items], [1])
 
     def test_a_bad_entry_says_where(self):
         with self.assertRaises(SystemExit) as raised:
-            build_factions.by_hand({"key": "K", "add": [{"item": "272063", "standing": "Honored"}]}, [], {}, [])
+            factions.by_hand({"key": "K", "add": [{"item": "272063", "standing": "Honored"}]}, [], {}, [])
         self.assertIn("K", str(raised.exception))
 
     def test_cloaks_are_for_everyone(self):
-        self.assertEqual(build_factions.facts(reward(1, 5, subclass=1, slot=16)), (4, 0))
-        self.assertEqual(build_factions.facts(reward(1, 5, subclass=5, slot=3)), (4, 0), "a cosmetic item too")
-        self.assertEqual(build_factions.facts(reward(1, 5, subclass=1, slot=5)), (4, 1))
-        self.assertEqual(build_factions.facts(reward(1, 5, **{"class": 9, "subclass": 2})), (4, 0))
+        self.assertEqual(factions.facts(reward(1, 5, subclass=1, slot=16)), (4, 0))
+        self.assertEqual(factions.facts(reward(1, 5, subclass=5, slot=3)), (4, 0), "a cosmetic item too")
+        self.assertEqual(factions.facts(reward(1, 5, subclass=1, slot=5)), (4, 1))
+        self.assertEqual(factions.facts(reward(1, 5, **{"class": 9, "subclass": 2})), (4, 0))
 
     def test_turnins(self):
         faction = {"key": "AD", "turnins": [
@@ -84,11 +85,11 @@ class HandAddedRewards(unittest.TestCase):
              "level": 55, "at": {"5402": ["A", "Argent Officer Pureheart", "Western Plaguelands", 43, 83.6],
                                  "5408": ["H", "Lokhtos", "Blackrock Depths", None, None]},
              "from": [["Western Plaguelands", 20, ["Blighted Zombie"]]]}]}
-        found = build_factions.turnins(faction, {12840: {}}, {"Western Plaguelands": [1422]})
+        found = factions.turnins(faction, {12840: {}}, {"Western Plaguelands": [1422]})
         self.assertEqual([q["where"] for q in found[0]["quests"]],
                          ["Western Plaguelands - Argent Officer Pureheart (43, 83.6)", "Blackrock Depths - Lokhtos"])
         self.assertEqual([q["map"] for q in found[0]["quests"]], [1422, None], "no waypoint inside a dungeon")
-        lines = build_factions.faction_file({"key": "AD", "id": 529, "tab": "reputation"}, "Argent Dawn", [],
+        lines = factions.faction_file({"key": "AD", "id": 529, "tab": "reputation"}, "Argent Dawn", [],
                                             "1.60.1.1", found)
         self.assertIn('        { name = "Minion\'s Scourgestones", rep = 25, level = 55, takes = { 12840, 20 },',
                       lines)
@@ -102,9 +103,9 @@ class HandAddedRewards(unittest.TestCase):
                     {"name": "x", "quests": [5402], "rep": 25, "takes": [12840, 20]},
                     {"name": "x", "quests": [5402], "rep": 25, "takes": [[777, 20]]}):
             with self.assertRaises(SystemExit, msg=bad):
-                build_factions.turnins({"key": "AD", "turnins": [bad]}, {12840: {}})
+                factions.turnins({"key": "AD", "turnins": [bad]}, {12840: {}})
         with self.assertRaises(SystemExit):
-            build_factions.turnins({"key": "AD", "turnins": [{"name": "x", "quests": [1], "rep": 1,
+            factions.turnins({"key": "AD", "turnins": [{"name": "x", "quests": [1], "rep": 1,
                                     "takes": [[12840, 1]], "at": {"1": ["Both", "N", "Z", 1, 2]}}]}, {12840: {}})
 
     def test_places(self):
@@ -117,24 +118,24 @@ class HandAddedRewards(unittest.TestCase):
         real = wago.table
         wago.table = lambda name, build=None, hotfixes=True: tables[name]
         try:
-            zones, battlegrounds = build_factions.places("b")
+            zones, battlegrounds = factions.places("b")
         finally:
             wago.table = real
         self.assertEqual(zones, {"Silithus": [1451], "Zephras Isle": [2521, 2665]}, "zones only")
         self.assertEqual(battlegrounds, {"Arathi Basin": 529}, "battlegrounds only")
-        lines = build_factions.faction_file({"key": "D", "id": 510, "tab": "pvp", "zone": "Arathi Highlands"},
+        lines = factions.faction_file({"key": "D", "id": 510, "tab": "pvp", "zone": "Arathi Highlands"},
                                             "Defilers", [], "b", (), [1417], 529)
         self.assertIn("    maps = { 1417 },", lines)
         self.assertIn("    instance = 529,", lines)
 
     def test_the_hand_list_reads(self):
-        config = json.loads(build_factions.FACTIONS.read_text(encoding="utf-8"))
+        config = json.loads(factions.FACTIONS.read_text(encoding="utf-8"))
         for faction in config["factions"]:
             for entry in faction.get("add", []):
                 where = f"{faction['key']}, item {entry.get('item')}"
                 self.assertIsInstance(entry.get("item"), int, where)
-                build_factions.standing(entry.get("standing"), where)
-                build_factions.copper(entry.get("price"), where)
+                factions.standing(entry.get("standing"), where)
+                factions.copper(entry.get("price"), where)
 
 
 class CarriedOver(unittest.TestCase):
@@ -160,7 +161,7 @@ class CarriedOver(unittest.TestCase):
         wago.table = self.table
 
     def test_fills_in_only_what_the_new_build_lacks(self):
-        every, rewards, carried = build_factions.game_items("new", "old")
+        every, rewards, carried = factions.game_items("new", "old")
         self.assertEqual(carried, {3})
         self.assertEqual(rewards[2798][0]["id"], 3)
         self.assertEqual(every[3]["subclass"], 1, "with its Item row from the old build")
@@ -168,7 +169,7 @@ class CarriedOver(unittest.TestCase):
         self.assertEqual(rewards[529][0]["standing"], 6)
 
     def test_nothing_carried_without_a_build_before(self):
-        _, rewards, carried = build_factions.game_items("new")
+        _, rewards, carried = factions.game_items("new")
         self.assertEqual(carried, set())
         self.assertNotIn(2798, rewards)
 

@@ -5,7 +5,7 @@
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local f = assert(io.open("NaowhForever_Blessings/NaowhForever_Blessings.lua", "rb"))
+local f = assert(io.open("NaowhForever_Blessings/Group.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n")
 f:close()
 local first = assert(source:find("local function Readable(v)", 1, true))
@@ -16,6 +16,7 @@ local chunk = source:sub(first, last + 4) .. "return Roster"
 -- unit -> { full name, first name, server (UnitName's), class, roster name in a raid }
 local units, raid = {}, false
 local env = {
+    NAME_SLOTS = tonumber((assert(source:match("\nlocal NAME_SLOTS = (%d+)\n"), "NAME_SLOTS is missing"))),
     Secret = function() return false end,
     IsInRaid = function() return raid end,
     GetNumGroupMembers = function() local n = 0 for k in pairs(units) do if k:find("^raid") then n = n + 1 end end return n end,

@@ -1,10 +1,9 @@
--- Exercises the reusable row widgets the Smart Reminders window's pages are built from. The
--- frame model checks allocation/rebinding, not WoW rendering, protected execution or keyboard input.
+-- Exercises the reusable row widgets settings pages are built from. The frame model checks
+-- allocation/rebinding, not WoW rendering, protected execution or keyboard input.
 local root = arg[1] or "."
-local function Read(suffix)
-    local name = suffix == "" and "_SmartReminders" or suffix
-    local dir = (name == "_Core" or name == "_Widgets") and "/Core" or "/NaowhForever_SmartReminders"
-    local f = assert(io.open(root .. dir .. "/NaowhForever" .. name .. ".lua", "rb"))
+local CORE_FILES = { _Core = "Core", _Widgets = "Options/Widgets" }
+local function Read(name)
+    local f = assert(io.open(root .. "/Core/" .. CORE_FILES[name] .. ".lua", "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close(); return s
 end
 local count, methods = 0, {}
@@ -44,7 +43,12 @@ function methods:GetText() return self.text end
 function methods:CreateFontString() return Object(self) end
 function methods:CreateTexture() return Object(self) end
 
-local env = { STANDARD_TEXT_FONT = "font", LibStub = false,
+local function CopyTable(t)
+    local out = {}
+    for k, v in pairs(t) do out[k] = type(v) == "table" and CopyTable(v) or v end
+    return out
+end
+local env = { STANDARD_TEXT_FONT = "font", LibStub = false, CopyTable = CopyTable,
     CreateFrame = function(_, _, parent) return Object(parent) end,
     PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end } }
 function methods:GetObjectType() return "Frame" end

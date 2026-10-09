@@ -1,0 +1,155 @@
+-- QuestPins.lua: a ! on the world map at each quest giver with a quest you can pick up.
+local ns = _G.NaowhForever
+
+local Completo = ns.Completo
+local S = Completo.Settings
+local Q = Completo.Quests
+local Style = Completo.Style
+
+local TEMPLATE = "NaowhForeverQuestGiverPinTemplate"
+local BANG_ATLAS, GREY_ATLAS, REPEAT_ATLAS = "QuestNormal", "TrivialQuests", "QuestDaily"
+local BANG_FILE = "Interface\\GossipFrame\\AvailableQuestIcon"
+local PERCENT = Completo.C.PERCENT
+local FULL_SCREEN_SHARE = 0.5
+local EVENTS = { "QUEST_ACCEPTED", "QUEST_TURNED_IN", "QUEST_REMOVED", "PLAYER_LEVEL_UP" }
+local OWN_KEYS = { enabled = true, mapPins = true, mapGrey = true, mapChainsOnly = true, mapPinSize = true }
+local TEXT_GIVER = "Quest giver"
+local TEXT_DROPS = "Drops %s, which begins:"
+local TEXT_LEVEL = "Level %d"
+local TEXT_REPEATABLE = "Repeatable, "
+local TEXT_WAYPOINT = "Click for a waypoint."
+
+local provider = CreateFromMixins(MapCanvasDataProviderMixin)
+local added, events
+
+NaowhForeverQuestGiverPinMixin = CreateFromMixins(MapCanvasPinMixin)
+
+local function On()
+    return S.Get("enabled") and S.Get("mapPins")
+end
+
+local function PinSize(map)
+    local size = S.Get("mapPinSize")
+    if map:IsMaximized() then size = size * FULL_SCREEN_SHARE end
+    return size
+end
+
+local function SetMark(icon, grey, repeatable)
+    icon:SetVertexColor(1, 1, 1)
+    icon:SetDesaturated(false)
+    if grey and icon:SetAtlas(GREY_ATLAS) then return end
+    if not grey and repeatable and icon:SetAtlas(REPEAT_ATLAS) then return end
+    if not icon:SetAtlas(BANG_ATLAS) then icon:SetTexture(BANG_FILE) end
+    if not grey and not repeatable then return end
+    local c = grey and Style.GREY_RGB or Style.REPEAT_RGB
+    icon:SetDesaturated(true)
+    icon:SetVertexColor(c.r, c.g, c.b)
+end
+
+local function AddQuestLine(id)
+    local c = Q.Trivial(id) and Style.GREY_RGB or GetQuestDifficultyColor(Q.Level(id))
+    local level = TEXT_LEVEL:format(Q.Level(id))
+    if Q.Repeatable(id) then level = TEXT_REPEATABLE .. level end
+    GameTooltip:AddDoubleLine(Q.Name(id), level, c.r, c.g, c.b, c.r, c.g, c.b)
+end
+
+local function Redraw()
+    if added and WorldMapFrame:IsShown() then provider:RefreshAllData() end
+end
+
+local function Resize()
+    if not (added and WorldMapFrame:IsShown()) then return end
+    local size = PinSize(WorldMapFrame)
+    for pin in WorldMapFrame:EnumeratePinsByTemplate(TEMPLATE) do pin:SetSize(size, size) end
+end
+
+function NaowhForeverQuestGiverPinMixin:OnLoad()
+    self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
+end
+
+function NaowhForeverQuestGiverPinMixin:CheckMouseButtonPassthrough() end
+
+function NaowhForeverQuestGiverPinMixin:OnAcquired(giver)
+    self.quests = self.quests or {}
+    wipe(self.quests)
+    for i, id in ipairs(giver.quests) do self.quests[i] = id end
+    self.grey = giver.grey
+    local size = PinSize(self:GetMap())
+    self:SetSize(size, size)
+    SetMark(self.Icon, giver.grey, giver.repeatable)
+    self:SetPosition(giver.x / PERCENT, giver.y / PERCENT)
+end
+
+function NaowhForeverQuestGiverPinMixin:OnMouseEnter()
+    local first = self.quests[1]
+    local gold = Style.GOLD_RGB
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(Q.Giver(first) or TEXT_GIVER, 1, 1, 1)
+    local item = Q.Item(first)
+    if item then
+        local name = C_Item.GetItemNameByID(item) or Q.Name(first)
+        GameTooltip:AddLine(TEXT_DROPS:format(name), gold.r, gold.g, gold.b)
+    end
+    for _, id in ipairs(self.quests) do AddQuestLine(id) end
+    GameTooltip:AddLine(TEXT_WAYPOINT, Style.Hint())
+    GameTooltip:Show()
+end
+
+function NaowhForeverQuestGiverPinMixin:OnMouseLeave()
+    GameTooltip:Hide()
+end
+
+function NaowhForeverQuestGiverPinMixin:OnClick(button)
+    if button ~= "LeftButton" then return end
+    local first = self.quests[1]
+    local map, x, y = Q.Spot(first)
+    if map then ns.PlaceWaypoint(Q.Giver(first) or Q.Name(first), map, x, y) end
+end
+
+function provider:RemoveAllData()
+    self:GetMap():RemoveAllPinsByTemplate(TEMPLATE)
+end
+
+function provider:RefreshAllData()
+    self:RemoveAllData()
+    if not On() then return end
+    local map = self:GetMap()
+    Q.Refresh()
+    for _, giver in ipairs(Q.Givers(map:GetMapID(), S.Get("mapGrey"), S.Get("mapChainsOnly"))) do
+        map:AcquirePin(TEMPLATE, giver)
+    end
+end
+
+local function Apply()
+    if On() then
+        if not added then
+            WorldMapFrame:AddDataProvider(provider)
+            WorldMapFrame:HookScript("OnSizeChanged", Resize)
+            added = true
+        end
+        if not events then
+            events = CreateFrame("Frame")
+            events:SetScript("OnEvent", Redraw)
+        end
+        for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
+    elseif events then
+        events:UnregisterAllEvents()
+    end
+    Redraw()
+end
+
+local function OnSet(key)
+    if OWN_KEYS[key] then Apply() end
+end
+
+local function OnLogin(self)
+    self:UnregisterAllEvents()
+    Apply()
+end
+
+hooksecurefunc(S, "Set", OnSet)
+hooksecurefunc(ns, "Apply", Apply)
+
+local boot = CreateFrame("Frame")
+boot:RegisterEvent("PLAYER_LOGIN")
+boot:SetScript("OnEvent", OnLogin)

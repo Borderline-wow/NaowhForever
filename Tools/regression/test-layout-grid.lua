@@ -5,9 +5,10 @@
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
-local f = assert(io.open("Core/NaowhForever_UnlockMode.lua", "rb"))
+-- The grid's own file, from its first named value on: T and Pixel come from the stub env below.
+local f = assert(io.open("Core/Unlock/Grid.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local first = assert(source:find("-- Unlock Mode's grid, counted out", 1, true))
+local first = assert(source:find("local GRID_STEP", 1, true))
 local last = assert(source:find("\nfunction ns.SetAnchorGridShown", first, true))
 last = assert(source:find("\nend\n", last, true))
 local section = source:sub(first, last + 4)

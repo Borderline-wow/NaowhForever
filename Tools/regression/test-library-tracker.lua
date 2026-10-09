@@ -1,4 +1,4 @@
--- Regression test for the Library Books tracker (NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua) with
+-- Regression test for the Library Books tracker (NaowhForever_Discovery/UI/BookTracker.lua) with
 -- Always Show on: its zone dropdown lists every zone with a book still to find, in the data's
 -- order, each with how many, and the zone picked kept at 0 once its last book is looted. Each
 -- book's state is read once per redraw, not once per zone, and a redraw stays cheap.
@@ -106,9 +106,13 @@ local function Load(path)
     chunk()
 end
 
-Load("NaowhForever_Discovery/NaowhForever_DiscoveryData.lua")
-Load("NaowhForever_Discovery/NaowhForever_Discovery.lua")
-Load("NaowhForever_Discovery/NaowhForever_DiscoveryTracker.lua")
+Load("Core/Features.lua")
+Load("NaowhForever_Discovery/Discovery.lua")
+Load("NaowhForever_Discovery/Constants.lua")
+Load("NaowhForever_Discovery/Data/Books.lua")
+Load("NaowhForever_Discovery/Library.lua")
+Load("NaowhForever_Discovery/View/Style.lua")
+Load("NaowhForever_Discovery/UI/BookTracker.lua")
 local L = addon.Library
 
 local function Expected(keep)

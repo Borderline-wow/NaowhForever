@@ -1,59 +1,70 @@
--------------------------------------------------------------------------------
---  UI/Recent.lua -- Recent in the Journal's window (J.Recent): a skull on its title bar opens a
---  panel under it with this character's latest kills and its latest loot in the Journal's
---  dungeons and raids, side by side, each list with its Reset. A click on one shows its dungeon.
--------------------------------------------------------------------------------
+-- Recent.lua: Recent on the window's title bar: this character's latest kills and loot (J.Recent).
 local ns = _G.NaowhForever
+
 local T = ns.THEME
 local J = ns.Journal
 local Kills = J.Kills
 local Looted = J.Looted
 local Parts = J.View.Parts
-
+local FightLength = Parts.FightLength
+local Ago = ns.Shared.Ago
 local St = J.Style
-local BORDER_RGB, SKULL, KILL_DATE = St.BORDER_RGB, St.SKULL, St.KILL_DATE
+local BORDER_RGB, SKULL, KILL_DATE, HOVER = St.BORDER_RGB, St.SKULL, St.KILL_DATE, St.ITEM_HOVER
+local TEXT_SIZE, HEADING_SIZE = St.TEXT_SIZE, St.HEADING_SIZE
 
-local RECENT_ROWS = 5      -- the most kills, and items, listed
-local RECENT_ROW = 26      -- one of them
-local RECENT_HEAD = 30     -- a column's title, above them
-local RECENT_FOOT = 8      -- below the last one
-local RECENT_INSET = 20    -- a column's edge to its text, as in the switches' rows
-local RECENT_ICON = 16     -- the skull, or the item's icon
-local RECENT_GAP = 8       -- the icon to the name
--- On the right, in columns of their own so they line up from row to row: the dungeon from a
--- fixed place, and how long ago against the edge ("30 Sep 2026" is the widest).
+local RECENT_ROWS = 5
+local RECENT_ROW = 26
+local RECENT_HEAD = 30
+local RECENT_FOOT = 8
+local RECENT_INSET = 20
+local RECENT_ICON = 16
+local RECENT_GAP = 8
 local WHERE_W, AGO_W, COLUMN_GAP = 150, 76, 12
-local RESET_W, RESET_H = 64, 20   -- a column's Reset button, at its top right
+local RESET_W, RESET_H = 64, 20
 local RESET_TOP = 6
 local PANEL_W, PANEL_PAD, PANEL_DROP = 820, 8, 6
+local DIVIDER_ALPHA = 0.6
+local LINK_BRACKETS, LINK_NAME = "|h%[(.-)%]|h", "|h%1|h"
 
-local Recent = {}
-J.Recent = Recent
+local TEXT_OPEN_HINT = "Click to show the dungeon."
+local TEXT_TOOK = "took "
+local TEXT_FROM = "From "
+local TEXT_LOOTED = "Looted"
+local TEXT_RESET = "Reset"
+local TEXT_FORGET_KILLS = "Forget this character's kills? Every boss's kill count starts again from 0."
+local TEXT_FORGET_LOOT = "Forget what this character has looted? This list and the item on each boss start again."
+local TEXT_KILLS = "Kills"
+local TEXT_NO_KILLS = "No kills counted yet. They count while the Journal is on."
+local TEXT_LOOT = "Loot"
+local TEXT_NO_LOOT = "Nothing looted yet. Loot counts in its dungeons and raids."
+local TEXT_RECENT = "Recent"
+local TEXT_RECENT_TIP = "This character's latest kills and loot."
+local TEXT_BLANK = " "
 
-local latestKills, latestLoot = {}, {}   -- Kills.Latest's and Looted.Latest's lists, reused
-local FightLength = Parts.FightLength
-local OPEN_HINT = "Click to show the dungeon."
+local latestKills, latestLoot = {}, {}
 local panel, button, show
+local Fill
 
-local Ago = ns.Shared.Ago
+local function KillLines(kill, muted)
+    GameTooltip:SetText(kill.boss.name, 1, 1, 1)
+    GameTooltip:AddDoubleLine(date(KILL_DATE, kill.at), kill.took and TEXT_TOOK .. FightLength(kill.took) or "",
+        1, 1, 1, muted.r, muted.g, muted.b)
+end
+
+local function ItemLines(item, muted)
+    GameTooltip:SetHyperlink(item.link)
+    GameTooltip:AddLine(TEXT_BLANK)
+    GameTooltip:AddDoubleLine(item.boss and TEXT_FROM .. item.boss or TEXT_LOOTED, date(KILL_DATE, item.at),
+        1, 1, 1, muted.r, muted.g, muted.b)
+end
 
 local function RecentEnter(row)
     local muted = T.muted
     row.hover:Show()
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-    local kill, item = row.kill, row.item
-    if kill then
-        GameTooltip:SetText(kill.boss.name, 1, 1, 1)
-        GameTooltip:AddDoubleLine(date(KILL_DATE, kill.at), kill.took and "took " .. FightLength(kill.took) or "",
-            1, 1, 1, muted.r, muted.g, muted.b)
-    else
-        GameTooltip:SetHyperlink(item.link)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddDoubleLine(item.boss and "From " .. item.boss or "Looted", date(KILL_DATE, item.at),
-            1, 1, 1, muted.r, muted.g, muted.b)
-    end
+    if row.kill then KillLines(row.kill, muted) else ItemLines(row.item, muted) end
     GameTooltip:AddLine(row.dungeon.name, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b)
-    GameTooltip:AddLine(OPEN_HINT, muted.r, muted.g, muted.b)
+    GameTooltip:AddLine(TEXT_OPEN_HINT, muted.r, muted.g, muted.b)
     GameTooltip:Show()
 end
 
@@ -67,50 +78,54 @@ local function RecentClick(row)
     show(row.dungeon)
 end
 
-local function RecentRow(column, index)
-    local row = CreateFrame("Button", nil, column)
-    row:SetHeight(RECENT_ROW)
-    row:SetPoint("TOPLEFT", RECENT_INSET, -(RECENT_HEAD + (index - 1) * RECENT_ROW))
-    row:SetPoint("RIGHT", -RECENT_INSET, 0)
-    row.hover = ns.Solid(row, "BACKGROUND", T.fg, 0.05)
-    row.hover:SetPoint("TOPLEFT", -RECENT_INSET / 2, 0)
-    row.hover:SetPoint("BOTTOMRIGHT", RECENT_INSET / 2, 0)
-    row.hover:Hide()
+local function NewIcons(row)
     row.skull = row:CreateTexture(nil, "ARTWORK")
     row.skull:SetTexture(SKULL)
     row.skull:SetSize(RECENT_ICON, RECENT_ICON)
     row.skull:SetPoint("LEFT")
     row.skull:SetVertexColor(T.muted.r, T.muted.g, T.muted.b)
-    -- An item's icon, in the house's black edge.
     row.itemIcon = CreateFrame("Frame", nil, row)
     row.itemIcon:SetSize(RECENT_ICON, RECENT_ICON)
     row.itemIcon:SetPoint("LEFT")
     row.itemIcon.texture = row.itemIcon:CreateTexture(nil, "ARTWORK")
     row.itemIcon.texture:SetAllPoints()
     ns.Border(row.itemIcon, BORDER_RGB)
-    row.ago = ns.Font(row, 12, nil, T.muted)
+end
+
+local function NewText(row)
+    row.ago = ns.Font(row, TEXT_SIZE, nil, T.muted)
     row.ago:SetPoint("RIGHT")
     row.ago:SetWidth(AGO_W)
     row.ago:SetJustifyH("RIGHT")
-    row.where = ns.Font(row, 12, nil, T.muted)
+    row.where = ns.Font(row, TEXT_SIZE, nil, T.muted)
     row.where:SetPoint("RIGHT", row.ago, "LEFT", -COLUMN_GAP, 0)
     row.where:SetWidth(WHERE_W)
     row.where:SetJustifyH("LEFT")
     row.where:SetWordWrap(false)
-    row.name = ns.Font(row, 13, nil, T.fg)
+    row.name = ns.Font(row, HEADING_SIZE, nil, T.fg)
     row.name:SetPoint("LEFT", RECENT_ICON + RECENT_GAP, 0)
     row.name:SetPoint("RIGHT", row.where, "LEFT", -COLUMN_GAP, 0)
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
+end
+
+local function RecentRow(column, index)
+    local row = CreateFrame("Button", nil, column)
+    row:SetHeight(RECENT_ROW)
+    row:SetPoint("TOPLEFT", RECENT_INSET, -(RECENT_HEAD + (index - 1) * RECENT_ROW))
+    row:SetPoint("RIGHT", -RECENT_INSET, 0)
+    row.hover = ns.Solid(row, "BACKGROUND", T.fg, HOVER)
+    row.hover:SetPoint("TOPLEFT", -RECENT_INSET / 2, 0)
+    row.hover:SetPoint("BOTTOMRIGHT", RECENT_INSET / 2, 0)
+    row.hover:Hide()
+    NewIcons(row)
+    NewText(row)
     row:SetScript("OnEnter", RecentEnter)
     row:SetScript("OnLeave", RecentLeave)
     row:SetScript("OnClick", RecentClick)
     return row
 end
 
-local Fill
-
--- Forgets a column's list, once you say yes: the panel and the page show it gone.
 local function Forget(question, forget)
     ns.Confirm(question, function()
         forget()
@@ -120,28 +135,25 @@ local function Forget(question, forget)
 end
 
 local function ForgetKills()
-    Forget("Forget this character's kills? Every boss's kill count starts again from 0.", Kills.Forget)
+    Forget(TEXT_FORGET_KILLS, Kills.Forget)
 end
 
 local function ForgetLoot()
-    Forget("Forget what this character has looted? This list and the item on each boss start again.",
-        Looted.Forget)
+    Forget(TEXT_FORGET_LOOT, Looted.Forget)
 end
 
 local function RecentColumn(block, title, empty, reset)
     local column = CreateFrame("Frame", nil, block)
-    column.reset = ns.Button(column, "Reset", RESET_W, RESET_H, reset)
+    column.reset = ns.Button(column, TEXT_RESET, RESET_W, RESET_H, reset)
     column.reset:SetPoint("TOPRIGHT", -RECENT_INSET, -RESET_TOP)
-    -- The title in the button's height, so the two are level.
-    column.title = ns.Font(column, 12, nil, T.muted)
+    column.title = ns.Font(column, TEXT_SIZE, nil, T.muted)
     column.title:SetPoint("LEFT", RECENT_INSET, 0)
     column.title:SetPoint("TOP", column.reset, "TOP")
     column.title:SetPoint("BOTTOM", column.reset, "BOTTOM")
     column.title:SetText(title)
     column.rows = {}
     for i = 1, RECENT_ROWS do column.rows[i] = RecentRow(column, i) end
-    -- Where the first row would be, while there is none.
-    column.empty = ns.Font(column, 12, nil, T.muted)
+    column.empty = ns.Font(column, TEXT_SIZE, nil, T.muted)
     column.empty:SetPoint("LEFT", column.rows[1], "LEFT")
     column.empty:SetPoint("RIGHT", column.rows[1], "RIGHT")
     column.empty:SetJustifyH("LEFT")
@@ -151,15 +163,13 @@ end
 
 local function MakeRecent(parent)
     local block = CreateFrame("Frame", nil, parent)
-    block.kills = RecentColumn(block, "Kills", "No kills counted yet. They count while the Journal is on.",
-        ForgetKills)
+    block.kills = RecentColumn(block, TEXT_KILLS, TEXT_NO_KILLS, ForgetKills)
     block.kills:SetPoint("TOPLEFT")
     block.kills:SetPoint("BOTTOMRIGHT", block, "BOTTOM")
-    block.loot = RecentColumn(block, "Loot", "Nothing looted yet. Loot counts in its dungeons and raids.",
-        ForgetLoot)
+    block.loot = RecentColumn(block, TEXT_LOOT, TEXT_NO_LOOT, ForgetLoot)
     block.loot:SetPoint("TOPLEFT", block, "TOP")
     block.loot:SetPoint("BOTTOMRIGHT")
-    local divider = ns.Solid(block, "ARTWORK", T.line, 0.6)
+    local divider = ns.Solid(block, "ARTWORK", T.line, DIVIDER_ALPHA)
     divider:SetPoint("TOP", 0, -RECENT_INSET / 2)
     divider:SetPoint("BOTTOM", 0, RECENT_FOOT)
     ns.Hairline(divider, "v")
@@ -182,32 +192,27 @@ local function ShowItem(row, item)
     row.skull:Hide()
     row.itemIcon:Show()
     row.itemIcon.texture:SetTexture(C_Item.GetItemIconByID(item.id))
-    -- The link's name in its quality's colour, without the brackets chat puts round it.
-    row.name:SetText((item.link:gsub("|h%[(.-)%]|h", "|h%1|h")))
+    row.name:SetText((item.link:gsub(LINK_BRACKETS, LINK_NAME)))
     row.where:SetText(dungeon.name)
     row.ago:SetText(Ago(item.at))
     row:Show()
 end
 
--- Fills both columns and sizes the panel to the taller one (at least one row, for the line
--- that says there is nothing yet).
+local function FillColumn(column, list, ShowEntry)
+    local rows = column.rows
+    for i = 1, RECENT_ROWS do
+        if list[i] then ShowEntry(rows[i], list[i]) else rows[i]:Hide() end
+    end
+    column.empty:SetShown(#list == 0)
+    column.reset:SetShown(#list > 0)
+end
+
 function Fill()
     local block = panel.block
     local kills = Kills.Latest(RECENT_ROWS, latestKills)
-    local rows = block.kills.rows
-    for i = 1, RECENT_ROWS do
-        if kills[i] then ShowKill(rows[i], kills[i]) else rows[i]:Hide() end
-    end
-    block.kills.empty:SetShown(#kills == 0)
-    block.kills.reset:SetShown(#kills > 0)
-
+    FillColumn(block.kills, kills, ShowKill)
     local items = Looted.Latest(RECENT_ROWS, latestLoot)
-    rows = block.loot.rows
-    for i = 1, RECENT_ROWS do
-        if items[i] then ShowItem(rows[i], items[i]) else rows[i]:Hide() end
-    end
-    block.loot.empty:SetShown(#items == 0)
-    block.loot.reset:SetShown(#items > 0)
+    FillColumn(block.loot, items, ShowItem)
     local shown = math.max(#kills, #items, 1)
     panel:SetHeight(RECENT_HEAD + shown * RECENT_ROW + RECENT_FOOT + PANEL_PAD * 2)
 end
@@ -216,7 +221,9 @@ local function MouseDown()
     if not (panel:IsMouseOver() or button:IsMouseOver()) then panel:Hide() end
 end
 
-local function PanelShown(self) self:RegisterEvent("GLOBAL_MOUSE_DOWN") end
+local function PanelShown(self)
+    self:RegisterEvent("GLOBAL_MOUSE_DOWN")
+end
 
 local function PanelHidden(self)
     self:UnregisterAllEvents()
@@ -255,12 +262,14 @@ end
 local function Enter(self)
     Parts.LightBarIcon(self, true)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-    GameTooltip:SetText("Recent", 1, 1, 1)
-    GameTooltip:AddLine("This character's latest kills and loot.", T.muted.r, T.muted.g, T.muted.b)
+    GameTooltip:SetText(TEXT_RECENT, 1, 1, 1)
+    GameTooltip:AddLine(TEXT_RECENT_TIP, T.muted.r, T.muted.g, T.muted.b)
     GameTooltip:Show()
 end
 
---- The title bar's Recent icon; onPick(dungeon) shows a dungeon in the window. Place it.
+local Recent = {}
+J.Recent = Recent
+
 function Recent.Button(window, onPick)
     show = onPick
     button = Parts.BarIcon(window, SKULL, true)

@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- QuestPins.xml: the quest giver pin's template, and the file that fills it. -->
+    <Script file="QuestPins.lua"/>
+    <Button name="NaowhForeverQuestGiverPinTemplate" mixin="NaowhForeverQuestGiverPinMixin" enableMouse="true" virtual="true">
+        <Size x="18" y="18"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+</Ui>

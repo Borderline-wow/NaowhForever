@@ -1,4 +1,0 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <Script file="NaowhForever_Unexplored.lua"/>
-    <Frame name="NaowhForeverUnexploredPinTemplate" mixin="NaowhForeverUnexploredPinMixin" virtual="true"/>
-</Ui>

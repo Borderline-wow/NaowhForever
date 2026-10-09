@@ -1,0 +1,21 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Macros.xml: the Macros module's files, in load order. -->
+    <Script file="Macros.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Items.lua"/>
+    <Script file="Text.lua"/>
+    <Script file="Commands.lua"/>
+    <Script file="Store.lua"/>
+    <Script file="Smart.lua"/>
+    <Script file="Profile.lua"/>
+    <Script file="Sharing.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\Parts.lua"/>
+    <Script file="UI\Editor.lua"/>
+    <Script file="UI\Inspector.lua"/>
+    <Script file="UI\MacroList.lua"/>
+    <Script file="UI\SmartPage.lua"/>
+    <Script file="UI\Library.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

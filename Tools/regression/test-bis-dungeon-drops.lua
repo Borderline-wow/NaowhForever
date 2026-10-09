@@ -4,7 +4,7 @@
 -- item's source is the Journal's boss and dungeon, and wowsrc's wording only for the rest.
 local Load = dofile("Tools/regression/load_files.lua")
 local TocFiles = dofile("Tools/regression/toc_files.lua")
-local RULES = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Items.lua", "NaowhForever_BiS/BiS/BiS.lua", "NaowhForever_BiS/BiS/Rankings.lua",
+local RULES = { "Shared/Shared.lua", "Shared/Style.lua", "Shared/Game/Items.lua", "Shared/Game/Gear.lua", "NaowhForever_BiS/BiS/BiS.lua", "NaowhForever_BiS/BiS/Constants.lua", "NaowhForever_BiS/BiS/Rankings.lua",
     "NaowhForever_BiS/BiS/Sources.lua" }
 local SEP = " \194\183 "
 
@@ -59,6 +59,7 @@ local function Fixture(class, level, sources, journal)
     local ns = { BiSData = { sources = sources or {}, specs = {} }, QoLSettings = {},
         Journal = journal ~= false and { Items = FACTS, Dungeons = function() return list end } or nil }
     Load(RULES, Env(ns, class, level))
+    ns.Shared.ItemFacts = FACTS
     local R = ns.BiS.Rankings
     return { Usable = R.Usable, DungeonDrops = R.DungeonDrops, R = R, ns = ns }
 end
@@ -159,13 +160,16 @@ Case("an item not in Forever yet drops nowhere: no source, never offered", funct
     local m = Fixture("MAGE", 20, { [2] = "Boss 2" .. SEP .. "Old Name" })
     m.ns.Journal.NotYet = { [1] = FACTS[1], [2] = FACTS[2] }
     m.ns.Journal.Items = { [3] = FACTS[3] }
+    m.ns.Shared.ItemFacts = m.ns.Journal.Items
     assert(m.ns.BiSSource(2) == "Boss 2" .. SEP .. "Old Name" and m.R.DropDungeon(1) == nil)
     assert(List(m.DungeonDrops(1, {}, true)) == "")
 end)
 
-Case("levels are the Journal's facts", function()
+Case("levels are the shared facts, with or without the Journal", function()
     local m = Fixture("MAGE", 20)
     assert(m.R.ReqLevel(3) == 40 and m.R.ItemLevel(3) == 45 and m.R.ItemLevel(100) == nil)
+    m = Fixture("MAGE", 20, nil, false)
+    assert(m.R.ReqLevel(3) == 40 and m.R.ItemLevel(3) == 45)
 end)
 
 Case("before the Journal loads, nothing drops and wowsrc's wording stands", function()
@@ -181,24 +185,25 @@ for _, id in ipairs({ 5821, 263435, 263436, 270039, 270046, 272996, 276727, 2772
     -- wowsrc's lists of 2 Oct 2026: none on Wowhead's item pages either.
     7948, 276719, 281263, 281295, 281693, 281694, 281702, 285351,
     -- wowsrc's lists of 3 Oct 2026 (the daily watch's #49): no source on wowsrc, and none on
-    -- Wowhead's item pages either (build_bis_data.py --sources-only found the rest).
+    -- Wowhead's item pages either (build/bis_data.py --sources-only found the rest).
     2944, 7949, 7950, 7952, 7953, 8663, 213105, 270065, 270066, 270073,
     270076, 270077, 270082, 270083, 271720, 274042, 274068, 274149, 274915, 274916,
     274919, 274920, 274928, 274929, 274938, 274939, 274940, 274941, 274942, 274943,
     274944, 274946, 274948, 276102, 276897, 278019, 281308, 282642, 282658, 284382,
     284383, 284399, 284401, 284403, 284697, 285190, 285192,
-    -- wowsrc's lists read again on 3 Oct 2026, with Wowhead (build_bis_data.py): no source
+    -- wowsrc's lists read again on 3 Oct 2026, with Wowhead (build/bis_data.py): no source
     -- on either.
     282653, 282710, 284459 }) do UNSOURCED[id] = true end
 
 Case("every ranked item has a source, from the Journal's dungeons or wowsrc", function()
     local dungeons = {}
-    local ns = { QoLSettings = {}, Journal = {
+    local ns = { QoLSettings = {}, Shared = {}, Journal = {
         AddDungeon = function(_, dungeon) dungeons[#dungeons + 1] = dungeon end,
         Dungeons = function() return dungeons end,
     } }
     local env = Env(ns, "MAGE", 60)
-    local files = { "NaowhForever_BiS/BiS/Data/BiS.lua", "NaowhForever_DungeonJournal/Data/Items.lua" }
+    local files = { "NaowhForever_BiS/BiS/Data/BiS.lua", "Shared/Data/ItemFacts.lua", "Shared/Data/FactionItems.lua",
+        "NaowhForever_DungeonJournal/Data/Items.lua" }
     for _, path in ipairs(TocFiles("^NaowhForever_DungeonJournal/Data/Dungeons/.*%.lua$")) do files[#files + 1] = path end
     Load(files, env)
     Load(RULES, env)

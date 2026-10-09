@@ -284,12 +284,16 @@ local function Fixture()
             return { IsAnyMenuOpen = function() return state.menuOpen == true end, OpenMenu = NOTHING }
         end },
     }, { __index = _G })
-    local files = TocFiles("^Shared/.*%.lua$")
+    local files = { "Core/Features.lua" }
+    for _, path in ipairs(TocFiles("^Shared/.*%.lua$")) do
+        if not path:find("^Shared/Data/%a*Items?%a*%.lua$") then files[#files + 1] = path end
+    end
     files[#files + 1] = "NaowhForever_BiS/NaowhScore/Data/Formula.lua"   -- the paperdoll's score; not its tooltips
-    files[#files + 1] = "NaowhForever_BiS/NaowhScore/Score.lua"
+    files[#files + 1] = "NaowhForever_BiS/NaowhScore/NaowhScore.lua"
     for _, path in ipairs(TocFiles("^NaowhForever_BiS/StatWeights/.*%.lua$")) do files[#files + 1] = path end
     for _, path in ipairs(TocFiles("^NaowhForever_BiS/BiS/.*%.lua$")) do files[#files + 1] = path end
     Load(files, env)
+    ns.Shared.ItemFacts = {}
     for _, spec in ipairs(ns.BiSData.specs) do
         for slot, ids in pairs(spec.slots) do
             for _, id in ipairs(ids) do equip[id] = equip[id] or INVTYPE[slot] end
@@ -314,7 +318,7 @@ local Measure = dofile("Tools/regression/measure.lua")(check)
 -------------------------------------------------------------------------------
 local ns, state, S = Fixture()
 local B = ns.BiS
-check("BiS.xml loads its files", #TocFiles("^NaowhForever_BiS/BiS/.*%.lua$") == 26)
+check("BiS.xml loads its files", #TocFiles("^NaowhForever_BiS/BiS/.*%.lua$") == 36)
 
 ns.OpenBisWindow()
 local view = Views(state, B)[1]
@@ -578,9 +582,24 @@ Measure("the list redrawn, with enchants", 2, function() view:Redraw() end)
 -------------------------------------------------------------------------------
 --  A slot's picker, and its backups opened under its row
 -------------------------------------------------------------------------------
+local function SectionIn(v, title)
+    for i = 1, v.pools.section.used do
+        local row = v.pools.section[i]
+        if row.text.text and row.text.text:upper():find(title:upper(), 1, true) then return row end
+    end
+end
+local function NoteIn(v, part)
+    for i = 1, v.pools.note.used do
+        local row = v.pools.note[i]
+        if row.text.text and row.text.text:find(part, 1, true) then return row end
+    end
+end
+
 B.OpenPicker(1, head)
 local picker = Views(state, B)[2]
 check("the picker is its own view", picker and picker.page == "picker")
+check("without the Dungeon Journal, the picker's dungeon drops ask to turn it on",
+    SectionIn(picker, "Dungeon drops") and NoteIn(picker, "what drops in dungeons for this slot"))
 local own, add, numbered = 0, 0, false
 for i = 1, picker.pools.pick.used do
     local row = picker.pools.pick[i]
@@ -815,6 +834,19 @@ for _, frame in ipairs(state.frames) do
     if rawget(frame, "positionKey") == "bisWindow" then window = frame end
 end
 check("the window is open", window and window:IsShown())
+ns.TurnOnModule = function(addon) state.turnedOn = addon end
+check("without the Dungeon Journal, the Quests tab is still there", window.pages:IsShown())
+window.pages.onPick("quests")
+local questsOff = SectionIn(view, "Quests for your BiS")
+check("its page says the quests come from the Dungeon Journal, with a link to turn it on",
+    questsOff and NoteIn(view, "Turn on the Dungeon Journal to see the quests"))
+questsOff.onLink(questsOff.linkArg)
+check("the link turns the Dungeon Journal on", state.turnedOn == "NaowhForever_DungeonJournal")
+view:Redraw()
+check("and a redraw keeps that page", SectionIn(view, "Quests for your BiS") ~= nil)
+window.pages.onPick("list")
+check("Run next asks for it for each dungeon's levels and quests", SectionIn(view, "Run next")
+    and NoteIn(view, "each dungeon's levels and quests"))
 place = view.pools.place[1]
 place.dungeon, place.map, place.spot = nil, 1413, nil
 place.scripts.OnClick(place)

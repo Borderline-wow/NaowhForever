@@ -81,13 +81,13 @@ local env = setmetatable({
     end,
     hooksecurefunc = Hook,
 }, { __index = _G })
-local chunk = assert(loadstring(Read("QoL/NaowhForever_ZoneLevels.lua")))
+local chunk = assert(loadstring(Read("NaowhForever_QoL/Interface/ZoneLevels.lua")))
 setfenv(chunk, env)
 chunk()
 local Z = ns.ZoneLevels
 
 -- The levels.
-Check(Z.Levels(1411) == "<quest10> (1-10)", "Durotar 1-10, above it: its top end's colour")
+Check(Z.Levels(1411) == "<quest8> (1-10)", "Durotar 1-10, above it: two under its top end's colour, as the game's own label")
 Check(Z.Levels(1413) == "<yellow> (10-25)", "the Barrens 10-25, inside it: yellow")
 Check(Z.Levels(1452) == "<quest53> (53-60)", "Winterspring 53-60, under it: its low end's colour")
 Check(Z.Levels(1454) == nil and Z.Levels(2548) == nil, "none for a capital or Forever's own zones")
@@ -111,7 +111,9 @@ Check(Z.Fishing(1440, 55) == "<yellow>Fishing 55-150", "yellow while a fish can 
 Check(Z.Fishing(1440, 150) == "<green>Fishing 55-150", "green once none can")
 
 -- Off by default, and free while off.
-Check(Read("QoL/NaowhForever_QoL.lua"):find("mapZoneLevels = false, mapFishing = false", 1, true), "both start off")
+Check(Read("Core/Settings.lua"):find("mapZoneLevels = F.mapZoneLevels, mapFishing = F.mapFishing", 1, true)
+    and Read("Core/Features.lua"):find("mapZoneLevels = false,", 1, true)
+    and Read("Core/Features.lua"):find("mapFishing = false,", 1, true), "both start off")
 boot()
 Check(created == 0 and #hooks == 0, "nothing built or hooked while off")
 Check(cards.mapZoneLevels and cards.mapZoneLevels.switch == "mapZoneLevels", "a card for the levels")
@@ -156,11 +158,11 @@ boot()
 Check(created == 1 and #hooks == 1, "not hooked twice")
 lookups = 0
 Show("Durotar")
-Check(label.Name:GetText() == "Durotar<quest10> (1-10)", "the levels after the name")
+Check(label.Name:GetText() == "Durotar<quest8> (1-10)", "the levels after the name")
 Frame(); Frame()
-Check(lookups == 1 and label.Name:GetText() == "Durotar<quest10> (1-10)", "kept, worked out once")
+Check(lookups == 1 and label.Name:GetText() == "Durotar<quest8> (1-10)", "kept, worked out once")
 Show("Durotar")
-Check(label.Name:GetText() == "Durotar<quest10> (1-10)" and lookups == 1, "put back on the plain name")
+Check(label.Name:GetText() == "Durotar<quest8> (1-10)" and lookups == 1, "put back on the plain name")
 Check(ourText:GetText() == "<green>Fishing 1-25", "both at once")
 Show("Durotar", nil, "Razor Hill")
 Check(label.Name:GetText() == "Razor Hill", "another label's name left alone")
@@ -174,7 +176,7 @@ settings.mapFishing = false
 boot()
 fishing = nil
 Show("Durotar")
-Check(ourText:GetText() == "" and label.Name:GetText() == "Durotar<quest10> (1-10)", "levels alone")
+Check(ourText:GetText() == "" and label.Name:GetText() == "Durotar<quest8> (1-10)", "levels alone")
 
 -- Both off: the plain name back, nothing added, nothing built again.
 settings.mapZoneLevels = false
@@ -184,7 +186,7 @@ Show("Durotar")
 Check(ourText:GetText() == "" and label.Name:GetText() == "Durotar", "nothing added while off")
 Check(created == 1 and #hooks == 1, "nothing built again")
 
--- Loaded by the TOC.
-Check(Read("NaowhForever.toc"):find("QoL\\NaowhForever_ZoneLevels.lua", 1, true), "in the TOC")
+-- Loaded by the QoL addon.
+Check(Read("NaowhForever_QoL/QoL.xml"):find('<Script file="Interface\\ZoneLevels.lua"/>', 1, true), "in QoL.xml")
 
 print(("test-zone-levels: %d checks passed"):format(checks))

@@ -1,10 +1,18 @@
--- Top Bar FPS / MS readout: its colours and text, and what the ticker's second costs. Cut out of
--- TopBar.lua and run on stubs that make no garbage. Run from the repo root.
-local f = assert(io.open(arg[1] or "TopBar/NaowhForever_TopBar.lua", "rb"))
-local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
+-- Top Bar FPS / MS readout: its colours and text, and what the ticker's second costs. Its look
+-- (NaowhForever_TopBar/View/Look.lua) is loaded and UpdateSystem cut out of NaowhForever_TopBar/UI/Bar.lua, run on stubs that
+-- make no garbage. Run from the repo root.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 local Measure = dofile("Tools/regression/measure.lua")(check)
+
+-- The Top Bar's files as TopBar.xml lists them, read as one source.
+local parts = {}
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do
+    local f = assert(io.open(path, "rb"))
+    parts[#parts + 1] = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+end
+local source = table.concat(parts, "\n")
 
 local function Slice(a, b)
     local first = assert(source:find(a, 1, true), a)
@@ -12,12 +20,26 @@ local function Slice(a, b)
 end
 
 local code = table.concat({
-    "local bar, S, On, Look = ...",
-    Slice("local function Hex(r, g, b)", "\n-------------------------------------------------------------------------------\n--  Tooltips"),
-    Slice("local SYSTEM_TEXT", "\nlocal NO_COORDS"),
+    "local bar, S, On, Look, C = ...",
+    assert(source:match("\n(local SYS_DROP, [^\n]*)"), "the readout's sizes"),
+    assert(source:match("\n(local ROUND = [^\n]*)"), "ROUND"),
+    assert(source:match("\n(local HOME_LATENCY = [^\n]*)"), "HOME_LATENCY"),
     Slice("local function UpdateSystem()", "\nlocal function UpdateResting()"),
-    "return { UpdateSystem = UpdateSystem, FpsRGB = FpsRGB, MsRGB = MsRGB }",
+    "return { UpdateSystem = UpdateSystem }",
 }, "\n")
+
+-- The real look, on a stub namespace.
+local function LoadLook(S)
+    local ns = { TopBar = { Settings = S }, Shared = { Style = {}, Parts = {} }, THEME = {}, UI = {} }
+    local env = setmetatable({ NaowhForever = ns }, { __index = _G })
+    env._G = env
+    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/View/Style.lua", "NaowhForever_TopBar/View/Look.lua" }) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        chunk()
+    end
+    return ns.TopBar.Look, ns.TopBar.C
+end
 
 local fps, ms, writes = 144, 38, 0
 local text = {
@@ -37,7 +59,9 @@ setfenv(chunk, setmetatable({
     GetFramerate = function() return fps end,
     GetNetStats = function() return 0, 0, ms, 90 end,
 }, { __index = _G }))
-local api = chunk({ sys = sys }, S, function() return true end, {})
+local Look, C = LoadLook(S)
+local api = chunk({ sys = sys }, S, function() return true end, Look, C)
+api.FpsRGB, api.MsRGB = Look.FpsRGB, Look.MsRGB
 
 api.UpdateSystem()
 check("the readout's text", text.value == "FPS: |cff40ff40144|r  MS: |cff40ff4038|r")

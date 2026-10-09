@@ -1,23 +1,11 @@
--------------------------------------------------------------------------------
---  Style.lua -- the house look every module shares (ns.Shared.Style): colours, icons and
---  sizes, in one place. A module keeps its own Style for what only it draws, and reads
---  these through it (setmetatable(..., { __index = ns.Shared.Style })).
---
---  Names end in what they hold: _CODE a colour escape ("|cffb06bff"), _RGB a colour table
---  { r, g, b } (0-1). The theme's own colours (T.fg, T.muted, T.accent...) come from the
---  addon's theme instead; they are read when a row is made, so a theme change shows after
---  a /reload. Sizes are in pixels at the addon's UI scale.
--------------------------------------------------------------------------------
+-- Style.lua: the house look every module shares (ns.Shared.Style): colors, icons and sizes.
 local Shared = _G.NaowhForever.Shared
 
-local MEDIA = "Interface\\AddOns\\NaowhForever\\Media\\"
+local PI = 3.141592653589793
+local OPACITY_MIN, PERCENT_MAX, PERCENT_STEP = 40, 100, 5
+local MEDIA = "Interface\\AddOns\\NaowhForever\\Core\\Media\\"
 
 Shared.Style = {
-    ---------------------------------------------------------------------------
-    --  Colours
-    ---------------------------------------------------------------------------
-    -- Naowh's house style: a 1px black border round cards, badges, chips, icons, buttons
-    -- and panels. The accent (Naowh blue, the theme's T.accent) marks what is picked.
     BORDER_RGB = { r = 0, g = 0, b = 0 },
     BACKDROP_ALPHA = 0.97,
     HUD_SHADOW_RGB = { r = 0, g = 0, b = 0 },
@@ -25,9 +13,6 @@ Shared.Style = {
     HUD_SHADOW_X = 1,
     HUD_SHADOW_Y = -1,
     HUD_CARD_ALPHA = 0.85,
-    -- HUD text without the card (Parts.HudBackdrop): Soft fades from HUD_SOFT_ALPHA behind the text
-    -- to clear over HUD_SOFT_FADE, HUD_SOFT_INSET of it inside the card's edge; its text shadow is at
-    -- full strength. None has no backdrop: the shadow at full strength, as close (2px doubles small text).
     HUD_SOFT_ALPHA = 0.7,
     HUD_SOFT_FADE = 32,
     HUD_SOFT_INSET = 12,
@@ -35,18 +20,13 @@ Shared.Style = {
     HUD_BARE_SHADOW_ALPHA = 1,
     HUD_BARE_SHADOW_X = 1,
     HUD_BARE_SHADOW_Y = -1,
-    -- A window's soft drop shadow (Parts.Shadow): SHADOW_ALPHA black at its edge, clear SHADOW_SIZE out.
     SHADOW_ALPHA = 0.4,
     SHADOW_SIZE = 48,
-    -- The Classic+ skin's frame (Parts.ClassicTrim): outside a window's own black edge, a gold
-    -- line, CLASSIC_TRIM_BODY pixels of bronze and a black rim, and a gem on each corner.
     CLASSIC_GOLD_RGB = { r = 0xd4 / 255, g = 0xaf / 255, b = 0x37 / 255 },
     CLASSIC_BRONZE_RGB = { r = 0x5e / 255, g = 0x4a / 255, b = 0x1c / 255 },
     CLASSIC_TRIM_BODY = 3,
     CLASSIC_GEM = 12,
-    CLASSIC_GEM_EDGE = 2,       -- the gem's black edge, each side
-    -- A Classic+ window's title plate (Parts.TitlePlate) over its top edge: its height, bronze,
-    -- the room either side of the title, the title's size and colour, and the gems beside it.
+    CLASSIC_GEM_EDGE = 2,
     CLASSIC_PLATE_H = 30,
     CLASSIC_PLATE_BODY = 2,
     CLASSIC_PLATE_PAD = 34,
@@ -54,128 +34,111 @@ Shared.Style = {
     CLASSIC_TITLE_RGB = { r = 0xf4 / 255, g = 0xcf / 255, b = 0x63 / 255 },
     CLASSIC_PLATE_GEM = 7,
     CLASSIC_PLATE_GEM_GAP = 12,
-    -- A Classic+ button (ns.Button): red, lit from the top, inside a gold rim, with a faint
-    -- shine on its top half. Each state is its fill's { top, bottom }; pressed turns it over.
     CLASSIC_BUTTON_RGB = {
         rest  = { { r = 0xb4 / 255, g = 0x2a / 255, b = 0x1d / 255 }, { r = 0x5a / 255, g = 0x0b / 255, b = 0x06 / 255 } },
         hover = { { r = 0xd2 / 255, g = 0x3a / 255, b = 0x2a / 255 }, { r = 0x82 / 255, g = 0x14 / 255, b = 0x0b / 255 } },
         down  = { { r = 0x4e / 255, g = 0x09 / 255, b = 0x06 / 255 }, { r = 0x8a / 255, g = 0x16 / 255, b = 0x0d / 255 } },
     },
-    CLASSIC_RIM_LIT_RGB = { r = 0xff / 255, g = 0xe2 / 255, b = 0x8a / 255 },   -- the rim under the mouse
+    CLASSIC_RIM_LIT_RGB = { r = 0xff / 255, g = 0xe2 / 255, b = 0x8a / 255 },
     CLASSIC_BUTTON_SHINE = 0.1,
-    -- Classic+ fields are cut into the panel (ns.Sunken): a lit edge along their bottom and right.
     CLASSIC_BEVEL_RGB = { r = 0x6b / 255, g = 0x62 / 255, b = 0x52 / 255 },
-    -- A Classic+ slider's filled part, { top, bottom }, and its gem knob's black edge, each side.
     CLASSIC_FILL_RGB = { { r = 0xc7 / 255, g = 0x9a / 255, b = 0x3a / 255 }, { r = 0x6e / 255, g = 0x50 / 255, b = 0x19 / 255 } },
     CLASSIC_KNOB_EDGE = 2,
-    -- The game's own tick in a Classic+ check box, a little larger than the box, as the game draws it.
     CLASSIC_CHECK = "Interface\\Buttons\\UI-CheckBox-Check",
     CLASSIC_CHECK_SCALE = 1.3,
-    -- A picked Classic+ tab: lit bronze, { top, bottom }, under a gold line along its top.
     CLASSIC_TAB_RGB = { { r = 0x3d / 255, g = 0x2d / 255, b = 0x19 / 255 }, { r = 0x1a / 255, g = 0x12 / 255, b = 0x0a / 255 } },
-    -- The picked sidebar row on Classic+: the game's blue list glow, fading left to right
-    -- (CLASSIC_PICK_ALPHA to CLASSIC_PICK_FADE), with a lit line along its top.
     CLASSIC_PICK_RGB = { r = 0x46 / 255, g = 0x78 / 255, b = 0xd2 / 255 },
     CLASSIC_PICK_ALPHA = 0.6,
     CLASSIC_PICK_FADE = 0.1,
     CLASSIC_PICK_LINE_RGB = { r = 0x96 / 255, g = 0xbe / 255, b = 0xff / 255 },
     CLASSIC_PICK_LINE_ALPHA = 0.4,
-    -- A section header's gem before its name, on Classic+.
     CLASSIC_SECTION_GEM = 7,
     CLASSIC_SECTION_GEM_GAP = 8,
-    -- The help card on Classic+, as the game draws its tooltips: dark blue inside a grey-blue line.
     CLASSIC_TIP_RGB = { r = 0x02 / 255, g = 0x02 / 255, b = 0x12 / 255 },
     CLASSIC_TIP_ALPHA = 0.94,
     CLASSIC_TIP_EDGE_RGB = { r = 0x9a / 255, g = 0x9a / 255, b = 0xb0 / 255 },
-    -- A Classic+ window's background: the game's own rock, tiled over the backdrop, darkened
-    -- (CLASSIC_PATTERN_SHADE of its colour) and partly see-through so text on it stays readable.
     CLASSIC_PATTERN = "Interface\\FrameGeneral\\UI-Background-Rock",
     CLASSIC_PATTERN_SHADE = 0.6,
     CLASSIC_PATTERN_ALPHA = 0.55,
-    -- Classic+ headings stand out as the game's titles do: a size up, on a black drop shadow.
     CLASSIC_HEADING_STEP = 1,
     CLASSIC_HEADING_SHADOW = 1,
-    -- An item level above yours; bags with no room left.
+    CLASSIC_ICON_PATH = "Interface\\Icons\\",
+    CLASSIC_ICON_CROP = 0.07,
+    CLASSIC_ICONS = {
+        checklist = "INV_Misc_Note_01", map = "INV_Misc_Book_09", trophy = "INV_Chest_Plate16",
+        notes = "INV_Misc_Book_11", compass = "INV_Misc_Map_01", shield = "INV_Shield_06",
+        spark = "Spell_Holy_FistOfJustice", hammer = "Trade_BlackSmithing", pen = "INV_Scroll_03",
+        grid = "INV_Misc_Gear_02", aura = "Spell_Holy_WordFortitude", bars = "Ability_Warrior_DefensiveStance",
+        group = "Ability_Warrior_RallyingCry", swords = "Ability_DualWield", infinity = "Ability_MeleeDamage",
+        settings = "INV_Misc_Gear_01", person = "INV_Misc_Head_Human_01", heart = "Spell_Holy_Heal",
+        friends = "INV_Letter_01", guild = "INV_Shirt_GuildTabard_01", hearth = "INV_Misc_Rune_01",
+        NaowhForeverJournal = "INV_Misc_Book_09", NaowhForeverBiS = "INV_Chest_Plate16",
+        NaowhForeverGroup = "Ability_Warrior_RallyingCry", NaowhForeverTraining = "INV_Misc_Book_11",
+        NaowhForeverDiscovery = "INV_Misc_Map_01",
+    },
+    CLASSIC_HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square",
     RED_CODE = "|cfff87171",
     RED_RGB = { r = 0.97, g = 0.44, b = 0.44 },
-    -- Running low, or likely junk: few bag slots left, food and potions you have outlevelled.
     WARN_CODE = "|cfffb923c",
     WARN_RGB = { r = 0xfb / 255, g = 0x92 / 255, b = 0x3c / 255 },
-    -- Naowh's gold: tips, and the contested zones.
     GOLD_CODE = "|cffe6cc80",
     TIP_RGB = { r = 0.9, g = 0.8, b = 0.5 },
-    -- Your BiS list's ranks: your BiS (#1) an orange star, legendary orange so it stands apart
-    -- from blue item names; your second pick a silver one, and the rest a muted number.
     BIS_CODE = "|cffff8000",
     BIS_RGB = { r = 1, g = 0.5, b = 0 },
     SECOND_CODE = "|cffc7ccdb",
     SECOND_RGB = { r = 0xc7 / 255, g = 0xcc / 255, b = 0xdb / 255 },
-    -- New looks (appearances) in cyan, clear of BiS orange for colour-blind eyes too.
     LOOK_CODE = "|cff66d9ef",
     LOOK_RGB = { r = 0x66 / 255, g = 0xd9 / 255, b = 0xef / 255 },
-    -- Upgrade, in the game's uncommon green.
     UPGRADE_CODE = "|cff1eff00",
-    -- You have it: what you wear (its bar), a party member with the quest.
     HAVE_RGB = { r = 0.3, g = 0.82, b = 0.48 },
-    -- WoW Forever's own: the pale gold of its logo, on what is new in Forever.
     FOREVER_CODE = "|cffeed69e",
     FOREVER_RGB = { r = 0xee / 255, g = 0xd6 / 255, b = 0x9e / 255 },
-    -- What you carry and can hand in, in the game's quest gold.
     CARRIED_RGB = { r = 1, g = 0.82, b = 0 },
     TIME_OK_RGB = { r = 0.29, g = 0.87, b = 0.5 },
     TIME_LOW_RGB = { r = 0.98, g = 0.8, b = 0.08 },
     TIME_OUT_RGB = { r = 0.97, g = 0.27, b = 0.27 },
-    -- A boss picked on a dungeon map: its pin's ring, in the same gold, until the player
-    -- picks an Accent of their own.
     PICKED_RGB = { r = 1, g = 0.82, b = 0 },
-    -- The HUD Editor's guides: where a dragged element lines up, in amber so it never reads as
-    -- the accent's selection.
+    TIP_TITLE_RGB = { r = 1, g = 1, b = 1 },
     GUIDE_RGB = { r = 0xf2 / 255, g = 0xa3 / 255, b = 0x3a / 255 },
 
-    ---------------------------------------------------------------------------
-    --  Icons: the addon's own (Media/, drawn by Tools/make_media.py, white so they take
-    --  any colour) and the game's
-    ---------------------------------------------------------------------------
-    ARROW = MEDIA .. "chevron",             -- section titles and links; turned down while open
-    UP = MEDIA .. "chevron_up",             -- move a pick up; turned over, down
-    HANGER = MEDIA .. "hanger",             -- new looks
-    STAR = MEDIA .. "star",                 -- your BiS in BIS_RGB, your second pick in SECOND_RGB
-    UPGRADE_ATLAS = "bags-greenarrow",      -- an upgrade: the game's own green arrow from the bags
-    SCRAP_ATLAS = "bags-icon-scrappable",   -- scrap to sell at a vendor: the game's own bag scrap icon
-    SCRAP_RATIO = 32 / 36,                  -- that icon's height to its width
+    ARROW = MEDIA .. "chevron",
+    UP = MEDIA .. "chevron_up",
+    HANGER = MEDIA .. "hanger",
+    STAR = MEDIA .. "star",
+    UPGRADE_ATLAS = "bags-greenarrow",
+    SCRAP_ATLAS = "bags-icon-scrappable",
+    SCRAP_RATIO = 32 / 36,
     CLOCK_ATLAS = "auctionhouse-icon-clock",
     QUEST_ATLAS = "smallquestbang",
-    PIN = MEDIA .. "pin",                   -- waypoints and places
-    GEM = MEDIA .. "waypoint_diamond",      -- the Classic+ skin's corner and title gems
-    CHAIN = MEDIA .. "chain",               -- a quest's chain
-    INFO = MEDIA .. "info",                 -- Naowh's tip
-    LOGO = MEDIA .. "LogoAddon",            -- the Naowh logo, left of a window's title
-    LOGO_SMALL = MEDIA .. "LogoSmall",      -- the same at text size, in a tooltip line
-    BAG = MEDIA .. "bag",                   -- loot
-    CROSS = MEDIA .. "cross",               -- remove, or turn a filter off
-    PLUS = MEDIA .. "plus",                 -- add
-    FUNNEL = MEDIA .. "funnel",             -- Filters
-    TICK = MEDIA .. "check",                -- a ticked box in a menu
-    OPACITY = MEDIA .. "opacity",           -- a window's opacity
-    WAND = MEDIA .. "wand",                 -- fill in for you
-    SCALES = MEDIA .. "scales",             -- Stat Weights: what each stat weighs
-    FOREVER = MEDIA .. "infinity",          -- new in WoW Forever: its infinity sign, 32 by 16
-    FOREVER_ICON = MEDIA .. "infinity_outlined", -- the same with a dark outline, on an item's icon
-    ELBOW = MEDIA .. "elbow",               -- a tree line's rounded corner, 8 by 8, drawn at that size
-    IMPORT = MEDIA .. "import",             -- bring in a shared string
-    EXPORT = MEDIA .. "export",             -- make one to share
-    ROUND = MEDIA .. "circle_mask",         -- a filled circle (128px: load it "TRILINEAR", or it is jagged small): the slider's knob and ends
-    LIST_SHOWN = MEDIA .. "sidebar_shown",  -- a window's list button, while the list shows
+    PIN = MEDIA .. "pin",
+    GEM = MEDIA .. "waypoint_diamond",
+    CHAIN = MEDIA .. "chain",
+    INFO = MEDIA .. "info",
+    LOGO = MEDIA .. "LogoAddon",
+    LOGO_SMALL = MEDIA .. "LogoSmall",
+    BAG = MEDIA .. "bag",
+    CROSS = MEDIA .. "cross",
+    PLUS = MEDIA .. "plus",
+    FUNNEL = MEDIA .. "funnel",
+    TICK = MEDIA .. "check",
+    OPACITY = MEDIA .. "opacity",
+    WAND = MEDIA .. "wand",
+    SCALES = MEDIA .. "scales",
+    FOREVER = MEDIA .. "infinity",
+    FOREVER_ICON = MEDIA .. "infinity_outlined",
+    ELBOW = MEDIA .. "elbow",
+    IMPORT = MEDIA .. "import",
+    EXPORT = MEDIA .. "export",
+    ROUND = MEDIA .. "circle_mask",
+    LIST_SHOWN = MEDIA .. "sidebar_shown",
     LIST_HIDDEN = MEDIA .. "sidebar_hidden",
     SEARCH = MEDIA .. "Navigation\\search.tga",
     PLAY = MEDIA .. "play",
     PAUSE = MEDIA .. "pause",
     RESET = MEDIA .. "reset",
-    EYE = MEDIA .. "eye",                   -- the HUD Editor: an element shown while editing
-    EYE_OFF = MEDIA .. "eye_off",           -- and kept out of the way
-    LOCK = MEDIA .. "lock",                 -- and held in place
-    -- The HUD Editor's align buttons, each named for the edge or middle it lines up on, and
-    -- spacing evenly across and down.
+    EYE = MEDIA .. "eye",
+    EYE_OFF = MEDIA .. "eye_off",
+    LOCK = MEDIA .. "lock",
     ALIGN_LEFT = MEDIA .. "align_left",
     ALIGN_HCENTER = MEDIA .. "align_hcenter",
     ALIGN_RIGHT = MEDIA .. "align_right",
@@ -184,87 +147,93 @@ Shared.Style = {
     ALIGN_BOTTOM = MEDIA .. "align_bottom",
     ALIGN_ACROSS = MEDIA .. "align_across",
     ALIGN_DOWN = MEDIA .. "align_down",
-    SOFT_SHADE = MEDIA .. "soft_shade",   -- round, opaque in the middle and clear at its edge: Soft's fade
-    -- The game's ready check: done, had.
+    SOFT_SHADE = MEDIA .. "soft_shade",
     CHECK = "Interface\\RaidFrame\\ReadyCheck-Ready",
-    -- Between a place and a person, or what an item is and its level: a middle dot.
+    WHITE = "Interface\\Buttons\\WHITE8X8",
+    CLASS_ICONS = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes",
+    CLASS_CROP = 0.02,
+    ICON_CROP = 0.08,
+    ICON_CROP_HIGH = 0.92,
     PLACE_DOT = " \194\183 ",
 
-    ---------------------------------------------------------------------------
-    --  A page
-    ---------------------------------------------------------------------------
-    GAP = 6,                -- between the parts of a row
-    INDENT = 20,            -- notes line up here
-    SECTION_H = 28,         -- a section title over its line
+    TEXT_SIZE = 12,
+    SMALL_SIZE = 11,
+    GAP = 6,
+    INDENT = 20,
+    SECTION_H = 28,
     SECTION_TIGHT_H = 20,
-    SECTION_SPACE = 8,      -- under a section title, before what it holds
-    NOTE_PAD = 6,           -- under a note
-    ACTION = 16,            -- an icon button in a row
-    STRIPE = 0.025,         -- every other row of a long list: a faint band in the text colour
-    HOVER = 0.05,           -- the row under the mouse: a band in the text colour, a little stronger
+    SECTION_SPACE = 8,
+    NOTE_PAD = 6,
+    ACTION = 16,
+    STRIPE = 0.025,
+    HOVER = 0.05,
 
-    -- Cards: a faint fill with a hairline edge, as many across as fit at CARD_MIN_W each,
-    -- up to MAX_COLUMNS; the cards in a row share a height.
-    CARD_FILL = 0.025,      -- the fill: the text colour, this faint
-    CARD_PAD = 10,          -- from the card's edge to its contents
-    CARD_GAP = 10,          -- between cards, across and down
-    CARD_BOTTOM = 6,        -- under the last row
+    CARD_FILL = 0.025,
+    CARD_PAD = 10,
+    CARD_GAP = 10,
+    CARD_BOTTOM = 6,
     CARD_MIN_W = 310,
     MAX_COLUMNS = 3,
-    CARD_HEADER_H = 38,     -- a card's header (a boss's, a slot's)
-    CARD_NAME_SIZE = 15,    -- the name in it
+    CARD_HEADER_H = 38,
+    CARD_NAME_SIZE = 15,
 
-    -- Item rows: the icon in its black border, beside two lines, the name in its quality
-    -- colour.
     ICON = 30,
     ITEM_H = 40,
 
-    ---------------------------------------------------------------------------
-    --  A window: a title bar, cards on a gradient, a footer
-    ---------------------------------------------------------------------------
-    WINDOW_FOOTER = 20,     -- the strip under the cards
-    WINDOW_HEADER = 52,     -- the title bar, to its rule
+    WINDOW_FOOTER = 20,
+    WINDOW_HEADER = 52,
     WINDOW_PAD = 12,
-    WINDOW_CARD_FILL = 0.035,   -- a window's cards, over its gradient
+    WINDOW_CARD_FILL = 0.035,
     WINDOW_CARD_EDGE = 0.7,
-    CONTENT_INSET = 22,     -- from a window card's edge to what is in it
+    CONTENT_INSET = 22,
     SCROLLBAR = 16,
     SEARCH_H = 24,
-    TAB_SIZE = 12,          -- a switch's words
+    TAB_SIZE = 12,
     TAB_H = 26,
-    TAB_LINE = 2,           -- the accent under the part shown
-    TAB_FILL = 0.16,        -- the part shown: a fill in the accent, this faint
-    TAB_GAP = 6,            -- a switch to what is under it
-    LOGO_SIZE = 32,         -- the logo in the title bar
-    BAR_ICON = 18,          -- the title bar's icons
-    BAR_GAP = 12,           -- between them
+    TAB_LINE = 2,
+    TAB_FILL = 0.16,
+    TAB_GAP = 6,
+    LOGO_SIZE = 32,
+    BAR_ICON = 18,
+    BAR_GAP = 12,
     SLIDER_W = 90,
     SLIDER_H = 4,
     KNOB = 12,
     KNOB_GLOW = 22,
-    OPACITY_MIN = 40,       -- percent
-    PANEL_W = 380,          -- a panel beside a window or the map
+    OPACITY_MIN = OPACITY_MIN,
+    OPACITY_MAX = PERCENT_MAX,
+    OPACITY_STEP = PERCENT_STEP,
+    OPACITY_RANGE = { OPACITY_MIN, PERCENT_MAX, PERCENT_STEP },
+    ALPHA_RANGE = { 0, PERCENT_MAX, PERCENT_STEP },
+    PERCENT_SCALE = 0.01,
+    SCALE_RANGE = { 50, 150, PERCENT_STEP },
+    PIN_SIZE_RANGE = { 12, 32, 1 },
+    HUD_TEXT_RANGE = { 8, 24, 1 },
+    STAGE_MARGIN = 16,
+    STAGE_NOTE_Y = 10,
+    STAGE_NOTE_SIZE = 11,
+    PANEL_W = 380,
     PANEL_PAD = 10,
     PANEL_HEADER = 30,
-    PANEL_BUTTONS = 34,     -- a side panel's buttons along its bottom
+    PANEL_BUTTONS = 34,
+    PANEL_INSET = 4,
+    CLOSE_SIZE = 20,
+    CLOSE_IN = 6,
 
-    ---------------------------------------------------------------------------
-    --  A tracker (Parts.TrackerPanel): a small window kept on screen, its rows a table with
-    --  a waypoint pin in a column of its own
-    ---------------------------------------------------------------------------
     TRACKER_W = 320,
-    TRACKER_SLOT = 24,      -- the progress bar and the dropdown under its title
-    TRACKER_BAR_RGB = { r = 0x14 / 255, g = 0x16 / 255, b = 0x19 / 255 },  -- behind the bar, the theme's panel once changed
-    TRACKER_GAP = 6,        -- under each of them
-    TRACKER_SCROLL = 20,    -- the body's right edge to the window's, for the scrollbar, while it scrolls
-    CLOSE_ROOM = 34,        -- the title stops short of the close button
-    ROW_LEFT = 6,           -- a row's pin column, from its left edge
-    WAYPOINT_SLOT = 20,     -- the pin's column
-    ROW_TOP = 6,            -- over a row's text
-    ROW_LINE_GAP = 3,       -- between its text and the line under it
-    ROW_BOTTOM = 8,         -- under its text
-    ROW_RIGHT = 10,         -- right of its text
-    ROW_HOVER = 0.04,       -- the row under the mouse: a band in the text colour
-    ROW_DIVIDER = 0.6,      -- the line under each row, in the theme's line colour
-    ROW_TICK = 16,          -- the tick in the pin's column once a row is done
+    TRACKER_SLOT = 24,
+    TRACKER_BAR_RGB = { r = 0x14 / 255, g = 0x16 / 255, b = 0x19 / 255 },
+    TRACKER_GAP = 6,
+    TRACKER_SCROLL = 20,
+    CLOSE_ROOM = 34,
+    ROW_LEFT = 6,
+    WAYPOINT_SLOT = 20,
+    ROW_TOP = 6,
+    ROW_LINE_GAP = 3,
+    ROW_BOTTOM = 8,
+    ROW_RIGHT = 10,
+    ROW_HOVER = 0.04,
+    ROW_DIVIDER = 0.6,
+    ROW_TICK = 16,
+    OPEN_TURN = -PI / 2,
 }

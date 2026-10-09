@@ -1,14 +1,6 @@
--------------------------------------------------------------------------------
---  Slots.lua -- the inspect window's slots in the character panel's look (CP.SlotOver): the
---  icon cropped in an edge of its quality's colour, its item level, Forever's mark, their BiS
---  star when their Naowh Forever told us their list (TheirBiS.lua), the green arrow on what
---  would be an upgrade for you by your stat weights, and an orange dot on a slot an enchanter
---  could enchant that has none. Painted from a post-hook of the game's inspect slot update;
---  the gear check (upgrades, unenchanted and empty slots) is read once per refresh, for the
---  GUID shown only, and IP.Gear() hands it to the Player tab. The upgrade's size is added to
---  the slot's own tooltip.
--------------------------------------------------------------------------------
+-- Slots.lua: the inspect window's slots and the gear check (IP.Gear).
 local ns = _G.NaowhForever
+
 local IP = ns.InspectPanel
 local CP = ns.CharacterPanel
 local B = ns.BiS
@@ -22,6 +14,10 @@ local GetDetailedItemLevelInfo = C_Item.GetDetailedItemLevelInfo
 
 local MAIN, OFF = 16, 17
 local BARE_TIP = "No enchant"
+local SLOT_BUTTON = "Inspect%sSlot"
+local NO_ITEM = IP.NO_ITEM
+local ROUND = 0.5
+local FOREVER_KIND = B.C.FOREVER_KIND
 
 local overs = {}
 local installed = false
@@ -35,13 +31,13 @@ local function Paint(over)
     local unit, guid = IP.Current()
     local slot = over.slot
     local id = unit and GetInventoryItemID(unit, slot)
-    if id == 0 then id = nil end
+    if id == NO_ITEM then id = nil end
     over:Show()
     CP.PaintEdge(over, id)
     local link = id and GetInventoryItemLink(unit, slot)
     local fresh = id ~= nil and gear.guid == guid
     Parts.PaintItemMarks(over.marks, link and GetDetailedItemLevelInfo(link), id and IP.TheirRank(guid, slot, id),
-        id and Parts.IsForever("items", id), fresh and gear.up[slot] ~= nil)
+        id and Parts.IsForever(FOREVER_KIND, id), fresh and gear.up[slot] ~= nil)
     over.bare:SetShown(fresh and gear.bare[slot] == true)
 end
 
@@ -93,7 +89,7 @@ local function ReadGear(unit, guid)
         end
     end
     local level = C_PaperDollInfo.GetInspectItemLevel and C_PaperDollInfo.GetInspectItemLevel(unit)
-    gear.level = level and level > 0 and math.floor(level + 0.5) or nil
+    gear.level = level and level > 0 and math.floor(level + ROUND) or nil
     if not IP.HasGear(unit, guid) then gear.guid = nil end
 end
 
@@ -120,7 +116,7 @@ end
 local function Install()
     installed = true
     for slot, name in pairs(CP.SLOTS) do
-        local button = _G["Inspect" .. name .. "Slot"]
+        local button = _G[SLOT_BUTTON:format(name)]
         if button then
             local over = CP.SlotOver(button, slot)
             over.bare = B.View.EnchantBadge(over, { color = St.WARN_RGB, tip = BARE_TIP })

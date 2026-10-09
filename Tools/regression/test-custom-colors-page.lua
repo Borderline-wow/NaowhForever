@@ -1,19 +1,23 @@
 -- Settings > COLORS section: the Theme dropdown, the Reset button, the Custom swatches, and
--- when the "Reload UI" hint shows. The section is sliced out of Window.lua and run against the
--- real Core; running it again on the same environment stands in for a page rebuild. Run from
--- the repository root.
+-- when the "Reload UI" hint shows. The COLORS and RESTEDXP sections are sliced out of
+-- SettingsPage.lua (with its named values) and run against the real Core; running them again on
+-- the same environment stands in for a page rebuild. Run from the repository root.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
     return s
 end
-local coreSource = Read("Core/NaowhForever_Core.lua")
-local rxpSource = Read("RXPThemes/NaowhForever_RXPThemes.lua")
-local source = Read("Core/NaowhForever_Window.lua")
-local first = assert(source:find('_, h = W:SectionHeader(parent, "COLORS", y)', 1, true))
-local last = assert(source:find('_, h = W:ReloadButton(parent, y)', first, true))
+local coreSource = Read("Core/Core.lua")
+local featuresSource = Read("Core/Features.lua")
+local rxpSource = Read("Core/Integrations/RestedXP/Themes.lua")
+local source = Read("Core/Options/SettingsPage.lua")
+local constants = assert(source:match("\n(local DEFAULT_SCALE = .-\n)\nlocal colorsPending = false\n"), "named values")
+local empty = assert(source:match("\n(local function Empty%(%).-end\n)"), "Empty")
+local first = assert(source:find("local function ThemeChoices()", 1, true))
+local last = assert(source:find("function ns.BuildSettingsPage", first, true))
 local section = source:sub(first, last - 1)
-local chunk = assert(loadstring("local parent, y = ...; local _, h; " .. section .. " return y"))
+local chunk = assert(loadstring(constants .. empty .. section
+    .. "local parent, y = ...\ny = ColorsSection(W, parent, y)\nreturn RestedXPSection(W, parent, y)"))
 
 -- The pending flag has to outlive a rebuild, so it lives at file scope, above the builder.
 local build = assert(source:find("function ns.BuildSettingsPage", 1, true))
@@ -49,6 +53,9 @@ local function RealCore(account, rxp, up)
     local core = assert(loadstring(coreSource, "Core"))
     setfenv(core, env)
     core("NaowhForever")
+    local features = assert(loadstring(featuresSource, "Features"))
+    setfenv(features, env)
+    features()
     local module = assert(loadstring(rxpSource, "RXPThemes"))
     setfenv(module, env)
     module("NaowhForever")
@@ -244,11 +251,13 @@ end
 
 -- The chips themselves: the control is cut out of Widgets.lua and run with stub frames.
 do
-    local widgets = Read("Core/NaowhForever_Widgets.lua")
-    local from = assert(widgets:find('    elseif cfg.type == "palette" then', 1, true))
-    local upTo = assert(widgets:find('    elseif cfg.type == "colorpicker" then', from, true))
-    local branch = widgets:sub(from, upTo - 1):gsub('^    elseif cfg%.type == "palette" then', "")
-    local code = "local cfg, rgn = ...\n" .. branch
+    local widgets = Read("Core/Options/Widgets.lua")
+    local widgetConstants = assert(widgets:match("\n(local MEDIA = .-\n)\nlocal UI = {}\n"), "Widgets constants")
+    local atEnd = assert(widgets:match("\n(local function AtRowEnd%(.-\nend\n)"), "AtRowEnd")
+    local from = assert(widgets:find("local function PaletteChip(", 1, true))
+    local upTo = assert(widgets:find("local function ColorPickerControl(", from, true))
+    local code = widgetConstants .. atEnd .. widgets:sub(from, upTo - 1)
+        .. "local cfg, rgn = ...\nreturn PaletteControl(rgn, cfg)\n"
     local paletteChunk = assert(loadstring(code))
     local frames, painted = {}, {}
     local function Frame()
@@ -262,7 +271,7 @@ do
         frames, painted = {}, {}
         local count = 0
         local env = { CreateFrame = Frame, T = { bg = {}, muted = {} },
-            ns = { Solid = function()
+            ns = { MEDIA = dofile("Tools/regression/core_media.lua"), Solid = function()
                 count = count + 1
                 local index = count
                 return { SetAllPoints = function() end,
@@ -290,6 +299,7 @@ do
     control._refreshValue()
     Check(painted[1][1] == 0.5 and painted[2][1] == 0.5 and painted[3][1] == 1, "a refresh repaints from the current colors")
     Check(#frames == 8 and Shown() == 2, "fewer colors hide the extra chips and build nothing")
+    ---@diagnostic disable-next-line: duplicate-set-field
     cfg.colors = function() return List(8, 0.25) end
     control._refreshValue()
     Check(#frames == 10 and Shown() == 8 and #painted == 8 and painted[8][1] == 0.25, "more colors build only the missing chips and show them all")

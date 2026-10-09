@@ -1,0 +1,5 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Unexplored.xml: the unexplored areas script and its world map pin template. -->
+    <Script file="Unexplored.lua"/>
+    <Frame name="NaowhForeverUnexploredPinTemplate" mixin="NaowhForeverUnexploredPinMixin" virtual="true"/>
+</Ui>

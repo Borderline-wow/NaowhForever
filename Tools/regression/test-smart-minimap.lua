@@ -1,11 +1,11 @@
 local f = assert(io.open(arg[1], "rb"))
 local source = f:read("*a"); f:close()
-local chunk = assert(source:match("(local launcherEvents = CreateFrame.*)"))
+local chunk = assert(source:match("(local LOGO = .*)"))
 for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
     local event, object, registered, clicked, opened
     local modules = {}
     local original = saved.minimap
-    local ns = { AccountSettings=function() return saved end, L=function(t) return t end,
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), AccountSettings=function() return saved end, L=function(t) return t end,
         ToggleOptionsWindow=function() clicked=true end, SaveModuleDefaults=function() end,
         ThemeTint=function(_,literal) return literal end }
     local frame = {

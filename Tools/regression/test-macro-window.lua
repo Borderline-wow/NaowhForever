@@ -155,7 +155,7 @@ local UI = {
         Button = function() return nil, 30 end,
     },
 }
-local ns = {
+local ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
     THEME = setmetatable({}, { __index = function() return WHITE end }),
     UI = UI,
     Color = function(_, text) return tostring(text) end,
@@ -185,7 +185,7 @@ local ns = {
     ShowCopyBox = function(_, text) account.lastCopy = text end,
     StashOptionsWindow = NOTHING, OpenOptionsWindow = NOTHING, Apply = NOTHING,
     DB = function() return { utilityReminders = { classMacros = packMacros } } end,
-    BestFoodAndDrink = NOTHING,
+    HEALTHSTONES = { 5509 }, HEALING_POTIONS = { 13446 }, BestFoodAndDrink = NOTHING,
 }
 local lastPrompt
 local vault = {}
@@ -236,14 +236,23 @@ local env = setmetatable({
 for k, v in pairs(macroAPI) do env[k] = v end
 env._G = env
 env.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
-env.SLASH_NAOWHFOREVER5, env.SLASH_DBM1, env.SLASH_CAST1 = "/nf", "/dbm", "/cast"
+env.SLASH_NAOWHFOREVER4, env.SLASH_DBM1, env.SLASH_CAST1 = "/nf", "/dbm", "/cast"
 env.issecurevariable = function(key) return key ~= "SLASH_DBM1" end
 
-Load({
-    "Shared/Shared.lua", "Shared/Data/Forever.lua", "Shared/Style.lua", "Shared/Items.lua", "Shared/Places.lua",
-    "Shared/Parts.lua", "Shared/Window.lua", "Shared/View.lua", "Shared/Kinds.lua",
-    "NaowhForever_Macros/NaowhForever_MacroText.lua", "NaowhForever_Macros/NaowhForever_Macros.lua", "NaowhForever_Macros/NaowhForever_MacroWindow.lua",
-}, env)
+-- The module's files as Macros.xml lists them, all but its settings page (no Shared Settings here).
+local MACRO_FILES = {}
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Macros/.*%.lua$")) do
+    if not path:find("SettingsPage%.lua$") then MACRO_FILES[#MACRO_FILES + 1] = path end
+end
+-- Shared as Shared.xml lists it, all but its settings pages and the item data the window never reads.
+local SHARED_FILES = { "Core/Features.lua" }
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^Shared/.*%.lua$")) do
+    if not (path:find("^Shared/Settings/") or path:find("^Shared/Data/ItemFacts") or path:find("^Shared/Data/FactionItems")) then
+        SHARED_FILES[#SHARED_FILES + 1] = path
+    end
+end
+Load(SHARED_FILES, env)
+Load(MACRO_FILES, env)
 ns.Shared.Decode = dofile("Tools/regression/load_decode.lua")(env, true)
 
 local function Window()
@@ -639,6 +648,8 @@ check("yours shows in the Library beside the pack's", mine and mine.tag.text == 
 Click(mine.open)
 check("Open in Editor brings it to the editor", window.name:GetText() == "My Blink"
     and window.editor.where:GetText():find("From your Library", 1, true))
+check("Open in Editor switches to My Macros", window.switch.shown == "mine" and window.mine:IsShown()
+    and not window.libView:IsShown() and window.search:IsShown())
 
 account.libraryMacros.MAGE[2] = { name = "My Script", body = "/run print(1)" }
 account.lastConfirm = nil

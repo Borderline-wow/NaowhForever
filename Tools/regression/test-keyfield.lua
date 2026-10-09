@@ -1,10 +1,10 @@
 -- The key binding field: UI.KeyField cut out of Widgets.lua and run against a binding table that
 -- behaves like the game's. A field takes a binding command, or a function for one pointed at
 -- another binding each time its panel opens.
-local f = assert(io.open("Core/NaowhForever_Widgets.lua", "rb"))
+local f = assert(io.open("Core/Options/Widgets.lua", "rb"))
 local source = f:read("*a"):gsub("\r\n", "\n"); f:close()
-local body = assert(source:match("\n(function UI%.KeyField%(.-\nend)\n"), "KeyField")
-local modifiers = assert(source:match("\n(local MODIFIER_KEYS = [^\n]+)\n"), "MODIFIER_KEYS")
+local body = assert(source:match("\n(local function KeyCombo%(.-\nfunction UI%.KeyField%(.-\nend)\n"), "KeyField")
+local modifiers = assert(source:match("\n(local MEDIA = .-)\nlocal UI = {}\n"), "the file's constants")
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
@@ -21,6 +21,7 @@ local env = setmetatable({
     UI = {},
     CreateFrame = Frame,
     ns = {
+        MEDIA = dofile("Tools/regression/core_media.lua"),
         Button = function() local b = Frame(); b.label = Frame(); return b end,
         Tooltip = function(_, title, text) tooltips[#tooltips + 1] = { title, text } end,
         Print = function(msg) printed[#printed + 1] = msg end,

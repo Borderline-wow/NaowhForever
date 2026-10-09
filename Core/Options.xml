@@ -1,0 +1,22 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Options.xml: the widget kit, the HUD Editor (Unlock Mode), the options window and its pages, commands and launchers, the Game Menu button and the settings search. -->
+    <Script file="Options\Widgets.lua"/>
+    <Script file="Unlock\Mode.lua"/>
+    <Script file="Unlock\Guides.lua"/>
+    <Script file="Unlock\History.lua"/>
+    <Script file="Unlock\Selection.lua"/>
+    <Script file="Unlock\Tag.lua"/>
+    <Script file="Unlock\Group.lua"/>
+    <Script file="Unlock\Movers.lua"/>
+    <Script file="Unlock\Grid.lua"/>
+    <Script file="Unlock\Panel.lua"/>
+    <Script file="Unlock\Layouts.lua"/>
+    <Script file="Unlock\Toolbar.lua"/>
+    <Script file="Options\Modules.lua"/>
+    <Script file="Options\Window.lua"/>
+    <Script file="Options\SettingsPage.lua"/>
+    <Script file="Commands.lua"/>
+    <Script file="Options\Launchers.lua"/>
+    <Script file="Options\GameMenu.lua"/>
+    <Script file="Options\Search.lua"/>
+</Ui>

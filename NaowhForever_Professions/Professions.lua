@@ -1,0 +1,34 @@
+-- Professions.lua: the Professions module's settings, its window's shared state and its public calls.
+local ns = _G.NaowhForever
+
+local F = ns.FEATURES.professions
+
+local S = ns.UI.ModuleSettings("professions", {
+    enabled = F.enabled,
+    recipeFinder = F.recipeFinder, rankAlert = F.rankAlert, bagReagents = F.bagReagents,
+    bankReagents = F.bankReagents, vendorMaterials = F.vendorMaterials,
+    craftOrders = F.craftOrders, orderTip = 10,
+    craftTimer = F.craftTimer,
+    craftTimerFont = "", craftTimerFontSize = 14, craftTimerOutline = "OUTLINE", craftTimerTexture = "",
+    craftTimerBgAlpha = 0.9,
+    shoppingList = F.shoppingList,
+    trainFavorites = F.trainFavorites, searchFavoritesAH = F.searchFavoritesAH,
+    gatherReminder = F.gatherReminder, gatherInInstances = false, gatherIconSize = 40, gatherFish = false,
+    gatherFont = "", gatherFontSize = 13, gatherOutline = "OUTLINE",
+    ahSearch = F.ahSearch, ahShiftClick = F.ahShiftClick, craftProfit = F.craftProfit,
+    craftProfitList = F.craftProfitList, buyMaterials = F.buyMaterials, buyVendor = F.buyVendor,
+    filterMaterials = false, filterSkillUp = false, filterProfit = false,
+    filterBoE = false, filterBoP = false, filterFavorite = false,
+})
+ns.ProfessionSettings = S
+ns.ProfBagChanges = 0
+
+local P = {
+    Settings = S,
+    State = { offset = 0, query = "", linked = false, stale = true, listChanged = false },
+}
+ns.Professions = P
+
+function P.On()
+    return S.Get("enabled")
+end

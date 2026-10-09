@@ -73,8 +73,9 @@ function S.Set(k, v) settings[k] = v; sets = sets + 1 end
 local THEME = { fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.6, g = 0.6, b = 0.6 },
     accent = { r = 0, g = 0.57, b = 0.93 }, bg = { r = 0, g = 0, b = 0 } }
 local ns = {
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     QoLSettings = S, THEME = THEME,
-    Apply = function() end, ShowRaidReminderAnchorConfig = function() end, HideRaidReminderAnchorConfig = function() end,
+    Apply = function() end, ShowUnlockMode = function() end, HideUnlockMode = function() end,
     Border = function(parent)
         local border = New("Border", parent)
         border._frame = New("Frame", parent)
@@ -85,7 +86,7 @@ local ns = {
     ThemeTint = function(_, literal) return literal end,
     OnePixel = function() return 1 end,
     UI = { FontPath = function() return "font" end, AttachMover = function(f) return New("Mover", f) end },
-    Shared = { Parts = {
+    Shared = { Style = dofile("Tools/regression/shared_style.lua"), Parts = {
         HUD_OUTLINES = { { [""] = "Shadow", OUTLINE = "Outline", THICKOUTLINE = "Thick Outline" },
             { "", "OUTLINE", "THICKOUTLINE" } },
         HUD_BACKGROUNDS = { { card = "Card", soft = "Soft", none = "None" }, { "card", "soft", "none" } },
@@ -135,7 +136,7 @@ env._G = env
 local settingsFile = assert(loadfile("Shared/Settings/Settings.lua"))
 setfenv(settingsFile, env)
 settingsFile()
-local chunk = assert(loadfile("QoL/NaowhForever_LootFeed.lua"))
+local chunk = assert(loadfile("NaowhForever_QoL/Loot/LootFeed.lua"))
 setfenv(chunk, env)
 chunk()
 local cards = ns.Shared.Settings.pages["QoL/Loot & Items"].cards

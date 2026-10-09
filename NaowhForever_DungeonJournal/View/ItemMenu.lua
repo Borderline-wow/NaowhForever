@@ -1,17 +1,35 @@
--------------------------------------------------------------------------------
---  View/ItemMenu.lua -- the right-click menu on a Dungeon Journal item: for gear, put it on
---  your BiS list, make it your #1, or take it off, through the BiS List module's own
---  functions, so the list, its page and its tooltips all agree; for every item, its
---  Wowhead Forever link to copy.
--------------------------------------------------------------------------------
+-- ItemMenu.lua: an item's right-click menu: the BiS list and its Wowhead link.
 local ns = _G.NaowhForever
+
 local J = ns.Journal
 local Loot = J.Loot
 
--- onChange runs after the list changed, so the caller can redraw.
----@param owner Frame
----@param itemID number
----@param onChange? fun()
+local BIS_ADDON = "NaowhForever_BiS"
+
+local TEXT_ITEM = "Item "
+local TEXT_TURN_ON = "Turn on BiS List"
+local TEXT_ADD = "Add to BiS List"
+local TEXT_PROMOTE = "Make it #1"
+local TEXT_REMOVE = "Remove from BiS List"
+local TEXT_WOWHEAD = "Wowhead Link"
+
+local function AddBisButtons(root, itemID, Then, onChange)
+    if not Loot.BisOn() then
+        root:CreateButton(TEXT_TURN_ON, function()
+            ns.TurnOnModule(BIS_ADDON)
+            if onChange then onChange() end
+        end)
+        return
+    end
+    local rank = Loot.Rank(itemID)
+    if not rank then
+        root:CreateButton(TEXT_ADD, function() Then(ns.AddBisItem) end)
+        return
+    end
+    if rank > 1 then root:CreateButton(TEXT_PROMOTE, function() Then(ns.PromoteBisItem) end) end
+    root:CreateButton(TEXT_REMOVE, function() Then(ns.RemoveBisItem) end)
+end
+
 function J.View.ItemMenu(owner, itemID, onChange)
     local function Then(change)
         change(itemID)
@@ -19,24 +37,11 @@ function J.View.ItemMenu(owner, itemID, onChange)
     end
     local name = Loot.Name(itemID)
     MenuUtil.CreateContextMenu(owner, function(_, root)
-        root:CreateTitle(name or ("Item " .. itemID))
+        root:CreateTitle(name or (TEXT_ITEM .. itemID))
         if Loot.BisGear(itemID) and not J.IsNotYet(itemID) then
-            if not Loot.BisOn() then
-                root:CreateButton("Turn on BiS List", function()
-                    ns.QoLSettings.Set("bis", true)
-                    if onChange then onChange() end
-                end)
-            else
-                local rank = Loot.Rank(itemID)
-                if not rank then
-                    root:CreateButton("Add to BiS List", function() Then(ns.AddBisItem) end)
-                else
-                    if rank > 1 then root:CreateButton("Make it #1", function() Then(ns.PromoteBisItem) end) end
-                    root:CreateButton("Remove from BiS List", function() Then(ns.RemoveBisItem) end)
-                end
-            end
+            AddBisButtons(root, itemID, Then, onChange)
             root:CreateDivider()
         end
-        root:CreateButton("Wowhead Link", function() J.View.Parts.CopyWowhead("item", itemID, name) end)
+        root:CreateButton(TEXT_WOWHEAD, function() J.View.Parts.CopyWowhead("item", itemID, name) end)
     end)
 end

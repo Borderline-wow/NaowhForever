@@ -1,15 +1,17 @@
 -- Run with Lua 5.1 from the repository root: reading a macro's text (ns.MacroText). The
 -- checks find what will not work and say what was meant, Explain says what each line does in
 -- plain words, and Shorten saves bytes without changing what the macro does.
-local ns = {}
+local ns = { Macros = {} }
 local env = setmetatable({
     NaowhForever = ns,
     strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end,
 }, { __index = _G })
 env._G = env
-local chunk = assert(loadfile("NaowhForever_Macros/NaowhForever_MacroText.lua"))
-setfenv(chunk, env)
-chunk()
+for _, path in ipairs({ "NaowhForever_Macros/Constants.lua", "NaowhForever_Macros/Text.lua" }) do
+    local chunk = assert(loadfile(path))
+    setfenv(chunk, env)
+    chunk()
+end
 local Text = ns.MacroText
 
 local KNOWN = {}

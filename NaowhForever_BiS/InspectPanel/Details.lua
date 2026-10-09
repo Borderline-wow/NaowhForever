@@ -1,23 +1,16 @@
--------------------------------------------------------------------------------
---  Details.lua -- the Player tab of the inspect panel's pane: their talents at a glance (points
---  per tree, the tree they lead with and its role, and the name of one of Naowh's Training
---  Planner builds when their points follow it), the gear check (unenchanted and empty slots,
---  their item level, how many of their items would be upgrades for you), their guild and how
---  you know them (friend, guildmate, grouped before), and your own note and tag on them
---  (Player History's, edited here). Talents are read from the game's inspect talent data only
---  while it is that player's (IP.Ready); anything not known yet reads "...". The reading itself
---  (IP.ReadTalentTrees, IP.ReadInspectTalents: points per tree, lead tree, role) is shared with
---  Group Inspect.
--------------------------------------------------------------------------------
+-- Details.lua: the inspect panel's Player tab: talents, gear check, guild and your note.
 local ns = _G.NaowhForever
+
 local T = ns.THEME
 local IP = ns.InspectPanel
 local SW = ns.StatWeights
 local St = ns.Shared.Style
 local Parts = ns.Shared.Parts
 
-local TITLE_SIZE, LINE_SIZE = 11, 12
-local TITLE_H, LINE_H, SECTION_GAP = 22, 18, 6
+local TITLE_SIZE, LINE_SIZE = IP.SECTION_TITLE_SIZE, IP.SECTION_LINE_SIZE
+local TREE_COUNT = 3
+local GUILD_INFO_NAME = 3
+local TITLE_H, LINE_H, SECTION_GAP = IP.SECTION_TITLE_H, 18, IP.SECTION_GAP
 local NOTE_LINES, NOTE_MAX = 3, 200
 local LINK_GAP = 10
 local WAITING = "..."
@@ -164,7 +157,7 @@ local function PaintTalents(guid)
         return
     end
     points.left:SetText(talents.tree or "")
-    if talents.count == 3 then
+    if talents.count == TREE_COUNT then
         points.right:SetText(TREES:format(spent[1], spent[2], spent[3]))
     else
         points.right:SetText(POINTS:format(talents.total))
@@ -197,7 +190,7 @@ local function PaintGuild(unit, guid)
     local name, rankName
     if GetGuildInfo then name, rankName = GetGuildInfo(unit) end
     if not (IP.Readable(name) and name ~= "") and C_PaperDollInfo.GetInspectGuildInfo and IP.Ready(guid) then
-        name, rankName = select(3, C_PaperDollInfo.GetInspectGuildInfo(unit)), nil
+        name, rankName = select(GUILD_INFO_NAME, C_PaperDollInfo.GetInspectGuildInfo(unit)), nil
     end
     guild.right:SetText("")
     if IP.Readable(name) and name ~= "" then

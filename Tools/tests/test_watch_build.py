@@ -1,4 +1,4 @@
-"""Tests for Tools/watch_build.py: what it finds between two builds, the report it writes and
+"""Tests for Tools/release/watch_build.py: what it finds between two builds, the report it writes and
 its changelog line for the pull request. Offline: the game's tables are made up here. From the repo root:
 
     python -m unittest discover -s Tools/tests
@@ -9,7 +9,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import build_factions  # noqa: E402
+import paths  # noqa: E402,F401
+import factions  # noqa: E402
 import release  # noqa: E402
 import wago  # noqa: E402
 import watch_build  # noqa: E402
@@ -76,11 +77,11 @@ class Rewards(unittest.TestCase):
     """watch_build.rewards between two made-up builds, and how the report shows them."""
 
     def setUp(self):
-        self.saved = (build_factions.game_items, wago.table, wago.CARRY_FROM, build_factions.FACTIONS)
+        self.saved = (factions.game_items, wago.table, wago.CARRY_FROM, factions.FACTIONS)
         self.tmp = tempfile.TemporaryDirectory()
         config = Path(self.tmp.name) / "factions.json"
         config.write_text('{"factions": [{"key": "Darkspear", "id": 2798, "tab": "pvp"}]}', encoding="utf-8")
-        build_factions.FACTIONS = config
+        factions.FACTIONS = config
         wago.CARRY_FROM = None
         wago.table = lambda name, build, hotfixes=True: [{"ID": "2798", "Name_lang": "Darkspear Raiders"}]
         builds = {
@@ -89,11 +90,11 @@ class Rewards(unittest.TestCase):
         }
         carried = {"new": {5}, "old": set()}
         # Carried items only when something is carried, as the real one.
-        build_factions.game_items = lambda build, carry=None: ({}, builds[build],
+        factions.game_items = lambda build, carry=None: ({}, builds[build],
                                                                carried[build] if carry else set())
 
     def tearDown(self):
-        build_factions.game_items, wago.table, wago.CARRY_FROM, build_factions.FACTIONS = self.saved
+        factions.game_items, wago.table, wago.CARRY_FROM, factions.FACTIONS = self.saved
         self.tmp.cleanup()
 
     def test_finds(self):

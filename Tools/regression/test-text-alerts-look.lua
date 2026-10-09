@@ -80,6 +80,7 @@ local function Fixture(saved)
     }
     function S.Set(k, v) values[k] = v end
     local ns = {
+        QoLConstants = dofile("Tools/regression/qol_constants.lua"),
         THEME = T,
         Color = function(_, text) return text end,
         Font = function(parent, size, flags, color)
@@ -105,7 +106,7 @@ local function Fixture(saved)
         AccountSettings = function() return {} end,
         Print = NOTHING,
         TTSVoiceChoices = function() return {}, {} end,
-        Apply = NOTHING, ShowRaidReminderAnchorConfig = NOTHING, HideRaidReminderAnchorConfig = NOTHING,
+        Apply = NOTHING, ShowUnlockMode = NOTHING, HideUnlockMode = NOTHING,
         UI = {
             Keep = function(parent, key, make)
                 local kept = rawget(parent, key)
@@ -160,11 +161,11 @@ local function Fixture(saved)
     }, { __index = _G })
     env._G = env
     local files = TocFiles("^Shared/.*%.lua$")
-    for _, path in ipairs({ "QoL/NaowhForever_QoL.lua", "QoL/NaowhForever_AlertStack.lua",
-        "QoL/NaowhForever_CombatAlert.lua", "QoL/NaowhForever_CombatTimer.lua",
-        "QoL/NaowhForever_StealthReminder.lua", "QoL/NaowhForever_TalentPoints.lua",
-        "QoL/NaowhForever_Durability.lua", "QoL/NaowhForever_Restock.lua",
-        "QoL/NaowhForever_PetTracker.lua" }) do
+    for _, path in ipairs({ "Core/Features.lua", "Core/Settings.lua", "Core/AlertStack.lua",
+        "NaowhForever_QoL/Combat/CombatAlert.lua", "NaowhForever_QoL/Combat/CombatTimer.lua",
+        "NaowhForever_QoL/Combat/StealthReminder.lua", "NaowhForever_QoL/Questing/TalentPoints.lua",
+        "NaowhForever_QoL/Loot/Durability.lua", "NaowhForever_QoL/Loot/Restock.lua",
+        "NaowhForever_QoL/Combat/PetTracker.lua" }) do
         files[#files + 1] = path
     end
     Load(files, env)
@@ -195,7 +196,7 @@ local function Shown(saved)
     for k, v in pairs(saved or {}) do values[k] = v end
     local s = Fixture(values)
     s.fire("PLAYER_LOGIN")
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     return s
 end
 
@@ -225,21 +226,21 @@ for _, e in ipairs(ELEMENTS) do
 
     s.S.Set(prefix .. "Font", "Friz")
     s.S.Set(prefix .. "FontSize", size + 6)
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check(name .. ": Font and Font Size apply at once", f.text.font == "lsm:Friz" and f.text.size == size + 6
         and f.h == size + 6 + room)
 
     s.S.Set(prefix .. "Outline", "")
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check(name .. ": no outline, the shadow for no background", f.text.outline == ""
         and f.text.shadow == s.St.HUD_BARE_SHADOW_ALPHA)
 
     s.S.Set(prefix .. "Background", "card")
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check(name .. ": Card puts the card behind it, the text with the card's shadow", f.backdrop.mode == "card"
         and f.backdrop.fill.shown ~= false and f.text.shadow == s.St.HUD_SHADOW_ALPHA)
     s.S.Set(prefix .. "Background", "soft")
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check(name .. ": Soft fades in behind it", f.backdrop.mode == "soft" and f.backdrop.fill.shown == false)
 
     local rows = s.rows(page, id)
@@ -298,7 +299,7 @@ do
     s.S.Set("restockFontSize", 20)
     s.S.Set("restockFont", "Friz")
     s.S.Set("restockBackground", "card")
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check("Restock: Font Size sets the list, the title follows", r.text.size == 20 and r.title.size == 26
         and r.text.font == "lsm:Friz" and r.backdrop.mode == "card")
     local rows = s.rows("QoL/Loot & Items", "restock")
@@ -313,7 +314,7 @@ do
     local talent = s.named.NaowhForeverTalentPoints
     check("Talent Points: gold by default", talent.text.r == 1 and talent.text.g == 0.82 and talent.text.b == 0)
     s.S.Set("talentPointsTheme", true)
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check("Talent Points: Apply Theme shows it in the accent", talent.text.r == s.T.accent.r
         and talent.text.g == s.T.accent.g and talent.text.b == s.T.accent.b)
 
@@ -322,7 +323,7 @@ do
     check("Durability: pink shading to red by default", dura.text.r == 1 and math.abs(dura.text.g - 0.205) < 1e-9
         and math.abs(dura.text.b - 0.355) < 1e-9)
     s.S.Set("durabilityTheme", true)
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check("Durability: Apply Theme shades from the accent instead", math.abs(dura.text.r - 0.5) < 1e-9
         and math.abs(dura.text.g - 0.25) < 1e-9 and math.abs(dura.text.b - 0.45) < 1e-9)
 end

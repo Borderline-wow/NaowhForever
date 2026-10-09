@@ -17,6 +17,13 @@
 -- it until you leave the campfire while left clicks pass through.
 
 local Load = dofile("Tools/regression/load_files.lua")
+-- The AuraBuffs files the Campfire reminder and its cards are made of, in AuraBuffs.xml's order.
+local CAMP_FILES = { "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
+    "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/Data/Campfire.lua", "NaowhForever_AuraBuffs/CampReader.lua",
+    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/CampIcon.lua",
+    "NaowhForever_AuraBuffs/View/CampBar.lua", "NaowhForever_AuraBuffs/View/CampAlert.lua",
+    "NaowhForever_AuraBuffs/UI/SettingsPage.lua", "NaowhForever_AuraBuffs/UI/Campfire.lua",
+    "NaowhForever_AuraBuffs/UI/CampfireCards.lua" }
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 local Measure = dofile("Tools/regression/measure.lua")
 
@@ -30,7 +37,7 @@ local SECRET_TEXT = "Secret: hidden text"
 local WIDE_COLON = "\239\188\154"
 
 -- The Naowh font's advance widths, characters 32 to 126, per 1000 units of its size
--- (Media/Fonts/Naowh.ttf).
+-- (Core/Media/Fonts/Naowh.ttf).
 local ADVANCE = {
     295, 277, 325, 555, 555, 837, 684, 218, 407, 407, 573, 600, 208, 353, 208, 499, 537, 316, 527, 544,
     570, 550, 553, 476, 534, 553, 208, 208, 583, 579, 583, 518, 760, 683, 580, 782, 738, 530, 492, 837,
@@ -221,7 +228,7 @@ local function Fixture(settings)
     end
     local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end,
         Raw = function(k) return values[k] end, Default = function(k) return defaults[k] end }
-    local ns = {
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"),
         THEME = T,
         Color = function(token, text) return "{" .. token .. ":" .. tostring(text) .. "}" end,
         Font = function(parent, size, flags, color)
@@ -241,7 +248,7 @@ local function Fixture(settings)
         Button = function(parent) return Frame(parent) end,
         UIFontPath = function() return "font" end,
         AccountSettings = function() return {} end,
-        Apply = NOTHING, ShowRaidReminderAnchorConfig = NOTHING, HideRaidReminderAnchorConfig = NOTHING,
+        Apply = NOTHING, ShowUnlockMode = NOTHING, HideUnlockMode = NOTHING,
         AlertStack = function(frame, order) state.stacked = { frame = frame, order = order } end,
         UI = {
             Keep = function(parent, key, make)
@@ -328,8 +335,7 @@ local function Fixture(settings)
     }, { __index = _G })
     env._G = env
     local files = TocFiles("^Shared/.*%.lua$")
-    files[#files + 1] = "NaowhForever_AuraBuffs/NaowhForever_AuraBuffs.lua"
-    files[#files + 1] = "NaowhForever_AuraBuffs/NaowhForever_Campfire.lua"
+    for _, file in ipairs(CAMP_FILES) do files[#files + 1] = file end
     Load(files, env)
     state.ns, state.S, state.T, state.values, state.Frame = ns, ns.AuraBuffSettings, T, values, Frame
     state.St = ns.Shared.Style
@@ -525,7 +531,11 @@ do
 
     check("the house backdrop and black edge, no custom alpha", bar.backdrop and rawget(bar, "bg") == nil
         and bar.top.color == s.St.BORDER_RGB and s.St.BACKDROP_ALPHA
-        and not Read("NaowhForever_AuraBuffs/NaowhForever_Campfire.lua"):find("BAR%.ALPHA"))
+        and not (function()
+            for _, file in ipairs(CAMP_FILES) do
+                if Read(file):find("BAR%.ALPHA") then return true end
+            end
+        end)())
     local behind = 0
     for _, f in ipairs(s.frames) do if f.parent == bar.camp then behind = behind + 1 end end
     local c = bar.camp.tex.coords
@@ -630,7 +640,7 @@ do
         and icon.label.text == "Refresh Camp")
     check("Round: Refresh Camp in the house text style, a shadow and no outline",
         (icon.label.flags or "") == "" and icon.label.shadow == s.St.HUD_SHADOW_ALPHA)
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     local alert = s.named.NaowhForeverCampNearby
     local ab = alert and alert.bar
     check("Camp Nearby is the bar's own component: same builder, the words without the sit hint, same sizes", ab
@@ -643,7 +653,7 @@ do
         alert.w == math.ceil(ab.labelX + W(ab.note.text) + 10) and alert.w < bar.width and alert.h == 26
         and s.stacked.frame == alert and s.stacked.order == 1 and rawget(alert, "mover") == nil)
     check("Unlock Mode: the alert takes no clicks, its mover does", alert.click.mouse == false)
-    s.ns.HideRaidReminderAnchorConfig()
+    s.ns.HideUnlockMode()
     check("leaving Unlock Mode fades it out, then hides it, its animations stopped", alert.shown == false
         and not alert.breathe.playing and not alert.fadeIn.playing and alert.fadeOut.plays > 0)
     local fadeIns = alert.fadeIn.plays
@@ -1175,9 +1185,9 @@ do
     s.auras[NEARBY] = nil
     s.fire("UNIT_AURA")
     check("Simple: out of range, the alert goes", alert.shown == false)
-    s.ns.ShowRaidReminderAnchorConfig()
+    s.ns.ShowUnlockMode()
     check("Simple: Unlock Mode shows the alert to move", alert.shown == true)
-    s.ns.HideRaidReminderAnchorConfig()
+    s.ns.HideUnlockMode()
 end
 
 do

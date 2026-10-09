@@ -74,7 +74,7 @@ return function(pattern, toc)
         for line in io.lines(t.toc) do
             line = line:gsub("\r$", "")
             if line ~= "" and not line:find("^#") then
-                -- "Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is the first word.
+                -- "Core\Locales\deDE.lua [AllowLoadTextLocale deDE]": the path is the first word.
                 Expand(t.dir .. line:match("^(%S+)"):gsub("\\", "/"), all, seen)
             end
         end

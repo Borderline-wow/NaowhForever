@@ -1,0 +1,189 @@
+# Professions
+
+Naowh's profession window in place of the game's: your recipes by category with the ones you
+have not learned below them, the chosen recipe in the middle (reagents, profit, craft buttons, or
+where to learn it), Blizzard's own profession tabs on its edge, and an overview card for each
+profession. Around it: craft orders from another player's link, buying reagents on the auction
+house or at a merchant, a shopping list, your favourite recipes at the trainer and the auction
+house, a next-rank alert, a batch craft timer and a tracking reminder. Laid out like the
+[Dungeon Journal](../NaowhForever_DungeonJournal/README.md), on [`Shared/`](../Shared/README.md).
+
+## Layout
+
+```
+NaowhForever_Professions/
+  NaowhForever_Professions.toc   metadata, and Professions.xml
+  Professions.xml      every file, in load order
+  Professions.lua      settings (ns.ProfessionSettings), the module table (ns.Professions, P) and
+                       the window's shared state (P.State)
+  Constants.lua        the numbers several files share: AH timeouts, the craft cap, coins, NPC rows (P.C)
+  Data/
+    RecipeData.lua     where each recipe, rank and trainer is (ns.RecipeData), by hand from Wowhead Forever
+    VendorReagents.lua the reagents trade-goods vendors sell (P.VendorReagents)
+    CooldownRecipes.lua the classic recipes on a cooldown (P.CooldownRecipes)
+  Text.lua             money and colour codes as text (P.Text)
+  LinkView.lua         another player's profession opened from a trade link, and when it ends (P.Links)
+  Recipes.lua          the open profession, reagents, what a recipe makes, bag counts (P.Recipes, ns.ProfWindowAPI)
+  Vendors.lua          vendor reagents and prices learned at merchants, buying there (P.Vendors)
+  Prices.lua           buy prices, a craft's value and profit (P.Prices)
+  Favorites.lua        favourite recipes (P.Favorites, ns.ProfFavorites)
+  RecipeFinder.lua     the unlearned recipes, what they need and where they come from (ns.RecipeFinder)
+  RankAlert.lua        a profession ready for its next rank, in the window and once in chat (ns.ProfessionRank)
+  Filters.lua          the Filter menu's rules (P.Filters)
+  Entries.lua          what the recipe list holds, by category and group (P.Entries)
+  Orders.lua           craft orders: value, tip, messages, sending (P.Orders)
+  AuctionHouse.lua     the auction house open, searching it, Shift-click (P.AH)
+  BagRoom.lua          how many crafts the bags have room for (ns.CraftBagRoom)
+  ShoppingPlan.lua     the shopping list's store and make-or-buy plan (P.Shopping)
+  Patterns.lua         favourites at a trainer, and their patterns to buy (P.Patterns, ns.TrainerServiceInfo)
+  View/
+    Style.lua          the module's own look, over Shared/Style.lua (P.Style)
+    Widgets.lua        flat checkbox, skill bar, star, count box, Search AH button (P.Widgets)
+    Popup.lua          the small window beside the trainer or the auction house (P.Popup)
+  UI/
+    RecipeList.lua     the recipe list and its scrollbar (P.List)
+    Reagents.lua       a recipe's reagent rows (P.Reagents)
+    ProfitLines.lua    lined-up amounts and the crafting profit (P.Lines)
+    Buyer.lua          Buy on AH's box (P.Buyer)
+    BuyRow.lua         the Buy and Buy All row under the reagents (P.BuyRow)
+    OrderPanel.lua     the order controls and the order column (P.OrderPanel)
+    Detail.lua         the middle column for one of your recipes (P.Detail)
+    Learn.lua          the middle column for an unlearned recipe (P.Learn)
+    Book.lua           the overview's profession cards (P.Book)
+    Window.lua         the window: frame, title, skill bar, rank banner, search, Filter, drawing (P.Window)
+    Takeover.lua       showing it over Blizzard's window, docking Blizzard's tabs and cards, dragging, events
+    ShoppingSide.lua   the shopping list's column in the window and Add to List
+    ShoppingList.lua   the shopping list beside the auction house: check and buy
+    TrainFavorites.lua Train Favorites beside the trainer
+    FavoritePatterns.lua Search Favorites AH beside the auction house
+    CraftTimer.lua     Total Craft Timer
+    GatherTracking.lua the Tracking Reminder
+    SettingsPage.lua   its settings page (Professions/Settings), declared as cards
+```
+
+Each layer uses only the ones above it, or reads a later one's table at call time.
+
+## Why
+
+- The on/off switches' defaults (`enabled` and each feature's switch) are read from
+  `ns.FEATURES.professions`; their options keep their own defaults in `Professions.lua`.
+- Blizzard's window stays open under ours at zero alpha: hiding it would close the trade skill (its
+  OnHide calls CloseTradeSkill) and take the recipe data with it. Ours sits one strata higher, so
+  nothing of Blizzard's can be clicked, and is never narrower or shorter than it.
+- Blizzard's profession tabs switch profession by casting its spell, which only Blizzard's code may
+  do, so the real tabs move onto our window's edge and ignore their invisible parent's alpha.
+- The overview's spell buttons (Smelting, Find Minerals) cast and the red cross unlearns, so they stay
+  Blizzard's. A card draws its buttons as part of itself, so Blizzard's whole card moves into ours with
+  its art at zero alpha; the buttons stay children of that card, where their click reads the
+  spellbook offset. They are secure: docked out of combat only, and undocked whenever the overview
+  is not showing.
+- With the overview docked our window holds secure buttons and is protected, so closing it in combat
+  makes it transparent instead of hiding it. Resizing waits for combat to end for the same reason.
+- Once dragged, Blizzard's window is moved to where ours was put, out of combat only (it holds secure
+  buttons); anchoring it to ours instead would make ours protected. The panel manager places it
+  again whenever any panel opens or closes, so its SetPoint is hooked.
+- A trade link reads `trade:<crafter GUID>:<spell>:<skill line>`; only a plain click opens it. Opened
+  from a closed window, a link does not always read as linked yet, so the click is remembered. A
+  link clicked while Blizzard's window is loaded but closed makes Forever cast every one of your
+  professions and land on the last, so it is clicked once more after `RETRY_AFTER` (0.5s). The view
+  ends when the window closes, but not on the close the click itself causes (`SETTLE`, 1s), or when
+  you cast one of your own professions. Mining's window opens with Smelting (2656), not a spell
+  named after the profession.
+- Forever answers `numAvailable` with 0, so how many you can make is worked out from the reagents.
+- The recipe schematic is the current API; the reagent-info calls are kept as a fallback. A recipe's
+  reagents and output never change, so each is read once and shared read-only; only a schematic that
+  loaded and makes nothing is final.
+- An item whose name is not loaded is asked for, and ITEM_DATA_LOAD_RESULT for one asked for redraws
+  the window once. Other item loads (the auction house loads hundreds) redraw nothing.
+- Shift-click links through ChatFrameUtil: the ChatEdit_ names are deprecated shims Forever does not
+  load. The active chat window alone does not say you are typing: with some chat settings there
+  always is one, so its focus is checked.
+- Difficulty colours are Enum.TradeskillRelativeDifficulty: 0 Optimal, 1 Medium, 2 Easy, 3 Trivial
+  (no more skill).
+- The skill bar's dark end is 55% of a changed accent; the shipped blue (#004f85) stays otherwise.
+- The list is wide enough for a recipe name, its count and a full profit ("-12g 07s 09c"). Counts sit
+  in a right-aligned column as wide as the widest on screen, so every icon and name starts in line,
+  never left of `ICON_X` (24), which keeps recipes indented under their headers.
+- The rank banner pushes both columns down 46 while it shows. Filter is 76 wide for "Filter (3)".
+  The Buy, Add to List and Create rows share one width, so they line up; the reagent rows end 4
+  short of Create, hence the Buy row's 4 overhang.
+- Bind on Equip also counts items that never bind (bindType 0): on the beta much crafted gear does not
+  bind and still sells on the auction house.
+- Favourites are kept by spell ID, which is also a known recipe's recipeID. A known one is told to
+  the game too, so Blizzard's own favourites count; an unlearned one lives only in the profile.
+- Prices: a reagent costs its vendor price once a merchant was seen selling it, else the lowest buyout
+  at the last scan; the auction house keeps 5% of a sale. Profit is cached per recipe until the next
+  full draw, so scrolling and the filter do not price every recipe again. Reagents unchecked in the
+  pane are ones you have, left out of every recipe's cost.
+- Merchants teach the vendor reagents: trade goods sold for gold without a stock limit are kept
+  account-wide, with their price when Crafting Profit is on. Merchant events are registered only
+  while the module and one of Crafts with Vendor Buys, Crafting Profit or Buy at Vendor are on.
+- Buying only runs from a click: each auction house step is a button, and Confirm is the only one
+  that spends gold. A search waits 5s for an answer, a purchase 15s (it settles slower); a purchase
+  answering after its timeout still went through. A live price 25% over the last scan is warned
+  about. Skip and Cancel are off while a purchase pays, or it would be spent but not counted.
+- At a merchant only plain gold purchases are bought, never extended costs; items sold several to a
+  purchase round up to whole purchases, and limited stock caps the amount.
+- Walking up to an anvil changes whether a recipe's requirements are met: SPELL_UPDATE_USABLE is
+  listened to only while the window shows, and redraws the pane at most twice a second.
+- Craft orders are kept per crafter until sent or a reload, up to 9 crafts. Messages go 0.4s apart so
+  chat does not throttle them, split at 255 characters with item links counted in full. The tip is
+  at least 1s, rounded to the silver under 1g, to 10s under 10g, else to the gold. The crafter is
+  matched in your group by the link's GUID, else by name without your realm; the order goes to party
+  (or instance) chat when they are in your party, else by whisper, also in a raid.
+- Forever's GetProfessions answers prof1, prof2, First Aid, Fishing, Cooking; the overview runs
+  Cooking, Fishing, First Aid, as Blizzard's book does.
+- Profession trainers on Forever ask less than Wowhead lists, so what a trainer window asks is kept
+  account-wide, matched by name within its profession (the service list has no spell IDs).
+- Forever's GetTrainerServiceInfo returns its values in another order than documented (the third is
+  the icon's file ID, seen 2026-09-30), so the kind is whichever value is one of its words and the
+  icon the first number over 1000. A trainer's services can arrive a moment after it opens with no
+  event, so Train Favorites looks again at 0.2, 0.6 and 1.5s. Learning goes from the last index first:
+  buying a service can renumber the ones after it.
+- A pattern bought waits in the mailbox, where the game cannot be asked, so it stays off the list for
+  30 days (how long auction mail keeps) unless it turns up in your bags or bank first. Patterns are
+  single listings; their live prices are looked up one at a time, 0.3s apart, so the auction house's
+  limit on searches is never hit.
+- Starting a commodity purchase is protected (ADDON_ACTION_BLOCKED when tried on its own, seen
+  2026-09-30), so the shopping list buys each material after the first on a click of Buy Next. A
+  final price 10% over the check is warned about. A search sent while the auction house is busy is
+  dropped, so the check waits for it to be ready.
+- The shopping list makes a material from its parts, up to 4 levels down, only when whole crafts cost
+  less than buying what is needed, and never from a recipe with a cooldown (it makes a few a day; a
+  shared cooldown can read 0 on the spell). What was bought counts at every level, and a craft taken
+  off takes its purchases along. Every craft fires TRADE_SKILL_LIST_UPDATE, so the recipes known are
+  recorded again only when they changed, 0.5s after the list settles.
+- Herbalism and Skinning have no recipes: their ranks are Mining's (same skill and cost) and their
+  trainers come from the town map data. A rank needs level 10, 20 and 35 for caps 150, 225 and 300
+  unless its data says otherwise.
+- The Tracking Reminder is a secure spell button, since casting is Blizzard-only. It cannot show, hide
+  or change spell in combat: it hides on PLAYER_REGEN_DISABLED, the last moment InCombatLockdown is
+  still false, and catches up when combat ends. The minimap's tracking info is read as a table or as
+  values, since which one Forever returns was not pinned down.
+- The Total Craft Timer takes the Flight Timer's measures and spot, as nobody crafts in flight. The
+  player cast bars (EllesmereUI's and Blizzard's) stay at zero alpha for the batch, since their own
+  code shows them on every cast. Forever may report a cast time of 0 until it is cast, so 3s stands
+  in. Pressing Create mid-craft fails that press while the batch casts on, so that failure is
+  ignored. A batch with no craft event 5s past its expected end has stopped. Its hooks are installed
+  the first time it is switched on and stay, idle while it is off.
+- Bag room is played out craft by craft on what the bags hold: the item onto a stack with room, else
+  a free slot that can take it; the reagents out, smallest stack first (seen in game 2026-09-30), each
+  emptied stack freeing its slot. A profession bag takes only its kind, the reagent bag only reagents.
+- RecipeData's NPC rows are `{ npcID, name, faction ("A", "H", "AH" or "-"), uiMapID, x, y [, cost] }`
+  (`P.C.NPC_*`); `t` lists are indices into the profession's trainers. Drops are `{ mob, areaID,
+  minLevel, maxLevel, chance }`. Costs are copper. Stormwind and Eastern Plaguelands rows were moved
+  to Forever's redrawn maps.
+- VendorReagents are flux, thread, vials, salt and spices, water and milk, rods, coal, wood, stocks,
+  bleach and dyes. CooldownRecipes are Transmute: Arcanite (2 days), the other transmutes but Elemental
+  Fire (1 day, shared) and Mooncloth (4 days).
+
+## Checking
+
+- `luacheck NaowhForever_Professions` from the repo root.
+- `lua Tools/regression/test-professions-memory.lua` loads every file Professions.xml lists against
+  stubs and times and weighs what runs while the window is open.
+- The window's slices: `test-profession-combat-close.lua`, `test-profession-window-drag.lua`
+  (Takeover.lua), `test-profession-link-view.lua` (LinkView.lua), `test-profession-shift-click.lua`
+  (AuctionHouse.lua), `test-profession-merchant-events.lua` (Vendors.lua),
+  `test-shopping-list-plan.lua` (ShoppingPlan.lua), and the looks in `test-icon-look.lua` and
+  `test-qol-bars-look.lua`.

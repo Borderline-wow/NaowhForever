@@ -1,0 +1,6 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- BlessButton.xml: the button template the bar's group headers build their buttons from. -->
+    <Button name="NaowhForeverBlessButtonTemplate" inherits="SecureActionButtonTemplate" virtual="true">
+        <Size x="30" y="30"/>
+    </Button>
+</Ui>
