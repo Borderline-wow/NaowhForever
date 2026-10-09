@@ -16,11 +16,11 @@ local TEXT_CANCEL = "Cancel"
 local TEXT_RELOAD = "%s will be %sd when you reload. Reload now?"
 
 local SYSTEM_PAGES = {
-    { name = "Settings", build = "BuildSettingsPage", reuse = true,
+    { name = "Settings", build = "BuildSettingsPage", terms = "SettingsSearchTerms", reuse = true,
       subtitle = "Options for the whole addon, saved for this computer." },
     { name = "Patch Notes", reuse = true, subtitle = "What changed in recent builds." },
     { name = "Credits", build = "BuildCreditsPage", reuse = true, subtitle = "The people and projects behind Naowh Forever." },
-    { name = PROFILES_PAGE, build = "BuildProfileSettings", reuse = true,
+    { name = PROFILES_PAGE, build = "BuildProfileSettings", terms = "ProfilesSearchTerms", reuse = true,
       subtitle = "Switch, copy and share everything these pages save." },
 }
 

@@ -218,6 +218,14 @@ local function CountCards(page)
     return cards, first
 end
 
+local function Static(text)
+    return type(text) == "string" and text or ""
+end
+
+local function IndexWindow(item, add)
+    add(item.uid, item.text, Static(item.headline) .. " " .. Static(item.detail))
+end
+
 local function IndexCard(item, add)
     add(item.uid, item.name, item.help)
     local group
@@ -250,6 +258,7 @@ end
 
 function Page:Window(spec)
     spec.window = true
+    spec.uid = self.key .. ":" .. spec.text
     spec.order = spec.order or 0
     Insert(self, spec)
     return spec
@@ -390,7 +399,11 @@ function Settings.Index(pageKey, add)
     local page = pages[pageKey]
     if not page then return false end
     for _, item in ipairs(page.items) do
-        if not (item.window or item.info) then IndexCard(item, add) end
+        if item.window then
+            IndexWindow(item, add)
+        elseif not item.info then
+            IndexCard(item, add)
+        end
     end
     return true
 end

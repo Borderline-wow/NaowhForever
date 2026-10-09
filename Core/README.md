@@ -288,6 +288,14 @@ Senders
 Search
 - Every typed word has to start a word of the target. A module with one tab does not add its tab's
   name (mostly "Settings", which would match "set" everywhere).
+- A setting's module and tab names can narrow it ("journal minimap") but never find it alone, or
+  typing a module's name would count every setting it has.
+- A page its own builder draws (Settings, Profiles) names what is on it through `terms`; the
+  Settings page runs its own sections into a recorder, so what is searched is what is drawn.
+- A module that is not loaded has no pages to search; its name is found on the Settings page,
+  which says it is off.
+- A window card is searched by its button and its fixed text, never by a headline function: those
+  read live state and some do real work.
 
 Onboarding
 - The onboarding opens once per account, a few seconds into the first login and out of combat;

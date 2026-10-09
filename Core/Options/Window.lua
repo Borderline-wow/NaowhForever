@@ -30,6 +30,7 @@ local MISS_ALPHA = 0.3
 local NAV_BUTTON_EXTRA, NAV_FILL_ALPHA, NAV_MARKER_W = 6, 0.16, 3
 local NAV_TEXT_SIZE, NAV_TEXT_X, NAV_TEXT_RIGHT, NAV_COUNT_RIGHT = 14, 18, 10, 14
 local NAV_OPEN_RIGHT, NAV_OPEN_ROOM = 6, 8
+local NAV_OPEN_DIM = 0.5
 local GROUP_ORDER = { [""] = 0, ADVENTURE = 1, COMBAT = 2, UTILITIES = 3 }
 local FOOTER_H_SIDEBAR = 28
 local BRAND = { artW = 448, artH = 139, texW = 512, texH = 256, height = 56, inset = 8 }
@@ -74,6 +75,7 @@ local TEXT_BACK = "Back to Settings"
 local TEXT_ON = "On. Click to turn the whole module off."
 local TEXT_OFF = "Off. Click to turn it back on."
 local TEXT_SWITCHED_OFF = "%s is switched off. Turn it on under Settings > Modules."
+local TEXT_NO_MATCH = "Nothing on this page matches the search."
 
 ns.LINKS, ns.LINK_ICONS = LINKS, LINK_ICONS
 
@@ -128,7 +130,12 @@ local function BuildPageInto(page, parent, filter)
     end
     local fn = ns[page.build]
     if not fn then return -PAGE_TOP end
-    return fn(parent, -PAGE_TOP, page.arg)
+    local y = -PAGE_TOP
+    if filter and not filter.count[page.key] then
+        local _, h = UI.Widgets:Note(parent, TEXT_NO_MATCH, y)
+        y = y - h
+    end
+    return fn(parent, y, page.arg)
 end
 
 local function ActiveNav()
@@ -181,8 +188,8 @@ local function PaintNavButton(btn, hover)
     elseif btn.icon then
         btn.icon:SetVertexColor(c.r, c.g, c.b, a)
     end
-    if btn.open then btn.open:SetShown((active or hover) and not UI.filter) end
-    if btn.dot then btn.dot:SetShown(off and not UI.filter and not (btn.open and btn.open:IsShown())) end
+    if btn.open then btn.open:SetAlpha((active or hover) and 1 or NAV_OPEN_DIM) end
+    if btn.dot then btn.dot:SetShown(off and not UI.filter) end
     btn.count:SetText(found and found > 0 and found or "")
 end
 
@@ -365,10 +372,7 @@ local function RebuildPages()
 end
 
 local function InvalidateFiltered()
-    local Settings = ns.Shared.Settings
-    for key, w in pairs(wrappers) do
-        if Settings.pages[key] then w._dirty = true end
-    end
+    for _, w in pairs(wrappers) do w._dirty = true end
 end
 
 local function FirstMatch(filter, key)
@@ -619,7 +623,6 @@ local function NavOpenButton(btn)
     open:SetScript("OnClick", OpenClicked)
     open:SetScript("OnEnter", OpenEnter)
     open:SetScript("OnLeave", OpenLeave)
-    open:Hide()
     return open
 end
 
@@ -634,6 +637,10 @@ local function NavExtras(btn, mod)
     if not mod.open then return end
     btn.open = NavOpenButton(btn)
     btn.label:SetPoint("RIGHT", -(NAV_OPEN + NAV_OPEN_ROOM), 0)
+    btn.count:ClearAllPoints()
+    btn.count:SetPoint("RIGHT", btn.open, "LEFT")
+    btn.dot:ClearAllPoints()
+    btn.dot:SetPoint("RIGHT", btn.open, "LEFT")
 end
 
 local function OnWindowKeyDown(self, key)

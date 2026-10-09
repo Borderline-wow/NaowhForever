@@ -601,6 +601,53 @@ do
     root.scripts.OnKeyDown(root, "ESCAPE"); Flush()
     Check(UI.filter == nil and drawnWith[#drawnWith] == false and Shown("Tailor Setup") ~= nil,
         "cleared, the page is drawn whole again")
+
+    -- A window card is found by its button and drawn on its page while the search holds it.
+    Settings.Page("QoL/Combat", S):Window({ text = "Open Test Log", open = function() end, headline = "Test Log",
+        detail = "Every test, logged." })
+    input:SetText("test log"); Flush()
+    Check(Text("Quality of Life / Combat") and Shown("Test Log") and not Shown("Stealth Reminder"),
+        "a window card found shows on its page, the rest left out")
+
+    -- The Settings page is drawn by its own builder and names what is on it.
+    local function NavCount(name)
+        for _, f in ipairs(frames) do
+            if f.text == name and f:IsShown() and f.parent.count then return tonumber(f.parent.count.text) end
+        end
+    end
+    for _, query in ipairs({ "minimap", "game menu", "window scale", "addon font", "skin", "theme", "modules" }) do
+        input:SetText(query); Flush()
+        Check(NavCount("Settings"), "'" .. query .. "' is counted on the Settings page")
+    end
+
+    -- A module that is off has no pages to search, so its name finds the Settings page, which says so.
+    input:SetText(""); Flush()
+    missingAddOns.NaowhForever_Training = true
+    ns.OpenOptionsWindow("Settings"); Flush()
+    input:SetText("training planner"); Flush()
+    Check(Text("Training Planner is turned off, so its settings are hidden. Turn it on under Modules below.")
+        and Text("MODULES") and NavCount("Settings") >= 1, "a module that is off is found on Settings, with how to turn it on")
+    input:SetText(""); Flush()
+    missingAddOns.NaowhForever_Training = nil
+    input:SetText("training planner"); Flush()
+    Check(not Text("Training Planner is turned off, so its settings are hidden. Turn it on under Modules below."),
+        "on, it is not called off")
+
+    -- A page its own builder draws says when nothing on it matches, as card pages do.
+    input:SetText("zzzz"); Flush()
+    Check(Text(note) and Text("MODULES"), "nothing found on the Settings page, it says so over the page")
+    input:SetText(""); Flush()
+    Check(not Text(note) and Text("MODULES"), "cleared, the note goes")
+
+    -- A module's open-window icon always shows, dimmed until the mouse is on its row.
+    local journal = Button("Dungeon Journal")
+    Check(journal.open:IsShown() and journal.open.alpha < 1, "the open-window icon shows, dimmed")
+    journal.open.scripts.OnEnter(journal.open)
+    Check(journal.open.alpha == 1, "and lights up under the mouse")
+    journal.open.scripts.OnLeave(journal.open)
+    input:SetText("max icons"); Flush()
+    Check(journal.open:IsShown() and journal.open.alpha < 1, "it stays while searching")
+    input:SetText(""); Flush()
     ns.BuildProfileSettings = nil
 end
 

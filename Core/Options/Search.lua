@@ -22,15 +22,24 @@ local function Place(page, cardName)
     local mod = page.module
     if mod and #mod.tabs > 1 then parts[#parts + 1] = ns.L(page.name) end
     if cardName then parts[#parts + 1] = cardName end
-    return ns.L(mod and mod.name or page.title or page.name), table.concat(parts, " / ")
+    return mod and ns.Options.DisplayName(mod) or ns.L(page.title or page.name), table.concat(parts, " / ")
 end
 
-local function IndexInto(list, page, Settings, settingsKey)
+local function IndexInto(list, page, scope, Settings, settingsKey)
     Settings.Index(settingsKey, function(card, label, help, cardName, group)
         local t, where = Place(page, cardName)
         list[#list + 1] = { page = page.key, card = card, label = label, tag = t, trail = where,
-            isCard = cardName == nil,
+            isCard = cardName == nil, scope = scope,
             words = Words(table.concat({ label, help or "", group or "", cardName or "" }, " ")) }
+    end)
+end
+
+local function AddTerms(list, page, tag, scope)
+    local terms = page.terms and ns[page.terms]
+    if not terms then return end
+    terms(function(label, help, section, off)
+        list[#list + 1] = { page = page.key, label = label, tag = tag, trail = section, scope = scope, off = off,
+            words = Words(table.concat({ label, help or "", section }, " ")) }
     end)
 end
 
@@ -39,25 +48,37 @@ local function Collect()
     local Settings = ns.Shared and ns.Shared.Settings
     for _, page in ipairs(UI.SearchPages()) do
         local tag, trail = Place(page)
-        local pageWords = Words(tag .. " " .. trail)
+        local pageWords = Words(table.concat({ tag, trail, page.module and page.module.name or "" }, " "))
         list[#list + 1] = { page = page.key, tag = tag, trail = trail, words = pageWords }
+        AddTerms(list, page, tag, pageWords)
         if Settings then
-            IndexInto(list, page, Settings, page.key)
-            for _, settingsKey in ipairs(carries[page.key] or NONE) do IndexInto(list, page, Settings, settingsKey) end
+            IndexInto(list, page, pageWords, Settings, page.key)
+            for _, settingsKey in ipairs(carries[page.key] or NONE) do
+                IndexInto(list, page, pageWords, Settings, settingsKey)
+            end
         end
     end
     return list
+end
+
+local function Matched(target, typed)
+    local own = false
+    for _, word in ipairs(typed) do
+        local start = " " .. word
+        if target.words:find(start, 1, true) then
+            own = true
+        elseif not (target.scope and target.scope:find(start, 1, true)) then
+            return false
+        end
+    end
+    return own
 end
 
 local function Matches(list, typed)
     local out = {}
     if #typed == 0 then return out end
     for _, target in ipairs(list) do
-        local all = true
-        for _, word in ipairs(typed) do
-            if not target.words:find(" " .. word, 1, true) then all = false break end
-        end
-        if all then out[#out + 1] = target end
+        if Matched(target, typed) then out[#out + 1] = target end
     end
     return out
 end
@@ -74,6 +95,8 @@ local function AddMatch(f, t)
     end
     if not t.card then
         f.all[key] = true
+        if t.label then f.count[key] = f.count[key] + 1 end
+        if t.off then f.off[#f.off + 1] = t.off end
         return
     end
     f.count[key] = f.count[key] + 1
@@ -90,7 +113,7 @@ end
 local function Build(list, query)
     local typed = Typed(query)
     if #typed == 0 then return nil end
-    local f = { typed = typed, count = {}, all = {}, cards = {}, order = {}, first = {} }
+    local f = { typed = typed, count = {}, all = {}, cards = {}, order = {}, first = {}, off = {} }
     for _, t in ipairs(Matches(list, typed)) do AddMatch(f, t) end
     return f
 end
