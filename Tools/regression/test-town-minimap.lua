@@ -82,7 +82,24 @@ Check(boot and mini.scripts.OnEvent, "the town map's frames")
 boot.scripts.OnEvent()
 Check(next(mini.events) == nil, "nothing registered while the minimap setting is off")
 
-settings.townMinimap = true
+settings.townMinimapSpirit = true
+boot.scripts.OnEvent()
+-- The pins on the minimap now: east is the near mailbox, south the spirit healer (the other
+-- mailbox is out of range).
+local function Shown()
+    local out = {}
+    for _, f in ipairs(frames) do
+        if f.parent == env.Minimap and f.shown then
+            out[#out + 1] = math.abs(f.y or 0) < 1e-6 and "mailbox" or "healer"
+        end
+    end
+    return table.concat(out, " ")
+end
+Check(Shown() == "healer" and mini.events.ZONE_CHANGED_NEW_AREA, "spirit healers alone: no mailboxes")
+settings.townMinimap, settings.townMinimapSpirit = true, false
+boot.scripts.OnEvent()
+Check(Shown() == "mailbox", "mailboxes alone: no spirit healer")
+settings.townMinimapSpirit = true
 boot.scripts.OnEvent()
 local pins = {}
 for _, f in ipairs(frames) do
@@ -117,17 +134,18 @@ continent = 0
 
 walking = true
 mini.scripts.OnEvent(mini, "PLAYER_STARTED_MOVING")
-settings.townMinimap = false
+settings.townMinimap, settings.townMinimapSpirit = false, false
 boot.scripts.OnEvent()
 Check(not east.shown and not south.shown and next(mini.events) == nil, "turning it off clears the minimap")
 Check(mini.scripts.OnUpdate == nil, "and stops placing pins")
 walking = false
-settings.townMinimap = true
+settings.townMinimap, settings.townMinimapSpirit = true, true
 boot.scripts.OnEvent()
 Check(mini.scripts.OnUpdate == nil, "back on while standing still, nothing runs")
 settings.townMinimap = false
 boot.scripts.OnEvent()
 
-Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimap = true", 1, true), "Minimap pins start on")
+Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimap = true", 1, true), "Minimap mailboxes start on")
+Check(Read("QoL/NaowhForever_QoL.lua"):find("townMinimapSpirit = true", 1, true), "Minimap spirit healers start on")
 
 print(("test-town-minimap: %d checks passed"):format(checks))

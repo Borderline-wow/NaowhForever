@@ -22,4 +22,5 @@
         <Layers><Layer level="ARTWORK"><Texture parentKey="Icon"><Anchors><Anchor point="CENTER"/></Anchors></Texture></Layer></Layers>
         <Scripts><OnClick method="OnClick"/></Scripts>
     </Button>
+    <Script file="NaowhForever_MapPinsPanel.lua"/>
 </Ui>

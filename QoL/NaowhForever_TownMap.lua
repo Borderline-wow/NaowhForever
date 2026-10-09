@@ -38,6 +38,9 @@ local CATEGORIES = {
     vendor     = { "townVendors", "Interface\\Icons\\INV_Misc_Bag_07", "Vendor" },
     mail       = { "townMail", "Interface\\Icons\\INV_Letter_15", "Send and collect mail" },
 }
+-- What a traveller looks for in any town: shown on every map, even with Vendors &
+-- Trainers Only in Cities on (that switch is for the vendors and trainers).
+local EVERYWHERE = { flight = true, inn = true, stable = true }
 
 local function On()
     return S.Get("enabled") and S.Get("townMap")
@@ -136,7 +139,7 @@ function provider:RefreshAllData()
     self:RemoveAllData()
     if not On() then return end
     local mapID = self:GetMap():GetMapID()
-    local list = (not S.Get("townCapitalsOnly") or CAPITALS[mapID]) and ns.TownNPCs[mapID] or {}
+    local shops = not S.Get("townCapitalsOnly") or CAPITALS[mapID]
     -- Forever has no map links of its own (GetMapLinksForMap returns nothing).
     if S.Get("townZoneLinks") then
         for _, exit in ipairs(ns.ZoneExits[mapID] or {}) do
@@ -156,15 +159,14 @@ function provider:RefreshAllData()
             end
         end
     end
-    for _, npc in ipairs(list or {}) do
+    for _, npc in ipairs(ns.TownNPCs[mapID] or {}) do
         local cat = CATEGORIES[npc[3]]
-        if npc[7]:find(faction, 1, true) and S.Get(cat[1])
+        if (shops or EVERYWHERE[npc[3]]) and npc[7]:find(faction, 1, true) and S.Get(cat[1])
             and (npc[3] ~= "class" or npc[6] == class) then
             self:GetMap():AcquirePin(TEMPLATE, npc)
         end
     end
-    -- Not held to the capitals: that keeps vendors and trainers off questing maps, and a
-    -- mailbox out in the world is what you look for there.
+    -- Not held to the capitals either: a mailbox out in the world is what you look for there.
     if S.Get("townMail") then
         for _, mailbox in ipairs(ns.TownMailboxes[mapID] or {}) do
             self:GetMap():AcquirePin(TEMPLATE, mailbox)
@@ -193,8 +195,10 @@ local miniCont, miniOX, miniOY, miniUX, miniUY, miniVX, miniVY, miniDet
 local mini = CreateFrame("Frame")
 local moving, elapsed = false, 0
 
+-- townMinimap is the mailboxes (it held both once, so existing profiles keep their mailboxes),
+-- townMinimapSpirit the spirit healers.
 local function MiniOn()
-    return On() and S.Get("townMinimap")
+    return On() and (S.Get("townMinimap") or S.Get("townMinimapSpirit"))
 end
 
 local function MiniFit(map)
@@ -257,8 +261,12 @@ local function MiniRefresh()
     miniMap = MiniOn() and C_Map.GetBestMapForUnit("player")
     -- On this setting alone: the world map's Mailboxes toggle starts off.
     if miniMap and MiniFit(miniMap) then
-        for _, mailbox in ipairs(ns.TownMailboxes[miniMap] or {}) do miniSpots[#miniSpots + 1] = mailbox end
-        for _, healer in ipairs(ns.TownSpiritHealers[miniMap] or {}) do miniSpots[#miniSpots + 1] = healer end
+        if S.Get("townMinimap") then
+            for _, mailbox in ipairs(ns.TownMailboxes[miniMap] or {}) do miniSpots[#miniSpots + 1] = mailbox end
+        end
+        if S.Get("townMinimapSpirit") then
+            for _, healer in ipairs(ns.TownSpiritHealers[miniMap] or {}) do miniSpots[#miniSpots + 1] = healer end
+        end
         miniWidth, miniHeight = C_Map.GetMapWorldSize(miniMap)
     end
     for i = #miniSpots + 1, #miniPins do miniPins[i]:Hide() end
@@ -372,7 +380,6 @@ function ns.TownAudit()
         .. "NPC's window while standing next to them" or "off", count))
 end
 
-local Group = ns.Shared.Settings.Group
 local TOWN_SHOW = { "townSpiritHealers", "townZoneLinks", "townTravel", "townClass", "townProfession", "townFlight",
     "townInn", "townBank", "townRepair", "townSupplies", "townStable", "townVendors", "townMail" }
 
@@ -382,38 +389,16 @@ local function TownSummary(store)
         if store.Get(TOWN_SHOW[i]) then shown = shown + 1 end
     end
     return ("%d of %d shown%s"):format(shown, #TOWN_SHOW,
-        store.Get("townCapitalsOnly") and ", town pins in capitals only" or "")
+        store.Get("townCapitalsOnly") and ", vendors and trainers in cities only" or "")
 end
 
+-- Which pins show is chosen on the map itself (NaowhForever_MapPinsPanel.lua), so the card
+-- holds only the switch and the size.
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "townMap", name = "Map Pins", order = 40, switch = "townMap",
-    help = "Trainers, vendors, innkeepers, flight masters and more pinned on the world map for "
-        .. "your faction, with their name and title on hover. No more asking a guard.",
+    help = "Service NPCs for your faction on the world map; pick which with its Map Pins button.",
     summary = TownSummary,
     rows = {
         { key = "townPinSize", label = "Pin Size", slider = { 10, 28, 1 } },
-        { key = "townCapitalsOnly", label = "Town Pins Only in Capitals", toggle = true,
-          help = "Keeps vendors and trainers off questing maps." },
-        { key = "townMinimap", label = "Mailboxes & Spirit Healers on Minimap", toggle = true,
-          help = "Pins the mailboxes and spirit healers near you on the minimap." },
-        Group("Show"),
-        { key = "townSpiritHealers", label = "Spirit Healers", toggle = true,
-          help = "Every graveyard's spirit healer, in towns and out in the world." },
-        { key = "townZoneLinks", label = "Clickable Zone Exits", toggle = true,
-          help = "Click an exit to open the adjoining zone map." },
-        { key = "townTravel", label = "Boats & Zeppelins", toggle = true,
-          help = "Every dock and zeppelin tower; click one to open where it goes." },
-        { key = "townClass", label = "Class Trainers", toggle = true, help = "Your class's trainers only." },
-        { key = "townProfession", label = "Profession Trainers", toggle = true },
-        { key = "townFlight", label = "Flight Masters", toggle = true },
-        { key = "townInn", label = "Innkeepers", toggle = true },
-        { key = "townBank", label = "Bank & Auction House", toggle = true },
-        { key = "townRepair", label = "Repairs", toggle = true },
-        { key = "townSupplies", label = "Reagents, Ammo & Food", toggle = true },
-        { key = "townStable", label = "Stable Masters", toggle = true },
-        { key = "townVendors", label = "Other Vendors", toggle = true,
-          help = "Trade goods and every other merchant." },
-        { key = "townMail", label = "Mailboxes", toggle = true,
-          help = "Every mailbox, in towns and out in the world." },
     },
 })
