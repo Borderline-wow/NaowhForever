@@ -1920,9 +1920,14 @@ do
     end
     local door = Door()
     rawset(door.text, "GetStringWidth", function() return 75 end)
+    -- The rare just right of the entrance, wherever the data has it.
+    local faerie = J.Maps.WailingCaverns.pins[5912]
+    local gate = J.Maps.WailingCaverns.entrance
+    J.Maps.WailingCaverns.pins[5912] = { gate[1], gate[2] + 0.115, gate[3] + 0.01 }
     J.OpenDungeonMap(wailing)
     check("Wailing Caverns: the entrance's label clear of the rare on its right", door.side == "LEFT"
         and rawget(door.text, "shown") ~= false)
+    J.Maps.WailingCaverns.pins[5912] = faerie
     local placedPins = state.account.journalMapPins
     state.account.journalMapPins = { RagefireChasm = { entrance = { 1, 0.5, 0.5 },
         [11517] = { 1, 0.1, 0.1 }, [11520] = { 1, 0.9, 0.1 }, [11518] = { 1, 0.1, 0.9 }, [11519] = { 1, 0.9, 0.9 } } }

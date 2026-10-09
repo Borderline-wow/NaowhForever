@@ -10,8 +10,8 @@
 --      are not that order, or it has floors of another dungeon (the switch offers only these,
 --      stepping and numbering them so; pins keep the art's number),
 --      or image = the addon's own picture (Media/Maps), for a dungeon the game has no art
---      for yet: a 1024 square TGA with the map in its top 1024 by 683, a floor after the
---      first its own picture with the floor's number after the name (Dalaran2). Its pins
+--      for yet (or only redrawn, as Wailing Caverns): a 1024 square TGA with the map in its
+--      top 1024 by 683, a floor after the first its own picture with the floor's number after the name (Dalaran2). Its pins
 --      are placed on that picture, so when the game's art comes they are placed again.
 --      images = { [floor] = picture }, with art: floors the art lacks, as the addon's pictures.
 --      floor = the one floor it is on, where dungeons share the art (Scarlet Monastery's wings),
@@ -46,18 +46,20 @@ ns.Journal.Maps = {
             [261319] = { 1, 0.51, 0.17 },   -- Durgen Dirgehammer
         },
     },
-    WailingCaverns = { art = "WailingCaverns", floors = 1,
+    -- The client's art is the Cataclysm redraw; this is the old map (Wowpedia's
+    -- WorldMap-WailingCaverns-old.jpg), drawn the same; pins placed on it in game.
+    WailingCaverns = { image = "Interface\\AddOns\\NaowhForever\\Media\\Maps\\WailingCaverns", floors = 1,
         entrance = { 1, 0.465, 0.59 },
         pins = {
             [3654] = { 1, 0.345, 0.13 },   -- Mutanus the Devourer
-            [3653] = { 1, 0.385, 0.35 },   -- Kresh
+            [3653] = { 1, 0.381, 0.344 },   -- Kresh
             [3671] = { 1, 0.31, 0.43 },   -- Lady Anacondra
-            [3670] = { 1, 0.545, 0.46 },   -- Lord Pythas
-            [3674] = { 1, 0.615, 0.53 },   -- Skum
+            [3670] = { 1, 0.856, 0.289 },   -- Lord Pythas
+            [3674] = { 1, 0.93, 0.791 },   -- Skum
             [3669] = { 1, 0.155, 0.57 },   -- Lord Cobrahn
-            [5912] = { 1, 0.58, 0.6 },   -- Deviate Faerie Dragon
-            [3673] = { 1, 0.6, 0.66 },   -- Lord Serpentis
-            [5775] = { 1, 0.615, 0.745 },   -- Verdan the Everliving
+            [5912] = { 1, 0.674, 0.373 },   -- Deviate Faerie Dragon
+            [3673] = { 1, 0.613, 0.543 },   -- Lord Serpentis
+            [5775] = { 1, 0.551, 0.469 },   -- Verdan the Everliving
         },
     },
     Deadmines = { art = "TheDeadmines", floors = 2,
