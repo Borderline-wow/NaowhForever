@@ -1046,7 +1046,8 @@ do
 end
 
 -- No garbage per message received. The parsed fields are strings the test keeps alive, as a
--- game session would after the first message, so only tables or closures would show.
+-- game session would after the first message, so only tables or closures would show. One round runs
+-- after the collector stops, so the interpreter regrowing what the collect shrank is not counted.
 do
     local s = fixture({ faction = "Alliance", settings = { aimTrainer = true } })
     s.account.aimBest = { hexakill = 100 }
@@ -1063,6 +1064,7 @@ do
     for i = 1, 10 do handler(f, "CHAT_MSG_ADDON", "NaowhAim", messages[i], "GUILD", senders[i]) end
     collectgarbage("collect")
     collectgarbage("stop")
+    for i = 1, 10 do handler(f, "CHAT_MSG_ADDON", "NaowhAim", messages[i], "GUILD", senders[i]) end
     local before = collectgarbage("count")
     for _ = 1, 50 do
         s.now = s.now + 61
