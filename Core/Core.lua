@@ -24,8 +24,9 @@ local OFFSCREEN = 0.9
 local BUTTON_TEXT_SIZE, BUTTON_REST_ALPHA = 12, 0.9
 local BUTTON_SHADOW = 1
 local SKIN_CLASSIC = "classic"
-local FONT_NAOWH, FONT_CLASSIC = "Naowh", "Arial Narrow"
-local FONT_HEADING = "Friz Quadrata TT"
+-- The Classic+ skin sets text as the game does: Friz Quadrata, and Arial Narrow for compact numbers.
+local FONT_NAOWH, FONT_CLASSIC, FONT_DATA = "Naowh", "Friz Quadrata TT", "Arial Narrow"
+local FONT_HEADING = FONT_CLASSIC
 local MODAL_LEVEL_BASE, MODAL_LEVEL_STEP, MODAL_LEVEL_CAP, MODAL_PANEL_RAISE = 10, 10, 150, 5
 local EDIT_INSET = 6
 local SEARCH_HINT_SIZE, SEARCH_CLEAR_SIZE, SEARCH_CLEAR_TEXT = 12, 18, 13
@@ -411,6 +412,12 @@ function ns.HeadingFontPath(classic)
     end
     if not ns.classicSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_HEADING) or ns.UIFontPath()
+end
+
+-- Compact numbers (a slider's value): Arial Narrow on the Classic+ skin, else the Addon Font.
+function ns.DataFontPath()
+    if not ns.classicSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
+    return FontPath(FONT_DATA) or ns.UIFontPath()
 end
 
 -- The title plate is the one place the Classic+ skin keeps the Naowh face.
