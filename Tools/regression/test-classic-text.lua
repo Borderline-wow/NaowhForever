@@ -1,6 +1,6 @@
--- Run with Lua 5.1 from the repository root: text on the Classic+ skin. Body text in the game's
--- Arial Narrow, headings (buttons, tabs, titles, names) in its Friz Quadrata, HUD text on its
--- default font in Friz too, headings a size up on a shadow, windows on the game's rock, and the
+-- Run with Lua 5.1 from the repository root: text on the Classic+ skin, set as the game sets it:
+-- Friz Quadrata for text and headings, Arial Narrow for compact numbers, HUD text on its
+-- default font in Friz too, headings a size up on a shadow, windows on the game's wood, and the
 -- help card drawn like the game's tooltip. A picked Addon Font
 -- is used for all of it, and the default skin is untouched.
 local checks = 0
@@ -115,7 +115,8 @@ check("default: no pattern behind a window", ns.Shared.Parts.Backdrop(New("Frame
 ns = Load({ skin = "classic" })
 local St = ns.Shared.Style
 check("headings in Friz Quadrata", ns.Font(New("Frame"), 12, nil, nil, true).font == "friz")
-check("text in Arial Narrow", ns.Font(New("Frame"), 12).font == "arial")
+check("text in Friz Quadrata too, as the game's", ns.Font(New("Frame"), 12).font == "friz")
+check("compact numbers in Arial Narrow", ns.DataFontPath() == "arial")
 check("HUD text on its default font in Friz", ns.UI.FontPath("") == "friz" and ns.UI.FontPath("Expressway") == "expressway")
 heading = ns.Font(New("Frame"), 14, nil, nil, true)
 check("a heading a size up, on a black shadow", heading.size == 14 + St.CLASSIC_HEADING_STEP
@@ -123,7 +124,7 @@ check("a heading a size up, on a black shadow", heading.size == 14 + St.CLASSIC_
 check("body text at its size", ns.Font(New("Frame"), 14).size == 14)
 local backdrop = ns.Shared.Parts.Backdrop(New("Frame"))
 backdrop:Paint(0.5)
-check("the game's rock behind a window, darkened, fading with its opacity", backdrop.pattern.texture == St.CLASSIC_PATTERN
+check("the game's wood behind a window, fading with its opacity", backdrop.pattern.texture == St.CLASSIC_PATTERN
     and backdrop.pattern.color[1] == St.CLASSIC_PATTERN_SHADE and backdrop.pattern.color[4] == St.CLASSIC_PATTERN_ALPHA * 0.5)
 local card = Card(ns)
 check("the help card dark blue, like the game's tooltip", card.children[1].color[1] == St.CLASSIC_TIP_RGB.r

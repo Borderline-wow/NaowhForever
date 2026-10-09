@@ -358,6 +358,7 @@ Settings.Page("QoL/Interface", S):Card({
           always = true, help = "Opens the copy card on a sample spell. Select the ID or link, then Ctrl+C." },
         { key = "globalCopy", label = "Copy Command", toggle = true, always = true,
           help = "/copy puts the text of whatever is under your cursor in a box you can copy from. "
-              .. "/copy followed by a frame name copies that frame's text instead." },
+              .. "/copy followed by a frame name copies that frame's text instead.",
+          search = "/ncopy ncopy" },
     },
 })

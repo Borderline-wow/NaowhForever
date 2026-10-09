@@ -106,6 +106,7 @@ page:Card({
 page:Card({
     id = "window", name = "Window", order = ORDER_WINDOW,
     help = "Naowh's Forge, Macros' own window: your macros, the ones kept current, and Naowh's library.",
+    search = "import export macro strings shorten to library save right-click right click icon star favorite",
     rows = {
         { key = "windowAlpha", label = "Window Opacity", slider = OPACITY_RANGE,
           unit = "%", scale = PERCENT_SCALE, help = "How solid the window is, in percent. Also on its title bar." },

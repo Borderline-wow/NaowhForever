@@ -20,10 +20,11 @@ end
 Settings.Page("BiS List/Character", S):Card({
     id = "naowhScore", name = "Naowh Score", order = ORDER_SCORE, switch = "naowhScore", store = S,
     help = "One number for a character's gear, on the item level scale: 26.4 means gear worth a set of level "
-        .. "26 epics. Yours is shared with your group and guild as it changes. Your own is always on the BiS "
-        .. "List's paperdoll.",
+        .. "26 epics. Your own is always on the BiS List's paperdoll.",
     summary = Summary,
     rows = {
+        { key = "naowhScoreShare", label = "Share My Score", toggle = true,
+          help = "Sends your score to your group and guild as it changes." },
         { key = "naowhScoreTooltip", label = "On Player Tooltips", toggle = true,
           help = "A player's score on their tooltip. One running Naowh Forever shares theirs; anyone else's is "
               .. "read from their gear when you hover them, within inspect range and out of combat." },

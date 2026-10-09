@@ -302,6 +302,23 @@ local windowCard, trainer = declared and declared.items[1], declared and declare
 check("the settings page is declared, the planner's window card first", windowCard and windowCard.window
     and windowCard.text == "Open Training Planner")
 check("and no trainer popup card of its own: QoL's Trainer declares it, so it goes with QoL", trainer == nil)
+local buildsCard = declared.cards.builds
+check("a Talent Builds card", buildsCard and buildsCard.name == "Talent Builds")
+local openRow, stopRow = buildsCard.rows[1], buildsCard.rows[2]
+local followed = ns.Training.Builds(8)[1]
+ns.Training.Follow(8, followed)
+check("its summary names the build you follow", buildsCard.summary() == "Following: " .. followed.name)
+check("with Stop Following shown", not stopRow.hidden())
+stopRow.button()
+check("Stop Following stops it", ns.Training.Followed() == nil and buildsCard.summary() == "Not following a build"
+    and stopRow.hidden())
+ns.OpenFromOptions = function(open) open() end
+window.switch.onPick("spells")
+window:Hide()
+openRow.button()
+check("Open Builds opens the planner on its Builds tab", window:IsShown() and window.import:IsShown()
+    and not window.hero:IsShown())
+window.switch.onPick("spells")
 
 local backed = 0
 window:Hide()

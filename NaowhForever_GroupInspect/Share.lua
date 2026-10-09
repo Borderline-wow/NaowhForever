@@ -37,7 +37,7 @@ local function Secret(value)
 end
 
 local function ShareOn()
-    return S.Get("enabled") == true and S.Get("groupInspectShare") == true
+    return S.Get("groupInspectShare") == true
 end
 
 local function IsOpen()
@@ -236,7 +236,7 @@ GI.OnChange(Roster)
 hooksecurefunc(GI, "Open", Opened)
 hooksecurefunc(GI, "Close", Listen)
 S.OnChange(function(key)
-    if key == "enabled" or key == "groupInspectShare" then Listen() end
+    if key == "groupInspectShare" then Listen() end
 end)
 hooksecurefunc(ns, "Apply", Listen)
 frame = CreateFrame("Frame")

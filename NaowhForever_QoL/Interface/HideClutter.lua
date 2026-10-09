@@ -8,7 +8,7 @@ local TUTORIAL_CVARS = { showTutorials = "0", hideHelptips = "1" }
 local CINEMATIC_KEY, ZONE_JOIN = "cinematic:", "/"
 local MOVIE_KEY = "movie:"
 local CLUTTER = { "hideErrors", "hideTutorials", "hideScreenshot", "skipCinematics", "hideAlerts",
-    "hideEventToasts", "hideZoneText", "cursorClip" }
+    "hideEventToasts", "hideZoneText" }
 local APPLY_KEYS = { enabled = true, hideErrors = true, hideTutorials = true, hideScreenshot = true,
     skipCinematics = true }
 local SUMMARY = "%d of %d on"
@@ -177,8 +177,5 @@ Settings.Page("QoL/Interface", S):Card({
           help = "Closes the banners for level ups, new zones and events." },
         { key = "hideZoneText", label = "Hide Zone Text", toggle = true,
           help = "Hides the zone and subzone names that appear as you travel." },
-        { key = "cursorClip", label = "Keep Cursor In Window During Combat", toggle = true,
-          help = "Stops the cursor leaving the game window while you fight, for a second monitor. "
-              .. "Your own setting comes back afterwards." },
     },
 })

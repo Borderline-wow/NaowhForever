@@ -850,6 +850,7 @@ Settings.Page("QoL/Interface", S):Card({
     help = "Shows who Naowh, the developers, the moderators and our Legendary patrons are: a badge "
         .. "by their name in chat, a line on their tooltip and, if you want it, a banner when one "
         .. "of them joins your group.",
+    search = "badge id claim code /nf badges nf badges",
     summary = BadgesSummary,
     rows = {
         { key = "badgeChat", label = "Chat Badges", toggle = true,
@@ -863,5 +864,7 @@ Settings.Page("QoL/Interface", S):Card({
           help = "A banner and a sound when one of them joins your group." },
         { key = "badgeBannerSkipGuild", label = "No Banner For Guild Members", toggle = true,
           needs = "badgeBanner", help = "Skips the banner when they're in your guild." },
+        { label = "Show My Badge Code", buttonText = "Show", button = ns.ShowBadgeCode,
+          help = "Your code to claim your badge, the same as /nf badges id." },
     },
 })

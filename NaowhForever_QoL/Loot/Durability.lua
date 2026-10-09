@@ -12,6 +12,8 @@ local WIDTH, ROOM = 300, 10
 local FONT_SIZE = 22
 local PREVIEW_PCT = 20
 local STACK_ORDER = 3
+local PAGE = "QoL/Loot & Items"
+local TEXT_ALERT = "Durability"
 local PERCENT = ns.QoLConstants.PERCENT
 local WARN_RANGE = { 5, 100, 1 }
 local TEXT_RANGE = { 10, 48, 1 }
@@ -83,7 +85,7 @@ local function Build()
     frame.text = ns.Font(frame, FONT_SIZE, "OUTLINE")
     frame.text:SetPoint("CENTER")
     frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
-    ns.AlertStack(frame, STACK_ORDER)
+    ns.AlertStack(frame, STACK_ORDER, TEXT_ALERT, PAGE, PAGE .. ":durability")
 end
 
 local function Restyle()
@@ -135,7 +137,7 @@ end
 
 local Settings = ns.Shared.Settings
 
-Settings.Page("QoL/Loot & Items", S):Card({
+Settings.Page(PAGE, S):Card({
     id = "durability", name = "Durability", order = 80, switch = "durability",
     help = "Text on screen when any piece of gear drops below the threshold. Hidden in "
         .. "combat. Move it in the HUD Editor.",

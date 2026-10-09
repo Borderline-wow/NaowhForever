@@ -37,6 +37,8 @@ local function Load(account, installed, existing, fonts)
     local function Region()
         local r = {}
         function r:SetAllPoints() self.allPoints = true end
+        function r:SetPoint(point) self.point = point end
+        function r:SetSize(w, h) self.w, self.h = w, h end
         function r:SetColorTexture(...) self.rgba = { ... } end
         function r:SetGradient(orientation, low, high) self.gradient = { orientation, low, high } end
         function r:SetBlendMode(mode) self.blend = mode end
@@ -613,6 +615,12 @@ do
         "Rose Noir's Accent, deeper at the bottom and lighter at the top")
     Check(Hex(color.gradient[2]) == "b84475" and Hex(color.gradient[3]) == "ff82b6", "and those are the colors, pinned")
     Check(color.masks and color.masks[1] == mask, "clipped by the mask")
+    local diagonal = math.sqrt(2)
+    Check(color.point == "CENTER" and not color.allPoints and math.abs(color.w - 32 * diagonal) < 1e-9
+        and color.w == color.h and mask.allPoints,
+        "the color covers the arrow's square turned any way, the mask stays the arrow's own size")
+    layer.OnSizeChanged(layer, 40, 48)
+    Check(math.abs(color.w - 48 * diagonal) < 1e-9 and color.h == color.w, "and follows the arrow's size")
     Check(mask.path == IMAGE and mask.wrapH == "CLAMPTOBLACKADDITIVE" and mask.wrapV == "CLAMPTOBLACKADDITIVE",
         "the mask is the arrow's own image")
     Check(mask.rotation == 1.25, "turned the way the arrow is")

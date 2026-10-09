@@ -51,6 +51,8 @@ local TITLE_TOP, TEXT_GAP = 4, 4
 local PAD_W, PAD_H = 16, 12
 local FLASH_LOOPS, FLASH_ALPHA, FLASH_TIME = 6, 0.35, 0.6
 local STACK_ORDER = 4
+local PAGE = "QoL/Loot & Items"
+local TEXT_ALERT = "Restock Reminder"
 local SETTLE_DELAY = 0.5
 local CARRY_MAX = 200
 local AMMO_RANGE, FOOD_BELOW_RANGE, FOOD_LEVEL_RANGE = { 200, 4000, 100 }, { 1, 40, 1 }, { 0, MAX_LEVEL, 1 }
@@ -240,7 +242,7 @@ local function BuildAlert()
     pulse:SetDuration(FLASH_TIME)
 
     alert:Hide()
-    ns.AlertStack(alert, STACK_ORDER)
+    ns.AlertStack(alert, STACK_ORDER, TEXT_ALERT, PAGE, PAGE .. ":restock")
 end
 
 local function HideAlert()
@@ -421,7 +423,7 @@ local boot = CreateFrame("Frame")
 boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
-local loot = ns.Shared.Settings.Page("QoL/Loot & Items", S)
+local loot = ns.Shared.Settings.Page(PAGE, S)
 
 loot:Card({
     id = "vendors", name = "Vendors", order = 20,

@@ -381,6 +381,7 @@ Settings.Page("QoL/System", S):Card({
     id = "slashCommands", name = "Custom Slash Commands", order = 20, switch = "slashCommands",
     help = "Short commands of your own that open a game window or run another command. A name another "
         .. "addon already uses is skipped.",
+    search = "/cdm cdm cooldown viewer /em em edit mode /kb kb quick keybind",
     summary = Summary,
     rows = {
         { label = "Edit Commands", buttonText = "Edit...", button = ns.ShowSlashCommandEditor,

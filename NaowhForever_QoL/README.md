@@ -44,7 +44,7 @@ NaowhForever_QoL/
     CursorCooldown.lua  Cooldown at Cursor
     GcdTracker.lua      GCD Tracker (ns.GCDSpell)
     FocusCastBar.lua    the Focus Cast Bar
-    StealthReminder.lua the stealth, stance, aura and form reminders
+    StealthReminder.lua the Stealth Reminder
     PetTracker.lua      the Pet Tracker
     SummonEmote.lua     the Summon Emote
   Questing/
@@ -101,7 +101,7 @@ NaowhForever_QoL/
   `Shared/` (the copy cards, the town NPCs, the food and potion lists).
   `Tools/regression/test-module-boundaries.lua` checks it.
 - The Top Bar's card sits on QoL > Interface, so the Top Bar depends on QoL: switching QoL off takes
-  it along. Turning a QoL feature on in Tailor my setup turns QoL on.
+  it along; turning the Top Bar on in the onboarding turns QoL on.
 - The Trainer Popup card is declared here, on the Training Planner's page, so it goes when QoL is
   off. The Bag Space and Food & Drink key binding names live in `Core/Commands.lua`, so the key
   bindings read right with QoL off, where the Bag Space key says so.
@@ -489,11 +489,8 @@ NaowhForever_QoL/
 - `SAME_WITHIN` compares numeric CVars loosely, as the game writes some back with float noise.
 
 ### Stealth Reminder
-- Forever does not expose your spec, so a druid or priest picks their form on the settings page.
 - The form IDs are `GetShapeshiftFormID` values, the same ones the Threat Meter reads.
-- The form reminder's code stays, but `On("formReminder")` is always false: it is held back for later review.
 - A reminder is fitted to its text only with a background, so elements anchored to it keep their spot.
-- The form alarm plays as the warning appears, then again every Repeat Every seconds while it stays up.
 
 ### Quiz
 - `CAMPFIRE_SEATED` (1229739) is Forever's "Welcoming Campfire" aura, present only while seated at a campfire (probed 2026-09-24). "Campfire Nearby" (1283391) is an area aura from simply walking past one, so it is not used.

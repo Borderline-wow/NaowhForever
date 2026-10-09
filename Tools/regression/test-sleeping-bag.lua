@@ -133,6 +133,8 @@ local GREY, WHITE, BLUE = { r = 0.5, g = 0.5, b = 0.5 }, { r = 1, g = 1, b = 1 }
 local waypoints = {}
 local Library = env.Library
 Library.Waypoint = function(title) waypoints[#waypoints + 1] = title end
+local zone = 1436
+Library.PlayerZone = function() return zone end
 local addon = {
     DiscoverySettings = S, SleepingBag = data, SleepingBagChain = Bag, Library = Library,
     THEME = { muted = GREY, fg = WHITE, accent = BLUE, accentSoft = BLUE },
@@ -221,7 +223,16 @@ Measure("the tracker redrawn", 1, function() addon.ShowUnlockMode() end)
 Check(panel.entries[1] == first, "its rows' entries kept and refilled")
 
 panel.opts.onClose()
-Check(settings.bagTracker == false and panel.shown == false, "its X switches it off")
+Check(settings.bagTracker == true and panel.shown == false, "its X hides it, the setting left on")
+addon.Apply()
+Check(panel.shown == false, "and it stays hidden in that zone")
+zone = 1413
+addon.Apply()
+Check(panel.shown == true, "in the next zone it is back")
+panel.opts.onClose()
+zone = 1436
+addon.Apply()
+Check(panel.shown == true, "closed again, it is back in the next zone too")
 
 -------------------------------------------------------------------------------
 --  The map pins: redrawn on the quest log update after a step, once, and only while on

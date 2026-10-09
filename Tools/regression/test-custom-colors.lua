@@ -345,14 +345,21 @@ do
     local function Stub() return lsm end
     local ns, handler = Load({ skin = "classic" }, Stub)
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.AddonFontPath() == "arial" and ns.HeadingFontPath() == "friz"
+    Check(ns.AddonFontPath() == "friz" and ns.HeadingFontPath() == "friz" and ns.DataFontPath() == "arial"
         and ns.TitleFontPath():find("Naowh.ttf", 1, true),
-        "Classic+: Arial Narrow text, Friz Quadrata headings, the Naowh face on the title plate")
+        "Classic+: Friz Quadrata text and headings, Arial Narrow numbers, the Naowh face on the title plate")
+    Check(ns.AddonFontPath(false) == "naowh" and ns.HeadingFontPath(false) == "naowh",
+        "asked for Naowh's fonts on Classic+ (the onboarding's preview): Naowh")
     ns.AccountSettings().uiFont = "Expressway"
-    Check(ns.AddonFontPath() == "expressway" and ns.HeadingFontPath() == "expressway", "a picked Addon Font is used for both")
+    Check(ns.AddonFontPath() == "expressway" and ns.HeadingFontPath() == "expressway" and ns.DataFontPath() == "expressway",
+        "a picked Addon Font is used for all of it")
     ns, handler = Load({}, Stub)
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.AddonFontPath() == "naowh" and ns.HeadingFontPath() == "naowh", "the default skin keeps Naowh for both")
+    Check(ns.AddonFontPath() == "naowh" and ns.HeadingFontPath() == "naowh" and ns.DataFontPath() == "naowh",
+        "the default skin keeps Naowh for all of it")
+    Check(ns.AddonFontPath(true) == "friz" and ns.HeadingFontPath(true) == "friz",
+        "asked for Classic+'s fonts on the default skin (the onboarding's preview): the game's")
+    Check(ns.AddonFontPath(false) == "naowh" and ns.HeadingFontPath(false) == "naowh", "and Naowh's: Naowh")
 end
 
 print("PASS custom colors: " .. cases .. " checks")

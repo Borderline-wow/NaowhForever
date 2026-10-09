@@ -117,8 +117,10 @@ local function Fixture(saved)
                 local mover = Frame(frame)
                 mover.shown = false
                 state.movers[label] = { frame = frame, page = page, feature = feature }
+                mover.label = label
                 return mover
             end,
+            SetMoverChoices = function(mover, choices) state.movers[mover.label].choices = choices end,
             ModuleSettings = function(_, given)
                 for key, value in pairs(given) do defaults[key] = value end
                 return S
@@ -335,6 +337,13 @@ do
     check("Alerts group: HUD Editor > Settings opens Durability", mover.page == "QoL/Loot & Items"
         and mover.feature == "QoL/Loot & Items:durability"
         and s.ns.Shared.Settings.pages["QoL/Loot & Items"].cards.durability ~= nil)
+    local listed = {}
+    for _, choice in ipairs(mover.choices) do
+        local page, id = choice.feature:match("^(.+):([^:]+)$")
+        listed[#listed + 1] = choice.page == page and s.ns.Shared.Settings.pages[page].cards[id] ~= nil and choice.name
+    end
+    check("its Settings lists each loaded alert, each opening a card that exists",
+        table.concat(listed, ",") == "Talent Points,Durability,Restock Reminder,Pet Tracker")
 end
 
 print(checks .. " text alert look checks passed")

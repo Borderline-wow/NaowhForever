@@ -12,6 +12,8 @@ local SACRIFICE_BUFFS = { 18789, 18790, 18791, 18792 }
 local ICON_CROP_LOW, ICON_CROP_HIGH = ns.QoLConstants.ICON_CROP_TIGHT, ns.QoLConstants.ICON_CROP_TIGHT_HIGH
 local FONT_SIZE = 20
 local STACK_ORDER = 5
+local PAGE = "QoL/Combat"
+local TEXT_ALERT = "Pet Tracker"
 local ICON_GROW, HEIGHT_ROOM = 12, 16
 local PERCENT = ns.QoLConstants.PERCENT
 local STEP_EDGE = 0.001
@@ -43,7 +45,7 @@ local function Build()
     frame.text = ns.Font(frame, FONT_SIZE, "OUTLINE")
     frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
     frame:Hide()
-    ns.AlertStack(frame, STACK_ORDER)
+    ns.AlertStack(frame, STACK_ORDER, TEXT_ALERT, PAGE, PAGE .. ":petTracker")
 end
 
 local function Restyle()
@@ -224,7 +226,7 @@ local function Summary(store)
     return parts
 end
 
-ns.Shared.Settings.Page("QoL/Combat", S):Card({
+ns.Shared.Settings.Page(PAGE, S):Card({
     id = "petTracker", name = "Pet Tracker", order = 100, switch = "petTracker",
     help = "A warning while a hunter or warlock has no pet out. A warlock who sacrificed their "
         .. "demon is left alone. Move it in the HUD Editor.",

@@ -79,7 +79,7 @@ character or share them with a friend.
 | `/nfthreat` | Threat Meter |
 | `/nfgroup` | Group Inspect (also `/nf group`) |
 | `/nfpvp` | PvP |
-| `/nf setup` | The onboarding, to tailor your setup again |
+| `/nf setup` | The onboarding, to pick your profile, skin and modules again |
 | `/nf quiz` | A WoW quiz for flights and campfires |
 | `/nfaim` | The Aim Trainer |
 | `/nf scrap` | Your Scrap List (Scrap Marker, QoL > Loot & Items) |

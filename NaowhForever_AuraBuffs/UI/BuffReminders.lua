@@ -15,9 +15,8 @@ local HOME_Y = 220
 local CARD = A.PAGE .. ":buffs"
 local TEXT_MOVER = "Buff Reminders"
 local KEYS = {
-    consumableEntries = true, enabled = true, food = true, elixirs = true, flasks = true, consumablesWhere = true,
-    consumablesMinutes = true, onlyIfCarried = true, hideResting = true, scrolls = true,
-    scrollsSkipActive = true, raidBuffs = true, raidBuffsOwn = true, raidBuffPicks = true, iconSize = true,
+    consumableEntries = true, enabled = true, consumablesWhere = true, consumablesMinutes = true,
+    onlyIfCarried = true, hideResting = true, raidBuffs = true, raidBuffsOwn = true, raidBuffPicks = true, iconSize = true,
     buffsFont = true, buffsFontSize = true, buffsOutline = true,
 }
 local PREVIEW = {
@@ -162,6 +161,7 @@ local function Listen()
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("PLAYER_UPDATE_RESTING")
+    events:RegisterEvent("SPELLS_CHANGED")
     events:RegisterEvent("BAG_UPDATE_DELAYED")
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("ITEM_DATA_LOAD_RESULT")

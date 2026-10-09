@@ -6,10 +6,8 @@ local F = ns.FEATURES.auraBuffs
 local S = ns.UI.ModuleSettings("auraBuffs", {
     enabled = F.enabled, consumableEntries = {},
     campBuffTextSize = 16, campBuffSide = "right", campShowMissing = true,
-    food = true, elixirs = true, flasks = true,
     consumablesWhere = "instance", consumablesMinutes = 2,
     onlyIfCarried = true, hideResting = true,
-    scrolls = true, scrollsSkipActive = false,
     raidBuffs = F.raidBuffs, raidBuffsOwn = true,
     raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
     iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",

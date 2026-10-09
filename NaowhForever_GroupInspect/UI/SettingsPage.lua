@@ -155,6 +155,7 @@ page:Card({
 page:Card({
     id = "window", name = "Window", order = 40,
     help = "Group Inspect's own window.",
+    search = "right-click right click party raid menu",
     summary = WindowSummary,
     rows = {
         { key = "groupInspectAlpha", label = "Window Opacity", slider = OPACITY_RANGE, unit = "%",

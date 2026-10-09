@@ -15,6 +15,7 @@ local ns
 ns = { THEME = { bg = {}, panel = {}, line = {}, fg = {}, muted = {}, accent = {}, grey = {} },
     L = function(text) return ns.translations and ns.translations[text] or text end,
     Color = function(token, text) return "<" .. token .. ":" .. (text or "") .. ">" end, Shared = { Style = dofile("Tools/regression/shared_style.lua") }, UI = { PROFILES_PAGE = "Profiles" } }
+ns.Options = { DisplayName = function(mod) return ns.L(mod.display or mod.name) end }
 local env = { _G = { NaowhForever = ns }, CreateFrame = function() frames = frames + 1; return {} end }
 setmetatable(env, { __index = _G })
 local function Load(path)
@@ -41,20 +42,28 @@ bars:Card({ id = "alert", name = "Parry Alert", help = "Flashes when you parry."
 Settings.Page("Meter/Other", store):Card({ id = "misc", name = "Odds and Ends", rows = {
     { key = "naowh", label = "Naowh's Tips", toggle = true },
 } })
+Settings.Page("Meter/Other", store):Window({ text = "Open Swing Log", open = function() end, headline = "Swing History",
+    detail = function() return "Changes as you play" end })
+Settings.Page("Meter/Other", store):Info({ id = "notes", name = "Release Notes", lines = { { text = "Fixed a bug" } } })
+Settings.Page("QoL/Bags", store):Card({ id = "bags", name = "Bag Space", rows = {
+    { key = "free", label = "Free Slots", toggle = true },
+} })
 
 Settings.Page("Solo/Settings", store):Card({ id = "solo", name = "Solo Card", rows = {
     { key = "solo", label = "Solo Toggle", toggle = true },
 } })
 
-local meter, solo = { name = "Meter" }, { name = "Solo" }
+local meter, solo, qol = { name = "Meter" }, { name = "Solo" }, { name = "QoL", display = "Quality of Life" }
 local pages = {
     { key = "Settings", name = "Settings", title = "Settings" },
     { key = "Meter/Bars", name = "Bars", module = meter },
     { key = "Meter/Other", name = "Other", module = meter },
     { key = "Solo/Settings", name = "Settings", module = solo },
+    { key = "QoL/Bags", name = "Bags", module = qol },
 }
 meter.tabs = { pages[2], pages[3] }
 solo.tabs = { pages[4] }
+qol.tabs = { pages[5] }
 ---@diagnostic disable-next-line: duplicate-set-field
 function UI.SearchPages() return pages end
 
@@ -92,7 +101,17 @@ Check(Names("look") == "Bar Size|Timer Sound", "and its group")
 Check(Names("parry") == "Timer Sound|Parry Alert|Alert Sound|Alert Colour",
     "a card's name finds the card and the settings in it")
 Check(Names("meter") == "[Bars]|[Other]", "a module's name finds its pages")
-Check(Names("bars timer") == "", "page and setting words do not mix")
+Check(Names("bars ping") == "Timer Sound" and Names("meter naowh") == "Naowh's Tips",
+    "a module or tab name narrows the settings under it")
+Check(Names("bars") == "[Bars]" and Names("solo bars") == "", "but finds no setting on its own, nor one elsewhere")
+Check(Names("quality") == "[]" and Names("qol") == "[]" and UI.Search.Find(list, "quality")[1].page == "QoL/Bags"
+    and Names("quality free") == "Free Slots",
+    "a module is found by the name the sidebar shows, and by its short name")
+Check(UI.Search.Find(list, "free")[1].tag == "Quality of Life", "and its settings are placed under that name")
+
+-- A window card is found by its button and its fixed text, but not by text that changes; info cards are not searched.
+Check(Names("swing history") == "Open Swing Log" and Names("open swing") == "Open Swing Log", "a window card is found")
+Check(Names("changes") == "" and Names("release") == "" and Names("fixed") == "", "but not its live text, nor an info card")
 Check(Names("naowh's") == "Naowh's Tips" and Names("naowh") == "Naowh's Tips", "punctuation splits words")
 Check(Names("zzz") == "" and Names("   ") == "", "nothing typed or nothing found, no matches")
 
@@ -130,6 +149,34 @@ do
     Check(Build(list, "solo").all["Solo/Settings"], "its module's name still does")
     f = Build(list, "zzz")
     Check(f and #f.order == 0 and next(f.count) == nil, "nothing found is a filter with no pages")
+    f = Build(list, "swing log")
+    Check(f.cards["Meter/Other:Open Swing Log"] == true and f.count["Meter/Other"] == 1 and not f.all["Meter/Other"],
+        "a window card found shows on its page, counted there")
+end
+
+-- A page its own builder draws names what is on it (page.terms): each is counted and keeps the
+-- page whole, and a module found turned off is handed to the page.
+do
+    local off = { name = "Planner" }
+    ns.TestTerms = function(add)
+        add("Window Scale", "How big this window is.", "OPTIONS WINDOW")
+        add("Planner", nil, "MODULES", off)
+    end
+    local shown = UI.SearchPages
+    local settings = { key = "Settings", name = "Settings", title = "Settings", terms = "TestTerms" }
+    ---@diagnostic disable-next-line: duplicate-set-field
+    UI.SearchPages = function() return { settings, pages[2] } end
+    local termed = UI.Search.Collect()
+    local f = UI.Search.Build(termed, "scale")
+    Check(f.count.Settings == 1 and f.all.Settings and #f.off == 0, "a page's own term is found and counted, the page whole")
+    f = UI.Search.Build(termed, "big window")
+    Check(f.count.Settings == 1, "by its help too")
+    Check(UI.Search.Build(termed, "settings window").count.Settings == 1, "and the page's name narrows it")
+    f = UI.Search.Build(termed, "planner")
+    Check(f.off[1] == off and f.count.Settings == 1, "a module that is off is handed to the page that turns it on")
+    Check(#UI.Search.Build(termed, "settings").off == 0 and UI.Search.Build(termed, "settings").count.Settings == 0,
+        "the page's name alone finds the page, not each thing on it")
+    UI.SearchPages, ns.TestTerms = shown, nil
 end
 
 -- The Profiles page is drawn by its own builder and carries the Setups card, a declared settings
@@ -140,7 +187,7 @@ do
     ns.PRESETS = { order = { "minimalist" }, minimalist = { name = "Minimalist" } }
     Load("Core/Options/ProfilesPage.lua")
     Load("Core/Profiles/SetupsCard.lua")
-    local profiles = { key = "Profiles", name = "Profiles", title = "Profiles" }
+    local profiles = { key = "Profiles", name = "Profiles", title = "Profiles", terms = "ProfilesSearchTerms" }
     local shown = UI.SearchPages
     ---@diagnostic disable-next-line: duplicate-set-field
     UI.SearchPages = function() return { pages[1], profiles, pages[2] } end
@@ -149,19 +196,25 @@ do
         local hits = UI.Search.Find(carried, query)
         return hits[1], #hits
     end
-    for _, query in ipairs({ "setups", "setup", "tailor setup", "before tailoring", "restore" }) do
+    for _, query in ipairs({ "setups", "setup", "onboarding", "before onboarding", "restore" }) do
         local hit = Hit(query)
         Check(hit and hit.page == "Profiles" and hit.card == "Profiles/Setups:setups" and hit.tag == "Profiles",
             "'" .. query .. "' is found on the Profiles page, in the Setups card")
     end
     local card, n = Hit("setups")
     Check(card.isCard and card.trail == "" and n == 4, "the card itself is a target, named by its page, then its three settings")
-    local row = Hit("questions")
-    Check(row.label == "Tailor Setup" and not row.isCard and row.trail == "Setups", "a row names its card")
-    local f = UI.Search.Build(carried, "questions")
+    local row = Hit("skin")
+    Check(row.label == "Onboarding" and not row.isCard and row.trail == "Setups", "a row names its card")
+    local f = UI.Search.Build(carried, "skin")
     Check(f.count.Profiles == 1 and f.first.Profiles == "Profiles/Setups:setups" and f.order[1] == "Profiles"
-        and f.cards["Profiles/Setups:setups"]["Tailor Setup"], "the filter counts it on the Profiles page")
+        and f.cards["Profiles/Setups:setups"]["Onboarding"], "the filter counts it on the Profiles page")
     Check(UI.Search.Build(carried, "profiles").all.Profiles, "the page's own name still keeps all of it")
+    for _, query in ipairs({ "new profile", "copy", "reset", "delete", "use", "export", "share", "import", "paste" }) do
+        local hit = Hit(query)
+        Check(hit and hit.page == "Profiles" and not hit.card, "'" .. query .. "' finds a Profiles page action")
+    end
+    f = UI.Search.Build(carried, "export")
+    Check(f.all.Profiles and f.count.Profiles == 1, "an action found keeps the whole page, counted")
 
     local rendered, built = {}, 0
     local render, view = Settings.Render, ns.Shared.View
@@ -177,7 +230,7 @@ do
             SetHeight = function() end }
     end
     env.CreateFrame = Frame
-    UI.filter = UI.Search.Build(carried, "questions")
+    UI.filter = UI.Search.Build(carried, "skin")
     local y = ns.BuildProfileSettings(host, -10)
     Check(rendered[1].key == "Profiles/Setups" and rendered[1].filter == UI.filter,
         "found, the Setups card draws with the search's filter")
@@ -203,9 +256,9 @@ do
     UI.AttachSearchBox({}, function() end)
     input("bar size")
     Check(refreshed == 0, "a search that does not touch the Profiles page redraws nothing more")
-    input("tailor")
+    input("onboard")
     Check(refreshed == 1, "one that finds the Setups card redraws the Profiles page with it")
-    input("tailor setup")
+    input("onboarding")
     Check(refreshed == 2, "and again as the words change")
     input("")
     Check(refreshed == 3 and UI.filter == nil, "cleared, the Profiles page is drawn whole again")

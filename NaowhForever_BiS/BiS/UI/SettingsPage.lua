@@ -11,7 +11,7 @@ if not Settings then return end
 
 local PLACE_DOT = St.PLACE_DOT
 local PERCENT, ROUND = B.C.PERCENT, B.C.ROUND
-local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_WINDOW = 10, 20, 30, 80
+local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_KEYS, ORDER_WINDOW = 10, 20, 30, 50, 80
 local SCALE_RANGE = { 60, 160, 5 }
 local TIME_RANGE = { 2, 15, 1 }
 local ALPHA_RANGE = St.ALPHA_RANGE
@@ -125,12 +125,13 @@ page:Window({
 })
 
 page:Card({
-    id = "marks", name = "BiS List", order = ORDER_MARKS,
+    id = "marks", name = "Marks on Items", order = ORDER_MARKS,
     help = "Your list's marks on items out in the game.",
     summary = MarksSummary,
     rows = {
         { key = "bisTooltip", label = "Show on Tooltips", toggle = true, needs = "bis", why = BIS_OFF,
-          help = "Your list's rank on the items in it." },
+          help = "Your list's rank on the items in it.",
+          search = "alt shift click alt+shift-click add remove item link" },
         { key = "bisBagMarks", label = "Bag Marks", toggle = true, needs = "bis", why = BIS_OFF,
           help = "Your BiS List's slot marks on the items in your bags: item level, your BiS's star, Forever's "
               .. "mark and the green arrow on an upgrade. In the game's bags or EllesmereUI's." },
@@ -191,13 +192,21 @@ page:Card({
     id = "lists", name = "Lists", order = ORDER_LISTS,
     help = "Lists are shared by every character of your class; each character keeps using the one picked "
         .. "here. New, Rename, Import, Export and Delete are in the BiS List's window.",
+    search = "list button title bar alt shift click alt+shift-click add remove item link",
     summary = ListsSummary,
     rows = {
         { label = "Your List", choice = ns.BisListChoices, get = ListGet, set = ns.SelectBisList,
           help = "The list this character uses." },
         { label = "Rankings For", choice = SpecChoices, get = SpecGet, set = ns.SetBisSpec,
           help = "Whose ranking the picker shows. Each spec keeps its own picks on a list." },
-        { label = "Key Binding", binding = "NAOWHFOREVER_BIS",
+    },
+})
+
+page:Card({
+    id = "keys", name = "Key Binding", order = ORDER_KEYS,
+    help = "The key that opens the BiS List.",
+    rows = {
+        { label = "Open BiS List", binding = "NAOWHFOREVER_BIS",
           help = "Press this key to open the BiS List, and again to close it." },
     },
 })

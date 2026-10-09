@@ -243,7 +243,11 @@ function Draw:Redraw()
                 else
                     self:Card(item)
                 end
-            elseif not item.window and f.cards[item.uid] then
+            elseif item.window and f.cards[item.uid] then
+                self:Add("window", item)
+                self:Space(CARD_GAP)
+                drawn = true
+            elseif f.cards[item.uid] then
                 self:Card(item, f.cards[item.uid])
                 drawn = true
             end

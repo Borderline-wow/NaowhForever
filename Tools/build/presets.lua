@@ -9,8 +9,11 @@
 -- and rebuilt from the repo root with Libs/:
 --   lua5.1 Tools/build/presets.lua minimalist Tools/data/preset_minimalist.lua Naowh
 --   lua5.1 Tools/build/presets.lua recommended Tools/data/preset_recommended.lua Naowh
+-- INFO's modules, when a preset has them, are the module addons it turns on: applying it switches every
+-- other module off (Core/Onboarding/Setup.lua, Setup.PresetSwitches). Without them its switches decide.
 local INFO = {
-    minimalist = { order = 1, name = "Minimalist", about = "Almost everything off, to turn on what you want." },
+    minimalist = { order = 1, name = "Minimalist", about = "Almost everything off, to turn on what you want.",
+        modules = { "NaowhForever_QoL", "NaowhForever_BiS", "NaowhForever_DungeonJournal" } },
     recommended = { order = 2, name = "Recommended", about = "Naowh's recommended setup, with the modules he uses on." },
 }
 local NEW_INSTALL = "minimalist"
@@ -150,6 +153,11 @@ for _, key in ipairs(keys) do
     lines[#lines + 1] = "        name = " .. Value(INFO[key].name) .. ","
     lines[#lines + 1] = "        about = " .. Value(INFO[key].about) .. ","
     lines[#lines + 1] = "        source = " .. Value(presets[key].source) .. ","
+    if INFO[key].modules then
+        local names = {}
+        for i, addon in ipairs(INFO[key].modules) do names[i] = Value(addon) end
+        lines[#lines + 1] = "        modules = { " .. table.concat(names, ", ") .. " },"
+    end
     lines[#lines + 1] = "        profile = {"
     Emit(presets[key].profile, "            ")
     lines[#lines + 1] = "        },"

@@ -2,6 +2,7 @@
 local ns = _G.NaowhForever
 
 local Score = ns.NaowhScore
+local S = ns.QoLSettings
 
 local PREFIX = "NaowhScore"
 local SEND_DELAY = 1
@@ -36,6 +37,10 @@ local function GroupChannel()
     if IsInGroup() then return "PARTY" end
 end
 
+local function Sharing()
+    return S.Get("enabled") == true and S.Get("naowhScore") == true and S.Get("naowhScoreShare") == true
+end
+
 local function Tenths()
     local score, complete = Score.Unit("player")
     if not complete then return nil end
@@ -53,6 +58,7 @@ local function SendAll(message)
 end
 
 local function Send(channel, force)
+    if not Sharing() then return end
     if InCombatLockdown() then
         held = true
         return
@@ -93,7 +99,7 @@ local function Answer(channel)
 end
 
 local function AnswerSoon(channel)
-    if answerQueued[channel] then return end
+    if answerQueued[channel] or not Sharing() then return end
     if channel == GUILD then
         if GetTime() - lastGuildAnswer < GUILD_ANSWER_GAP then return end
         lastGuildAnswer = GetTime()
@@ -162,6 +168,13 @@ local function OnEvent(_, event, prefix, message, channel, sender)
     end
 end
 
+local function OnSetting(key)
+    if key ~= "enabled" and key ~= "naowhScore" and key ~= "naowhScoreShare" then return end
+    lastSent = nil
+    if own then SendSoon() end
+end
+
 events:SetScript("OnEvent", OnEvent)
+S.OnChange(OnSetting)
 C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
 for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end

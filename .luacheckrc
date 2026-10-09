@@ -16,6 +16,8 @@ globals = {
     "NaowhForever", "NaowhForever_API", "NaowhForeverDB",
     "NaowhForever_OnCompartmentClick", "NaowhForever_BagSpacePickUp", "NaowhForever_BossLoot", "NaowhForever_ToggleJournal", "NaowhForever_ToggleBis", "NaowhForever_ToggleCompleto",
     "NaowhForever_ToggleGroupInspect", "BINDING_NAME_NAOWHFOREVER_GROUPINSPECT",
+    "NaowhForever_OnCompartmentEnter", "NaowhForever_OnCompartmentLeave", "NaowhForever_ToggleHudEditor",
+    "BINDING_NAME_NAOWHFOREVER_HUD",
     "SLASH_NAOWHFOREVER1", "SLASH_NAOWHFOREVER2", "SLASH_NAOWHFOREVER3",
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHFOREVERAIM1",
     "BINDING_HEADER_NAOWHFOREVER", "BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP",

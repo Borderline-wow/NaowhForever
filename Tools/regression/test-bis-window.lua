@@ -805,11 +805,13 @@ for _, item in ipairs(page.items) do
 end
 check("one page: the window's card, then its cards in order", page.items[1].window
     and page.items[1].text == "Open BiS List" and table.concat(cards, ",")
-    == "marks,dropAlert,lists,statWeights,window")
+    == "marks,dropAlert,lists,statWeights,keys,window")
+check("the tooltip and bag marks card is named for them", page.cards.marks.name == "Marks on Items")
 check("Drop Alert: its switch and its preview", page.cards.dropAlert.switch == "bisLootAlert"
     and page.cards.dropAlert.studio == studio)
 check("no list management on it: that is the window's", rows["Manage Lists"] == nil and rows["Your List"]
-    and rows["Rankings For"] and rows["Key Binding"].binding == "NAOWHFOREVER_BIS")
+    and rows["Rankings For"] and rows["Key Binding"] == nil and page.cards.keys.rows[1].label == "Open BiS List"
+    and page.cards.keys.rows[1].binding == "NAOWHFOREVER_BIS")
 check("how it looks needs On-Screen Alert", rows["Size"].needs[2] == "bisToast" and rows["Star"].needs[2] == "bisToast")
 check("a size in percent is saved as a scale", rows["Size"].get() == 100)
 rows["Size"].set(120)

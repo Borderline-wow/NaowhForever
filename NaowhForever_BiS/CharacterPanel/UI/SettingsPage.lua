@@ -18,6 +18,7 @@ local TEXT_SCORE = "With your Naowh Score"
 local TEXT_PLAIN = "The slots and stats only"
 local TEXT_ON_PANEL = "On the Naowh Character Panel"
 local TEXT_MARKS = "%d of %d marks"
+local STATS_SHOWN = { { spec = "Your Spec", all = "All Stats" }, { "spec", "all" } }
 
 local function MarksOn()
     return S.Get("characterPanel") or S.Get("characterPanelSlotMarks")
@@ -48,6 +49,8 @@ local panelRows = {
     { key = "characterPanelScore", label = "Naowh Score", toggle = true,
       help = "Your Naowh Score, big under your level: hover it for your score with your BiS and the best "
           .. "in the game, click it for the BiS List." },
+    { key = "characterPanelStats", label = "Stats Shown", choice = STATS_SHOWN,
+      help = "Your spec's stats with what each is worth, or all of the game's stats." },
 }
 if ns.FEATURE_BADGES == BADGES_LIVE then
     table.insert(panelRows, 1, { key = "characterPanelBadge", label = "Supporter Badge", toggle = true,

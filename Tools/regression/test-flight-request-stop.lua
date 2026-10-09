@@ -46,7 +46,7 @@ local function fixture(settings, extra)
         Button = function(_, text)
             local b = frame()
             b.name, b.label = text, frame()
-            b._bg, b._border, b._rim = frame(), { _frame = frame() }, false
+            b._bg, b._border, b._art = frame(), { _frame = frame() }, false
             return b
         end,
         AccentBorder = function(f) return f end, PixelInset = function() end,
@@ -266,6 +266,8 @@ do
     check('Flight Games defaults to the Aim Trainer', qol:find('flightGame = "aim"', 1, true) ~= nil)
     check('the old flight toggles are gone', not qol:find('quizFlight', 1, true) and not qol:find('aimAutoFlight', 1, true)
         and not quiz:find('quizFlight', 1, true))
+    check('the quiz card puts its position back to the default', quiz:find('label = "Quiz Position", buttonText = "Reset"', 1, true)
+        and quiz:find('S.Set("quizPos", nil)', 1, true))
 end
 do -- the look: today's card by default, then Font, Outline, Bar Texture and Background Opacity
     local s = fixture({ flightEarlyLanding = true })

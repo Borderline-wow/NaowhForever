@@ -110,7 +110,8 @@ UI/SettingsPage.lua  its card on BiS List > Character
 - The tooltip hook goes in a frame after Apply, once every module's Apply has run: tooltip post-calls
   run in the order they were added, so the badge line (Badges) comes first and the score under it,
   as one Naowh block. The label is in Naowh's blue without the logo, which stays with the badge line.
-- Sharing: a score is sent in tenths, `S <GUID> <tenths> <level>`; a gear swap's burst sends once,
+- Sharing: only while the Naowh Score and Share My Score are on; others' scores are kept either way.
+  A score is sent in tenths, `S <GUID> <tenths> <level>`; a gear swap's burst sends once,
   `SEND_DELAY` after it; a request (`R`) goes to your group when you join it and to your guild once a
   session; each answer waits up to `ANSWER_SPREAD` tenths of a second at random so a raid's or a
   guild's do not all come at once, and the guild is answered at most every `GUILD_ANSWER_GAP` seconds.
@@ -122,7 +123,8 @@ UI/SettingsPage.lua  its card on BiS List > Character
 - `lua Tools/regression/test-naowh-score.lua`: the formula on known sets; the tooltips (off
   until turned on, one request at a time, kept, never in combat or while the game's Inspect
   window holds the inspect); the group scan (one at a time, skipping who shares, stopping
-  when all are known); sharing (always on, once per swap, held in combat, answered once); and
+  when all are known); sharing (only with Share My Score and the score on, once per swap, held in
+  combat, answered once); and
   each hot path's time and garbage.
 - `python -m unittest Tools/tests/test_fit_naowh_score.py`: the fit on a made-up item table
   whose answer is known, its gates, the change gate and the Lua it writes.

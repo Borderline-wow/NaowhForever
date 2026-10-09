@@ -1,4 +1,4 @@
--- StealthReminder.lua: the QoL stealth, stance, aura and form reminders.
+-- StealthReminder.lua: the QoL stealth reminder.
 local ns = _G.NaowhForever
 
 local S = ns.QoLSettings
@@ -8,37 +8,25 @@ local Parts, St = ns.Shared.Parts, ns.Shared.Style
 local WIDTH = 300
 local FONT_SIZE = 22
 local HEIGHT_ROOM = 12
-local STEALTH_Y, FORM_Y = 150, 110
+local STEALTH_Y = 150
 local TEXT_RANGE = { 10, 60, 1 }
 local PAGE = "QoL/Combat"
 local CARD = "QoL/Combat:stealthReminder"
 
-local CAT, TRAVEL, AQUATIC, BEAR, DIRE_BEAR, FLIGHT, SHADOWFORM, SWIFT_FLIGHT, MOONKIN =
-    1, 3, 4, 5, 8, 27, 28, 29, 31
-local DRUID_FORMS = {
-    cat = { [CAT] = true },
-    bear = { [BEAR] = true, [DIRE_BEAR] = true },
-    moonkin = { [MOONKIN] = true },
-}
+local CAT, TRAVEL, AQUATIC, FLIGHT, SWIFT_FLIGHT = 1, 3, 4, 27, 29
 local TRAVEL_FORMS = { [TRAVEL] = true, [AQUATIC] = true, [FLIGHT] = true, [SWIFT_FLIGHT] = true }
-local FORM_TEXT = { WARRIOR = "CHECK STANCE", PALADIN = "CHECK AURA", DRUID = "CHECK FORM",
-    PRIEST = "SHADOWFORM" }
 local EVENTS = { "UPDATE_STEALTH", "UPDATE_SHAPESHIFT_FORM", "UPDATE_SHAPESHIFT_FORMS", "PLAYER_REGEN_DISABLED",
     "PLAYER_REGEN_ENABLED", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_UPDATE_RESTING", "GROUP_ROSTER_UPDATE",
     "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST", "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED",
     "PLAYER_ENTERING_WORLD" }
 local DRUID_STEALTH = { { cat = "In Cat Form", always = "In Any Form" }, { "cat", "always" } }
 
-local TEXT_FORM = "CHECK STANCE"
 local TEXT_STEALTH_MOVER = "Stealth Reminder"
-local TEXT_FORM_MOVER = "Form Reminder"
 
-local stealthFrame, formFrame, unlocked, inCombat, class
-local alarm, alarmTicker
+local stealthFrame, unlocked, inCombat, class
 local events = CreateFrame("Frame")
 
 local function On(key)
-    if key == "formReminder" then return false end
     return S.Get("enabled") and S.Get(key)
 end
 
@@ -97,44 +85,9 @@ local function StealthState()
     return IsStealthed() and "stealthed" or "missing"
 end
 
-local function FormMissing()
-    if S.Get("formCombatOnly") and not inCombat then return false end
-    if S.Get("formInstanceOnly") then
-        local _, kind = IsInInstance()
-        if kind ~= "party" and kind ~= "raid" then return false end
-    end
-    local form = GetShapeshiftFormID()
-    if class == "WARRIOR" or class == "PALADIN" then
-        return GetNumShapeshiftForms() > 0 and GetShapeshiftForm() == 0
-    elseif class == "DRUID" then
-        local want = DRUID_FORMS[S.Get("formDruid")]
-        return want ~= nil and not TRAVEL_FORMS[form] and not want[form]
-    elseif class == "PRIEST" then
-        return S.Get("formShadowform") and GetNumShapeshiftForms() > 0 and form ~= SHADOWFORM
-    end
-    return false
-end
-
-local function PlayAlarm()
-    UI._PlayLSMSound(UI.SoundPathFor(S.Get("formSoundKey")))
-end
-
-local function SetAlarm(on)
-    on = on and true or false
-    if on == alarm then return end
-    alarm = on
-    if alarmTicker then
-        alarmTicker:Cancel()
-        alarmTicker = nil
-    end
-    if not on then return end
-    PlayAlarm()
-    local every = S.Get("formSoundInterval")
-    if every > 0 then alarmTicker = C_Timer.NewTicker(every, PlayAlarm) end
-end
-
-local function UpdateStealth(suppressed)
-    local state = On("stealthReminder") and (unlocked and "missing" or not suppressed and StealthState())
+local function Update()
+    if not stealthFrame then return end
+    local state = On("stealthReminder") and (unlocked and "missing" or not Suppressed() and StealthState())
     if state == "stealthed" and not S.Get("stealthShowStealthed") then state = nil end
     if state == "stealthed" then
         Paint(stealthFrame, S.Get("stealthText"), Color("stealthColor", "stealthClassColor"))
@@ -143,24 +96,6 @@ local function UpdateStealth(suppressed)
     else
         stealthFrame:Hide()
     end
-end
-
-local function UpdateForm(suppressed)
-    local warn = formFrame and On("formReminder") and (unlocked or not suppressed and FormMissing())
-    if warn then
-        local text = S.Get("formText")
-        Paint(formFrame, text ~= "" and text or FORM_TEXT[class] or TEXT_FORM, Color("formColor", "formClassColor"))
-    elseif formFrame then
-        formFrame:Hide()
-    end
-    return warn
-end
-
-local function Update()
-    local suppressed = Suppressed()
-    if stealthFrame then UpdateStealth(suppressed) end
-    local warn = UpdateForm(suppressed)
-    SetAlarm(warn and not unlocked and S.Get("formSound"))
 end
 
 local function OnEvent(_, event)
@@ -174,18 +109,13 @@ end
 
 local function Apply()
     events:UnregisterAllEvents()
-    SetAlarm(false)
     class = select(2, UnitClass("player"))
-    local stealthOn, formOn = On("stealthReminder"), On("formReminder")
-    if stealthOn and not stealthFrame then
+    local on = On("stealthReminder")
+    if on and not stealthFrame then
         stealthFrame = Build(TEXT_STEALTH_MOVER, "stealthPos", STEALTH_Y)
     end
-    if formOn and not formFrame then
-        formFrame = Build(TEXT_FORM_MOVER, "formPos", FORM_Y)
-    end
     if stealthFrame then Restyle(stealthFrame, "stealth") end
-    if formFrame then Restyle(formFrame, "form") end
-    if stealthOn or formOn then
+    if on then
         inCombat = UnitAffectingCombat("player")
         for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
     end
@@ -195,9 +125,8 @@ end
 events:SetScript("OnEvent", OnEvent)
 
 hooksecurefunc(S, "Set", function(key)
-    if key == "stealthPos" or key == "formPos" then return end
-    if key == "enabled" or key:find("^stealth") or key:find("^warning") or key:find("^form")
-        or key:find("^reminder") then
+    if key == "stealthPos" then return end
+    if key == "enabled" or key:find("^stealth") or key:find("^warning") or key:find("^reminder") then
         Apply()
     end
 end)

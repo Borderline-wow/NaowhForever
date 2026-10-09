@@ -20,9 +20,11 @@ local UNLOCK_DURATION, UNLOCK_LEFT = 3600, 2400
 local DEFAULT_X, DEFAULT_Y = -260, 120
 local ALERT_ORDER = 1
 local CARD = A.PAGE .. ":campfire"
+local NEARBY_CARD = A.PAGE .. ":campNearby"
 local UNLOCK_TEXT = "+Rested\n+Crit"
 local DISMISS_TIP = "Right-click to dismiss until you leave the campfire."
 local TEXT_MOVER = "Campfire"
+local TEXT_NEARBY = "Camp Nearby"
 local TEXT_TITLE = "Camp Benefits"
 local TEXT_UPCOMING = "You'll get:"
 local TEXT_RESTING = "Resting at a campfire"
@@ -346,7 +348,7 @@ local function BuildAlert()
     alert.click:SetScript("OnEnter", AlertTip)
     alert.click:SetScript("OnLeave", HideTip)
     alert:Hide()
-    ns.AlertStack(alert, ALERT_ORDER)
+    ns.AlertStack(alert, ALERT_ORDER, TEXT_NEARBY, A.PAGE, NEARBY_CARD)
 end
 
 local function LayoutAlert()

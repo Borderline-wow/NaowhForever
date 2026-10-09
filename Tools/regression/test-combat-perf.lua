@@ -232,7 +232,7 @@ do
     auras.player[12] = { spellId = 17626, expirationTime = 1500, duration = 7200 }
     local unitClass = { player = CLASSES[2] }
     for i = 1, RAID do unitClass[RAID_UNITS[i]] = CLASSES[i % 9 + 1] end
-    local values = { enabled = true, raidBuffs = true, raidBuffsOwn = false, scrolls = false,
+    local values = { enabled = true, raidBuffs = true, raidBuffsOwn = false,
         consumablesWhere = "always", consumablesMinutes = 2, onlyIfCarried = true, hideResting = true,
         iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = true },

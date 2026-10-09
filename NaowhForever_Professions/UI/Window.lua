@@ -18,6 +18,7 @@ local SetColor = Widgets.SetColor
 local FRAME_NAME = "NaowhForeverProfessions"
 local LOGO = 26
 local LOGO_X, LOGO_DROP = 10, 5
+local SETTINGS_PAGE = "Professions/Settings"
 local TITLE_GAP = 8
 local CLOSE, CLOSE_RIGHT, CLOSE_DROP = 22, 8, 7
 local RANK_DROP, RANK_H = 40, 18
@@ -184,9 +185,8 @@ local function ClearSearch(self)
 end
 
 local function BuildHeader()
-    local logo = win:CreateTexture(nil, "ARTWORK")
-    logo:SetTexture(Style.LOGO, nil, nil, "TRILINEAR")
-    logo:SetSize(LOGO, LOGO)
+    local logo = ns.Shared.Parts.Logo(win, SETTINGS_PAGE, 0, Style.LOGO, LOGO)
+    logo:ClearAllPoints()
     logo:SetPoint("TOPLEFT", LOGO_X, -LOGO_DROP)
     win.title = ns.Font(win, Style.FONT_TITLE, "OUTLINE", T.accent)
     win.title:SetPoint("LEFT", logo, "RIGHT", TITLE_GAP, 0)

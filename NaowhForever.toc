@@ -2,12 +2,14 @@
 ## Title: |cff0091edNaowh|r Forever
 ## Notes: Naowh's Forever companion: the window every module shares.
 ## Author: Naowh
-## Version: 1.1.1
+## Version: 1.1.4
 ## OptionalDeps: NaowhUI_Media
 ## SavedVariables: NaowhForeverDB
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 ## AddonCompartmentFunc: NaowhForever_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: NaowhForever_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: NaowhForever_OnCompartmentLeave
 
 Libs\embeds.xml
 

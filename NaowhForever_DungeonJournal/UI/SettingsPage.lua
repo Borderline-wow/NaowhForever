@@ -162,6 +162,11 @@ local function OpenJournal()
     ns.OpenJournalWindow()
 end
 
+local function OpenTracker()
+    J.TurnOn()
+    J.QuestTracker.Show(ForYou() or J.Dungeons()[1])
+end
+
 local function OnSettingChanged(key)
     if key == "enabled" then ns.UI:RefreshPage(true) end
 end
@@ -171,8 +176,9 @@ local function OpacityRow(key, help)
         scale = TO_FRACTION, help = help }
 end
 
-local function Toggle(key, label, help)
-    return { key = key, label = label, toggle = true, needs = JournalOn, why = TEXT_JOURNAL_OFF, help = help }
+local function Toggle(key, label, help, search)
+    return { key = key, label = label, toggle = true, needs = JournalOn, why = TEXT_JOURNAL_OFF, help = help,
+        search = search }
 end
 
 local function DeclareJournal()
@@ -187,6 +193,7 @@ local function DeclareJournal()
     page:Card({
         id = "window", name = "Window", order = ORDER_LAST,
         help = "The Journal's own window.",
+        search = "up down arrow keys ctrl+f ctrl f search recent reset kills loot",
         summary = OpacitySummary("windowAlpha"),
         rows = { OpacityRow("windowAlpha", "How solid the Journal's window and its side panels are.") },
     })
@@ -202,6 +209,7 @@ end
 
 local function DeclareTracker()
     local tracker = Settings.Page("Dungeon Journal/Quest Tracker", S)
+    tracker:Window({ text = "Open Quest Tracker", open = OpenTracker, headline = Headline, detail = Detail })
     tracker:Card({
         id = "quests", name = "Quests", order = ORDER_FIRST,
         help = "The quest tracker, and sharing dungeon quests with your group.",
@@ -216,7 +224,8 @@ local function DeclareTracker()
             Toggle("shareRequests", "Quest Share Requests",
                 "Ask your group to share a dungeon quest you don't have, from its group icon."),
             Toggle("acceptShared", "Accept Shared Dungeon Quests",
-                "Accepts dungeon quests your group shares with you straight away."),
+                "Accepts dungeon quests your group shares with you straight away.",
+                "hold skip modifier qol accept quests"),
         },
     })
     tracker:Card({
@@ -239,7 +248,8 @@ local function DeclareMap()
         summary = MapSummary,
         rows = {
             Toggle("mapPanel", "Bosses and Loot in Dungeons",
-                "Shows a dungeon's bosses and loot beside the world map while you are inside."),
+                "Shows a dungeon's bosses and loot beside the world map while you are inside.",
+                "dungeon map on the world map quest log fold"),
             Toggle("mapFactions", "Factions Beside the Map",
                 "Shows the factions earned where you are beside the world map."),
         },
@@ -260,6 +270,7 @@ local function DeclareMap()
     map:Card({
         id = "mapwindow", name = "Window", order = ORDER_LAST,
         help = "The map's window, the Journal beside the world map and Boss Loot at Cursor.",
+        search = "dungeon page map link pin fold map and bosses only",
         summary = OpacitySummary("mapAlpha"),
         rows = { OpacityRow("mapAlpha",
             "How solid the map's window, the Journal beside the map and Boss Loot at Cursor are.") },

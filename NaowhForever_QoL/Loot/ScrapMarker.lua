@@ -619,6 +619,7 @@ end
 Shared.Settings.Page("QoL/Loot & Items", S):Card({
     id = "scrapMarker", name = "Scrap Marker", order = 25, switch = "scrapMarker",
     help = "Alt-click an item in your bags to mark it as scrap, and sell it at the next vendor.",
+    search = "/nf scrap nf scrap list",
     summary = Summary,
     rows = {
         { key = "scrapMarkerVendor", label = "At the Vendor", choice = VENDOR,

@@ -102,7 +102,8 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   declared `under` that row's label: hidden rows, still searched, counted and reset with the
   card, and a search hit on one opens the cog. `icons = { { texture, tip, open, enabled }, ... }`
   adds other icons beside it. A card's `watch = { store, ... }` draws it again when another
-  module's settings change too. The page
+  module's settings change too. A card's or row's `search = "..."` adds words the settings
+  search finds but nothing shows, for clicks and slash commands too small for its help. The page
   in the options window, its search entries, the dot on what you changed and each card's reset
   all come from that one declaration. Settings pages hold settings only: a module's lists and
   editors live in its own window, opened from the page's `page:Window{ ... }` card (first on
@@ -117,7 +118,7 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   on release), and a hover mark: `wash` (a faint fill) or `edge` (an accent line down its middle).
   Nothing runs per frame except while dragging. The Campfire's Simple bar preview uses it.
 - **A window:** `Parts.Window`, `Parts.TitleBar`, `Parts.Opacity`, `Parts.BarButton`,
-  `Parts.FooterBrand`, `Parts.Resizable(window, sizeKey, minW, minH, onSized, onReleased)` (a corner
+  `Parts.Logo` (the title bar's logo alone, opening a settings page), `Parts.FooterBrand`, `Parts.Resizable(window, sizeKey, minW, minH, onSized, onReleased)` (a corner
   grip; the size is kept; `onSized` and `onReleased`, run as the grip is let go, are optional). See
   `NaowhForever_BiS/BiS/UI/Window.lua` for a short one.
 - **A tracker:** `Parts.TrackerPanel(title, opts)` builds a tracker's window once, on first

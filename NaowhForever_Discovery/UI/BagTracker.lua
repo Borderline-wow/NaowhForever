@@ -6,18 +6,19 @@ local Discovery = ns.Discovery
 local C = Discovery.C
 local S = Discovery.Settings
 local Bag = Discovery.Bag
+local L = Discovery.Library
 local Style = Discovery.Style
 local Parts = ns.Shared.Parts
 
 local SETTINGS_PAGE = "Discovery/Sleeping Bag"
 local PLACE = { "RIGHT", "RIGHT", -260, 120 }
-local EVENTS = { "QUEST_ACCEPTED", "QUEST_TURNED_IN", "PLAYER_LEVEL_UP", "PLAYER_ENTERING_WORLD" }
+local EVENTS = { "QUEST_ACCEPTED", "QUEST_TURNED_IN", "PLAYER_LEVEL_UP", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA" }
 local TEXT_TITLE = "SLEEPING BAG"
 local TEXT_NAME = "Sleeping Bag"
 local TEXT_STEPS = "%d / %d  steps"
 local TEXT_STEP = "%d. %s"
 
-local panel, events, refreshQueued
+local panel, events, refreshQueued, dismissedZone
 local entries = {}
 
 local function On()
@@ -42,8 +43,8 @@ local function Mover(frame, onMoved)
 end
 
 local function Close()
-    S.Set("bagTracker", false)
-    ns.UI:RefreshPage(true)
+    dismissedZone = L.PlayerZone()
+    panel:Hide()
 end
 
 local function OpenSteps()
@@ -110,7 +111,9 @@ local function Render()
 end
 
 local function Refresh()
-    local show = On() and Bag.Level() and Bag.Current() ~= nil
+    local zone = L.PlayerZone()
+    if zone and zone ~= dismissedZone then dismissedZone = nil end
+    local show = On() and not dismissedZone and Bag.Level() and Bag.Current() ~= nil
     if not show then
         if panel then panel:Hide() end
         return
@@ -147,6 +150,7 @@ end
 local function OnSet(key, value)
     if key == "bagTrackerScale" and panel then panel:SetScale(value) end
     if key == "bagTrackerAlpha" and panel then panel:Paint() end
+    if key == "bagTracker" then dismissedZone = nil end
     if key == "enabled" or key == "bagTracker" then Apply() end
 end
 

@@ -4,7 +4,7 @@ local UI = ns.UI
 local O = ns.Options
 
 local MODULES, Loaded, NameList = O.MODULES, O.Loaded, O.NameList
-local SwitchModuleAddon, MinimapButtonOn = O.SwitchModuleAddon, O.MinimapButtonOn
+local ModuleOn, SetModuleOn, MinimapButtonOn = O.ModuleOn, O.SetModuleOn, O.MinimapButtonOn
 
 local DEFAULT_SCALE = 100
 local SCALE_VALUES = { [200] = "200%", [190] = "190%", [180] = "180%", [170] = "170%",
@@ -35,8 +35,11 @@ local TEXT_SKIN_TIP = "Classic+ dresses the addon's windows like the game's own,
 local TEXT_CLASSIC_PLUS = "Classic+"
 local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_CLASSIC] = TEXT_CLASSIC_PLUS }
 local SKIN_ORDER = { "", SKIN_CLASSIC }
-local TEXT_MINIMAP_TIP = "A minimap button that opens %s on its own. /nf%s does the same, "
+local TEXT_MINIMAP_TIP = "A minimap button that opens %s. /nf%s does the same, "
     .. "and the Top Bar can carry it too. Saved for this computer."
+local TEXT_TURNED_OFF = "%s is turned off, so its settings are hidden. Turn it on under Modules below."
+local NONE = {}
+local TEXT_ON_ITS_OWN, TEXT_ITS_SETTINGS = "%s on its own", "%s's settings"
 
 local colorsPending = false
 local rxpPending = false
@@ -62,10 +65,13 @@ local function NeedsTip(mod)
 end
 
 local function ModuleRow(mod)
-    return { type = "toggle", text = O.DisplayName(mod),
+    return { type = "toggle", text = O.DisplayName(mod), module = mod,
         tooltip = mod.needs and NeedsTip(mod) or mod.subtitle,
-        getValue = function() return C_AddOns.GetAddOnEnableState(mod.addon) > 0 end,
-        setValue = function(v) SwitchModuleAddon(mod, v) end }
+        getValue = function()
+            if not Loaded(mod) then return C_AddOns.GetAddOnEnableState(mod.addon) > 0 end
+            return ModuleOn(mod)
+        end,
+        setValue = function(v) SetModuleOn(mod, v) end }
 end
 
 local function ModulesSection(W, parent, y)
@@ -92,7 +98,8 @@ end
 
 local function ModuleButtonRow(mod)
     return { type = "toggle", text = mod.name,
-        tooltip = TEXT_MINIMAP_TIP:format(mod.name, mod.command),
+        tooltip = TEXT_MINIMAP_TIP:format((mod.open and TEXT_ON_ITS_OWN or TEXT_ITS_SETTINGS):format(mod.name),
+            mod.command),
         getValue = function() return MinimapButtonOn(mod) end,
         setValue = function(v) SetModuleButton(mod, v) end }
 end
@@ -113,8 +120,7 @@ local function GameMenuButtonOn()
     return on ~= false
 end
 
-function ns.BuildMinimapIcons(parent, y)
-    local W = UI.Widgets
+local function MinimapSection(W, parent, y)
     local _, h
     _, h = W:SectionHeader(parent, "MINIMAP ICONS", y); y = y - h
     _, h = W:DualRow(parent, y,
@@ -396,14 +402,54 @@ local function RestedXPSection(W, parent, y)
     return y
 end
 
-function ns.BuildSettingsPage(parent, y)
-    local W = UI.Widgets
+local function Sections(W, parent, y)
     y = ModulesSection(W, parent, y)
-    y = ns.BuildMinimapIcons(parent, y)
+    y = MinimapSection(W, parent, y)
     y = WindowSection(W, parent, y)
     y = FontSection(W, parent, y)
     y = ColorsSection(W, parent, y)
-    y = RestedXPSection(W, parent, y)
+    return RestedXPSection(W, parent, y)
+end
+
+local function OffNotes(W, parent, y)
+    for _, mod in ipairs(UI.filter and UI.filter.off or NONE) do
+        local _, h = W:Note(parent, TEXT_TURNED_OFF:format(O.DisplayName(mod)), y); y = y - h
+    end
+    return y
+end
+
+function ns.BuildSettingsPage(parent, y)
+    local W = UI.Widgets
+    y = OffNotes(W, parent, y)
+    y = Sections(W, parent, y)
     local _, h = W:ReloadButton(parent, y)
     return y - h
+end
+
+local Terms = {}
+Terms.__index = Terms
+
+function Terms:SectionHeader(_, text)
+    self.section = text
+    return nil, 0
+end
+
+function Terms:Take(row)
+    if row.text == "" or row.type == "label" then return end
+    local off = row.module and not Loaded(row.module) and row.module or nil
+    self.add(row.text, row.tooltip, self.section, off)
+end
+
+function Terms:DualRow(_, _, left, right)
+    self:Take(left)
+    if right then self:Take(right) end
+    return nil, 0
+end
+
+function Terms:Note()
+    return nil, 0
+end
+
+function ns.SettingsSearchTerms(add)
+    Sections(setmetatable({ add = add }, Terms), nil, 0)
 end

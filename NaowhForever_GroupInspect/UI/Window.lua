@@ -24,7 +24,6 @@ local TEXT_REFRESH = "Inspect everyone again"
 local TEXT_REFRESH_TIP = "Reads every member's gear and talents again."
 local TEXT_REFRESH_LABEL = "Refresh"
 local TURNED_ON = "Group Inspect turned on. Turn it off on its settings page."
-local QOL_OFF = "Group Inspect needs the QoL module on."
 
 local window, board, list, raidBar
 local listening = false
@@ -154,10 +153,6 @@ end
 function ns.OpenGroupInspect()
     if not GI.On() then
         S.Set("groupInspect", true)
-        if not GI.On() then
-            ns.Print(QOL_OFF)
-            return
-        end
         ns.Print(TURNED_ON)
     end
     if not window then Build() end
@@ -182,7 +177,7 @@ end
 local function OnSettingChanged(key)
     if key == "naowhScoreCompare" then UI.ForgetScores() end
     if not window then return end
-    if (key == "enabled" or key == "groupInspect") and not GI.On() then
+    if key == "groupInspect" and not GI.On() then
         window:Hide()
     elseif key == "groupInspectAlpha" then
         if window:IsShown() then PaintBackdrop() end

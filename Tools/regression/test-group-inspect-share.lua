@@ -481,9 +481,13 @@ do
     check("outside a group nothing but the roster is listened to", not quit.frame.events.CHAT_MSG_ADDON
         and not quit.frame.events.PLAYER_EQUIPMENT_CHANGED)
 
+    local noQol = Client("Alpha", { "Bravo" })
+    noQol.ns.QoLSettings.Set("enabled", false)
+    check("the QoL module off: still shared", noQol.frame.events.CHAT_MSG_ADDON == true)
+
     local disabled = Client("Alpha", { "Bravo" })
-    disabled.ns.QoLSettings.Set("enabled", false)
-    check("Naowh Forever's QoL off: nothing registered", next(disabled.frame.events) == nil)
+    disabled.ns.QoLSettings.Set("groupInspectShare", false)
+    check("Share Your Stats off: nothing registered", next(disabled.frame.events) == nil)
 end
 
 print(("test-group-inspect-share: %d checks passed"):format(checks))

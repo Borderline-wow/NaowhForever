@@ -2,6 +2,90 @@
 
 ## Unreleased
 
+## 1.1.4
+
+### Fixed
+- Professions: the settings page no longer throws a Lua error on load.
+
+## 1.1.3
+
+### Added
+- A Share My Score toggle on the Naowh Score card (BiS List > Character), so you can stop sending
+  your score to your group and guild.
+- Every Map Pins toggle is now on the Map Pins card in QoL > Interface, as well as on the world
+  map's Map Pins button.
+- Choose each class's blessing on the Blessing Bar card in Blessings settings.
+- Searching settings finds each PvP crowd control and debuff spell by name, like Polymorph, Sap or
+  Mortal Strike.
+- Show or hide each campfire bonus from the Campfire card in AuraBuffs settings.
+- A Talent Builds card in Training Planner settings shows the build you follow, with Stop Following
+  and Open Builds.
+- The Professions recipe window's logo opens its settings.
+- Open Quest Tracker on the Dungeon Journal's Quest Tracker page, and a Key Binding card in BiS List
+  settings.
+- Stats Shown on the Character Panel card picks Your Spec or All Stats.
+- Reset the Quiz and Trainer Popup positions from their cards.
+
+### Changed
+- The Trainer Popup settings are now in QoL > Questing & Group, so they show without the Training
+  Planner.
+- Keep Cursor In Window During Combat and Cooldown at Cursor are now on the QoL Cursor tab.
+- The BiS List card with tooltip and bag marks is now called Marks on Items.
+- On the Classic+ skin, buttons are the game's own red panel buttons, white with a glow under the
+  mouse.
+- On the Classic+ skin, the Threat Meter's icon is Rallying Cry and Group Inspect's is the Eye of
+  Kilrogg.
+- On the Classic+ skin, text is in Friz Quadrata like the game's own interface, with Arial Narrow
+  for compact numbers.
+- On the Classic+ skin, windows have the game's wood background in place of rock.
+
+### Fixed
+- The game no longer freezes for a moment when you level up or learn spells at a trainer.
+- Loot Feed: it no longer drifts from where you placed it in the HUD Editor after alerts show or
+  hide.
+- Your Naowh Score is no longer sent to your group and guild while the Naowh Score is switched off.
+- Group Inspect now works with the QoL module switched off.
+- Spells you skip in the Training Planner start unticked at the trainer, so Learn All I Can Afford
+  leaves them out.
+- Settings > Modules now shows and sets the same on or off state as each module's own switch.
+- The Sleeping Bag tracker's X now hides it until you enter another zone, like the Library Books
+  tracker, instead of switching it off.
+- In the HUD Editor, the Alerts group's Settings button asks which alert to open (Camp Nearby,
+  Talent Points, Durability, Restock Reminder or Pet Tracker) instead of always opening Durability.
+- RestedXP's arrow in Naowh's themes keeps its colour on its tips when it turns.
+- On the Classic+ skin, a slider's gold gem sits over its groove instead of behind its lines.
+
+## 1.1.2
+
+### Added
+- /nf help lists every Naowh Forever command.
+- /nf move (or /nf hud) and a new key binding open and close the HUD Editor.
+- Each module's settings page shows its own slash command under the title.
+- The settings search finds hidden clicks and commands, such as Alt+Shift-click for BiS, the
+  profession Filter menu and favourites, right-click to skip a spell in the Training Planner,
+  Dungeon Journal keys and the /nf commands.
+- The addon compartment entry shows a tooltip.
+
+### Changed
+- Adding a module's name to a search narrows it to that module, and searching for a module that is
+  turned off points you to Settings to turn it on.
+- The open-window button on a module's sidebar row is always visible, dimmed until you point at it,
+  and every page says when nothing on it matches your search.
+- /nfbars save, restore, test and delete work like /nf bars.
+- The minimap button tooltips for Threat Meter and PvP say they open their settings.
+- The onboarding is now four quick steps: a profile (Minimalist, Recommended or keep yours), a skin
+  with a live preview, your modules, and a summary to apply.
+- Minimalist now turns on only Quality of Life, the BiS List and the Dungeon Journal, from the
+  onboarding and from Profiles > Setups.
+- Profiles > Setups has an Onboarding row to start it again, and Before Onboarding to restore.
+
+### Fixed
+- The settings search now finds everything on the Settings page (modules, minimap buttons, fonts,
+  window scale, skin, theme, RestedXP) and the Profiles page's actions (new, copy, reset, delete,
+  share, import).
+- Searching for a window such as "scrap list" or "forge" now finds its Open button, and searching
+  for "quality" finds Quality of Life.
+
 ## 1.1.1
 
 ### Added

@@ -41,6 +41,7 @@ local ROUND = 0.5
 local TOP_TOWARD_WHITE = 0.22
 local BOTTOM_SHARE = 0.72
 local LAYER_STRENGTH = 0.9
+local DIAGONAL = math.sqrt(2)   -- a square's diagonal, over its side
 
 local BARS = { "GuideName", "Footer" }
 local COG = MEDIA .. "cog.tga"
@@ -306,12 +307,20 @@ local function BuildLayer(arrow)
     f:SetAllPoints()
     f:SetFrameLevel(arrow:GetFrameLevel() + 1)
     f.color = f:CreateTexture(nil, "OVERLAY")
-    f.color:SetAllPoints()
+    f.color:SetPoint("CENTER")
     f.color:SetBlendMode("ADD")
     f.mask = f:CreateMaskTexture()
     f.mask:SetAllPoints()
     f.color:AddMaskTexture(f.mask)
     hooksecurefunc(texture, "SetRotation", function(_, radians) f.mask:SetRotation(radians) end)
+    -- A turned arrow reaches past its square frame, so the colour covers the square's diagonal and the
+    -- mask cuts it to the arrow; at the frame's own size its tips lost their colour.
+    local function Cover(self, w, h)
+        local side = math.max(w, h) * DIAGONAL
+        self.color:SetSize(side, side)
+    end
+    f:SetScript("OnSizeChanged", Cover)
+    Cover(f, arrow:GetSize())
     return f
 end
 

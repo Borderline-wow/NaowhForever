@@ -21,7 +21,7 @@ function GI.Readable(value)
 end
 
 function GI.On()
-    return S.Get("enabled") == true and S.Get("groupInspect") == true
+    return S.Get("groupInspect") == true
 end
 
 function GI.IsOpen()

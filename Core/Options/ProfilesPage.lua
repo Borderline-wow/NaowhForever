@@ -627,6 +627,16 @@ end
 ns.SETUPS_PAGE = SETUPS_PAGE
 if UI.SearchCarries then UI.SearchCarries(PROFILES_PAGE, SETUPS_PAGE) end
 
+function ns.ProfilesSearchTerms(add)
+    add(TEXT_NEW_PROFILE, nil, TEXT_PROFILES)
+    add(TEXT_USE, nil, TEXT_PROFILES)
+    add(TEXT_COPY, TEXT_COPY_HELP, TEXT_PROFILES)
+    add(TEXT_RESET, TEXT_RESET_HELP, TEXT_PROFILES)
+    add(TEXT_DELETE, nil, TEXT_PROFILES)
+    add(TEXT_EXPORT, TEXT_SHARE_SUMMARY, TEXT_SHARE)
+    add(TEXT_IMPORT, TEXT_IMPORT_SUMMARY .. " " .. TEXT_PASTE_HERE, TEXT_IMPORT)
+end
+
 local function SetupsResized(host, height)
     if host.building then
         host.resized = height

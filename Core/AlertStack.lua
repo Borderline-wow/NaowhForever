@@ -12,11 +12,15 @@ local MOVER_LABEL = "Alerts"
 local SETTINGS_PAGE = "QoL/Loot & Items"
 local SETTINGS_CARD = "QoL/Loot & Items:durability"
 
-local members = {}
+local members, choices = {}, {}
 local group, unlocked
 
 local function ByOrder(a, b)
     return a.alertOrder < b.alertOrder
+end
+
+local function ChoiceOrder(a, b)
+    return a.order < b.order
 end
 
 local function OldPosition()
@@ -64,6 +68,7 @@ local function Build()
     group:SetMovable(true)
     group:SetClampedToScreen(true)
     group.mover = ns.UI.AttachMover(group, MOVER_LABEL, SavePosition, SETTINGS_PAGE, SETTINGS_CARD)
+    ns.UI.SetMoverChoices(group.mover, choices)
     group.mover:ClearAllPoints()
     group.mover:SetPoint("BOTTOM", group, "BOTTOM")
     Place()
@@ -74,11 +79,13 @@ local function SetUnlocked(on)
     if group then Layout() end
 end
 
-function ns.AlertStack(frame, order)
+function ns.AlertStack(frame, order, name, page, card)
     if not group then Build() end
     frame.alertOrder = order
     members[#members + 1] = frame
     table.sort(members, ByOrder)
+    choices[#choices + 1] = { name = name, page = page, feature = card, order = order }
+    table.sort(choices, ChoiceOrder)
     frame:HookScript("OnShow", Layout)
     frame:HookScript("OnHide", Layout)
     frame:HookScript("OnSizeChanged", Layout)

@@ -42,6 +42,7 @@ local NEEDS_CAMP = "Needs the Campfire reminder"
 local ALERT_HINT = "Wheel: size. Right-click for more."
 local TEXT_HIDDEN = "Show Only When Low: hidden until under %d min."
 local TEXT_HOVER = "The buffs show while you hover the icon."
+local TEXT_BONUS_HELP = "Shows this bonus on the bar: %s."
 
 local BAR_KEYS = { campSimpleWidth = true, campSimpleHeight = true, campSimpleTextSize = true,
     campBarOutline = true, campBonusIcons = true, campHiddenBonuses = true }
@@ -362,6 +363,20 @@ local function Only(group, hidden)
     return group
 end
 
+local function BonusRow(feature)
+    return { key = "campHiddenBonuses", field = feature.id, toggle = true, needs = Enabled, why = OFF,
+        hidden = RoundStyle, help = TEXT_BONUS_HELP:format(feature.stat), search = feature.aliases and table.concat(feature.aliases, " "),
+        label = feature.name and feature.short .. St.PLACE_DOT .. feature.name or feature.short,
+        get = function() return BonusShown(feature) end,
+        set = function(on) if on ~= BonusShown(feature) then ToggleBonus(feature) end end }
+end
+
+local function BonusRows()
+    local rows = { Only(Group("Bonuses"), RoundStyle) }
+    for _, feature in ipairs(FEATURES) do rows[#rows + 1] = BonusRow(feature) end
+    return rows
+end
+
 local page = Settings.Page("AuraBuffs/Settings", S)
 
 campCard = page:Card({
@@ -390,9 +405,10 @@ campCard = page:Card({
           hidden = RoundStyle },
         { key = "campBonusIcons", label = "Bonus Icons", toggle = true, needs = Enabled, why = OFF,
           hidden = RoundStyle, help = "Each camp feature's own icon before its bonus." },
-        { key = "campHiddenBonuses", label = "Hidden Bonuses", buttonText = "Show All", button = ShowAllBonuses,
+        { label = "Hidden Bonuses", buttonText = "Show All", button = ShowAllBonuses,
           needs = Enabled, why = OFF, hidden = RoundStyle,
           help = "Shows every bonus again; click one on the preview to hide it." },
+        BonusRows(),
         Only(Group("Round Icon"), Simple),
         { key = "campIconSize", label = "Icon Size", slider = ICON_RANGE, needs = Enabled, why = OFF,
           hidden = Simple },
@@ -419,6 +435,7 @@ campCard = page:Card({
 alertCard = page:Card({
     id = "campNearby", name = "Camp Nearby", order = ORDER_NEARBY, switch = "campNearbyAlert",
     help = "Camp Nearby on screen when a campfire is in range and your camp needs a refresh.",
+    search = "ctrl click ctrl-click dismiss hide",
     summary = AlertSummary,
     studio = { height = ALERT_H, states = ALERT_STATES, new = NewAlert, paint = PaintAlert },
     rows = {

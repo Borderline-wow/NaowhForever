@@ -8,6 +8,7 @@ ns.PRESETS = {
         name = "Minimalist",
         about = "Almost everything off, to turn on what you want.",
         source = "Minimalist by Naowh, 2026-10-07",
+        modules = { "NaowhForever_QoL", "NaowhForever_BiS", "NaowhForever_DungeonJournal" },
         profile = {
             actionBars = {},
             auraBuffs = {
@@ -276,14 +277,7 @@ ns.PRESETS = {
             },
             training = {},
             unlockMode = {
-                anchoredTo = {
-                    ["Loot Feed"] = {
-                        side = "RIGHT",
-                        target = "Alerts",
-                        x = -659.31903076171875,
-                        y = -456.76197814941412,
-                    },
-                },
+                anchoredTo = {},
                 hidden = {},
                 locked = {},
             },
@@ -586,14 +580,7 @@ ns.PRESETS = {
             },
             training = {},
             unlockMode = {
-                anchoredTo = {
-                    ["Loot Feed"] = {
-                        side = "RIGHT",
-                        target = "Alerts",
-                        x = -659.31903076171875,
-                        y = -456.76197814941412,
-                    },
-                },
+                anchoredTo = {},
                 hidden = {},
                 locked = {},
             },

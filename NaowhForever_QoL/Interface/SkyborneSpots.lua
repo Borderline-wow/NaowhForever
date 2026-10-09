@@ -356,6 +356,7 @@ ns.Shared.Settings.Page("QoL/Interface", S):Card({
         { key = "mapSkyborneSize", label = "Pin Size", slider = PIN_RANGE },
         { label = "Forget Found Spots", buttonText = "Forget All", button = ForgetAll, needs = AnyFound,
           why = "No spots found yet",
-          help = "Forgets every spot this account found. The addon's own list stays." },
+          help = "Forgets every spot this account found. The addon's own list stays.",
+          search = "right-click right click pin forget one spot" },
     },
 })
