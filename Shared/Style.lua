@@ -34,13 +34,19 @@ Shared.Style = {
     CLASSIC_TITLE_RGB = { r = 0xf4 / 255, g = 0xcf / 255, b = 0x63 / 255 },
     CLASSIC_PLATE_GEM = 7,
     CLASSIC_PLATE_GEM_GAP = 12,
-    CLASSIC_BUTTON_RGB = {
-        rest  = { { r = 0xb4 / 255, g = 0x2a / 255, b = 0x1d / 255 }, { r = 0x5a / 255, g = 0x0b / 255, b = 0x06 / 255 } },
-        hover = { { r = 0xd2 / 255, g = 0x3a / 255, b = 0x2a / 255 }, { r = 0x82 / 255, g = 0x14 / 255, b = 0x0b / 255 } },
-        down  = { { r = 0x4e / 255, g = 0x09 / 255, b = 0x06 / 255 }, { r = 0x8a / 255, g = 0x16 / 255, b = 0x0d / 255 } },
+    -- The game's panel button (UIPanelButtonTemplate): its art, the caps' width, and the template's own crops.
+    CLASSIC_BUTTON_ART = {
+        up = "Interface\\Buttons\\UI-Panel-Button-Up",
+        down = "Interface\\Buttons\\UI-Panel-Button-Down",
+        disabled = "Interface\\Buttons\\UI-Panel-Button-Disabled",
+        highlight = "Interface\\Buttons\\UI-Panel-Button-Highlight",
     },
-    CLASSIC_RIM_LIT_RGB = { r = 0xff / 255, g = 0xe2 / 255, b = 0x8a / 255 },
-    CLASSIC_BUTTON_SHINE = 0.1,
+    CLASSIC_BUTTON_CAP = 12,
+    CLASSIC_BUTTON_COORDS = {
+        left = { 0, 0.09375, 0, 0.6875 }, middle = { 0.09375, 0.53125, 0, 0.6875 },
+        right = { 0.53125, 0.625, 0, 0.6875 }, glow = { 0, 0.625, 0, 0.6875 },
+    },
+    CLASSIC_DISABLED_ALPHA = 0.5,
     CLASSIC_BEVEL_RGB = { r = 0x6b / 255, g = 0x62 / 255, b = 0x52 / 255 },
     CLASSIC_FILL_RGB = { { r = 0xc7 / 255, g = 0x9a / 255, b = 0x3a / 255 }, { r = 0x6e / 255, g = 0x50 / 255, b = 0x19 / 255 } },
     CLASSIC_KNOB_EDGE = 2,

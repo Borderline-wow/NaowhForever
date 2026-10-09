@@ -109,6 +109,7 @@ local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), THEME = T, UI = 
         return t
     end,
     Hairline = Noop,
+    GameButtonArt = function(f) f.gameArt = true end,
     Border = function(f, color)
         local edge = { color = color }
         f.border = color
@@ -345,10 +346,9 @@ check("its black edge, its font, its accent-edged button", np.border == St.BORDE
 check("Classic+'s preview: its own palette", cp.bg.solid == CLASSIC_PLUS.bg and cp.bar.solid == CLASSIC_PLUS.panel
     and cp.rule.solid == CLASSIC_PLUS.line and cp.body.fontColor == CLASSIC_PLUS.muted
     and cp.title.fontColor == CLASSIC_PLUS.accent)
-check("its gold edge, the game's fonts, its red button in a gold rim", cp.border == St.CLASSIC_GOLD_RGB
-    and cp.title.fontPath == "friz" and cp.body.fontPath == "arial" and cp.button.border == St.CLASSIC_GOLD_RGB
-    and cp.button.fill.gradient[2].r == St.CLASSIC_BUTTON_RGB.rest[1].r
-    and cp.button.fill.gradient[1].r == St.CLASSIC_BUTTON_RGB.rest[2].r and cp.button.label.fontColor == CLASSIC_PLUS.accent)
+check("its gold edge, the game's fonts, the game's own button", cp.border == St.CLASSIC_GOLD_RGB
+    and cp.title.fontPath == "friz" and cp.body.fontPath == "arial" and cp.button.gameArt
+    and cp.button.fill == nil and cp.button.border == nil and cp.button.label.fontColor == CLASSIC_PLUS.accent)
 Clicked(classic)
 check("Classic+ picked", Picked() == "Classic+")
 Find("Next").Click()

@@ -562,8 +562,7 @@ local function SkinLook(skin)
     local classic = skin == Setup.SKIN_CLASSIC
     local c = Palette(skin)
     return { colors = c, edge = classic and St.CLASSIC_GOLD_RGB or BLACK, title = classic and c.accent or c.fg,
-        fill = classic and St.CLASSIC_BUTTON_RGB.rest or { c.panel, c.panel },
-        rim = classic and St.CLASSIC_GOLD_RGB or c.accent, label = classic and c.accent or c.fg,
+        gameArt = classic, fill = { c.panel, c.panel }, rim = c.accent, label = classic and c.accent or c.fg,
         body = ns.AddonFontPath(classic), heading = ns.HeadingFontPath(classic) }
 end
 
@@ -577,11 +576,15 @@ local function PreviewButton(preview, look)
     local button = CreateFrame("Frame", nil, preview)
     button:SetSize(PREVIEW.buttonW, PREVIEW.buttonH)
     button:SetPoint("BOTTOMRIGHT", -PREVIEW.pad, PREVIEW.pad)
-    local top, bottom = look.fill[1], look.fill[2]
-    button.fill = ns.Solid(button, "BACKGROUND", WHITE, 1)
-    button.fill:SetAllPoints()
-    button.fill:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
-    button.edge = ns.Border(button, look.rim)
+    if look.gameArt then
+        ns.GameButtonArt(button)
+    else
+        local top, bottom = look.fill[1], look.fill[2]
+        button.fill = ns.Solid(button, "BACKGROUND", WHITE, 1)
+        button.fill:SetAllPoints()
+        button.fill:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
+        button.edge = ns.Border(button, look.rim)
+    end
     button.label = PreviewText(button, look.heading, PREVIEW.labelSize, look.label)
     button.label:SetPoint("CENTER")
     button.label:SetText(TEXT_SKIN.previewButton)
