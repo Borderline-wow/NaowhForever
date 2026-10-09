@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased
+## 1.1.2
+
+### Added
+- /nf help lists every Naowh Forever command.
+- /nf move (or /nf hud) and a new key binding open and close the HUD Editor.
+- Each module's settings page shows its own slash command under the title.
+- The settings search finds hidden clicks and commands, such as Alt+Shift-click for BiS, the
+  profession Filter menu and favourites, right-click to skip a spell in the Training Planner,
+  Dungeon Journal keys and the /nf commands.
+- The addon compartment entry shows a tooltip.
+
+### Changed
+- Adding a module's name to a search narrows it to that module, and searching for a module that is
+  turned off points you to Settings to turn it on.
+- The open-window button on a module's sidebar row is always visible, dimmed until you point at it,
+  and every page says when nothing on it matches your search.
+- /nfbars save, restore, test and delete work like /nf bars.
+- The minimap button tooltips for Threat Meter and PvP say they open their settings.
+- The onboarding is now four quick steps: a profile (Minimalist, Recommended or keep yours), a skin
+  with a live preview, your modules, and a summary to apply.
+- Minimalist now turns on only Quality of Life, the BiS List and the Dungeon Journal, from the
+  onboarding and from Profiles > Setups.
+- Profiles > Setups has an Onboarding row to start it again, and Before Onboarding to restore.
+
+### Fixed
+- The settings search now finds everything on the Settings page (modules, minimap buttons, fonts,
+  window scale, skin, theme, RestedXP) and the Profiles page's actions (new, copy, reset, delete,
+  share, import).
+- Searching for a window such as "scrap list" or "forge" now finds its Open button, and searching
+  for "quality" finds Quality of Life.
 
 ## 1.1.1
 
