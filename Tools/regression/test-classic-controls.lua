@@ -36,7 +36,9 @@ local function New(kind, parent)
             elseif k == "GetWidth" then return self.w
             elseif k == "GetText" then return self.text or ""
             elseif k == "SetText" then self.text = args[1]
-            elseif k == "GetFrameLevel" then return 1
+            elseif k == "GetFrameLevel" then return rawget(self, "level") or 1
+            elseif k == "SetFrameLevel" then self.level = args[1]
+            elseif k == "SetParent" then self.parent = args[1]
             elseif k == "GetEffectiveScale" then return 1
             elseif k == "GetObjectType" then return self.kind
             elseif k == "CreateTexture" then return New("Texture", self)
@@ -114,6 +116,13 @@ local track = ns.UI.BuildSliderCore(New("Frame"), 200, 4, 12, 40, 20, 12, 1, 0, 
 check("the fill runs bronze to gold", track.fill.gradient and track.fill.gradient[2].r == St.CLASSIC_FILL_RGB[1].r
     and track.fill.gradient[1].r == St.CLASSIC_FILL_RGB[2].r)
 check("a gold gem to drag", track.thumb.texture == St.GEM and track.thumb.color[1] == St.CLASSIC_GOLD_RGB.r)
+local groove = Find(track.children, function(c) return c.kind == "Frame" and SunkenOn(c, St) end)
+local edgeLevel = 0
+for _, c in ipairs(groove.children) do
+    if c.kind == "Frame" then edgeLevel = math.max(edgeLevel, rawget(c, "level") or groove:GetFrameLevel() + 1) end
+end
+check("the gem over the groove's edges, not behind them", track.thumb.parent ~= track
+    and track.thumb.parent:GetFrameLevel() > edgeLevel)
 check("its groove and value box cut into the panel", Find(track.children, function(c) return c.kind == "Frame" and SunkenOn(c, St) end) ~= nil
     and SunkenOn(track.valueBox, St))
 

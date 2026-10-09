@@ -29,6 +29,7 @@ local ROW_BUTTON_W, ROW_BUTTON_H = 90, 24
 local PLAY_SIZE, PLAY_GAP, PLAY_ICON = 24, 4, 14
 local SLIDER_TRACK_W, SLIDER_TRACK_H, SLIDER_THUMB = 120, 4, 12
 local KNOB_EDGE_SUBLEVEL = -1
+local KNOB_RAISE = 2           -- the groove's edge and bevel frames are one level above it
 local SLIDER_BOX_W, SLIDER_BOX_H, SLIDER_MAX = 40, 22, 100
 local PALETTE_SIZE, PALETTE_GAP, PALETTE_EDGE_ALPHA = 22, 4, 0.6
 local DIM_ALPHA = 0.3
@@ -390,9 +391,14 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
         local top, bottom = St.CLASSIC_FILL_RGB[1], St.CLASSIC_FILL_RGB[2]
         fill:SetColorTexture(1, 1, 1, 1)
         fill:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
+        -- The groove's edges are frames, drawn over the track's own textures, so the gem gets a frame above them.
+        local knob = CreateFrame("Frame", nil, track)
+        knob:SetAllPoints()
+        knob:SetFrameLevel(groove:GetFrameLevel() + KNOB_RAISE)
+        thumb:SetParent(knob)
         thumb:SetTexture(St.GEM, nil, nil, "TRILINEAR")
         thumb:SetVertexColor(St.CLASSIC_GOLD_RGB.r, St.CLASSIC_GOLD_RGB.g, St.CLASSIC_GOLD_RGB.b, 1)
-        local edge = track:CreateTexture(nil, "ARTWORK", nil, KNOB_EDGE_SUBLEVEL)
+        local edge = knob:CreateTexture(nil, "ARTWORK", nil, KNOB_EDGE_SUBLEVEL)
         edge:SetTexture(St.GEM, nil, nil, "TRILINEAR")
         edge:SetVertexColor(BLACK.r, BLACK.g, BLACK.b, 1)
         edge:SetSize(thumbSz + 2 * St.CLASSIC_KNOB_EDGE, thumbSz + 2 * St.CLASSIC_KNOB_EDGE)
