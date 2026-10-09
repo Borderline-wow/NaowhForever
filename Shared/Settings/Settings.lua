@@ -223,7 +223,7 @@ local function Static(text)
 end
 
 local function IndexWindow(item, add)
-    add(item.uid, item.text, Static(item.headline) .. " " .. Static(item.detail))
+    add(item.uid, item.text or Static(item.headline), Static(item.headline) .. " " .. Static(item.detail))
 end
 
 local function SearchText(spec)
@@ -263,7 +263,7 @@ end
 
 function Page:Window(spec)
     spec.window = true
-    spec.uid = self.key .. ":" .. spec.text
+    spec.uid = self.key .. ":" .. (spec.text or spec.id or "window")
     spec.order = spec.order or 0
     Insert(self, spec)
     return spec
