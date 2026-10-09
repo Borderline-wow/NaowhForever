@@ -1063,8 +1063,6 @@ local reapplyEvents = CreateFrame("Frame")
 reapplyEvents:RegisterEvent("PLAYER_LOGIN")
 reapplyEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
 reapplyEvents:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
-reapplyEvents:RegisterEvent("SPELLS_CHANGED")
-reapplyEvents:RegisterEvent("TRAIT_CONFIG_UPDATED")
 reapplyEvents:SetScript("OnEvent", OnReapplyEvent)
 
 do
