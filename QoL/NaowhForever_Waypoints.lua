@@ -36,6 +36,7 @@ local NAV_W, NAV_H, NAV_PAD, NAV_ICON, NAV_ARROW = 320, 40, 10, 20, 14
 local NAV_NAME, NAV_SUB, NAV_DIST = 14, 11, 16
 local NAV_Y = -70                            -- the navigator under the screen's top, until moved
 local ARRIVED_HOLD = ns.WAYPOINT_HOLD        -- seconds the arrival shows
+local REACHED, LEAVE = 5, 7                  -- yards: a target the game keeps tracking goes, and comes back
 
 local function On()
     return S.Get("enabled") and S.Get("waypoints")
@@ -227,6 +228,7 @@ end
 -------------------------------------------------------------------------------
 local pin, nav, cue, driver, navFrame, unlocked, gameHidden, warned
 local arrived, arrivals = false, 0
+local reached   -- close to a target the game keeps tracking
 local lastX, lastY   -- where the pin last stood, in UIParent units, for an arrival
 local shown = {}
 local painted   -- what the texts and look were last drawn for; the place and arrows move every frame
@@ -243,8 +245,7 @@ end
 
 -- What the game is guiding you to: its name, its zone, and the note and icon a spot
 -- ns.PlaceWaypoint set was given.
-local function Target()
-    local kind = C_SuperTrack.GetHighestPrioritySuperTrackingType()
+local function Target(kind)
     local types = Enum.SuperTrackingType
     if kind == types.UserWaypoint then
         local point, placed = C_Map.GetUserWaypoint(), ns.placedWaypoint
@@ -337,9 +338,10 @@ local function Update()
         side = math.abs(dx) >= math.abs(dy) and (dx > 0 and "right" or "left") or (dy > 0 and "top" or "bottom")
         lastX, lastY = cx + dx * t, cy + dy * t
     else
-        -- The navigation point is the spot on the ground: the ring at the line's foot goes there and
-        -- the pin stands above it.
-        local lift = S.Get("waypointBeam") and PIN / 2 + BEAM_H or 0
+        -- A map pin's or corpse's navigation point is the spot on the ground: the ring at the line's
+        -- foot goes there and the pin stands above it. A quest giver's is over their head, where the
+        -- pin goes as it is.
+        local lift = shown.beam and PIN / 2 + BEAM_H or 0
         if not pin.onNav then
             pin:ClearAllPoints()
             pin:SetPoint("CENTER", navFrame, "CENTER", 0, lift)
@@ -347,8 +349,14 @@ local function Update()
         end
         lastX, lastY = nx, ny + lift * scale
     end
-    pin:SetShown(not behind and (mode ~= "edge" or S.Get("waypointEdge")))
-    cue:SetShown(behind and S.Get("waypointEdge"))
+    -- The game clears a map pin on arrival, but a quest stays tracked at the quest giver.
+    if shown.ground or yards > LEAVE then
+        reached = false
+    elseif yards <= REACHED then
+        reached = true
+    end
+    pin:SetShown(not (behind or reached) and (mode ~= "edge" or S.Get("waypointEdge")))
+    cue:SetShown(behind and not reached and S.Get("waypointEdge"))
 
     local speed = GetUnitSpeed("player")
     if not (issecretvalue and issecretvalue(speed)) then knownSpeed = speed end
@@ -369,14 +377,17 @@ end
 local function Retitle()
     painted = nil
     local where, placed
-    shown.name, where, shown.note, shown.icon, placed = Target()
+    local kind, types = C_SuperTrack.GetHighestPrioritySuperTrackingType(), Enum.SuperTrackingType
+    shown.name, where, shown.note, shown.icon, placed = Target(kind)
     shown.sub = shown.note and where and (shown.note .. St.PLACE_DOT .. where) or shown.note or where
     -- A stop on a route: the route and how far along it, in the navigator.
     local route, at, n = ns.WaypointRoute()
     shown.onRoute = placed and route ~= nil
     if shown.onRoute then shown.sub = ("%s%s%d of %d"):format(route, St.PLACE_DOT, at, n) end
     shown.shape = S.Get("waypointShape")
-    shown.card, shown.beam = S.Get("waypointCard"), S.Get("waypointBeam")
+    shown.ground = kind == types.UserWaypoint or kind == types.Corpse
+    shown.card, shown.beam = S.Get("waypointCard"), S.Get("waypointBeam") and shown.ground
+    pin.onNav, reached = false, false
 end
 
 -- With no waypoint, Layout Mode still shows the navigator, on a sample, to place it by.
@@ -407,7 +418,6 @@ local function Attach()
     if not driver then Build() end
     PlaceNav()
     Retitle()
-    pin.onNav = false
     lastX, lastY = nil, nil
     nav:SetShown(S.Get("waypointNav") or unlocked)
     driver:SetScript("OnUpdate", Update)
@@ -577,7 +587,7 @@ Settings.Page("QoL/Interface", S):Card({
         { key = "waypointTime", label = "Walking Time", toggle = true, needs = "waypointCard",
           help = "How long it takes to get there at your speed." },
         { key = "waypointBeam", label = "Line to the Ground", toggle = true,
-          help = "A line from the pin down to the spot itself." },
+          help = "A line from the pin down to a map pin's or corpse's spot." },
         { key = "waypointFadeNear", label = "Fade Up Close", slider = { 0, 100, 5 }, unit = "yd",
           help = "Fades the pin as you get this close, so it does not cover what you came for." },
         { key = "waypointEdge", label = "Edge Arrow Off Screen", toggle = true,
