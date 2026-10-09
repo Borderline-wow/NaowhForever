@@ -34,6 +34,14 @@ end
 -------------------------------------------------------------------------------
 --  Pins
 -------------------------------------------------------------------------------
+-- Pin Size, halved on the full screen map, where the pins otherwise stand out far too big (as
+-- the Skyborne and entrance pins do).
+local function PinSize(map)
+    local size = S.Get("mapPinSize")
+    if map:IsMaximized() then size = size / 2 end
+    return size
+end
+
 -- A global so the XML template can name it.
 NaowhForeverQuestGiverPinMixin = CreateFromMixins(MapCanvasPinMixin)
 
@@ -68,7 +76,7 @@ function NaowhForeverQuestGiverPinMixin:OnAcquired(giver)
     wipe(self.quests)
     for i, id in ipairs(giver.quests) do self.quests[i] = id end
     self.grey = giver.grey
-    local size = S.Get("mapPinSize")
+    local size = PinSize(self:GetMap())
     self:SetSize(size, size)
     SetMark(self.Icon, giver.grey, giver.repeatable)
     self:SetPosition(giver.x / 100, giver.y / 100)
@@ -133,6 +141,13 @@ local function Redraw()
     if added and WorldMapFrame:IsShown() then provider:RefreshAllData() end
 end
 
+-- The map going full screen or back: only sizes change, so this is safe in combat too.
+local function Resize()
+    if not (added and WorldMapFrame:IsShown()) then return end
+    local size = PinSize(WorldMapFrame)
+    for pin in WorldMapFrame:EnumeratePinsByTemplate(TEMPLATE) do pin:SetSize(size, size) end
+end
+
 -- Picking a quest up, handing one in or dropping it changes which givers have one for you;
 -- a level up turns some grey and lets others be picked up.
 local EVENTS = { "QUEST_ACCEPTED", "QUEST_TURNED_IN", "QUEST_REMOVED", "PLAYER_LEVEL_UP" }
@@ -141,6 +156,7 @@ local function Apply()
     if On() then
         if not added then
             WorldMapFrame:AddDataProvider(provider)
+            WorldMapFrame:HookScript("OnSizeChanged", Resize)
             added = true
         end
         if not events then
