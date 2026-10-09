@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Completo
 ## Notes: Everything there is to do, and how much of it you have done: every quest of every zone, and where you are in each chain.
 ## Author: Naowh
-## Version: 1.0.6
+## Version: 1.1.0
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga

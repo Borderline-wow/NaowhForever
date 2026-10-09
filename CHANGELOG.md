@@ -1,6 +1,76 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
+
+### Added
+- PvP > Battlegrounds: move the battleground scores and the start countdown in the HUD Editor's PvP
+  section.
+- Completo: an Overview tab, where the window opens: how far along you are in Quests and Rares,
+  everywhere and in the zone you are in; click one to open it.
+- Completo: a General settings tab with Open Completo, Key Binding and Window.
+- row cogs on hidden rows, row icons and card watch
+- AuraBuffs > Consumables: Import and Export buttons copy a consumables list between profiles;
+  Import also takes the consumables from a profile string.
+- A Classic+ skin in Settings > Colors, which dresses the addon's windows in gold and bronze, like
+  the game's own.
+- On the Classic+ skin, buttons are red with a gold rim, like the game's own.
+- On the Classic+ skin, switches are check boxes with the game's gold tick, and sliders, dropdowns
+  and text boxes look like the game's own.
+- On the Classic+ skin, tabs, the sidebar, section headers and settings cards look like the game's
+  own.
+- On the Classic+ skin, text is in the game's Arial Narrow and headings in its Friz Quadrata, and
+  help cards look like the game's tooltips.
+- On the Classic+ skin, windows have the game's rock background and headings stand out more.
+- Tailor my setup: seven quick questions pick what Naowh Forever turns on, and you review every
+  change before it applies (on your first login, from the Profiles page, or /nf setup).
+- A new character asks whether to use the same settings as your main or set itself up on its own,
+  with its own modules.
+
+### Changed
+- Completo: right-clicking a rare's star on the world map keeps its spots and route shown without
+  opening a panel; hover it for its tooltip.
+- AuraBuffs > Consumables: an item ID is enough to add a consumable; food counts any Well Fed buff
+  and other items their own buff.
+- Map Pins: choose which pins show from the Map Pins button in the world map's top right corner,
+  which opens a drawer beside the map. The options card keeps the on/off switch and Pin Size.
+- Map Pins: Mailboxes on Minimap and Spirit Healers on Minimap are separate switches.
+- Everyone sees the new onboarding once, even with Naowh Forever already installed.
+- The BiS List and the Dungeon Journal can be turned on and off separately; where one needs the
+  other, it says so and offers to turn it on.
+- Quality of Life and the Top Bar are their own modules you can switch off in Settings > Modules.
+- Naowh's setups and Tailor Setup are on the Profiles page, and settings search finds them.
+- Picking the Character Panel or Inspect Panel in the onboarding takes over from EllesmereUI's
+  without asking again.
+- The Bag Space Ignore List's search has a clear button, Escape clears it, and the list uses the
+  slim scroll bar.
+- The sidebar and the copy box use the slim scroll bar.
+- The Reminders part of a profile string is now Consumables and shares only your consumables list;
+  older strings still bring their consumables.
+- Every Library macro is now included when you share your Macro Library.
+- Smart Reminders, Reminder Packs, the Buffs module's Debuff Sounds tab and the /nsr command are
+  gone.
+
+### Fixed
+- Top Bar: battleground scores and the other displays at the top centre of the screen sit below the
+  bar instead of under it.
+- Swing Timer: with Seal Colours on, the melee bars keep the seal's colour after a Judgement instead
+  of going back to the default.
+- Macros: no more Lua error refreshing the NF Health macro while the AuraBuffs module is turned off.
+- Credits: the cards line up, with names and descriptions in the same place on every card.
+- Dungeon Journal: Wailing Caverns' map is the old classic map again, with its bosses placed where
+  they stand on it.
+- Completo: the quest pins on the full screen world map are no longer oversized.
+- Completo: right-clicking a focused rare's star again shows every rare's star again straight away.
+- The waypoint pin for a quest sits where the game's quest marker does instead of floating above it,
+  and goes away once you reach the quest giver.
+- Completo: the search box no longer overlaps the tabs.
+- Map Pins: flight masters, innkeepers and stable masters show on every map again; the capitals
+  switch, now Vendors & Trainers Only in Cities, only hides vendors and trainers outside the cities.
+- Applying a setup no longer wipes your saved quest rewards, lists and notes.
+- Character panel: the level line, Naowh Score and supporter badge fit the latest Forever update,
+  and the badge and BiS List link show only on the Character tab.
+- Supporter badges show again after the latest Forever update.
+- Macros: Open in Editor from the Library switches to My Macros instead of erroring.
 
 ## 1.0.6
 
