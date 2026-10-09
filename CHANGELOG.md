@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.1.1
+
+### Added
+- On the Classic+ skin, the sidebar and Top Bar use the game's full-colour icons.
+
+### Fixed
+- The NF Health macro and the low health icon now use Forever's Discolored healing potions and the
+  Combat Healing Potion.
+- NF Health uses your healthstone and then your potions in the same fight, and moves on to your next
+  potion when one kind runs out mid-fight.
+- On the Classic+ skin, the "Naowh Forever" title plate fits its title and is in the Naowh font.
 
 ## 1.1.0
 

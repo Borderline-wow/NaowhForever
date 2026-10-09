@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Discovery
 ## Notes: The library books and the Cozy Sleeping Bag: where to find each one, on the map and nearby.
 ## Author: Naowh
-## Version: 1.1.0
+## Version: 1.1.1
 ## Dependencies: NaowhForever
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
