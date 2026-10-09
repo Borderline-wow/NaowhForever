@@ -104,7 +104,8 @@ The QoL store and the Alerts group
 - The Alerts group (Camp Nearby, Talent Points, Durability, Restock, Pet Tracker) is the bottom
   slot; its mover covers the whole stack, so anchors measure what the player sees. Order 1 is the
   bottom. Its members belong to QoL and Aura Buffs, so it lives here and the mover plate follows
-  whichever previews are up.
+  whichever previews are up. Every alert previews in the HUD Editor, so its Settings asks which
+  alert to open rather than guessing from what is showing.
 - Before the group each alert had its own spot (`OLD_POSITIONS`): the first one a player had
   moved, from the bottom up, becomes the group's.
 - A key binding whose module is off prints that it is switched off (`SwitchedOff`), instead of

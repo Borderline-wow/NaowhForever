@@ -188,7 +188,7 @@ Check(movers >= 29, "every mover was found (" .. movers .. ")")
 -- The selected element's tag has Settings only with a page; opening it leaves the HUD Editor.
 local unlock = Read("Core/Unlock/Tag.lua")
 Check(unlock:find("tag.settings:SetShown(item.page ~= nil)", 1, true), "Settings needs a page")
-Check(unlock:find("ns.HideUnlockMode()\n    ns.OpenOptionsWindow(item.page)", 1, true),
+Check(unlock:find("ns.HideUnlockMode()\n    ns.OpenOptionsWindow(page)", 1, true),
     "Settings leaves the HUD Editor before opening the page")
 
 print(("test-element-options: %d checks passed"):format(checks))

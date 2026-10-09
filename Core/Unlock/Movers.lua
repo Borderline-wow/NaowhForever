@@ -128,6 +128,10 @@ function UI.AttachMover(frame, label, onMoved, page, feature, ownAnchor)
     return mover
 end
 
+function UI.SetMoverChoices(mover, choices)
+    mover._placement.choices = choices
+end
+
 function UI.CenterPosition(frame)
     local l, r, t, b, ratio = Bounds(frame)
     if not l then return end

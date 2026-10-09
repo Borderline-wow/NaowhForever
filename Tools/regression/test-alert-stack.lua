@@ -50,7 +50,7 @@ local function Fixture(qol, aura)
         mover.shown = false
         mover.label, mover.onMoved, mover.page, mover.parent = label, onMoved, page, frame
         return mover
-    end }
+    end, SetMoverChoices = function(mover, choices) mover.choices = choices end }
     env.NaowhForever = ns
     env._G = env
     env.UIParent = Frame("UIParent")
@@ -79,9 +79,9 @@ do
     local qol = {}
     local ns = Fixture(qol, nil)
     local camp, talent, pet = Member(200, 26), Member(300, 32), Member(220, 36)
-    ns.AlertStack(pet, 5)
-    ns.AlertStack(camp, 1)
-    ns.AlertStack(talent, 2)
+    ns.AlertStack(pet, 5, "Pet Tracker", "QoL/Combat", "QoL/Combat:petTracker")
+    ns.AlertStack(camp, 1, "Camp Nearby", "AuraBuffs/Settings", "AuraBuffs/Settings:campNearby")
+    ns.AlertStack(talent, 2, "Talent Points", "QoL/Questing & Group", "QoL/Questing & Group:talentPoints")
     Check(qol.alertsPos.point == "CENTER" and qol.alertsPos.y == 150,
         "no old spot and no AuraBuffs: the group starts at its default and saves it")
     talent:Show()
@@ -95,6 +95,8 @@ do
     local group = pet.point[2]
     local mover = rawget(group, "mover")
     Check(mover.label == "Alerts" and mover.page ~= nil, "one mover, named Alerts, with an options page")
+    Check(#mover.choices == 3 and mover.choices[1].name == "Camp Nearby" and mover.choices[2].name == "Talent Points"
+        and mover.choices[3].feature == "QoL/Combat:petTracker", "its Settings lists every alert in stack order, each with its card")
     Check(mover.shown == false, "the mover stays hidden outside Unlock Mode")
     ns.ShowUnlockMode()
     Check(mover.shown == true, "Unlock Mode shows the mover while a member is up")

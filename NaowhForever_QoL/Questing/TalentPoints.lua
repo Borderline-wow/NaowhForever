@@ -9,6 +9,8 @@ local GOLD = { r = 1, g = 0.82, b = 0 }
 local WIDTH, ROOM = 300, 10
 local FONT_SIZE = 22
 local STACK_ORDER = 2
+local PAGE = "QoL/Questing & Group"
+local TEXT_ALERT = "Talent Points"
 local SAMPLE_POINTS = 2
 local TEXT_RANGE = { 10, 48, 1 }
 
@@ -60,7 +62,7 @@ local function Build()
     frame.text = ns.Font(frame, FONT_SIZE, "OUTLINE")
     frame.text:SetPoint("CENTER")
     frame.backdrop = Parts.HudBackdrop(frame, { mode = "none" })
-    ns.AlertStack(frame, STACK_ORDER)
+    ns.AlertStack(frame, STACK_ORDER, TEXT_ALERT, PAGE, PAGE .. ":talentPoints")
 end
 
 local function Restyle()
@@ -106,7 +108,7 @@ boot:SetScript("OnEvent", Apply)
 
 local Settings = ns.Shared.Settings
 
-Settings.Page("QoL/Questing & Group", S):Card({
+Settings.Page(PAGE, S):Card({
     id = "talentPoints", name = "Talent Points", order = 30, switch = "talentPoints",
     help = "Text on screen while you have talent points to spend. Hidden in combat. Move it in the "
         .. "HUD Editor.",

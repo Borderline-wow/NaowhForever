@@ -38,10 +38,21 @@ local function CenterAcross(item)
     if x and x ~= 0 and Change(item) then Nudge(item, -x * Pixel(), 0) end
 end
 
-local function OpenSettings(item)
+local function OpenPage(page, feature)
     ns.HideUnlockMode()
-    ns.OpenOptionsWindow(item.page)
-    if item.feature then ns.UI.GoToSetting(item.page, nil, item.feature) end
+    ns.OpenOptionsWindow(page)
+    if feature then ns.UI.GoToSetting(page, nil, feature) end
+end
+
+local function OpenSettings(item, owner)
+    local choices = item.choices
+    if not (choices and #choices > 1) then return OpenPage(item.page, item.feature) end
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle(TEXT_SETTINGS)
+        for _, choice in ipairs(choices) do
+            root:CreateButton(choice.name, function() OpenPage(choice.page, choice.feature) end)
+        end
+    end)
 end
 
 local function SetBox(box, v)
@@ -202,7 +213,7 @@ local function TagButtons(tag, left)
     tag.anchor = ns.Button(tag, TEXT_ANCHOR, ANCHOR_W, BOX_H, function() AnchorClicked(tag) end)
     tag.anchor:SetPoint("LEFT", tag.center, "RIGHT", AXIS_GAP, 0)
     tag.settings = ns.Button(tag, TEXT_SETTINGS, SETTINGS_W, BOX_H, function()
-        if tag.item then OpenSettings(tag.item) end
+        if tag.item then OpenSettings(tag.item, tag.settings) end
     end)
     ns.Tooltip(tag.settings, TEXT_SETTINGS, TEXT_SETTINGS_HELP)
 end
