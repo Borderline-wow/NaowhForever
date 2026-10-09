@@ -31,10 +31,12 @@ local MACROS = {
 }
 
 local BAG_MACROS = { health = true, mana = true, food = true, bandage = true }
+local POTION_STEPS = 8
 
 local ready, pending
 local warnedFull = {}
 local toDelete = {}
+local steps = {}
 local events = CreateFrame("Frame")
 
 local function FirstCarried(list)
@@ -63,9 +65,16 @@ end
 
 local BODIES = {
     health = function()
-        local stone, potion = FirstCarried(ns.HEALTHSTONES), FirstCarried(ns.HEALING_POTIONS)
-        if S.Get("healthOrder") == "potion" then return UseLines(ItemLine(potion or stone)) end
-        return UseLines(ItemLine(stone or potion))
+        wipe(steps)
+        for _, id in ipairs(ns.HEALING_POTIONS) do
+            for _ = 1, math.min(C_Item.GetItemCount(id), POTION_STEPS - #steps) do steps[#steps + 1] = id end
+        end
+        local stone = FirstCarried(ns.HEALTHSTONES)
+        if stone then
+            table.insert(steps, (S.Get("healthOrder") == "potion" and steps[1]) and 2 or 1, stone)
+        end
+        if #steps < 2 then return UseLines(ItemLine(steps[1])) end
+        return "#showtooltip\n/castsequence reset=combat item:" .. table.concat(steps, ", item:")
     end,
     mana = function() return UseLines(ItemLine(FirstCarried(Items.MANA_POTIONS))) end,
     food = function()

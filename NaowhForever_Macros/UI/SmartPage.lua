@@ -31,7 +31,7 @@ local TEXT_ACCEPT = "Clicks Yes on popups"
 local TEXT_NOTHING = "Nothing in your bags"
 local COUNT, SLOT = "x%d", "slot %s"
 
-local NOTES = { health = "Healthstone or potion", mana = "Best mana potion", food = "Conjured food first",
+local NOTES = { health = "Healthstone and potions", mana = "Best mana potion", food = "Conjured food first",
     bandage = "On yourself", trinket1 = "Top trinket slot", trinket2 = "Bottom trinket slot",
     focus = "Marks and announces", acceptPopup = "Ready checks, summons" }
 
@@ -47,8 +47,13 @@ local function SlotUse(slot)
 end
 
 local function Uses(key, body)
-    local uses = {}
-    for id in (body or ""):gmatch("item:(%d+)") do uses[#uses + 1] = ItemUse(tonumber(id)) end
+    local uses, seen = {}, {}
+    for id in (body or ""):gmatch("item:(%d+)") do
+        if not seen[id] then
+            seen[id] = true
+            uses[#uses + 1] = ItemUse(tonumber(id))
+        end
+    end
     local slot = (body or ""):match("/use (1[34])")
     if slot then uses[#uses + 1] = SlotUse(slot) end
     if key == "focus" then
