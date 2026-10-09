@@ -153,11 +153,12 @@ local function Capture(item, info)
     local tl, tr, tt, tb = Box(target)
     local cl, cr, ct, cb = Box(item)
     if not (tl and cl) then return end
+    local fl, fr, ft, fb = Bounds(target.frame)
     local side = info.side
-    if side == "LEFT" then info.x, info.y = cr - tl, (ct + cb - tt - tb) / 2
-    elseif side == "RIGHT" then info.x, info.y = cl - tr, (ct + cb - tt - tb) / 2
-    elseif side == "TOP" then info.x, info.y = (cl + cr - tl - tr) / 2, cb - tt
-    else info.x, info.y = (cl + cr - tl - tr) / 2, ct - tb end
+    if side == "LEFT" then info.x, info.y = cr - tl, (ct + cb - ft - fb) / 2
+    elseif side == "RIGHT" then info.x, info.y = cl - tr, (ct + cb - ft - fb) / 2
+    elseif side == "TOP" then info.x, info.y = (cl + cr - fl - fr) / 2, cb - tt
+    else info.x, info.y = (cl + cr - fl - fr) / 2, ct - tb end
 end
 
 local function Apply(item)
@@ -171,11 +172,12 @@ local function Apply(item)
         placement.parked = true
         return
     end
+    local fl, fr, ft, fb = Bounds(target.frame)
     local w, h, x, y, side = cr - cl, ct - cb, info.x or 0, info.y or 0, info.side
-    if side == "LEFT" then MoveTo(item, tl + x - w / 2, (tt + tb) / 2 + y)
-    elseif side == "RIGHT" then MoveTo(item, tr + x + w / 2, (tt + tb) / 2 + y)
-    elseif side == "TOP" then MoveTo(item, (tl + tr) / 2 + x, tt + y + h / 2)
-    else MoveTo(item, (tl + tr) / 2 + x, tb + y - h / 2) end
+    if side == "LEFT" then MoveTo(item, tl + x - w / 2, (ft + fb) / 2 + y)
+    elseif side == "RIGHT" then MoveTo(item, tr + x + w / 2, (ft + fb) / 2 + y)
+    elseif side == "TOP" then MoveTo(item, (fl + fr) / 2 + x, tt + y + h / 2)
+    else MoveTo(item, (fl + fr) / 2 + x, tb + y - h / 2) end
 end
 
 local function Propagate(label, visited)

@@ -1550,7 +1550,7 @@ function UI.ModuleSettings(key, defaults)
 end
 
 ns.UnlockModeSettings = UI.ModuleSettings("unlockMode", { guides = true, hidden = {}, locked = {},
-    elementsPanel = true, anchoredTo = { ["Loot Feed"] = { target = "Alerts", side = "RIGHT", x = -300, y = 206 } } })
+    elementsPanel = true, anchoredTo = {} })
 
 local bundledVoices = {
     { key = "voice:dispel-me", text = "Dispel me", file = "dispel-me.ogg" },

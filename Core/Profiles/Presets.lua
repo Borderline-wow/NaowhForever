@@ -277,14 +277,7 @@ ns.PRESETS = {
             },
             training = {},
             unlockMode = {
-                anchoredTo = {
-                    ["Loot Feed"] = {
-                        side = "RIGHT",
-                        target = "Alerts",
-                        x = -659.31903076171875,
-                        y = -456.76197814941412,
-                    },
-                },
+                anchoredTo = {},
                 hidden = {},
                 locked = {},
             },
@@ -587,14 +580,7 @@ ns.PRESETS = {
             },
             training = {},
             unlockMode = {
-                anchoredTo = {
-                    ["Loot Feed"] = {
-                        side = "RIGHT",
-                        target = "Alerts",
-                        x = -659.31903076171875,
-                        y = -456.76197814941412,
-                    },
-                },
+                anchoredTo = {},
                 hidden = {},
                 locked = {},
             },

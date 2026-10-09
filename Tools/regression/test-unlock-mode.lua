@@ -610,6 +610,30 @@ Check(Near(select(2, Center(fireMover._placement.frame)), 540), "but not one tha
 settings.anchoredTo = nil
 for _, m in ipairs({ bossMover, addMover, fireMover }) do m:Hide() end
 
+-- A target whose plate grows from its bottom with what it shows, like the Alerts stack: off its
+-- side an element keeps its height, above it the element is pushed up.
+local stack, stackMover = Display("Stack", 100, 20, -500, -300)
+stackMover:ClearAllPoints()
+stackMover:SetPoint("BOTTOM", stack, "BOTTOM")
+stackMover:SetSize(100, 80)
+local beside, besideMover = Display("Beside", 40, 20, -400, -300)
+local above, aboveMover = Display("Above", 40, 20, -500, -200)
+settings.anchoredTo = {
+    ["Beside"] = { target = "Stack", side = "RIGHT", x = 10, y = 0 },
+    ["Above"] = { target = "Stack", side = "TOP", x = 0, y = 10 },
+}
+ns.Apply()
+Flush()
+local besideY = select(2, Center(beside))
+Check(Near(besideY, select(2, Center(stack))) and Near(above:GetBottom(), stackMover:GetTop() + 10),
+    "off the side it lines up with the target's own frame, above it clears the plate")
+stackMover:SetSize(100, 20)
+Flush()
+Check(Near(select(2, Center(beside)), besideY) and Near(above:GetBottom(), stackMover:GetTop() + 10),
+    "when the plate shrinks the one beside it stays, the one above comes down")
+settings.anchoredTo = nil
+for _, m in ipairs({ stackMover, besideMover, aboveMover }) do m:Hide() end
+
 -- Anchors and the snap switch saved before they were dropped: both go at login and on every
 -- profile switch, and nothing moves, since each element's own position already holds where its
 -- anchor put it.

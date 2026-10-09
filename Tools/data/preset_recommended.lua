@@ -255,12 +255,6 @@ return {
 ["hidden"] = {
 },
 ["anchoredTo"] = {
-["Loot Feed"] = {
-["target"] = "Alerts",
-["x"] = -659.3190307617188,
-["side"] = "RIGHT",
-["y"] = -456.7619781494141,
-},
 },
 },
 ["auraBuffs"] = {
