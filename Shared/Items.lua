@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 --  Items.lua -- item and gear helpers every module can use (ns.Shared.Items): an item's ID
 --  from whatever names it, its name and quality colour, what you keep, the slots it goes in,
---  a call once its data has loaded, and the items the server would not send this session.
---  Functions only, no frames.
+--  a call once its data has loaded, the items the server would not send this session, and
+--  the healing items the low health reminder and the health macro pick from. No frames.
 -------------------------------------------------------------------------------
 local ns = _G.NaowhForever
 local Items = ns.Shared.Items
@@ -15,6 +15,16 @@ local GetItemCount = C_Item.GetItemCount
 local IsItemDataCachedByID = C_Item.IsItemDataCachedByID
 
 local EMPTY = {}
+
+-- Classic-era item IDs. Each healthstone row is the stone, then its two talented versions.
+Items.HEALTHSTONES = {
+    9421, 19012, 19013,     -- Major
+    5510, 19010, 19011,     -- Greater
+    5509, 19008, 19009,     -- Healthstone
+    5511, 19006, 19007,     -- Lesser
+    5512, 19004, 19005,     -- Minor
+}
+Items.HEALING_POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
 
 -- An item ID from a number, an item link, "item=12345" (a Wowhead URL) or "12345".
 ---@return number?

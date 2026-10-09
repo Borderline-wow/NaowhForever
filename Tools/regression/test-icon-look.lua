@@ -43,7 +43,8 @@ local function Load(path, settings)
         UI = { AttachMover = function() return Frame() end },
         Shared = { Parts = { HudFont = function(fs, font, size, outline)
             fs.font, fs.size, fs.outline = font, size, outline
-        end } },
+        end },
+            Items = { HEALTHSTONES = { 5509 }, HEALING_POTIONS = { 13446 } } },
     }
     local frames = {}
     local env = setmetatable({

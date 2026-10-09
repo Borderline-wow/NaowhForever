@@ -185,7 +185,7 @@ local ns = {
     ShowCopyBox = function(_, text) account.lastCopy = text end,
     StashOptionsWindow = NOTHING, OpenOptionsWindow = NOTHING, Apply = NOTHING,
     DB = function() return { utilityReminders = { classMacros = packMacros } } end,
-    HEALTHSTONES = { 5509 }, HEALING_POTIONS = { 13446 }, BestFoodAndDrink = NOTHING,
+    BestFoodAndDrink = NOTHING,
 }
 local lastPrompt
 local vault = {}

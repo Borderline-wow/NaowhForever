@@ -15,7 +15,8 @@ Shared/
   Style.lua    the house look: colors (BiS stars, worn green, looks, red and warning orange), icons, sizes
   Items.lua    item and gear helpers: an ID from a link or URL, your loot lines, quality colour, In Bag,
                gear slots, what fits where, what you wear, weapons in short ("1h Sword"),
-               waiting on item data, the items the server would not send
+               waiting on item data, the items the server would not send, the healthstones and
+               healing potions
   Bags.lua     the item buttons in your bags, the game's and EllesmereUI's, for the marks
                painted on them (Bag Marks, Scrap Marker)
   Roster.lua   our part of a player's tooltip in the Guild & Communities and Friends lists (Badges, Naowh Score)

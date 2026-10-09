@@ -11,16 +11,7 @@ local ns = _G.NaowhForever
 local S = ns.AuraBuffSettings
 local Parts = ns.Shared.Parts
 
--- Classic-era item IDs, best first. The talented healthstones are the second of each pair.
-local HEALTHSTONES = {
-    9421, 19012, 19013,     -- Major
-    5510, 19010, 19011,     -- Greater
-    5509, 19008, 19009,     -- Healthstone
-    5511, 19006, 19007,     -- Lesser
-    5512, 19004, 19005,     -- Minor
-}
-local POTIONS = { 13446, 3928, 1710, 929, 858, 118 }
-ns.HEALTHSTONES, ns.HEALING_POTIONS = HEALTHSTONES, POTIONS
+local HEALTHSTONES, POTIONS = ns.Shared.Items.HEALTHSTONES, ns.Shared.Items.HEALING_POTIONS
 local FALLBACK_ICON = 134830    -- Healing Potion
 local COUNT_SIZE = 14
 

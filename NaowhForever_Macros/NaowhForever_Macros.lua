@@ -182,7 +182,8 @@ end
 -- The macro body for each key, or nil to leave an existing macro as it is (nothing carried).
 local BODIES = {
     health = function()
-        local stone, potion = FirstCarried(ns.HEALTHSTONES), FirstCarried(ns.HEALING_POTIONS)
+        local Items = ns.Shared.Items
+        local stone, potion = FirstCarried(Items.HEALTHSTONES), FirstCarried(Items.HEALING_POTIONS)
         if S.Get("healthOrder") == "potion" then return UseLines(ItemLine(potion or stone)) end
         return UseLines(ItemLine(stone or potion))
     end,
