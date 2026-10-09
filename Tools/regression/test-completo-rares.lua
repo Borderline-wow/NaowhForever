@@ -6,7 +6,8 @@
 -- a mark, on one someone else tapped or in a raid without lead or assist; it fades after Stays For and
 -- moves in the HUD Editor; Unlock Mode's preview shows the picked mark; the settings preview draws each
 -- moment; nothing is registered while it is off.
--- Map Pins: click a star for a waypoint, right-click it to keep its way and its drops' panel shown.
+-- Map Pins: hover a star for its tooltip, click it for a waypoint, right-click it to keep its spots
+-- and way shown (no panel).
 
 local Load = dofile("Tools/regression/load_files.lua")
 
@@ -804,7 +805,7 @@ do
     howler:OnMouseEnter()
     Check(not Line("Drops"), "a rare with nothing special has no Drops section")
     local last = env.tip[#env.tip]
-    Check(last[1] == "Click for a waypoint, right-click to keep its route shown." and Line(" ") ~= nil,
+    Check(last[1] == "Click for a waypoint, right-click to keep its spots shown." and Line(" ") ~= nil,
         "its tooltip ends with one hint line")
     Check(Line("Spawns at 1 more spots")[3] == 0.66,
         "its notes in the muted colour")
@@ -818,36 +819,15 @@ do
     star:OnMouseLeave()
     Check(#PinsOf(10647, "dot") == 3 and howler.Icon.alpha < 0.5 and #env.waypoints == 1,
         "right-clicking a star focuses its rare: its way stays and the others stay faded after the pointer leaves")
-    local panel = ns.mapPanel
-    Check(panel and panel:IsShown() and panel.npc == 10647, "and a panel stays up beside its star")
-    Check(panel.title.text == "Prince Raze", "the house panel, titled with the rare's name")
-    Check(panel.point == "TOPRIGHT", "on the star's left: a star on the right has no room for it on its right")
-    star.at[1] = 0.3
-    env.provider:OnCanvasPanChanged()
-    Check(panel.point == "TOPLEFT", "the map panned, the star now with room on its right: the panel moves there")
-    star.at[1] = 0.7
-    env.provider:OnCanvasScaleChanged()
-    Check(panel.point == "TOPRIGHT", "and back on a zoom")
-    Check(panel.rows[1].item[1] == 4454 and panel.rows[3].item[1] == 285330 and panel.rows[3]:IsShown(),
-        "with a row for each of its drops")
-    Check(panel.rows[3].name.text:find("Signet of the Zhevra <inf>", 1, true), "Forever's sign on the new one")
-    Check(panel.rows[1].icon.texture.texture == 5454, "each drop's icon")
-    Check(not panel.rows[1].tick.shown, "no tick on a drop it has not dropped for you")
-    panel.rows[1].OnEnter(panel.rows[1])
-    Check(env.tipItem == 4454, "hovering a drop shows the item's own tooltip")
-    panel.rows[1].OnLeave(panel.rows[1])
-    Check(panel.waypoint.label == "Set a Waypoint" and panel.open.label == "Open in Completo", "and its two buttons")
-    panel.waypoint._onClick()
-    Check(#env.waypoints == 2 and env.waypoints[2][1] == "Prince Raze" and env.waypoints[2][3] == 70,
-        "Set a Waypoint: to its star")
-    panel.open._onClick()
-    Check(env.opened[1] == "rares" and env.opened[2] == 10647, "Open in Completo: its row in the Rares tab")
-    Check(not panel:IsShown() and #PinsOf(10647, "dot") == 0, "and the panel goes, so it does not cover the window")
+    Check(ns.mapPanel == nil, "and no panel comes up")
+    star:OnMouseEnter()
+    Check(env.tip[#env.tip][1] == "Click for a waypoint, right-click to let go.", "hovered, the focused star has its tooltip")
     star:OnClick("RightButton")
+    Check(#PinsOf(10647, "dot") == 0 and howler.Icon.alpha == 1 and star.size == 18,
+        "right-clicked again, every star is back at once, while the pointer is still on it")
+    Check(env.tip[#env.tip][1] == "Click for a waypoint, right-click to keep its spots shown.", "its tooltip stays")
     star:OnMouseLeave()
-    Check(panel:IsShown(), "right-clicked again, the panel is back")
-    panel.close._onClick()
-    Check(not panel:IsShown() and #PinsOf(10647, "dot") == 0 and howler.Icon.alpha == 1, "its close button lets go")
+    Check(#PinsOf(10647, "dot") == 0 and howler.Icon.alpha == 1, "and moving off changes nothing")
     star:OnClick("RightButton")
     star:OnMouseLeave()
     howler:OnMouseEnter()
@@ -861,12 +841,6 @@ do
     star:OnMouseLeave()
     howler = PinsOf(10644)[1]
     Check(#PinsOf(10647, "dot") == 0 and howler.Icon.alpha == 1, "right-clicking it again lets go")
-    Check(not ns.mapPanel:IsShown(), "its panel goes with it")
-    howler:OnClick("RightButton")
-    howler:OnMouseLeave()
-    Check(ns.mapPanel:IsShown() and ns.mapPanel.point == "TOPLEFT", "a star with room on its right has it there")
-    howler:OnClick("RightButton")
-    howler:OnMouseLeave()
     R.SetKilled(10644, true)
     Check(#PinsOf(10644) == 0 and #env.worldMap.pins == 1, "a killed rare's star goes")
     ns.CompletoSettings.Set("rarePinsKilled", true)
