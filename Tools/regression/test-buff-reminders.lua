@@ -77,10 +77,9 @@ local function Fixture(opts)
     end
 
     local defaults = {
-        enabled = true, food = true, elixirs = true, flasks = true,
+        enabled = true,
         consumablesWhere = "instance", consumablesMinutes = 2,
         onlyIfCarried = true, hideResting = true,
-        scrolls = true, scrollsSkipActive = true,
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
@@ -360,7 +359,7 @@ end
 -- Warn With Minutes Left: a buff under the time shows with its timer; one over it is
 -- woken up when it crosses.
 do
-    local t = Fixture({ instance = "raid", settings = { flasks = false, elixirs = false },
+    local t = Fixture({ instance = "raid", settings = {},
         bags = { 13931 }, auras = { player = { { 1249520, 60, 900 } } } })
     t.Login()
     Check("under two minutes", t.Shown(), "item:13931(t)")
@@ -376,7 +375,7 @@ end
 
 -- Aura bursts keep one wake timer, not one per refresh; in combat they queue nothing.
 do
-    local t = Fixture({ instance = "raid", settings = { flasks = false, elixirs = false },
+    local t = Fixture({ instance = "raid", settings = {},
         bags = { 13931 }, auras = { player = { { 1249520, 300, 900 } } } })
     t.Login()
     for _ = 1, 50 do
@@ -399,7 +398,7 @@ end
 
 -- Frozen while auras are secret or in combat: no read, the icons keep what they showed.
 do
-    local t = Fixture({ instance = "raid", settings = { flasks = false, elixirs = false },
+    local t = Fixture({ instance = "raid", settings = {},
         bags = { 13931 } })
     t.Login()
     Check("before the pull", t.Shown(), "item:13931")
@@ -441,7 +440,7 @@ end
 
 -- Raid buffs: how many are missing each buff you can cast, or any class in the group can.
 do
-    local t = Fixture({ settings = { raidBuffs = true, scrolls = false },
+    local t = Fixture({ settings = { raidBuffs = true },
         group = "party", units = { player = "MAGE", party1 = "WARRIOR", party2 = "PRIEST" },
         known = { [1460] = true },
         auras = { player = {}, party1 = {}, party2 = { { 10938, 3000, 3600 } } } })
@@ -459,7 +458,7 @@ end
 
 -- Picked raid buffs: paladin blessings start off, the rest on; a buff switched off never reminds.
 do
-    local t = Fixture({ settings = { raidBuffs = true, raidBuffsOwn = false, scrolls = false },
+    local t = Fixture({ settings = { raidBuffs = true, raidBuffsOwn = false },
         group = "party", units = { player = "MAGE", party1 = "PALADIN", party2 = "PRIEST", party3 = "DRUID" },
         auras = { player = {}, party1 = {}, party2 = {}, party3 = {} } })
     t.Login()

@@ -15,9 +15,8 @@ local HOME_Y = 220
 local CARD = A.PAGE .. ":buffs"
 local TEXT_MOVER = "Buff Reminders"
 local KEYS = {
-    consumableEntries = true, enabled = true, food = true, elixirs = true, flasks = true, consumablesWhere = true,
-    consumablesMinutes = true, onlyIfCarried = true, hideResting = true, scrolls = true,
-    scrollsSkipActive = true, raidBuffs = true, raidBuffsOwn = true, raidBuffPicks = true, iconSize = true,
+    consumableEntries = true, enabled = true, consumablesWhere = true, consumablesMinutes = true,
+    onlyIfCarried = true, hideResting = true, raidBuffs = true, raidBuffsOwn = true, raidBuffPicks = true, iconSize = true,
     buffsFont = true, buffsFontSize = true, buffsOutline = true,
 }
 local PREVIEW = {

@@ -15,7 +15,6 @@ ns.FEATURES = {
         enabled = true,
         deathRelease = true,
         stealthReminder = false,
-        formReminder = false,
         coTank = true,
         deleteConfirm = false,
         lootConfirm = false,
