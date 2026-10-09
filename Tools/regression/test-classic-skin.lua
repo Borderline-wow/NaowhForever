@@ -87,9 +87,10 @@ check("a gem on each corner, each on its black edge", #gems.textures == 8 and go
 local plate = Parts.TitlePlate(window, "Naowh Forever")
 local title = plate.strings[1]
 check("the title in capitals, in the title font", title.text == "NAOWH FOREVER" and title.font == "morpheus")
-check("the plate over the middle of the top edge", plate.points[1][1] == "CENTER" and plate.points[1][2] == window
-    and plate.points[1][3] == "TOP")
-check("as wide as the title and its room", plate.width == 100 + 2 * St.CLASSIC_PLATE_PAD)
+check("the title over the middle of the top edge", title.points[1][1] == "CENTER" and title.points[1][2] == window
+    and title.points[1][3] == "TOP")
+check("the plate sized by the title, with room each side", plate.points[1][1] == "LEFT" and plate.points[1][2] == title
+    and plate.points[1][4] == -St.CLASSIC_PLATE_PAD and plate.points[2][1] == "RIGHT" and plate.points[2][4] == St.CLASSIC_PLATE_PAD)
 
 -- The game's full-colour icons in place of the line glyphs, only on Classic+.
 local icon = New("Texture")

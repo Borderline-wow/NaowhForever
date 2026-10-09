@@ -304,7 +304,6 @@ end
 function Parts.TitlePlate(frame, text)
     local plate = CreateFrame("Frame", nil, frame)
     plate:SetHeight(St.CLASSIC_PLATE_H)
-    plate:SetPoint("CENTER", frame, "TOP")
     plate:SetFrameLevel(frame:GetFrameLevel() + PLATE_LEVEL)
     ns.Solid(plate, "BACKGROUND", T.panel, 1):SetAllPoints()
     ns.Border(plate, BORDER_RGB)
@@ -314,11 +313,13 @@ function Parts.TitlePlate(frame, text)
     title:SetTextColor(St.CLASSIC_TITLE_RGB.r, St.CLASSIC_TITLE_RGB.g, St.CLASSIC_TITLE_RGB.b, 1)
     title:SetShadowColor(BORDER_RGB.r, BORDER_RGB.g, BORDER_RGB.b, 1)
     title:SetShadowOffset(0, PLATE_SHADOW_Y)
-    title:SetPoint("CENTER")
+    title:SetPoint("CENTER", frame, "TOP")
     title:SetText(ns.L(text):upper())
+    -- Sized by the title itself: its width is wrong until the font has loaded.
+    plate:SetPoint("LEFT", title, "LEFT", -St.CLASSIC_PLATE_PAD, 0)
+    plate:SetPoint("RIGHT", title, "RIGHT", St.CLASSIC_PLATE_PAD, 0)
     Gem(plate, St.CLASSIC_PLATE_GEM, -St.CLASSIC_PLATE_GEM_GAP, 0, title, "LEFT")
     Gem(plate, St.CLASSIC_PLATE_GEM, St.CLASSIC_PLATE_GEM_GAP, 0, title, "RIGHT")
-    plate:SetWidth(title:GetStringWidth() + 2 * St.CLASSIC_PLATE_PAD)
     return plate
 end
 

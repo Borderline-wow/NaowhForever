@@ -25,7 +25,7 @@ local BUTTON_TEXT_SIZE, BUTTON_REST_ALPHA = 12, 0.9
 local BUTTON_SHINE_SUBLEVEL, BUTTON_SHADOW = 1, 1
 local SKIN_CLASSIC = "classic"
 local FONT_NAOWH, FONT_CLASSIC = "Naowh", "Arial Narrow"
-local FONT_HEADING, FONT_TITLE = "Friz Quadrata TT", "Morpheus"
+local FONT_HEADING = "Friz Quadrata TT"
 local MODAL_LEVEL_BASE, MODAL_LEVEL_STEP, MODAL_LEVEL_CAP, MODAL_PANEL_RAISE = 10, 10, 150, 5
 local EDIT_INSET = 6
 local SEARCH_HINT_SIZE, SEARCH_CLEAR_SIZE, SEARCH_CLEAR_TEXT = 12, 18, 13
@@ -408,8 +408,9 @@ function ns.HeadingFontPath()
     return FontPath(FONT_HEADING) or ns.UIFontPath()
 end
 
+-- The title plate is the one place the Classic+ skin keeps the Naowh face.
 function ns.TitleFontPath()
-    return LSM and LSM:Fetch("font", FONT_TITLE, true) or ns.HeadingFontPath()
+    return NAOWH_FONT
 end
 
 function ns.UIFontPath()
