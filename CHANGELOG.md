@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.1.4
+
+### Fixed
+- Professions: the settings page no longer throws a Lua error on load.
 
 ## 1.1.3
 
