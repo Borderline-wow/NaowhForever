@@ -31,6 +31,7 @@ local THANKS = {
     { tier = "ellesmere", name = "Ellesmere", role = "EllesmereUI", line = "Creator of EllesmereUI, for his help with Naowh Forever." },
     { tier = "moderator", name = "Moderators", role = "Community", line = "Every moderator keeping the Naowh community running." },
     { tier = "legendary", badges = true, name = "Legendary Supporters", role = "Supporters", line = "Everyone wearing the Legendary badge: you keep Naowh Forever going." },
+    { tier = "epic", badges = true, name = "Epic Supporters", role = "Supporters", line = "Everyone wearing the Epic badge: you keep Naowh Forever going too." },
     { icon = "checklist", color = T.accentSoft, name = "Beta Testers", role = "Community", line = "Every bug report and screenshot made it better." },
 }
 
@@ -78,7 +79,7 @@ local function NewHero(view)
     return hero
 end
 
-local HERO_TIERS = { "naowh", "developer", "moderator", "legendary" }
+local HERO_TIERS = { "naowh", "developer", "moderator", "epic", "legendary" }
 
 local function SetHero(hero)
     hero.title:SetText(TEXT_NAOWH .. ns.Color("accent", TEXT_FOREVER))

@@ -121,7 +121,7 @@ purpose.
 | --- | --- |
 | `release/release.py` | Release helper for `.github/workflows/release.yml`: version bump, notes, changelog (from the merged PRs' descriptions). |
 | `release/watch_build.py` | Compares a new Forever build with ours: faction rewards, kill-count encounters, new dungeons, new dungeon floor maps, new gear the Journal doesn't list yet. `--update` moves us to it. Runs daily in CI (`.github/workflows/daily-watch.yml`), so a new build never sneaks past us. |
-| `release/sync_badges.py` | Writes `Core/Badges/Patrons.lua` from naowh.gg's list of Legendary patrons, daily in `.github/workflows/badges.yml`. |
+| `release/sync_badges.py` | Writes `Core/Badges/Patrons.lua` from naowh.gg's list of Legendary and Epic patrons, daily in `.github/workflows/badges.yml`. |
 | `regression/` | Offline Lua tests against stubs. `bash Tools/regression/run-all.sh` runs them all (set `LUA=` to your lua.exe). `load_files.lua` loads a module's real files into a test, `measure.lua` times a draw and fails on garbage, `toc_files.lua` lists what the TOCs load. |
 | `tests/` | Python tests for the tools: `python -m unittest discover -s Tools/tests`. |
 | `hooks/check-pr.sh` | PR rules: a changelog line in the PR description for addon changes, TOC version untouched. |

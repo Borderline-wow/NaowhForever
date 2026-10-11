@@ -41,7 +41,7 @@ and a lot of quality of life, all in one window.
 | **Swing Timer** | Your swings from the game's own timer, with marks for timing around them. |
 | **Top Bar** | Friends, guild, the clock and your addon buttons across the top of the screen. |
 | **Quality of Life** | Questing, loot and bag space, alerts, casting, tooltips, trainer ranks, flight and camp, mail and more. |
-| **Supporter Badges** | The Naowh Forever N next to the name of Naowh, the devs, the mods and our Legendary patrons. See [Supporter badges](#supporter-badges). |
+| **Supporter Badges** | The Naowh Forever N next to the name of Naowh, the devs, the mods and our Legendary and Epic patrons. See [Supporter badges](#supporter-badges). |
 
 > [!TIP]
 > Every module starts **off**. Turn on only what you want; anything you leave off costs
@@ -90,7 +90,7 @@ You can also open the window from the addon compartment next to the minimap.
 
 ## Supporter badges
 
-Naowh, the developers, the moderators and the Legendary patrons on Naowh's Patreon get the
+Naowh, the developers, the moderators and the Legendary and Epic patrons on Naowh's Patreon get the
 Naowh Forever N next to their name in chat. Hover the name for their card. If you turn it
 on, a banner also shows when they join your group.
 
@@ -102,8 +102,9 @@ banner starts off, and there's an option to skip the banner for your own guild.
 | --- | --- |
 | Founder (gold) | Naowh |
 | Developer (blue) | The people building Naowh Forever |
-| Moderator (purple) | The people keeping the community running |
+| Moderator (red) | The people keeping the community running |
 | Legendary Patron (orange) | Legendary tier on Naowh's Patreon |
+| Epic Patron (purple) | Epic tier on Naowh's Patreon |
 
 ### Getting your badge
 
@@ -115,7 +116,7 @@ once.
    `90:Player-4613-006EB819,Player-4613-00ABCDEF`.
 3. Press **Ctrl+C** to copy it.
 4. Send it:
-   - **Legendary patrons:** send it in a support request on
+   - **Legendary and Epic patrons:** send it in a support request on
      [Discord](https://discord.com/invite/naowh) to be added.
    - **Developers and moderators:** send it to Dieman or Glyalith.
 
@@ -149,7 +150,7 @@ retail's 1 to 5, so always copy it from the code. For `90:Player-4613-006EB819`:
 Tiers are `naowh`, `developer` and `moderator`; `title` is optional. Add one line per
 character in the code. Don't edit `Core/Badges/Patrons.lua`: the patron sync
 writes it. Staff can check a badge with
-`/nf badges preview [naowh|developer|moderator|legendary]` and `/nf badges toast`.
+`/nf badges preview [naowh|developer|moderator|legendary|epic]` and `/nf badges toast`.
 
 ## Contributing
 

@@ -105,7 +105,7 @@ local function fixture(withChatUtil, settings, flag)
         GetNumGroupMembers = function() return #state.group + 1 end,
         InCombatLockdown = function() return state.combat end,
         PlaySound = function(kit) state.sounds = state.sounds + 1; state.lastSound = kit end,
-        SOUNDKIT = { UI_LEGENDARY_LOOT_TOAST = 63971, UI_72_ARTIFACT_FORGE_ACTIVATE_FINAL_TIER = 83681,
+        SOUNDKIT = { UI_LEGENDARY_LOOT_TOAST = 63971, UI_EPICLOOT_TOAST = 31578, UI_72_ARTIFACT_FORGE_ACTIVATE_FINAL_TIER = 83681,
             UI_72_ARTIFACT_FORGE_FINAL_TRAIT_UNLOCKED = 83682, UI_PVP_HONOR_PRESTIGE_RANK_UP = 77003 },
         Ambiguate = function(name) return (name:gsub("%-.*", "")) end,
         issecretvalue = function(v) return v == SECRET end,
@@ -184,9 +184,9 @@ local function fixture(withChatUtil, settings, flag)
         ns.BADGE_STAFF[region or 3][guid] = entry
         state.api.BuildRoster()
     end
-    function state.patron(guid, since, region)
+    function state.patron(guid, since, region, tier)
         ns.BADGE_PATRONS[region or 3] = ns.BADGE_PATRONS[region or 3] or {}
-        ns.BADGE_PATRONS[region or 3][guid] = { since = since }
+        ns.BADGE_PATRONS[region or 3][guid] = { since = since, tier = tier }
         state.api.BuildRoster()
     end
     return state
@@ -201,6 +201,8 @@ do  -- chat, card, tooltip
     local s = fixture(true)
     s.staff("Player-1-DEV", { tier = "developer", title = "Lead Developer" })
     s.patron("Player-1-LEG", "2026-03")
+    s.patron("Player-1-EPIC", "2026-05", nil, "epic")
+    s.patron("Player-1-ODD", nil, nil, "mythic")
     s.staff("Player-1-OLD", "developer")
     s.staff("Player-1-BAD", "no-such-tier")
     local filter = s.nameFilters[1]
@@ -213,6 +215,11 @@ do  -- chat, card, tooltip
         and dev:sub(1, 9) == "Glyalith ")
     check("the badge is as tall as the text", dev:find("BadgeDeveloperChat.tga:0:0:", 1, true) ~= nil)
     check("legendary badge", say(filter, "Patron", 2, "Player-1-LEG"):find("BadgeLegendaryChat.tga", 1, true))
+    check("epic badge", say(filter, "Epic", 8, "Player-1-EPIC"):find("BadgeEpicChat.tga", 1, true))
+    check("a patron with no tier the addon knows wears the Legendary one",
+        say(filter, "Odd", 9, "Player-1-ODD"):find("BadgeLegendaryChat.tga", 1, true))
+    check("the moderator is red now, epic purple is the Epic patrons'",
+        s.api.TIERS.moderator.hex == "ffe0383e" and s.api.TIERS.epic.hex == "ffa335ee")
     check("plain tier string still works", say(filter, "Old", 6, "Player-1-OLD"):find("BadgeDeveloper", 1, true))
     check("unknown tier: name unchanged", say(filter, "Bad", 7, "Player-1-BAD") == "Bad")
     check("no roster entry: name unchanged", say(filter, "Someone", 3, "Player-1-NOBODY") == "Someone")
@@ -231,6 +238,10 @@ do  -- chat, card, tooltip
     enter.fn(enter.owner, {}, "player:Patron-Realm:2:SAY", "[Patron]")
     check("card: tier title", card.title.text == "Legendary Patron")
     check("card: supporter since", card.since.text == "Supporter since March 2026")
+    s.callbacks["ChatFrame.OnHyperlinkLeave"].fn(enter.owner, {})
+    enter.fn(enter.owner, {}, "player:Epic-Realm:8:SAY", "[Epic]")
+    check("epic card: its title and since", card.title.text == "Epic Patron"
+        and card.since.text == "Supporter since May 2026")
     s.callbacks["ChatFrame.OnHyperlinkLeave"].fn(enter.owner, {})
     enter.fn(enter.owner, {}, "player:Someone-Realm:3:SAY", "[Someone]")
     check("no card for a plain name", not card.visible)
@@ -371,6 +382,10 @@ do  -- chat, card, tooltip
     check("preview off", say(filter, "Me", 901, "Player-1-SELF") == "Me")
     s.ns.BadgesCommand("id")
     check("id shows your GUID with its region", s.box.text == "3:Player-1-SELF")
+    s.ns.BadgesCommand("nope")
+    local usage = s.printed[#s.printed]
+    check("the help names both patron tiers, its pipes escaped", usage:find("[legendary||epic||moderator||", 1, true)
+        and not usage:gsub("||", ""):find("|", 1, true))
 end
 
 do  -- group toast
@@ -409,6 +424,13 @@ do  -- group toast
     toast.life.scripts.OnFinished(toast.life)
     check("next toast shows when the first finishes", toast.visible and toast.title.text == "Developer")
     check("developer toast sound: Artifact final tier activated", s.lastSound == 83681)
+    s.patron("Player-1-EPIC", "2026-05", nil, "epic")
+    s.names["Player-1-EPIC"] = "Epic"
+    s.group = { "Player-1-OTHER", "Player-1-LEG", "Player-1-DEV", "Player-1-EPIC" }
+    s.fire("GROUP_ROSTER_UPDATE")
+    toast.life.scripts.OnFinished(toast.life)
+    check("an Epic patron joining: their title and the epic loot sound", toast.visible
+        and toast.title.text == "Epic Patron" and s.lastSound == 31578)
 
     s.group = { SECRET }
     s.fire("GROUP_ROSTER_UPDATE")
@@ -725,6 +747,7 @@ do  -- ns.FEATURE_BADGES = 0: the team's badges only, on the defaults, with no s
     check("flag 0: a moderator's badge in chat", say(filter, "Mod", 2, "Player-1-MOD"):find("BadgeModerator", 1, true))
     check("flag 0: Naowh's badge in chat", say(filter, "Naowh", 3, "Player-1-NAOWH"):find("BadgeNaowh", 1, true))
     check("flag 0: a patron's name is plain", say(filter, "Patron", 4, "Player-1-LEG") == "Patron")
+    check("flag 0: no epic tier either", ns.BADGE_TIERS.epic == nil)
     check("flag 0: no patron tier for anyone", ns.BadgeOf("Player-1-LEG") == nil and ns.BADGE_TIERS.legendary == nil
         and ns.BadgeOf("Player-1-DEV") == ns.BADGE_TIERS.developer)
     s.callbacks["ChatFrame.OnHyperlinkEnter"].fn(nil, {}, "player:Glyalith-Realm:1:SAY", "[Glyalith]")
@@ -747,6 +770,8 @@ do  -- ns.FEATURE_BADGES = 0: the team's badges only, on the defaults, with no s
     check("flag 0: a plain preview is the developer's", say(filter, "Me", 10, "Player-1-SELF"):find("BadgeDeveloper", 1, true))
     ns.BadgesCommand("preview legendary")
     check("flag 0: no legendary preview, the help without it", not s.printed[#s.printed]:lower():find("legendary", 1, true))
+    check("the help's pipes are escaped, so |n in |naowh and |none is no line break",
+        not s.printed[#s.printed]:gsub("||", ""):find("|", 1, true))
     ns.BadgesCommand("toast")
     check("flag 0: the test toast is a team one", s.api.Toast().title.text == "Lead Developer")
     local hint

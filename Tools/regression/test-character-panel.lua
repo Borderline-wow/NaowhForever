@@ -195,7 +195,10 @@ local ns = {
     BADGE_TIERS = {
         legendary = { title = "Legendary Patron", about = "Supports Naowh.", large = "legendaryArt",
             chat = "legendaryChat", markup = "|TlegendaryChat:0|t",
-            color = { r = 1, g = 0.5, b = 0 } },
+            color = { r = 1, g = 0.5, b = 0 }, showsSince = true },
+        epic = { title = "Epic Patron", about = "Supports Naowh.", large = "epicArt",
+            chat = "epicChat", markup = "|TepicChat:0|t",
+            color = { r = 0.64, g = 0.21, b = 0.93 }, showsSince = true },
         developer = { title = "Developer", about = "Builds Naowh Forever.", large = "developerArt",
             color = { r = 0, g = 0.57, b = 0.93 } },
     },
@@ -462,6 +465,11 @@ support.scripts.OnShow(support)
 check("flag 0: still the team's title and line", support.title.text == "Lead Developer"
     and support.line.text == "Naowh Forever Team")
 ns.FEATURE_BADGES = 1
+state.badges = { ["Player-1-ME"] = { tier = "epic" } }
+support.scripts.OnShow(support)
+check("an Epic patron's badge: its title, and Naowh Forever rather than the team",
+    support.title.text == "Epic Patron" and support.line.text == "Naowh Forever")
+state.badges = { ["Player-1-ME"] = { tier = "developer", title = "Lead Developer" } }
 S.Set("characterPanelBadge", true)
 state.badges = nil
 character.LeftPaneHost.hooks.OnShow(character.LeftPaneHost)

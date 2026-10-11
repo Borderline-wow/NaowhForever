@@ -1,5 +1,5 @@
 -- Run with Lua 5.1 from the repository root: while ns.FEATURE_BADGES is 0, no text a player can
--- see names Patreon, supporters, patrons or the Legendary Supporters; the team's badges may show.
+-- see names Patreon, supporters, patrons or the Legendary or Epic Supporters; the team's badges may show.
 -- Every string in the files the TOC loads is scanned; the few that carry those words must sit in
 -- a file whose gate is checked here, by loading it with the flag at 0 (none shown) and at 1.
 local TocFiles = dofile("Tools/regression/toc_files.lua")
@@ -8,7 +8,7 @@ local Load = dofile("Tools/regression/load_files.lua")
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
-local WORDS = { "patreon", "supporter", "legendary supporters", "patron" }
+local WORDS = { "patreon", "supporter", "legendary supporters", "epic supporters", "patron" }
 
 local function Mentions(text)
     local lower = tostring(text):lower()
@@ -273,7 +273,8 @@ local joined = table.concat(on, "\n"):lower()
 for _, word in ipairs(WORDS) do
     check("flag 1: the words are back (" .. word .. ")", joined:find(word, 1, true) ~= nil)
 end
-check("flag 1: the patron tier is back", onNs.BadgeOf("Player-1-PATRON") == onNs.BADGE_TIERS.legendary)
+check("flag 1: the patron tiers are back", onNs.BadgeOf("Player-1-PATRON") == onNs.BADGE_TIERS.legendary
+    and onNs.BADGE_TIERS.epic ~= nil)
 check("flag 1: one more patch note line, and the Supporter Badges card", #on > #off)
 
 print(("test-support-mentions: %d checks passed"):format(checks))

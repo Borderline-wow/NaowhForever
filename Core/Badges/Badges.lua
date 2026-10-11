@@ -41,8 +41,8 @@ local TEXT_STAFF_ONLY = "Badge previews are for the Naowh Forever team."
 local TEXT_PREVIEW_NONE = "Preview on: you wear no badge until you reload, as a player without one sees it."
 local TEXT_PREVIEW_ON = "Preview on: your name wears the %s badge until you reload. Say something to see it."
 local TEXT_PREVIEW_OFF = "Preview off."
-local TEXT_USAGE = "/nf badges id | preview [%smoderator|developer|ellesmere|naowh|none] | preview off | toast"
-local TEXT_USAGE_PATRON = "legendary|"
+local TEXT_USAGE = "/nf badges id || preview [%smoderator||developer||ellesmere||naowh||none] || preview off || toast"
+local TEXT_USAGE_PATRON = "legendary||epic||"
 local TEXT_SUMMARY = "%d of %d on"
 local PATREON_LINK = { "Patreon", "patreon", function() return "https://www.patreon.com/naowh" end }
 local MONTHS = { "January", "February", "March", "April", "May", "June", "July", "August",
@@ -74,7 +74,7 @@ local TIERS = {
     moderator = {
         title = "Moderator",
         about = "Keeps the community running.",
-        color = { r = 0xa3 / 255, g = 0x35 / 255, b = 0xee / 255 },
+        color = { r = 0xe0 / 255, g = 0x38 / 255, b = 0x3e / 255 },
         chat = MEDIA .. "BadgeModeratorChat.tga",
         large = MEDIA .. "BadgeModeratorLarge.tga",
         sound = "UI_PVP_HONOR_PRESTIGE_RANK_UP",
@@ -97,8 +97,18 @@ local TIERS = {
         sound = "UI_LEGENDARY_LOOT_TOAST",
         showsSince = true,
     },
+    epic = {
+        title = "Epic Patron",
+        about = "Supports Naowh at the Epic tier on Patreon.",
+        color = { r = 0xa3 / 255, g = 0x35 / 255, b = 0xee / 255 },
+        chat = MEDIA .. "BadgeEpicChat.tga",
+        large = MEDIA .. "BadgeEpicLarge.tga",
+        sound = "UI_EPICLOOT_TOAST",
+        showsSince = true,
+    },
 }
-if not PATRONS then TIERS.legendary = nil end
+local PATRON_TIER, DEFAULT_PATRON_TIER = { legendary = true, epic = true }, "legendary"
+if not PATRONS then TIERS.legendary, TIERS.epic = nil, nil end
 if PATRONS then ns.LINKS[#ns.LINKS + 1] = PATREON_LINK end
 local BADGE_DROP = 1
 
@@ -117,11 +127,11 @@ local previewGUID, previewEntry
 
 local roster = {}
 
-local function AddRegion(lists, region, legendary)
+local function AddRegion(lists, region, patrons)
     local list = region and lists and lists[region]
     if not list then return end
     for guid, entry in pairs(list) do
-        if legendary then entry.tier = "legendary" end
+        if patrons and not PATRON_TIER[entry.tier] then entry.tier = DEFAULT_PATRON_TIER end
         roster[guid] = entry
     end
 end
@@ -849,7 +859,7 @@ end
 
 Settings.Page("QoL/Interface", S):Card({
     id = "supporterBadges", name = "Supporter Badges", order = 55,
-    help = "Shows who Naowh, the developers, the moderators and our Legendary patrons are: a badge "
+    help = "Shows who Naowh, the developers, the moderators and our Legendary and Epic patrons are: a badge "
         .. "by their name in chat, a line on their tooltip and, if you want it, a banner when one "
         .. "of them joins your group.",
     search = "badge id claim code /nf badges nf badges",
@@ -857,7 +867,7 @@ Settings.Page("QoL/Interface", S):Card({
     rows = {
         { key = "badgeChat", label = "Chat Badges", toggle = true,
           help = "The Naowh Forever N next to the name of Naowh, the developers, the moderators and "
-              .. "our Legendary patrons in chat." },
+              .. "our Legendary and Epic patrons in chat." },
         { key = "badgeCard", label = "Hover Card", toggle = true, needs = "badgeChat",
           help = "Hover a badged name in chat to see their card." },
         { key = "badgeTooltip", label = "Tooltip Line", toggle = true,

@@ -70,7 +70,7 @@ function CP.PaintBadgePlate(frame, guid)
     frame.glow:SetTexture(tier.large, nil, nil, C.FILTER)
     frame.glow:SetVertexColor(c.r, c.g, c.b, GLOW_ALPHA)
     frame.title:SetText(type(entry) == "table" and entry.title or tier.title)
-    frame.line:SetText(ns.BadgeSince(entry) or (tier == ns.BADGE_TIERS.legendary and TEXT_FOREVER or TEXT_TEAM))
+    frame.line:SetText(ns.BadgeSince(entry) or (tier.showsSince and TEXT_FOREVER or TEXT_TEAM))
     frame.title:SetTextColor(c.r, c.g, c.b)
     if frame.compact then
         frame:SetWidth(EMBLEM)
