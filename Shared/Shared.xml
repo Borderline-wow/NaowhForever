@@ -32,6 +32,7 @@
     <Script file="View\View.lua"/>
     <Script file="View\Kinds.lua"/>
     <Script file="Settings\Settings.lua"/>
+    <Script file="Settings\Ellesmere.lua"/>
     <Script file="Settings\Style.lua"/>
     <Script file="Settings\Controls.lua"/>
     <Script file="Settings\Rows.lua"/>
