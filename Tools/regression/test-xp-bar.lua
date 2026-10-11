@@ -3,7 +3,7 @@
 -- shows in one spot at a time, the level's three forms counting as one; the texts are
 -- measured again only when one of them changed; and its Played text comes from Shared.Played.
 -- Its look: the defaults draw today's flat bar and outlined texts, and Font, Font Size, Outline,
--- Bar Texture and Background Opacity each apply.
+-- Bar Texture and Background Opacity each apply. It hides in battlegrounds and arenas.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -253,6 +253,27 @@ do
     S.Set("xpBarFontSize", 16)
     FitSlots(slots, 500, function() end)
     check("Font, Outline and Font Size apply around the bar", slots[2].font == "Arial 16 " and slots[5].font == "Arial 16 ")
+end
+
+-- Battlegrounds and arenas: the bar is hidden there, checked again on every loading screen and
+-- when it is turned on.
+do
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
+    local chunk = assert(source:match("\n(local PVP_INSTANCES = .-)\n"))
+        .. "\n" .. assert(source:match("(local function InPvP%(%).-\nend)\n"))
+    local kind
+    local env = { IsInInstance = function() return kind ~= "none", kind end }
+    Load(chunk .. "\nInPvPFn = InPvP", env)
+    for where, hidden in pairs({ pvp = true, arena = true, none = false, party = false, raid = false,
+        scenario = false }) do
+        kind = where
+        check(("%s: hidden is %s"):format(where, tostring(hidden)), env.InPvPFn() == hidden)
+    end
+    check("every loading screen checks again", source:match("local EVENTS = {[^}]-\"PLAYER_ENTERING_WORLD\"")
+        and source:find('if event == "PLAYER_ENTERING_WORLD" then\n        inPvP = InPvP()', 1, true))
+    check("turning it on checks too", source:match("local function Apply%(%).-inPvP = InPvP%(%).-\nend\n"))
+    check("in PvP it hides, except in the HUD Editor",
+        source:find('if not unlocked and (inPvP or (maxed and not S.Get("xpBarMaxLevel"))) then', 1, true))
 end
 
 print(("test-xp-bar: %d checks passed"):format(checks))

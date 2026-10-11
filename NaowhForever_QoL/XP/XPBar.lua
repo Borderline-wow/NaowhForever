@@ -29,7 +29,9 @@ local BESIDE = { LEFT, RIGHT }
 local SAME_TEXT = { levelshort = "level", levelnum = "level" }
 local BLIZZARD_BARS = { "MainMenuExpBar", "ExhaustionTick" }
 local EVENTS = { "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "UPDATE_EXHAUSTION", "PLAYER_UPDATE_RESTING",
-    "QUEST_LOG_UPDATE", "DISABLE_XP_GAIN", "ENABLE_XP_GAIN", "PLAYER_LOGOUT", "MODIFIER_STATE_CHANGED" }
+    "QUEST_LOG_UPDATE", "DISABLE_XP_GAIN", "ENABLE_XP_GAIN", "PLAYER_LOGOUT", "MODIFIER_STATE_CHANGED",
+    "PLAYER_ENTERING_WORLD" }
+local PVP_INSTANCES = { pvp = true, arena = true }
 local SLOTS = {
     { key = "xpBarTopLeft", label = "Top Left", point = "BOTTOMLEFT", rel = "TOPLEFT", y = SLOT_DROP,
       justify = "LEFT" },
@@ -215,7 +217,7 @@ function ns.ResetXPBarColors()
 end
 ns.XPBarMinWidth = MIN_WIDTH
 
-local bar, clock, unlocked, questTimer
+local bar, clock, unlocked, questTimer, inPvP
 local sessionStart, sessionXP = nil, 0
 local lastXP, lastXPMax
 local questDone, questOpen = 0, 0
@@ -246,6 +248,11 @@ end
 
 local function On()
     return S.Get("enabled") and S.Get("xpBar")
+end
+
+local function InPvP()
+    local _, kind = IsInInstance()
+    return PVP_INSTANCES[kind] == true
 end
 
 local function AtMaxLevel()
@@ -652,7 +659,7 @@ end
 local function Update()
     if not bar then return end
     local maxed = AtMaxLevel()
-    if not unlocked and maxed and not S.Get("xpBarMaxLevel") then
+    if not unlocked and (inPvP or (maxed and not S.Get("xpBarMaxLevel"))) then
         bar:Hide()
         return
     end
@@ -714,7 +721,9 @@ events:SetScript("OnEvent", function(_, event)
         bar:EnableMouse(IsControlKeyDown())
         return
     end
-    if event == "PLAYER_LEVEL_UP" then
+    if event == "PLAYER_ENTERING_WORLD" then
+        inPvP = InPvP()
+    elseif event == "PLAYER_LEVEL_UP" then
         QueueQuestScan()
     elseif event == "PLAYER_XP_UPDATE" then
         CountXP()
@@ -771,6 +780,7 @@ local function Apply()
     Place()
 
     lastXP, lastXPMax = UnitXP("player"), UnitXPMax("player")
+    inPvP = InPvP()
     for _, e in ipairs(EVENTS) do events:RegisterEvent(e) end
     if ShowsText("played") then Played.Want("xpBar") else Played.Drop("xpBar") end
     if not clock then clock = C_Timer.NewTicker(CLOCK_TICK, Update) end
