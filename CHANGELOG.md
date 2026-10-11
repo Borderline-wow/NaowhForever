@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 1.1.8
+
+### Added
+- Dungeon Journal: City of Dalaran is open, with every boss's loot and drop chances.
+
+### Changed
+- Dungeon Journal: the old dungeons' group is called Low Level and sits at the top of the dungeon
+  list, closed until you open it.
+- Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70338.
+- Dungeon Journal: boss loot updated from the latest Forever loot lists.
+- Dungeon Journal: drop chances updated from Wowhead's latest kill counts.
+- BiS List: picks updated from wowsrc.com's latest lists.
+- Dungeon Journal: City of Dalaran and Excavation Site read wowsrc.com's loot lists too.
+
+### Fixed
+- Dungeon Journal: an item placed on a boss twice is listed once (the Stockade's Defias Renegade
+  Ring).
 
 ## 1.1.7
 
