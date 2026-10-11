@@ -156,6 +156,7 @@ local function Switch(card)
         local store = card.store
         card.switchGet = function() return store.Get(switch) end
         card.switchSet = function(v) store.Set(switch, v and true or false) end
+        card.switchSetting = { store = store, key = switch, kind = "toggle" }
     elseif type(switch) == "table" then
         card.switchGet, card.switchSet = switch.get, switch.set
     end

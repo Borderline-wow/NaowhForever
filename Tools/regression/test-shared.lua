@@ -324,6 +324,28 @@ local settingsView = settingsParent.settingsView
 check("the settings page drew its card", settingsView.pools.setting.used == 3 and settingsView.pools.group.used == 1)
 Measure(check)("a settings page redrawn", 1, function() settingsView:Redraw() end)
 
+do
+    local switched, defaults = {}, { on = true }
+    local switchStore = {
+        Get = function(k) if switched[k] == nil then return defaults[k] end return switched[k] end,
+        Raw = function(k) return switched[k] end,
+        Default = function(k) return defaults[k] end,
+        Set = function(k, v) switched[k] = v end,
+        OnChange = NOTHING,
+    }
+    Settings.Page("Test/Switch", switchStore):Card({ id = "switch", name = "Switch", switch = "on", rows = {
+        { key = "shown", label = "Shown", toggle = true },
+    } })
+    local parent = Frame()
+    Settings.Render(parent, "Test/Switch", NOTHING)
+    local head = parent.settingsView.pools.cardHead[1]
+    check("a card switch at its default has no changed dot", head.dot.shown == false)
+    switched.on = false
+    parent.settingsView:Redraw()
+    check("switched off from its default, the card head shows the dot", head.dot.shown == true)
+    check("and it has no click, so a stray click never switches a feature on", head.dot.scripts.OnClick == nil)
+end
+
 -------------------------------------------------------------------------------
 --  A tracker's window (Parts.TrackerPanel): built only when asked, its parts where the
 --  options ask for them, rows pooled, the body scrolling past its height, its place kept.

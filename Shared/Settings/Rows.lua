@@ -87,7 +87,8 @@ local function DotEnter(dot)
     GameTooltip:SetOwner(dot, "ANCHOR_RIGHT")
     GameTooltip:SetText(TEXT_CHANGED, TIP_TITLE, TIP_TITLE, TIP_TITLE)
     local default = Control.Shown(setting, setting.store.Default(setting.key))
-    GameTooltip:AddLine(default and (TEXT_DEFAULT_IS .. default .. TEXT_PUT_BACK) or TEXT_PUT_BACK_DEFAULT,
+    local putBack = dot.noReset and "." or TEXT_PUT_BACK
+    GameTooltip:AddLine(default and (TEXT_DEFAULT_IS .. default .. putBack) or TEXT_PUT_BACK_DEFAULT,
         T.muted.r, T.muted.g, T.muted.b, true)
     GameTooltip:Show()
 end
@@ -288,6 +289,9 @@ local function NewHead(view)
     head.name:SetPoint("LEFT", head.chevron, "RIGHT", CONTROL_GAP, 0)
     head.nameHit = HelpHit(head, head.name)
     head.switch = HeadSwitch(head)
+    head.dot = Dot(head)
+    head.dot.noReset = true
+    head.dot:SetScript("OnClick", nil)
     head.summary = ns.Font(head, SMALL_SIZE, nil, T.muted)
     head.summary:SetJustifyH("LEFT")
     head.summary:SetWordWrap(false)
@@ -319,6 +323,8 @@ end
 
 local function SetHead(head, card, isOpen, held)
     head.card, head.held = card, held
+    head.setting = card.switchSetting
+    head.dot:SetShown(head.setting ~= nil and Settings.Changed(head.setting))
     head.name:SetText(Marked(head, card.name))
     head.nameHit.help = card.help
     head.chevron:SetRotation(isOpen and OPEN_TURN or 0)
