@@ -74,6 +74,7 @@ BINDING_NAME_NAOWHFOREVER_GROUPINSPECT = "Open Group Inspect"
 BINDING_NAME_NAOWHFOREVER_COMPLETO = "Open Quest List"
 BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP = "Pick Up Cheapest Item"
 BINDING_NAME_NAOWHFOREVER_HUD = "Open or Close the HUD Editor"
+BINDING_NAME_NAOWHFOREVER_TRAINING = "Open Training Planner"
 _G["BINDING_NAME_CLICK NaowhForeverBlessNext:LeftButton"] = "Next Blessing"
 _G["BINDING_NAME_CLICK NaowhForeverBlessNextGreater:LeftButton"] = "Next Greater Blessing"
 _G["BINDING_NAME_CLICK NaowhForeverFoodBarFood:LeftButton"] = "Use Best Food"
@@ -88,6 +89,7 @@ NaowhForever_ToggleBis = SwitchedOff("BiS List")
 NaowhForever_ToggleGroupInspect = SwitchedOff("Group Inspect")
 NaowhForever_ToggleCompleto = SwitchedOff("Discovery")
 NaowhForever_BagSpacePickUp = SwitchedOff("Quality of Life")
+NaowhForever_ToggleTraining = SwitchedOff("Training Planner")
 
 SLASH_NAOWHFOREVERQUESTLIST1 = "/nfquests"
 SLASH_NAOWHFOREVERQUESTLIST2 = "/nfcompleto"

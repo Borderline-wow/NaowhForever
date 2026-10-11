@@ -118,6 +118,15 @@ check("a key binding for the HUD Editor",
     bindings:find('<Binding name="NAOWHFOREVER_HUD" category="BINDING_HEADER_NAOWHFOREVER">'
         .. "NaowhForever_ToggleHudEditor()</Binding>", 1, true))
 check("with its name", Fixture(0).env.BINDING_NAME_NAOWHFOREVER_HUD ~= nil)
+check("a key binding for the Training Planner",
+    bindings:find('<Binding name="NAOWHFOREVER_TRAINING" category="BINDING_HEADER_NAOWHFOREVER">'
+        .. "NaowhForever_ToggleTraining()</Binding>", 1, true))
+do
+    local t = Fixture(0)
+    check("with its name", t.env.BINDING_NAME_NAOWHFOREVER_TRAINING ~= nil)
+    t.env.NaowhForever_ToggleTraining()
+    check("which says so while the Training Planner is not loaded", t.printed[#t.printed]:find("Training Planner", 1, true))
+end
 
 local toc = Read("NaowhForever.toc")
 local s = Fixture(0)

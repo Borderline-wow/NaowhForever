@@ -385,6 +385,10 @@ function ns.ToggleTrainingWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenTrainingWindow() end
 end
 
+function NaowhForever_ToggleTraining()
+    ns.ToggleTrainingWindow()
+end
+
 local function OnSettingChanged(key)
     if key == "enabled" then
         if not S.Get("enabled") and window then window:Hide() end
