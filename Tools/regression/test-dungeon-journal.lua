@@ -611,8 +611,11 @@ do
                         check("chance is a percent, 0 when unknown: " .. boss.name, c >= 0 and c <= 100)
                     end
                 end
+                local listed = {}
                 for _, id in ipairs(boss.loot or {}) do
                     items = items + 1
+                    check("item " .. id .. " listed once on " .. boss.name .. " (" .. dungeon.name .. ")", not listed[id])
+                    listed[id] = true
                     local facts = J.Items[id] or J.NotYet[id]
                     check("item " .. id .. " has its facts", facts ~= nil)
                     check("item " .. id .. " is uncommon or better", facts[J.FACT.QUALITY] >= 2)
@@ -1230,7 +1233,8 @@ do
     state.bis[notYet] = nil
     local herod = findBoss("ScarletMonasteryArmory", "Herod")
     check("Herod: Ravager, which Forever sends", Has(herod.loot, 7717) and DJ.Items[7717] ~= nil)
-    check("and his Classic loot, not in Forever yet", Has(herod.loot, 7718) and DJ.IsNotYet(7718))
+    check("and his Classic loot, in Forever since build 1.60.1.70338", Has(herod.loot, 7718)
+        and not DJ.IsNotYet(7718) and DJ.Items[7718] ~= nil)
     check("each with its chance", herod.chance and #herod.chance == #herod.loot)
     for _, name in ipairs({ "Saltspine", "Shadetooth", "Relic Guardian" }) do
         local b = findBoss("ExcavationSite", name)
@@ -1239,10 +1243,10 @@ do
         check("Excavation Site: " .. name .. "'s loot, each with its chance", known)
     end
     for _, key in ipairs({ "ScarletMonasteryGraveyard", "ScarletMonasteryLibrary", "ScarletMonasteryArmory",
-        "ScarletMonasteryCathedral", "ExcavationSite", "HallOfThanes", "RuinsOfLordaeron", "Deadmines" }) do
+        "ScarletMonasteryCathedral", "ExcavationSite", "HallOfThanes", "RuinsOfLordaeron", "Deadmines", "Dalaran" }) do
         check("open on Forever: " .. key, not DJ.Get(key).closed)
     end
-    for _, key in ipairs({ "RazorfenDowns", "Uldaman", "Scholomance", "Dalaran" }) do
+    for _, key in ipairs({ "RazorfenDowns", "Uldaman", "Scholomance" }) do
         check("not open on Forever yet: " .. key, DJ.Get(key).closed)
     end
     -- An item the server will not send: no redraw for it, never waited on again.
