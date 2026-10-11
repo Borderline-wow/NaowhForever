@@ -9,7 +9,7 @@ local Parts = ns.Shared.Parts
 local GAP, FILL_ALPHA = 4, 0.9
 local BLACK = ns.Shared.Style.BORDER_RGB
 local LABEL_SIZE = 12
-local DEFAULT_Y = -160
+local DEFAULT_X, DEFAULT_Y = 40, -40
 local BUTTONS_PER_BAR = 2
 local WIDTH_RANGE, HEIGHT_RANGE = { 60, 200, 1 }, { 16, 48, 1 }
 local TEXT_RANGE = ns.Shared.Style.HUD_TEXT_RANGE
@@ -113,7 +113,7 @@ local function Place()
     if pos then
         bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
     else
-        bar:SetPoint("CENTER", UIParent, "CENTER", 0, DEFAULT_Y)
+        bar:SetPoint("LEFT", UIParent, "LEFT", DEFAULT_X, DEFAULT_Y)
     end
 end
 
