@@ -143,7 +143,7 @@ local function World(known)
         PickupMacro = function(i)
             -- A macro slot reports the spell it shows; this one shows nothing.
             local m = i > 120 and w.charMacros[i - 120] or w.macros[i]
-            w.cursor = { kind = "macro", id = 0, name = m.name }
+            w.cursor = { kind = "macro", id = 0, name = m.name, index = i }
         end,
         GetNumBindings = function() return #w.binds end,
         GetBinding = function(i) local b = w.binds[i]; return b[1], "HEADER", b[2], b[3] end,
@@ -313,6 +313,44 @@ Case("a macro of the same name with other text is never overwritten", function()
     w.macros[1].body = "/yell PULLING"
     w.run("import M")
     assert(w.macros[1].body == "/yell PULLING" and w.macros[2].body == "/say pull", "made alongside")
+end)
+Case("a Smart Macro is found by name, since every character writes its own items into it", function()
+    local w = World({})
+    w.ns.MacroSmart = { list = { { key = "bandage", name = "NF Bandage" } } }
+    w.macros = { { name = "NF Bandage", icon = 1, body = "#showtooltip\n/use item:6450" } }
+    w.bars = { [5] = Macro("NF Bandage") }
+    w.run("save M")
+    w.macros[1].body = "#showtooltip\n/use item:1251"
+    w.bars = {}
+    w.run("import M")
+    assert(#w.macros == 1 and w.macros[1].body == "#showtooltip\n/use item:1251", "no second NF Bandage")
+    assert(Bars(w) == "5=NF Bandage", Bars(w))
+end)
+Case("a stale NF macro left by an older import is passed over for the one kept current", function()
+    local w = World({})
+    w.ns.MacroSmart = { list = { { key = "bandage", name = "NF Bandage" }, { key = "drink", name = "NF Drink" } } }
+    w.macros = { { name = "NF Bandage", icon = 1, body = "#showtooltip\n/use item:6450" },
+        { name = "NF Drink", icon = 1, body = "#showtooltip" } }
+    w.bars = { [5] = Macro("NF Bandage"), [6] = Macro("NF Drink") }
+    w.run("save M")
+    w.macros = { { name = "NF Bandage", icon = 1, body = "#showtooltip\n/use item:1251" },
+        { name = "NF Bandage", icon = 1, body = "#showtooltip\n/use item:6450" },
+        { name = "NF Drink", icon = 1, body = "#showtooltip\n/use item:159" },
+        { name = "NF Health", icon = 1, body = "#showtooltip" } }
+    w.bars = {}
+    w.run("import M")
+    assert(#w.macros == 4, "nothing made")
+    assert(w.bars[5].index == 1 and w.bars[6].index == 3, "the kept copy, and not NF Health for its text")
+end)
+Case("an NF macro switched off on this account is not made again", function()
+    local w = World({})
+    w.ns.MacroSmart = { list = { { key = "trinket1", name = "NF Trinket 1" } } }
+    w.macros = { { name = "NF Trinket 1", icon = 1, body = "/use 13" } }
+    w.bars = { [5] = Macro("NF Trinket 1") }
+    w.run("save M")
+    w.macros, w.bars = {}, {}
+    w.run("import M")
+    assert(#w.macros == 0 and Bars(w) == "", Bars(w))
 end)
 Case("a #showtooltip macro is made with the question mark so it follows its spell", function()
     local w = World({})

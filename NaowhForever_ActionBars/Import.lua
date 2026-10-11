@@ -69,8 +69,8 @@ local function ImportMacros(set, test)
     local index, plan, fresh, fates = Capture.MacroIndex(), { account = 0, character = 0 }, {}, {}
     local made = false
     for _, macro in ipairs(SetMacros(set)) do
-        local fate = "have"
-        if not Lookup(index, macro) then
+        local fate = Lookup(index, macro) and "have"
+        if not fate and not index.managed[macro.name] then
             fate = "full"
             if MacroRoom(macro.perCharacter, plan) then
                 if test then
@@ -85,7 +85,7 @@ local function ImportMacros(set, test)
                 fate, made = "new", true
             end
         end
-        fates[#fates + 1] = { name = macro.name, fate = fate, perCharacter = macro.perCharacter }
+        if fate then fates[#fates + 1] = { name = macro.name, fate = fate, perCharacter = macro.perCharacter } end
     end
     if made and not test then index = Capture.MacroIndex() end
     return index, fresh, fates
