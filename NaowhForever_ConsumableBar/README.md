@@ -83,6 +83,24 @@ NaowhForever_ConsumableBar/
 - An item given its own text before the Custom Text switch existed keeps showing it.
 - The bar starts at `HOME_Y` (-260), under the Food & Drink Bar's spot (-210), so the two never sit
   on top of each other.
+- An entry is an item ID or a Smart Macro (`macro:health`, `macro:healthstone`, `macro:healthPotion`,
+  `macro:mana`, `macro:food`, `macro:drink`, `macro:bandage`, while the Macros module is loaded: it
+  loads first, `OptionalDeps`). A macro's button runs it by name, so Macros' rewrite needs nothing
+  protected here. The bar never flips your Macros switches: Macros keeps a macro the bar uses
+  (`ns.ConsumableBarUsesMacro`), and the bar only asks it to update (`ns.UpdateManagedMacros`) when
+  the macros it uses change, so a bar that is off costs nothing. A rewrite in combat only redraws
+  the icon, since resizing a secure button waits for the fight to end.
+- NF Health's priority and NF Food's Food Only sit behind cogs on their rows. They are the Macros
+  module's own settings (`ns.MacroSettings`), shown in both places, so there is never a second copy.
+- A Smart Macro covers a kind of item: NF Health healthstones and healing potions, NF Healthstone
+  and NF Health Potion one of those each, NF Mana mana potions, NF Food food and drink (food alone
+  with Macros' Food Only on), NF Drink drinks, NF Bandage bandages. Scan Bags and Ask to Add skip
+  what is covered; adding one by hand asks first.
+- For a class with no mana (warriors and rogues, `ns.UsesMana`) NF Mana and NF Drink are
+  not shown, even from another character's profile, but stay saved and kept by Macros
+  (`ns.ConsumableBarUsesMacro` reads the saved list): the NF macros are account-wide, so letting one
+  go would delete a caster's macro from their action bars. Edits on that character keep them for the next; their switches wait, saying why, and Scan Bags and Ask to
+  Add skip drinks and mana potions; adding one by hand asks first.
 - Anchoring is the shared one (`Shared/UI/Anchor.lua`): unit frames there, and the HUD Editor's own
   Anchor for another Naowh Forever element (Anchor to an Element). Another addon's frame could move
   in combat, and the bar's secure buttons on it would block that.

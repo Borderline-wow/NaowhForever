@@ -56,7 +56,15 @@ the open tab) and the functions its UI files call on each other.
   when it holds a placeholder or an item it would otherwise keep. The Smart Macros page lists what
   the generated lines use (`Smart.Body`), so an item named in the extras is not shown as the macro's.
 - NF Health picks from the core's healing lists (`ns.HEALTHSTONES`, `ns.HEALING_POTIONS`, in
-  `Shared/Game/Consumables.lua`), never Aura Buffs', so it works with Aura Buffs off.
+  `Shared/Game/Consumables.lua`), never Aura Buffs', so it works with Aura Buffs off. NF Mana's list
+  (`ns.MANA_POTIONS`) is there too, so the Consumable Bar can tell mana potions apart without Macros.
+- The Consumable Bar can carry every bag macro: NF Health, NF Healthstone, NF Health Potion, NF Mana,
+  NF Food, NF Drink and NF Bandage (`ns.ConsumableMacros`).
+  Its buttons run them by name, so this module's rewrite is all that keeps them current: a macro the
+  bar uses (`ns.ConsumableBarUsesMacro`) is written and kept current whatever its switch or the
+  module's, cannot be removed from here, and shows locked on in Kept Current. One written only for
+  the bar goes when the bar stops using it; one switched on here stays. Which ones only the bar
+  wanted is saved (`barOnly`), so that still holds after a `/reload`.
 - `LIMIT` is 255: the game keeps only the first 255 bytes of a macro's text, counted in bytes.
 - `NAME_MAX` is 16, the bytes a macro's name holds.
 - `QUESTION` (134400) is the question mark icon. A macro made with it shows what `#showtooltip`

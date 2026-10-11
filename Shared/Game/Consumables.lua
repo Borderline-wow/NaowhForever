@@ -1,4 +1,4 @@
--- Consumables.lua: your best food and drink (ns.BestFoodAndDrink), healthstones and healing potions, best first, and the food spells and Well Fed buffs.
+-- Consumables.lua: your best food and drink (ns.BestFoodAndDrink), healthstones, healing and mana potions, best first, the food spells and Well Fed buffs, and whether you use mana.
 local ns = _G.NaowhForever
 
 local CONJURED = {
@@ -7,12 +7,23 @@ local CONJURED = {
     [1113] = true, [5349] = true,
 }
 local FOOD_SPELL, DRINK_SPELL = 433, 430
+local NO_MANA = { WARRIOR = true, ROGUE = true }
 local CONJURED_BONUS = 1000
 local REQUIRED_LEVEL = 5
 
 ns.HEALTHSTONES = { 9421, 19012, 19013, 5510, 19010, 19011, 5509, 19008, 19009, 5511, 19006, 19007, 5512, 19004,
     19005 }
 ns.HEALING_POTIONS = { 13446, 3928, 18839, 247242, 1710, 247241, 929, 247240, 858, 247239, 118, 4596 }
+ns.MANA_POTIONS = { 13444, 13443, 6149, 3827, 3385, 2455 }
+
+function ns.UsesMana()
+    return not NO_MANA[select(2, UnitClass("player"))]
+end
+
+function ns.IsDrink(itemID)
+    local spell = C_Item.GetItemSpell(itemID)
+    return spell ~= nil and spell == C_Spell.GetSpellName(DRINK_SPELL)
+end
 
 ns.WELL_FED = {
     1248406, 1248420, 1248421, 1248422, 1248688, 1249519, 1249520, 1249521, 1249523,

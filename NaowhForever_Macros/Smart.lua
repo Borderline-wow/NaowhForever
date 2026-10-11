@@ -20,6 +20,7 @@ local TEXT_HEADLINE = "%d of %d macros kept current for you"
 local TEXT_OFF = "Turn on Macros to keep them current."
 local TEXT_NO_CLASS_MACROS = "Your profile has no class macros for your %s."
 local TEXT_CLASS_MACROS = "%d class macro%s from your profile for your %s."
+local TEXT_ON_BAR = "%s is on the Consumable Bar. Take it off the bar first (Consumable Bar > Settings)."
 
 local MACROS = {
     { key = "health", name = "NF Health" },
@@ -49,6 +50,16 @@ local refresh = {}
 local toDelete = {}
 local steps = {}
 local events = CreateFrame("Frame")
+
+local function UsedByBar(key)
+    return ns.ConsumableBarUsesMacro ~= nil and ns.ConsumableBarUsesMacro(key)
+end
+
+local function BarOnly()
+    local db = S.DB()
+    if type(db.barOnly) ~= "table" then db.barOnly = {} end
+    return db.barOnly
+end
 
 local function FirstCarried(list)
     for _, id in ipairs(list) do
@@ -100,7 +111,7 @@ local BODIES = {
         PotionSteps()
         return Sequence(steps)
     end,
-    mana = function() return UseLines(ItemLine(FirstCarried(Items.MANA_POTIONS))) end,
+    mana = function() return UseLines(ItemLine(FirstCarried(ns.MANA_POTIONS))) end,
     food = function()
         local food, drink = ns.BestFoodAndDrink()
         if S.Get("foodOnly") then drink = nil end
@@ -181,9 +192,9 @@ end
 
 local function Wanted()
     local any, bags = false, false
-    if not S.Get("enabled") then return any, bags end
+    local on = S.Get("enabled")
     for _, m in ipairs(MACROS) do
-        if S.Get(m.key) then
+        if (on and S.Get(m.key)) or UsedByBar(m.key) then
             any = true
             if BAG_MACROS[m.key] then bags = true end
         end
@@ -224,11 +235,14 @@ local function Update()
     pending = false
     events:UnregisterEvent("PLAYER_REGEN_ENABLED")
     local on = S.Get("enabled")
+    local barOnly = BarOnly()
     for _, m in ipairs(MACROS) do
-        if on and S.Get(m.key) then
+        local wanted = on and S.Get(m.key)
+        if wanted or UsedByBar(m.key) then
+            barOnly[m.key] = not wanted or nil
             Keep(m)
-        elseif toDelete[m.name] then
-            toDelete[m.name] = nil
+        elseif toDelete[m.name] or barOnly[m.key] then
+            toDelete[m.name], barOnly[m.key] = nil, nil
             local index = GetMacroIndexByName(m.name)
             if index > 0 then DeleteMacro(index) end
         end
@@ -274,7 +288,7 @@ local function On() return S.Get("enabled") == true end
 local function KeptCount(store)
     local n = 0
     for _, m in ipairs(MACROS) do
-        if store.Get(m.key) then n = n + 1 end
+        if store.Get(m.key) or UsedByBar(m.key) then n = n + 1 end
     end
     return n
 end
@@ -292,7 +306,7 @@ local function Detail()
 end
 
 local Smart = { list = MACROS, bag = BAG_MACROS, Body = Body, Write = Write, On = On, KeptCount = KeptCount,
-    Headline = Headline, Detail = Detail }
+    Headline = Headline, Detail = Detail, UsedByBar = UsedByBar }
 M.Smart = Smart
 
 function Smart.Ready() return ready end
@@ -312,8 +326,17 @@ function ns.PickupManagedMacro(key)
     if index > 0 then PickupMacro(index) else ns.Print(TEXT_NO_ROOM) end
 end
 
+function ns.UpdateManagedMacros()
+    SyncEvents()
+    Update()
+end
+
 function ns.RemoveManagedMacro(key)
     if InCombatLockdown() then ns.Print(TEXT_REMOVE_IN_COMBAT) return end
+    if UsedByBar(key) then
+        ns.Print(TEXT_ON_BAR:format(Named(key).name))
+        return
+    end
     if not S.Get(key) then return end
     S.Set(key, false)
     Refresh()

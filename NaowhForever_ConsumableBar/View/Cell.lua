@@ -72,14 +72,9 @@ local function FitNone(cell, size)
     end
 end
 
-local function EntryIcon(entry)
-    local item = CB.Resolve(entry)
-    return item and C_Item.GetItemIconByID(item) or C.EMPTY_ICON
-end
-
 function CB.StyleCell(cell, entry, size)
     cell:SetSize(size, size)
-    cell.icon:SetTexture(EntryIcon(entry))
+    cell.icon:SetTexture(CB.EntryIcon(entry))
     ItemBar.StyleTexts(cell, S, CB.PREFIX)
     PlaceCustom(cell, entry)
     FitNone(cell, size)

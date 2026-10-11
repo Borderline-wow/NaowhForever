@@ -10,6 +10,8 @@ local Group = Settings.Group
 local OPACITY_RANGE, PERCENT_SCALE = ns.Shared.Style.OPACITY_RANGE, ns.Shared.Style.PERCENT_SCALE
 local ORDER_KEPT, ORDER_HEALTH, ORDER_FOOD, ORDER_EXTRA, ORDER_FOCUS, ORDER_WINDOW = 5, 20, 22, 25, 30, 40
 local MACROS_OFF = "Turn on Macros"
+local USED_BY_BAR = "Used by Consumable Bar"
+local BAR_PAGE, BAR_CARD = "Consumable Bar/Settings", "Consumable Bar/Settings:adding"
 local TEXT_KEPT = "%d of %d kept current"
 local TEXT_ANNOUNCES_MARKS = "Announces and marks your focus"
 local TEXT_ANNOUNCES = "Announces your focus"
@@ -18,6 +20,7 @@ local TEXT_JUST_FOCUS = "Just sets your focus"
 
 local HEALTH_ORDER_VALUES = { stone = "Healthstone First", potion = "Potion First" }
 local HEALTH_ORDER_ORDER = { "stone", "potion" }
+ns.HealthOrderChoices = { values = HEALTH_ORDER_VALUES, order = HEALTH_ORDER_ORDER }
 local MARKER_VALUES = { [1] = "Star", [2] = "Circle", [3] = "Diamond", [4] = "Triangle",
     [5] = "Moon", [6] = "Square", [7] = "Cross", [8] = "Skull" }
 local MARKER_ORDER = { 8, 7, 6, 5, 4, 3, 2, 1 }
@@ -42,6 +45,46 @@ local function KeptSummary(store)
     return TEXT_KEPT:format(Smart.KeptCount(store), #Smart.list)
 end
 
+local function GoToBar()
+    ns.UI.GoToSetting(BAR_PAGE, nil, BAR_CARD)
+end
+
+local function Locked() return false end
+local function AlwaysOn() return true end
+local function Ignore() end
+
+local function KeptRow(key, label, help)
+    if Smart.UsedByBar(key) then
+        return { label = label, toggle = true, needs = Locked, why = USED_BY_BAR,
+            get = AlwaysOn, set = Ignore, help = "Kept on while the Consumable Bar uses it." }
+    end
+    return { key = key, label = label, toggle = true, needs = On, why = MACROS_OFF, help = help }
+end
+
+local function KeptRows()
+    local rows = {
+        KeptRow("health", "NF Health", "Your best healthstone or healing potion."),
+        KeptRow("healthstone", "NF Healthstone", "Your best healthstone alone."),
+        KeptRow("healthPotion", "NF Health Potion", "Your best healing potion alone."),
+        KeptRow("mana", "NF Mana", "Your best mana potion."),
+        KeptRow("food", "NF Food", "Your best food and drink, conjured first."),
+        KeptRow("drink", "NF Drink", "Your best drink alone, conjured first."),
+        KeptRow("bandage", "NF Bandage", "Your best bandage, on yourself."),
+        KeptRow("trinket1", "NF Trinket 1", "Uses your top trinket."),
+        KeptRow("trinket2", "NF Trinket 2", "Uses your bottom trinket."),
+        KeptRow("focus", "NF Focus", "Focuses your mouseover, or your target."),
+        KeptRow("acceptPopup", "NF Accept", "Accepts the popup on screen: a summons, a resurrection, a group invite."),
+    }
+    for key in pairs(ns.ConsumableMacros) do
+        if Smart.UsedByBar(key) then
+            rows[#rows + 1] = { label = "Consumable Bar", button = GoToBar, buttonText = "Options", always = true,
+                help = "Opens the Consumable Bar's settings." }
+            break
+        end
+    end
+    return rows
+end
+
 local page = Settings.Page("Macros/Settings", S)
 
 page:Window({
@@ -56,30 +99,8 @@ page:Card({
     help = "The macros the addon writes and keeps up to date for you, out of combat. Switch one on here, "
         .. "or take it to your bars from Smart Macros in Naowh's Forge.",
     summary = KeptSummary,
-    rows = {
-        { key = "health", label = "NF Health", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best healthstone or healing potion." },
-        { key = "healthstone", label = "NF Healthstone", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best healthstone alone." },
-        { key = "healthPotion", label = "NF Health Potion", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best healing potion alone." },
-        { key = "mana", label = "NF Mana", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best mana potion." },
-        { key = "food", label = "NF Food", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best food and drink, conjured first." },
-        { key = "drink", label = "NF Drink", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best drink alone, conjured first." },
-        { key = "bandage", label = "NF Bandage", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Your best bandage, on yourself." },
-        { key = "trinket1", label = "NF Trinket 1", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Uses your top trinket." },
-        { key = "trinket2", label = "NF Trinket 2", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Uses your bottom trinket." },
-        { key = "focus", label = "NF Focus", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Focuses your mouseover, or your target." },
-        { key = "acceptPopup", label = "NF Accept", toggle = true, needs = On, why = MACROS_OFF,
-          help = "Accepts the popup on screen: a summons, a resurrection, a group invite." },
-    },
+    rows = KeptRows,
+    watch = { ns.QoLSettings },
 })
 
 page:Card({

@@ -1,4 +1,4 @@
--- Items.lua: the Consumable Bar's item rules: what counts as a consumable, the list on the bar and each item's settings.
+-- Items.lua: the Consumable Bar's item rules: what counts as a consumable, what a Smart Macro covers, the list on the bar and each item's settings.
 local ns = _G.NaowhForever
 
 local CB = ns.ConsumableBar
@@ -18,6 +18,33 @@ local LIST_JOIN = ", "
 local LOOK_FLAGS = { textOn = true, text = true, textFont = true, textSize = true, textColor = true,
     textPoint = true, textOutside = true, textX = true, textY = true }
 
+local TEXT_COVERED = "%s your best %s. Add %s too?"
+local TEXT_NO_MANA = "You don't use mana. Add %s anyway?"
+local TEXT_MIXED = "A Smart Macro already covers some of these, or they need mana: %s. Add them anyway?"
+local TEXT_NEEDS_MANA = "You don't use mana, so that button would do nothing."
+
+local function FoodOnly()
+    local M = ns.MacroSettings
+    return M ~= nil and M.Get("foodOnly") == true
+end
+
+local function NotADrinkForFoodOnly(itemID)
+    return not (FoodOnly() and ns.IsDrink(itemID))
+end
+
+local COVERS = {
+    ["macro:food"] = { name = "NF Food already uses", kind = "food and drink", category = "food",
+        also = NotADrinkForFoodOnly },
+    ["macro:drink"] = { name = "NF Drink already uses", kind = "drink", category = "food", also = ns.IsDrink },
+    ["macro:health"] = { name = "NF Health already uses", kind = "healthstone or healing potion",
+        category = "healthstone", list = "HEALING_POTIONS" },
+    ["macro:healthstone"] = { name = "NF Healthstone already uses", kind = "healthstone", category = "healthstone" },
+    ["macro:healthPotion"] = { name = "NF Health Potion already uses", kind = "healing potion",
+        list = "HEALING_POTIONS" },
+    ["macro:mana"] = { name = "NF Mana already uses", kind = "mana potion", list = "MANA_POTIONS" },
+    ["macro:bandage"] = { name = "NF Bandage already uses", kind = "bandage", category = "bandage" },
+}
+
 function CB.Category(itemID)
     if D.WEAPON[itemID] then return "weapon" end
     if CB.Has(ns.HEALTHSTONES, itemID) then return "healthstone" end
@@ -27,10 +54,30 @@ function CB.Category(itemID)
     return D.BY_SUBCLASS[subclassID] or "other"
 end
 
+function CB.CoveredBy(itemID)
+    local category
+    for _, entry in ipairs(CB.Items()) do
+        local cover = COVERS[entry]
+        if cover and CB.MacroInfo(entry) then
+            category = category or CB.Category(itemID)
+            local kind = (cover.category and cover.category == category) or (cover.list and CB.Has(ns[cover.list], itemID))
+            if kind and (not cover.also or cover.also(itemID)) then return entry end
+        end
+    end
+end
+
+function CB.ManaOnly(itemID)
+    return not ns.UsesMana() and (CB.Has(ns.MANA_POTIONS, itemID) or ns.IsDrink(itemID))
+end
+
 function CB.Wanted(itemID)
     local category = CB.Category(itemID)
     local skip = S.Get("consumableBarSkip") or {}
-    return category ~= nil and not skip[category]
+    return category ~= nil and not skip[category] and not CB.CoveredBy(itemID) and not CB.ManaOnly(itemID)
+end
+
+function CB.Blocked(entry)
+    if CB.NeedsMana(entry) and not ns.UsesMana() then return TEXT_NEEDS_MANA end
 end
 
 function CB.SetFlag(entry, key, value)
@@ -51,7 +98,7 @@ end
 
 function CB.AddItems(ids)
     local items, have, added = {}, {}, 0
-    for i, id in ipairs(CB.Items()) do
+    for i, id in ipairs(CB.SavedItems()) do
         items[i] = id
         have[id] = true
     end
@@ -66,38 +113,99 @@ function CB.AddItems(ids)
     return added
 end
 
-function CB.PlaceItem(entry, at)
-    local items, from = {}, nil
-    local list = CB.Items()
-    at = at or #list + 1
-    for i, id in ipairs(list) do
-        if id == entry then from = i else items[#items + 1] = id end
+local function IndexOf(list, value)
+    for i, v in ipairs(list) do
+        if v == value then return i end
     end
-    if from and from < at then at = at - 1 end
-    table.insert(items, math.min(at, #items + 1), entry)
-    S.Set("consumableBarItems", items)
 end
 
-function CB.MoveItem(from, to)
+local function Without(entry)
     local items = {}
-    for i, id in ipairs(CB.Items()) do items[i] = id end
-    local entry = table.remove(items, from)
-    if entry == nil then return end
-    table.insert(items, to, entry)
-    S.Set("consumableBarItems", items)
-end
-
-function CB.RemoveItem(entry)
-    local items = {}
-    for _, id in ipairs(CB.Items()) do
+    for _, id in ipairs(CB.SavedItems()) do
         if id ~= entry then items[#items + 1] = id end
+    end
+    return items
+end
+
+function CB.PlaceItem(entry, before)
+    if entry == before then return end
+    local items = Without(entry)
+    table.insert(items, IndexOf(items, before) or #items + 1, entry)
+    S.Set("consumableBarItems", items)
+end
+
+function CB.MoveItem(entry, onto)
+    if entry == onto then return end
+    local saved = CB.SavedItems()
+    local later = onto == nil or (IndexOf(saved, entry) or 0) < (IndexOf(saved, onto) or 0)
+    local items = Without(entry)
+    local at = IndexOf(items, onto)
+    table.insert(items, at and (later and at + 1 or at) or #items + 1, entry)
+    S.Set("consumableBarItems", items)
+end
+
+local function AddAt(ids, before)
+    if before then CB.PlaceItem(ids[1], before) else CB.AddItems(ids) end
+end
+
+local function Question(by, manaOnly, names)
+    local list = table.concat(names, LIST_JOIN)
+    if by and manaOnly then return TEXT_MIXED:format(list) end
+    if manaOnly then return TEXT_NO_MANA:format(list) end
+    local cover = COVERS[by]
+    return TEXT_COVERED:format(cover.name, cover.kind, list)
+end
+
+function CB.AddAsked(ids, at)
+    local plain, asked, names, by, manaOnly = {}, {}, {}, nil, false
+    local items = CB.Items()
+    for _, id in ipairs(ids) do
+        local fresh = not CB.Has(items, id)
+        local entry = fresh and CB.CoveredBy(id)
+        local mana = fresh and not entry and CB.ManaOnly(id)
+        if entry or mana then
+            asked[#asked + 1] = id
+            names[#names + 1] = CB.ItemName(id)
+            by = by or entry or nil
+            manaOnly = manaOnly or mana
+        else
+            plain[#plain + 1] = id
+        end
+    end
+    if #plain > 0 then AddAt(plain, at) end
+    if #asked == 0 then return end
+    ns.Confirm(Question(by, manaOnly, names), function() AddAt(asked, at) end)
+end
+
+function CB.RemoveEntries(entries)
+    local items = {}
+    for _, id in ipairs(CB.SavedItems()) do
+        if not CB.Has(entries, id) then items[#items + 1] = id end
     end
     local flags = {}
     for id, f in pairs(S.Get("consumableBarItemFlags") or {}) do
-        if id ~= entry then flags[id] = f end
+        if not CB.Has(entries, id) then flags[id] = f end
     end
     S.Set("consumableBarItemFlags", flags)
     S.Set("consumableBarItems", items)
+end
+
+function CB.SetMacro(key, on)
+    local entry = CB.MacroEntry(key)
+    if not on then
+        if CB.HasMacro(key) then CB.RemoveEntries({ entry }) end
+        return
+    end
+    local why = CB.Blocked(entry)
+    if why then
+        ns.Print(why)
+        return
+    end
+    CB.AddItems({ entry })
+end
+
+function CB.RemoveItem(entry)
+    CB.RemoveEntries({ entry })
 end
 
 local function ItemByName(name)
@@ -159,7 +267,7 @@ end
 local function Typed(text)
     local found, missing = CB.ParseItems(text)
     local ids, refused = OnlyConsumables(found)
-    if #ids > 0 then CB.AddItems(ids) end
+    if #ids > 0 then CB.AddAsked(ids) end
     if #refused > 0 then CB.SayNotConsumable(refused) end
     if missing and #missing > 0 then
         ns.Print(TEXT_NO_NAME:format(table.concat(missing, LIST_JOIN)))

@@ -7,7 +7,8 @@ local function Read(path)
     return text
 end
 local foodSource = Read("NaowhForever_QoL/Loot/FoodBar.lua")
-local MACRO_FILES = { "Macros.lua", "Constants.lua", "Data/Items.lua", "Commands.lua", "Smart.lua", "Profile.lua" }
+local MACRO_FILES = { "Macros.lua", "Constants.lua", "Data/Items.lua", "Commands.lua", "Smart.lua", "Profile.lua",
+    "UI/SettingsPage.lua" }
 local sources = { Read("Core/Features.lua"), Read("Shared/Game/Consumables.lua"), Read("Shared/Game/ActionKeys.lua"),
     Read("Shared/UI/ItemBar.lua"), Read("Shared/UI/Anchor.lua"), foodSource }
 
@@ -36,7 +37,7 @@ local function Fixture(opts)
     local settings = opts.settings or {}
     local qol = opts.qol or {}
     local bags = opts.bags or {}            -- flat list of item IDs, one per slot
-    local macros, created, edited, deleted, printed = {}, 0, 0, 0, {}
+    local macros, created, edited, deleted, printed = opts.macros or {}, 0, 0, 0, {}
     local account = {}
     local combat, group = false, opts.group
     local consts = { MAX_ACCOUNT_MACROS = opts.max or 30, MAX_CHARACTER_MACROS = opts.maxChar or 30 }
@@ -95,7 +96,10 @@ local function Fixture(opts)
             Settings = {
                 Group = function(title) return { group = title } end,
                 Page = function(key)
-                    return { Card = function(_, spec) cards[key .. ":" .. spec.id] = spec; return spec end }
+                    return {
+                        Card = function(_, spec) cards[key .. ":" .. spec.id] = spec; return spec end,
+                        Window = function(_, spec) return spec end,
+                    }
                 end,
             },
         },
@@ -126,6 +130,7 @@ local function Fixture(opts)
                     return defaults[k]
                 end
                 function S.Set(k, v) settings[k] = v end
+                function S.DB() return settings end
                 return S
             end,
         },
@@ -804,6 +809,102 @@ do
     t.Fire("PLAYER_ENTERING_WORLD")
     local Measure = dofile("Tools/regression/measure.lua")(function(label, ok) Check(label, ok, true) end)
     Measure("a bag change", 0.05, function() t.Fire("BAG_UPDATE_DELAYED") end)
+end
+
+-- The Consumable Bar runs these macros by name: one it uses is written and kept current
+-- whatever its switch or the module's, and cannot be removed from here.
+do
+    local t = Fixture({ settings = { enabled = false }, bags = { 5509 } })
+    local used = {}
+    t.ns.ConsumableBarUsesMacro = function(key) return used[key] == true end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("nothing written with the module off", t.Body("NF Health"), nil)
+    used.health = true
+    t.ns.UpdateManagedMacros()
+    Check("a macro the bar uses is written anyway", t.Body("NF Health"), "#showtooltip\n/use item:5509")
+    t.Bags({ 929 })
+    t.Fire("BAG_UPDATE_DELAYED")
+    Check("and kept current", t.Body("NF Health"), "#showtooltip\n/use item:929")
+    used.health = nil
+    t.ns.UpdateManagedMacros()
+    Check("written only for the bar, it goes when the bar stops using it", t.Body("NF Health"), nil)
+    Check("the bar's macros are this module's", t.ns.ConsumableMacros.health.name, "NF Health")
+    Check("and what it noted is cleared", t.settings.barOnly.health, nil)
+end
+
+-- What only the bar wanted is saved, so it still goes when the bar stops using it after a /reload.
+do
+    local settings = { enabled = false }
+    local t = Fixture({ settings = settings, bags = { 5509 } })
+    t.ns.ConsumableBarUsesMacro = function(key) return key == "health" end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    Check("written for the bar alone, that is saved", settings.barOnly.health, true)
+    local after = Fixture({ settings = settings, bags = { 5509 }, macros = t.macros })
+    after.ns.ConsumableBarUsesMacro = function() return false end
+    after.Fire("PLAYER_ENTERING_WORLD")
+    Check("after a reload, the bar no longer using it removes it", after.Body("NF Health"), nil)
+    local mine = Fixture({ settings = { health = true }, bags = { 5509 } })
+    mine.ns.ConsumableBarUsesMacro = function(key) return key == "health" end
+    mine.Fire("PLAYER_ENTERING_WORLD")
+    Check("one you switched on is not the bar's alone", mine.settings.barOnly.health, nil)
+end
+
+do
+    local t = Fixture({ settings = { health = true }, bags = { 5509 } })
+    local used = { health = true }
+    t.ns.ConsumableBarUsesMacro = function(key) return used[key] == true end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    t.ns.RemoveManagedMacro("health")
+    Check("right-click cannot remove a macro the bar uses", t.Body("NF Health"), "#showtooltip\n/use item:5509")
+    Check("it says why", (t.printed[#t.printed] or ""):find("Consumable Bar") ~= nil, true)
+    t.Set("health", false)
+    Check("switching it off keeps it while the bar uses it", t.Body("NF Health"), "#showtooltip\n/use item:5509")
+    t.Set("enabled", false)
+    Check("so does switching the module off", t.Body("NF Health"), "#showtooltip\n/use item:5509")
+    t.Set("enabled", true)
+    t.Set("health", true)
+    used.health = nil
+    t.ns.UpdateManagedMacros()
+    Check("one you switched on yourself stays when the bar stops using it", t.Body("NF Health"),
+        "#showtooltip\n/use item:5509")
+end
+
+-- Kept Current: a macro the bar uses is locked on there, and a row leads to the bar's settings.
+do
+    local t = Fixture({ settings = { health = false } })
+    local used = {}
+    t.ns.ConsumableBarUsesMacro = function(key) return used[key] == true end
+    local function Row(label)
+        for _, row in ipairs(t.cards["Macros/Settings:kept"].rows()) do
+            if row.label == label then return row end
+        end
+    end
+    Check("a macro the bar does not use is its own switch", Row("NF Health").key, "health")
+    Check("no bar row while the bar uses none", Row("Consumable Bar"), nil)
+    used.health = true
+    local health = Row("NF Health")
+    Check("used by the bar, it shows on", health.get(), true)
+    Check("and is locked, saying why", health.needs(), false)
+    Check("the why", health.why, "Used by Consumable Bar")
+    health.set(false)
+    Check("switching it from here does nothing", t.settings.health, false)
+    Check("a row leads to the bar's settings", Row("Consumable Bar").buttonText, "Options")
+    Check("other macros keep their own switch", Row("NF Mana").key, "mana")
+    Check("the card is drawn again when the bar's items change", t.cards["Macros/Settings:kept"].watch[1],
+        t.ns.QoLSettings)
+    Check("the bar's Health cog offers the same priority", t.ns.HealthOrderChoices.values.potion, "Potion First")
+    Check("counted as kept current", t.cards["Macros/Settings:kept"].summary(t.ns.MacroSettings), "1 of 11 kept current")
+end
+
+-- A warrior on a profile shared with a caster whose bar carries NF Mana: the account-wide macro stays.
+do
+    local mana = { name = "NF Mana", body = "#showtooltip\n/use item:13444" }
+    local t = Fixture({ class = "WARRIOR", settings = { barOnly = { mana = true } }, macros = { mana } })
+    t.ns.ConsumableBarUsesMacro = function(key) return key == "mana" end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local _, _, deleted = t.Counts()
+    Check("the warrior deletes nothing", deleted, 0)
+    Check("the caster's NF Mana is kept as it was", t.Body("NF Mana"), "#showtooltip\n/use item:13444")
 end
 
 if failures > 0 then

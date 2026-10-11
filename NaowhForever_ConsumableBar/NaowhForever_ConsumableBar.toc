@@ -4,6 +4,7 @@
 ## Author: Naowh
 ## Version: 1.1.6
 ## Dependencies: NaowhForever
+## OptionalDeps: NaowhForever_Macros
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 

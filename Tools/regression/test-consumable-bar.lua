@@ -35,9 +35,13 @@ local KNOWN = {
     [21023] = { 134021, 0, 24869, 5 }, -- Dirge's Kickin' Chimaerok Chops: eating, then Well Fed
 }
 
+-- Food and drink by the spell they cast, as Shared/Game/Consumables.lua reads them.
+local SPELL_NAMES = { [8932] = 'Food', [21023] = 'Food', [8766] = 'Drink', [1179] = 'Drink' }
+KNOWN[8766] = { 132794, 0, 1135, 5 }   -- Morning Glory Dew
+KNOWN[1179] = { 132794, 0, 430, 5 }    -- Ice Cold Milk
 KNOWN[13444] = { 134854, 0, 17531, 1 } -- Major Mana Potion
 
-local function fixture(settings)
+local function fixture(settings, noMacros, class)
     local s = { frames = {}, combat = false, counts = {}, cooldowns = {}, auras = {},
         settings = settings or {}, built = 0, blocked = 0, now = 100, timers = {},
         secretAuras = false, auraReads = 0, bags = {}, focus = {}, mouseDown = false,
@@ -106,6 +110,11 @@ local function fixture(settings)
             self.points[(...)] = { ... }
         end
         function f:SetAllPoints(target) self.point = { 'ALL', target } end
+        local setSize = f.SetSize
+        function f:SetSize(w, h)
+            if self.template == 'SecureActionButtonTemplate' and s.combat then s.blocked = s.blocked + 1 end
+            setSize(self, w, h)
+        end
         function f:SetAttribute(k, v)
             if self.template == 'SecureActionButtonTemplate' and s.combat then s.blocked = s.blocked + 1 end
             self.attrs[k] = v
@@ -164,7 +173,7 @@ local function fixture(settings)
         Tooltip = function() end,
         Button = function(parent, text, _, _, fn) local b = frame('Button', nil, parent); b.label = text; b.onClick = fn; return b end,
         PromptText = function(_, _, _, accept) s.prompt = accept end,
-        Confirm = function(_, yes) s.confirm = yes end,
+        Confirm = function(text, yes) s.confirm, s.confirmText = yes, text end,
         PixelInset = function() end,
         NewEditBox = function(parent) return frame('EditBox', nil, parent) end,
         Solid = function(parent, layer, color)
@@ -249,6 +258,22 @@ local function fixture(settings)
                 end,
             },
         },
+        -- The Macros module, loaded first: its consumable macros, its settings, its rewrite.
+        ConsumableMacros = {
+            health = { label = 'Health', name = 'NF Health', icon = 134829 },
+            mana = { label = 'Mana Potion', name = 'NF Mana', icon = 134855 },
+            food = { label = 'Food', name = 'NF Food', icon = 133971 },
+            healthstone = { label = 'Healthstone', name = 'NF Healthstone', icon = 135230 },
+            healthPotion = { label = 'Health Potion', name = 'NF Health Potion', icon = 134830 },
+            drink = { label = 'Drink', name = 'NF Drink', icon = 132794 },
+        },
+        MacroSettings = {
+            Get = function(k) return s.macroSettings[k] end,
+            Set = function(k, v) s.macroSettings[k] = v end,
+        },
+        UpdateManagedMacros = function() s.macroUpdates = s.macroUpdates + 1 end,
+        HealthOrderChoices = { values = { stone = 'Healthstone First', potion = 'Potion First' },
+            order = { 'stone', 'potion' } },
         UI = { CONTENT_PAD = 20,
             -- The HUD Editor's anchoring: an element follows another (anchoredTo, by label).
             PickAnchorFor = function(handle) s.hudPicking = handle end,
@@ -264,6 +289,7 @@ local function fixture(settings)
             end,
             FontChoices = function() return { [''] = 'Addon Font', Naowh = 'Naowh' }, { '', 'Naowh' } end },
     }
+    if noMacros then ns.ConsumableMacros, ns.MacroSettings, ns.HealthOrderChoices = nil, nil, nil end
     local listeners = {}
     ns.QoLSettings = {
         Get = function(k) if s.settings[k] ~= nil then return s.settings[k] end return DEFAULTS[k] end,
@@ -291,7 +317,8 @@ local function fixture(settings)
         GetCursorPosition = function() return 300, 200 end,
         RANGE_INDICATOR = 'RANGE',
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
-        C_Spell = { GetSpellName = function() return 'Spell' end },
+        C_Spell = { GetSpellName = function(id) return id == 430 and 'Drink' or id == 433 and 'Food' or 'Spell' end },
+        UnitClass = function() return 'Class', class or 'MAGE' end,
         GetBindingKey = function(command) return s.bindings[command] end,
         GetBindingText = function(key, short) return short and ('*' .. key) or key end,
         GetMacroInfo = function(index) return s.macros[index] end,
@@ -317,7 +344,11 @@ local function fixture(settings)
         C_Item = { GetItemInfoInstant = function(id) local k = KNOWN[id]; if k then return id, nil, nil, nil, k[1], k[2], k[4] end end,
             GetItemIconByID = function(id) return KNOWN[id] and KNOWN[id][1] end,
             GetItemNameByID = function(id) return 'Item' .. id end,
-            GetItemSpell = function(id) local k = KNOWN[id]; if k and k[3] then return 'Spell', k[3] end end,
+            GetItemSpell = function(id)
+                local k = KNOWN[id]
+                if k and k[3] then return SPELL_NAMES[id] or 'Spell', k[3] end
+            end,
+            GetItemInfo = function() end,
             RequestLoadItemDataByID = function() end,
             GetItemCount = function(id) return s.counts[id] or 0 end },
         C_Container = {
@@ -1595,6 +1626,296 @@ do
     s.fight(true)
     s.fight(false)
     check('switched off and on, what waited is forgotten', not ask.shown)
+end
+
+-- Consumable macros on the bar: the button runs the Macros module's macro by name
+do
+    local s = fixture({ consumableBar = true, consumableBarItems = { 13446 } })
+    s.counts[5509] = 1
+    s.pageRow('adding', 'NF Health').set(true)
+    check('its switch adds it to the end of the bar', s.settings.consumableBarItems[2] == 'macro:health'
+        and s.CB.HasMacro('health') and s.ns.ConsumableBarUsesMacro('health')
+        and s.pageRow('adding', 'NF Health').get() == true)
+    check('and asks Macros to write it, leaving its switch alone', s.macroSettings.health == nil
+        and s.macroUpdates > 0)
+    local b = s.buttons()[2]
+    check('the button runs the macro by name', b.attrs.type1 == 'macro' and b.attrs.macro1 == 'NF Health'
+        and b.attrs.item1 == nil)
+    check('its button has a name to bind a key to', s.G.NaowhForeverConsumableBarHealth == b)
+    check('not written yet: NONE and the macro icon', b.none.shown and b.icon.texture == 134829 and b.itemID == nil)
+    check('its tooltip names the macro until then', b.emptyTip == 'Health (NF Health)' and not b.tipOff(b))
+
+    s.macroBodies['NF Health'] = '#showtooltip\n/use item:5509'
+    s.fire('UPDATE_MACROS')
+    check('once the Macros module writes it, it shows the item', b.itemID == 5509 and b.icon.texture == 135230
+        and b.count.text == 1 and not b.none.shown)
+    s.fight(true)
+    local blocked = s.blocked
+    s.counts[13446] = 4
+    s.macroBodies['NF Health'] = '#showtooltip\n/use item:13446'
+    s.fire('UPDATE_MACROS')
+    check('a rewrite needs nothing protected, so it shows even in combat', b.itemID == 13446
+        and b.count.text == 4 and s.blocked == blocked and b.attrs.macro1 == 'NF Health')
+    s.fight(false)
+    s.counts[13446] = 0
+    s.fire('BAG_UPDATE_DELAYED')
+    check('out of the item the macro still names: NONE', b.none.shown and b.icon.texture == 134830)
+
+    s.pageRow('adding', 'NF Health').set(false)
+    check('switching it off takes it off the bar', not s.CB.HasMacro('health') and #s.buttons() == 1)
+    check('its button is cleared and hidden', b.entry == nil and b.attrs.type1 == nil and b.attrs.macro1 == nil
+        and not b.shown)
+    check('the bar no longer counts as using it', not s.ns.ConsumableBarUsesMacro('health'))
+    check('and its Macros switch was never touched', s.macroSettings.health == nil)
+    s.macroSettings.mana = true
+    s.CB.SetMacro('mana', true)
+    s.CB.SetMacro('mana', false)
+    check('one you had on already stays on', s.macroSettings.mana == true)
+    s.CB.SetMacro('health', true)
+    local updates = s.macroUpdates
+    s.set('consumableBarSize', 40)
+    s.fire('BAG_UPDATE_DELAYED')
+    check('Macros is only asked again when the macros on the bar change', s.macroUpdates == updates)
+    s.set('consumableBar', false)
+    check('switching the bar off tells Macros once', s.macroUpdates == updates + 1
+        and not s.ns.ConsumableBarUsesMacro('health'))
+    s.set('consumableBarSize', 36)
+    s.set('consumableBarItems', { 'macro:health', 13446 })
+    check('while off, the bar costs Macros nothing', s.macroUpdates == updates + 1)
+    s.set('consumableBar', true)
+    check('and back on, it asks again', s.macroUpdates == updates + 2 and s.ns.ConsumableBarUsesMacro('health'))
+end
+
+-- Off at load, the bar never asks Macros for anything
+do
+    local s = fixture({ consumableBar = false, consumableBarItems = { 'macro:health' } })
+    s.set('consumableBarItems', { 'macro:mana' })
+    check('a bar that is off never asks Macros to update', s.macroUpdates == 0)
+end
+
+do
+    local s = fixture({ consumableBar = true, consumableBarItems = { 'macro:mana', 13446, 'macro:health' } })
+    local b = s.buttons()
+    check('items and macros keep their order on the bar', b[1].entry == 'macro:mana' and b[2].entry == 13446
+        and b[3].entry == 'macro:health')
+    check('the bar uses every macro it carries', s.ns.ConsumableBarUsesMacro('mana')
+        and s.ns.ConsumableBarUsesMacro('health') and s.macroUpdates == 1)
+    check('the bar listens for macro rewrites', s.listens('UPDATE_MACROS'))
+    s.set('consumableBarItems', { 13446 })
+    check('with no macro on it, it stops listening', not s.listens('UPDATE_MACROS'))
+    s.set('consumableBarItems', { 'macro:mana' })
+    s.set('consumableBar', false)
+    check('a bar switched off uses no macro', not s.ns.ConsumableBarUsesMacro('mana'))
+end
+
+-- A macro's key: on an action bar, known by the macro's name on the slot, or its own button's
+do
+    local s = fixture({ consumableBar = true, consumableBarKeybinds = true,
+        consumableBarItems = { 'macro:health', 'macro:mana' } })
+    s.bindings['CLICK NaowhForeverConsumableBarMana:LeftButton'] = 'ALT-M'
+    -- Forever's GetActionInfo gives the spell or item a macro shows, not the macro's index.
+    s.actions[7] = { 'macro', 5509 }
+    s.actionText[7] = 'NF Health'
+    s.actionButton(7, 'E')
+    s.fire('ACTIONBAR_SLOT_CHANGED')
+    s.advance(0)
+    local b = s.buttons()
+    check('a macro shows the key of the macro on an action bar', b[1].key.text == 'E')
+    check('or the key bound to its own button', b[2].key.text == '*ALT-M')
+end
+
+-- A macro already written shows its item from the start, and Hide After Use reads its settings
+do
+    local s = fixture({ consumableBar = true, consumableBarItemFlags = { ['macro:health'] = { used = true, track = 'mainhand' } } })
+    s.macroBodies['NF Health'] = '#showtooltip\n/use item:13446'
+    s.counts[13446] = 2
+    s.set('consumableBarItems', { 'macro:health' })
+    local b = s.buttons()[1]
+    check('a written macro shows its item once it is on the bar', b.itemID == 13446 and b.count.text == 2)
+    s.enchant.main = 1800 * 1000
+    s.fire('UNIT_INVENTORY_CHANGED', 'player')
+    check('Hide After Use reads the macro\'s own settings: here, the weapon enchant', not b.shown
+        and driver(b) == '[combat] show; hide')
+end
+
+-- A macro's settings in Edit Items are its own
+do
+    local s = fixture({ consumableBar = true, consumableBarItems = { 'macro:health' } })
+    s.macroBodies['NF Health'] = '#showtooltip\n/use item:13446'
+    s.fire('UPDATE_MACROS')
+    local cells = s.editor().cells
+    check('its cell shows the item the macro uses', cells[1].entry == 'macro:health' and cells[1].itemID == 13446)
+    cells[1].scripts.OnClick(cells[1], 'RightButton')
+    check('right-click opens them, named for the macro', s.side.shown
+        and s.cards['Consumable Bar/Item:item'].name == 'Health (NF Health)')
+    check('Hide After Use follows the item it uses', not s.itemRow('Hide After Use').hidden())
+    s.stores['Consumable Bar/Item'].Set('combat', true)
+    check('they are saved under the macro', s.settings.consumableBarItemFlags['macro:health'].combat == true)
+    check('and the bar follows them', driver(s.buttons()[1]) == '[combat] hide; show')
+    check('its Key row binds the macro\'s button',
+        s.itemRow('Key').binding() == 'CLICK NaowhForeverConsumableBarHealth:LeftButton')
+end
+
+-- The Smart Macros group: the macros there while the Macros module is
+do
+    local s = fixture({ consumableBar = true })
+    local card = s.cards['Consumable Bar/Settings:adding']
+    check('a switch for each macro', s.pageRow('adding', 'NF Health') and s.pageRow('adding', 'NF Mana'))
+    check('the Health priority behind its cog', s.pageRow('adding', 'NF Health').cog.title == 'Health Priority'
+        and s.pageRow('adding', 'Use First').under == 'NF Health')
+    s.pageRow('adding', 'Use First').set('potion')
+    check('it sets the Macros module\'s priority', s.macroSettings.healthOrder == 'potion'
+        and s.pageRow('adding', 'Use First').get() == 'potion')
+    check("Food Only behind NF Food's cog", s.pageRow('adding', 'NF Food').cog.title == 'Food Only'
+        and s.pageRow('adding', 'Food Only').under == 'NF Food' and s.pageRow('adding', 'Food Only').get() == false)
+    s.pageRow('adding', 'Food Only').set(true)
+    check("it is the Macros module's own Food Only", s.macroSettings.foodOnly == true
+        and s.pageRow('adding', 'Food Only').get() == true)
+    check('the card is drawn again when it changes there', card.watch[1] == s.ns.MacroSettings)
+    local without = fixture({ consumableBar = true }, true)
+    check('without the Macros module there are no macro rows', without.pageRow('adding', 'NF Health') == nil)
+    without.cursor = { 'macro', 21 }
+    without.macros[21] = 'NF Health'
+    local box = without.editor()
+    box.scripts.OnReceiveDrag(box)
+    check('and a macro dropped is left on the cursor', without.cursor ~= nil and #(without.settings.consumableBarItems or {}) == 0)
+end
+
+
+-- No mana: no NF Mana, and no drinks or mana potions offered
+do
+    local s = fixture({ consumableBar = true }, false, 'WARRIOR')
+    s.bags[0] = { 8766, 13444, 13446 }
+    s.CB.ScanBags()
+    check('Scan Bags skips drinks and mana potions', table.concat(s.settings.consumableBarItems, ',') == '13446')
+    local box = s.editor()
+    s.cursor = { 'item', 8766 }
+    box.scripts.OnReceiveDrag(box)
+    check('a drink dragged in asks first, saying why', s.confirm ~= nil and s.confirmText:find("You don't use mana", 1, true)
+        and s.confirmText:find('Item8766', 1, true) and not s.CB.Has(s.settings.consumableBarItems, 8766))
+    s.confirm()
+    check('and goes on the bar when you say yes', s.CB.Has(s.settings.consumableBarItems, 8766))
+    s.confirm = nil
+    s.set('consumableBarItems', { 'macro:health' })
+    s.CB.PromptAdd()
+    s.prompt('13444, 13446, 20007')
+    check('typed in with covered ones too, one question for both', s.confirmText:find('or they need mana', 1, true)
+        and s.CB.Has(s.settings.consumableBarItems, 20007) and not s.CB.Has(s.settings.consumableBarItems, 13444))
+    s.confirm()
+    check('yes adds both', s.CB.Has(s.settings.consumableBarItems, 13444) and s.CB.Has(s.settings.consumableBarItems, 13446))
+    local caster = fixture({ consumableBar = true })
+    local casterBox = caster.editor()
+    caster.cursor = { 'item', 8766 }
+    casterBox.scripts.OnReceiveDrag(casterBox)
+    check('a class with mana is not asked', caster.confirm == nil and caster.CB.Has(caster.settings.consumableBarItems, 8766))
+    local rogue = fixture({ consumableBar = true, consumableBarItems = { 'macro:mana', 13446 } }, false, 'ROGUE')
+    check("NF Mana from another character's profile is not shown", #rogue.buttons() == 1
+        and rogue.buttons()[1].entry == 13446)
+    check("but still used from Macros, as it is the caster's too",rogue.ns.ConsumableBarUsesMacro('mana')
+        and rogue.macroUpdates == 1)
+    local manaRow = rogue.pageRow('adding', 'NF Mana')
+    check('its switch waits, saying why', manaRow.needs() == false and manaRow.why == "You don't use mana")
+    rogue.set('consumableBarItems', { 13446 })
+    manaRow.set(true)
+    check('and it cannot be added', not rogue.CB.HasMacro('mana') and rogue.printed:find("don't use mana", 1, true))
+    rogue.macros[23] = 'NF Mana'
+    rogue.cursor = { 'macro', 23 }
+    local rogueBox = rogue.editor()
+    rogueBox.scripts.OnReceiveDrag(rogueBox)
+    check('nor dragged in', not rogue.CB.HasMacro('mana') and rogue.cursor ~= nil)
+    check('a class with mana has it as usual', caster.pageRow('adding', 'NF Mana').needs() == true)
+end
+
+-- The split macros cover their half: NF Healthstone and NF Health Potion, NF Drink only drinks, and
+-- NF Food leaves drinks to NF Drink with Food Only on
+do
+    local s = fixture({ consumableBar = true, consumableBarItems = { 'macro:healthstone', 'macro:drink' } })
+    s.bags[0] = { 13446, 5512, 8932, 8766, 14530 }
+    s.CB.ScanBags()
+    check('NF Healthstone and NF Drink cover healthstones and drinks, not potions or food',
+        table.concat(s.settings.consumableBarItems, ',') == 'macro:healthstone,macro:drink,13446,8932,14530')
+    s.set('consumableBarItems', { 'macro:healthPotion', 'macro:food' })
+    s.CB.ScanBags()
+    check('NF Health Potion covers potions, NF Food food and drink',
+        table.concat(s.settings.consumableBarItems, ',') == 'macro:healthPotion,macro:food,5512,14530')
+    s.set('consumableBarItems', { 'macro:healthPotion', 'macro:food' })
+    s.macroSettings.foodOnly = true
+    s.CB.ScanBags()
+    check('with Food Only, NF Food leaves drinks out',
+        table.concat(s.settings.consumableBarItems, ',') == 'macro:healthPotion,macro:food,5512,8766,14530')
+    check('each has its switch', s.pageRow('adding', 'NF Healthstone') and s.pageRow('adding', 'NF Health Potion')
+        and s.pageRow('adding', 'NF Drink'))
+    local warrior = fixture({ consumableBar = true, consumableBarItems = { 'macro:drink', 13446 } }, false, 'WARRIOR')
+    check('a warrior gets no NF Drink, as no NF Mana', #warrior.buttons() == 1
+        and warrior.pageRow('adding', 'NF Drink').needs() == false)
+end
+
+-- What a Smart Macro covers: Scan Bags and Ask to Add skip it, adding it by hand asks first
+do
+    local s = fixture({ consumableBar = true, consumableBarAskNew = true, consumableBarItems = { 'macro:health' } })
+    s.bags[0] = { 13446, 5512, 20007 }
+    s.CB.ScanBags()
+    check('Scan Bags skips what NF Health covers', table.concat(s.settings.consumableBarItems, ',')
+        == 'macro:health,20007')
+    s.bags[1] = { 929 }
+    KNOWN[929] = { 134830, 0, 441, 1 }
+    s.fire('BAG_UPDATE_DELAYED')
+    check('Ask to Add does not ask about it', s.panels[1] == nil or not s.panels[1].shown)
+    local box = s.editor()
+    s.cursor = { 'item', 13446 }
+    box.scripts.OnReceiveDrag(box)
+    check('dropped in by hand, it asks first', s.confirm ~= nil and not s.CB.Has(s.settings.consumableBarItems, 13446)
+        and s.cursor == nil)
+    check('saying which Smart Macro covers it', s.confirmText ==
+        'NF Health already uses your best healthstone or healing potion. Add Item13446 too?')
+    s.confirm()
+    check('and goes on the bar when you say yes', s.CB.Has(s.settings.consumableBarItems, 13446))
+    s.confirm = nil
+    local cells = box.cells
+    s.cursor = { 'item', 13446 }
+    cells[1].scripts.OnReceiveDrag(cells[1])
+    check('one already on the bar just moves, without asking', s.confirm == nil
+        and s.settings.consumableBarItems[1] == 13446)
+    s.macros[22] = 'NF Mana'
+    s.cursor = { 'macro', 22 }
+    box.scripts.OnReceiveDrag(box)
+    check('an NF macro dragged from the macro window goes on the bar', s.CB.HasMacro('mana') and s.cursor == nil)
+    s.confirm = nil
+    s.CB.PromptAdd()
+    s.prompt('5512, 10307')
+    check('typed in, what is not covered goes on at once, the rest asks',
+        s.CB.Has(s.settings.consumableBarItems, 10307) and not s.CB.Has(s.settings.consumableBarItems, 5512)
+        and s.confirm ~= nil)
+end
+
+-- A character's edits keep what it does not show: a warrior adds, places, moves and removes, and the
+-- NF Mana saved by a mage's profile stays saved, where it was
+do
+    local s = fixture({ consumableBar = true,
+        consumableBarItems = { 'macro:mana', 13446, 20007 } }, false, 'WARRIOR')
+    local function saved() return table.concat(s.settings.consumableBarItems, ',') end
+    s.CB.AddItems({ 5512 })
+    check('adding keeps them', saved() == 'macro:mana,13446,20007,5512')
+    local box = s.editor()
+    local cells = box.cells
+    check('the bar shows the rest', cells[1].entry == 13446 and cells[2].entry == 20007 and cells[3].entry == 5512)
+    cells[3].scripts.OnDragStart(cells[3])
+    s.focus = { cells[1] }
+    cells[3].scripts.OnDragStop(cells[3])
+    check('moving keeps them, the moved one takes its place', saved() == 'macro:mana,5512,13446,20007')
+    s.cursor = { 'item', 10307 }
+    cells[3].scripts.OnReceiveDrag(cells[3])
+    check('a drop goes before the icon it lands on, by entry', saved() == 'macro:mana,5512,13446,10307,20007')
+    s.CB.RemoveItem(13446)
+    check('removing keeps them', saved() == 'macro:mana,5512,10307,20007')
+end
+
+-- A Smart Macro saved while the Macros module is not loaded has no button, and stays saved
+do
+    local s = fixture({ consumableBar = true, consumableBarItems = { 'macro:health', 13446 } }, true)
+    check('no button for it', #s.buttons() == 1 and s.buttons()[1].entry == 13446)
+    s.CB.AddItems({ 5512 })
+    check('and it stays saved for when Macros is back', s.settings.consumableBarItems[1] == 'macro:health')
 end
 
 print(checks .. ' consumable-bar checks passed')
