@@ -233,6 +233,11 @@ NaowhForever_QoL/
   bags you are looking at.
 - Auction Prices keeps one price table per auction house (realm and faction), as prices differ;
   the key is worked out once because it is read on every item tooltip.
+- The Scan Prices button sits after the last auction house tab added through LibAHTab
+  (Auctionator's Shopping, Selling, Cancelling and Auctionator), read from the library's
+  `internalState.Tabs`, which is not public API; without it the button sits next to Auctions.
+  Those tabs can be made on the same AUCTION_HOUSE_SHOW, after us, so the button is placed again
+  a frame later.
 - Blizzard allows one full auction house scan every 15 minutes (`SCAN_COOLDOWN` 900s). The
   listings arrive all at once and are read 1000 a frame (`CHUNK`), so a large auction house does
   not stall; bid-only listings are skipped. The profession window's crafting profit reads these

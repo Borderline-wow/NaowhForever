@@ -174,14 +174,27 @@ local function ButtonTip()
     return TEXT_TIP .. ns.AuctionScanSummary()
 end
 
-local function BuildButton(frame)
-    button = ns.Button(frame, TEXT_SCAN, BUTTON_W, BUTTON_H, Scan)
-    local tab = frame.AuctionsTab
+local function LastTab(frame)
+    local lib = LibStub and LibStub("LibAHTab-1-0", true)
+    local tabs = lib and lib.internalState and lib.internalState.Tabs
+    if tabs and #tabs > 0 then return tabs[#tabs] end
+    return frame.AuctionsTab
+end
+
+local function Anchor()
+    local frame = _G.AuctionHouseFrame
+    if not (button and frame) then return end
+    button:ClearAllPoints()
+    local tab = LastTab(frame)
     if tab then
         button:SetPoint("LEFT", tab, "RIGHT", BUTTON_GAP, 0)
     else
         button:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -BUTTON_GAP, -BUTTON_DROP)
     end
+end
+
+local function BuildButton(frame)
+    button = ns.Button(frame, TEXT_SCAN, BUTTON_W, BUTTON_H, Scan)
     ns.Tooltip(button, TEXT_SCAN, ButtonTip)
     button.age = ns.Font(button, AGE_SIZE, nil, ns.THEME.muted)
     button.age:SetPoint("LEFT", button, "RIGHT", BUTTON_GAP, 0)
@@ -191,6 +204,8 @@ local function ShowButton()
     local frame = _G.AuctionHouseFrame
     if not frame then return end
     if not button then BuildButton(frame) end
+    Anchor()
+    C_Timer.After(0, Anchor)
     button:SetShown(S.Get("ahPrices"))
     ShowAge()
     if S.Get("ahPrices") and not ageTicker then ageTicker = C_Timer.NewTicker(AGE_TICK, ShowAge) end
