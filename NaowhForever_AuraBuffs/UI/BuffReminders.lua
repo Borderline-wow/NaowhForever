@@ -17,6 +17,7 @@ local TEXT_MOVER = "Buff Reminders"
 local KEYS = {
     consumableEntries = true, enabled = true, consumablesWhere = true, consumablesMinutes = true,
     onlyIfCarried = true, hideResting = true, raidBuffs = true, raidBuffsOwn = true, raidBuffPicks = true, iconSize = true,
+    personalBuffs = true, personalBuffPicks = true,
     buffsFont = true, buffsFontSize = true, buffsOutline = true,
 }
 local PREVIEW = {
@@ -121,7 +122,8 @@ local function Queue()
 end
 
 local function OnEvent(_, event, unit)
-    if event == "UNIT_AURA" and (InCombatLockdown() or Secret(unit) or not GROUP_UNIT[unit]) then return end
+    if event == "UNIT_AURA" and (InCombatLockdown() or Secret(unit)
+        or not (GROUP_UNIT[unit] or unit == "target" and R.WatchesTarget())) then return end
     if event == "PLAYER_REGEN_DISABLED" then
         Menu.Hide()
         return
@@ -155,9 +157,13 @@ local function Listen()
     if S.Get("raidBuffs") then
         events:RegisterEvent("UNIT_AURA")
         events:RegisterEvent("GROUP_ROSTER_UPDATE")
+    elseif R.WatchesTarget() then
+        events:RegisterUnitEvent("UNIT_AURA", "player", "target")
     else
         events:RegisterUnitEvent("UNIT_AURA", "player")
     end
+    if R.WatchesTarget() then events:RegisterEvent("PLAYER_TARGET_CHANGED") end
+    if S.Get("personalBuffs") then events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player") end
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("PLAYER_UPDATE_RESTING")

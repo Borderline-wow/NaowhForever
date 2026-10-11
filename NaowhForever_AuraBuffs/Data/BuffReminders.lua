@@ -50,3 +50,27 @@ D.RAID = {
             25290, 19854, 19853, 19852, 19850, 19742, 25918, 25894,
             20217, 25898, 1038, 25895, 19979, 19978, 19977, 25890 } },
 }
+
+D.PERSONAL = {
+    { key = "demonArmor", name = "Demon Armor", class = "WARLOCK",
+        spells = { 11735, 11734, 11733, 1086, 706, 696, 687, 403619 } },
+    { key = "mageArmor", name = "Mage Armor", class = "MAGE",
+        spells = { 22783, 22782, 6117, 10220, 10219, 7320, 7302, 7301, 7300, 168 } },
+    { key = "poisons", name = "Poisons", class = "ROGUE", weapons = { 16, 17 }, spells = { 2842 } },
+    { key = "battleShout", name = "Battle Shout", class = "WARRIOR",
+        spells = { 25289, 11551, 11550, 11549, 6192, 5242, 6673 } },
+    { key = "innerFire", name = "Inner Fire", class = "PRIEST",
+        spells = { 10952, 10951, 1006, 602, 7128, 588 } },
+    { key = "shadowform", name = "Shadowform", class = "PRIEST", spells = { 15473 } },
+    { key = "trueshot", name = "Trueshot Aura", class = "HUNTER",
+        spells = { 20906, 20905, 19506, 1299348, 1299346 } },
+    { key = "huntersMark", name = "Hunter's Mark on Elites", class = "HUNTER", target = true,
+        help = "A hostile elite, rare elite or boss targeted out of combat without Hunter's Mark.",
+        spells = { 14325, 14324, 14323, 1130 } },
+    { key = "thorns", name = "Thorns", class = "DRUID", spells = { 9910, 9756, 8914, 1075, 782, 467 } },
+    { key = "imbue", name = "Weapon Imbue", class = "SHAMAN", weapons = { 16 },
+        spells = { 16362, 10486, 8235, 8232, 16342, 16341, 16339, 8030, 8027, 8024,
+            16356, 16355, 10456, 8038, 8033, 16316, 16315, 16314, 10399, 8019, 8018, 8017 } },
+    { key = "shield", name = "Lightning or Water Shield", class = "SHAMAN",
+        spells = { 408510, 10432, 10431, 8134, 945, 905, 325, 324 } },
+}

@@ -10,6 +10,7 @@ local SECONDS = A.C.SECONDS
 local PARTY_UNITS = MAX_PARTY_MEMBERS or 4
 local RAID_UNITS_MAX = MAX_RAID_MEMBERS or 40
 local CATEGORY_ORDER = A.CATEGORY_ORDER
+local ELITE = { elite = true, rareelite = true, worldboss = true }
 
 local GROUP_UNIT = { player = true }
 local RAID_UNITS, PARTY_UNITS_LIST = {}, {}
@@ -145,7 +146,7 @@ end
 
 local function Knows(spells)
     for _, id in ipairs(spells) do
-        if C_SpellBook.IsSpellKnown(id) then return true end
+        if C_SpellBook.IsSpellKnown(id) then return id end
     end
 end
 
@@ -200,16 +201,97 @@ local function RaidBuffs(list, playerBuffs)
     for m = 1, memberCount do members[m].buffs = nil end
 end
 
+local function PersonalPicked(family)
+    return S.Get("personalBuffPicks")[family.key] ~= false
+end
+
+local function Lasts(left, warn, duration)
+    if not left or left <= 0 then return true end
+    if duration and duration <= warn then warn = 0 end
+    if left <= warn then return false end
+    Wake(left - warn)
+    return true
+end
+
+local function Enchanted(slots, warn)
+    local enchants = { GetWeaponEnchantInfo() }
+    for _, slot in ipairs(slots) do
+        local i = slot == 16 and 1 or 5
+        if GetInventoryItemID("player", slot) then
+            if not (enchants[i] and Lasts(enchants[i + 1] / 1000, warn)) then return false end
+        end
+    end
+    return true
+end
+
+local function TargetHas(spells)
+    for i = 1, MAX_AURAS do
+        local aura = C_UnitAuras.GetAuraDataByIndex("target", i, "HARMFUL")
+        if not aura or Secret(aura.spellId) then return aura ~= nil end
+        for _, id in ipairs(spells) do
+            if aura.spellId == id then return true end
+        end
+    end
+end
+
+local function EliteTarget()
+    if not UnitExists("target") or UnitIsDeadOrGhost("target") or not UnitCanAttack("player", "target") then
+        return false
+    end
+    local kind = UnitClassification("target")
+    return not Secret(kind) and ELITE[kind] or false
+end
+
+local function Has(family, buffs, warn)
+    if family.weapons then return Enchanted(family.weapons, warn) end
+    if family.target then return not EliteTarget() or TargetHas(family.spells) end
+    local aura = Find(buffs, family.spells)
+    local duration = aura and not Secret(aura.duration) and aura.duration or nil
+    return aura and Lasts(Left(aura), warn, duration), aura
+end
+
+local function PersonalBuffs(list, buffs)
+    if UnitIsDeadOrGhost("player") or S.Get("hideResting") and IsResting() then return end
+    local _, class = UnitClass("player")
+    local warn = S.Get("consumablesMinutes") * SECONDS
+    for _, family in ipairs(D.PERSONAL) do
+        local spell = family.class == class and PersonalPicked(family) and Knows(family.spells)
+        if spell then
+            local has, aura = Has(family, buffs, warn)
+            if not has then list[#list + 1] = { icon = C_Spell.GetSpellTexture(spell), aura = aura } end
+        end
+    end
+end
+
+local function ClassHasPersonal()
+    local _, class = UnitClass("player")
+    for _, family in ipairs(D.PERSONAL) do
+        if family.class == class then return true end
+    end
+    return false
+end
+
 local Reminders = {}
 A.Buffs = Reminders
 
 Reminders.GROUP_UNIT = GROUP_UNIT
 Reminders.Left = Left
 Reminders.Picked = Picked
+Reminders.PersonalPicked = PersonalPicked
 Reminders.Secret = Secret
 
 function Reminders.On()
-    return S.Get("enabled") and (#(S.Get("consumableEntries") or {}) > 0 or S.Get("raidBuffs"))
+    return S.Get("enabled") and (#(S.Get("consumableEntries") or {}) > 0 or S.Get("raidBuffs")
+        or S.Get("personalBuffs") and ClassHasPersonal())
+end
+
+function Reminders.WatchesTarget()
+    if not S.Get("personalBuffs") then return false end
+    local _, class = UnitClass("player")
+    for _, family in ipairs(D.PERSONAL) do
+        if family.target and family.class == class and PersonalPicked(family) then return true end
+    end
+    return false
 end
 
 function Reminders.Requested(itemID)
@@ -227,6 +309,7 @@ function Reminders.Collect()
     local list = {}
     wakeAt = nil
     if ConsumablesHere() then Consumables(list, buffs) end
+    if S.Get("personalBuffs") then PersonalBuffs(list, buffs) end
     if S.Get("raidBuffs") then RaidBuffs(list, buffs) end
     return list
 end

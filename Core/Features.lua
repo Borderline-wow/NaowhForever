@@ -172,6 +172,7 @@ ns.FEATURES = {
     auraBuffs = {
         enabled = true,
         raidBuffs = false,
+        personalBuffs = true,
         campfire = true,
         campNearbyAlert = true,
         lowHealth = true,

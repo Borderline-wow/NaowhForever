@@ -45,6 +45,8 @@ local function Fixture(opts)
         group = opts.group,                         -- nil solo, "party" or "raid"
         units = opts.units or {},                   -- unit -> class; player included
         known = opts.known or {},
+        weapons = opts.weapons or {},               -- slot -> enchant seconds left, false for none
+        target = opts.target,                       -- nil, or the target's classification
         itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
         requested = {},
         reads = 0,
@@ -56,6 +58,8 @@ local function Fixture(opts)
         f = Recorder({ shown = true, events = {}, scripts = {}, attributes = {}, template = template })
         function f:SetAttribute(k, v) f.attributes[k] = v end
         function f:IsShown() return f.shown end
+        function f:GetWidth() return 400 end
+        function f:GetHeight() return 120 end
         function f:Show() f.shown = true end
         function f:Hide() f.shown = false end
         function f:SetShown(v) f.shown = v and true or false end
@@ -84,6 +88,7 @@ local function Fixture(opts)
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
+        personalBuffs = true, personalBuffPicks = {},
     }
     local S = {}
     function S.Get(k)
@@ -135,6 +140,14 @@ local function Fixture(opts)
         UnitIsDeadOrGhost = function() return false end,
         UnitIsVisible = function() return true end,
         UnitIsUnit = function(a, b) return a == b end,
+        UnitExists = function(unit) return unit ~= "target" or state.target ~= nil end,
+        UnitCanAttack = function() return true end,
+        UnitClassification = function() return state.target end,
+        GetInventoryItemID = function(_, slot) return state.weapons[slot] ~= nil and 1000 + slot or nil end,
+        GetWeaponEnchantInfo = function()
+            local mh, oh = state.weapons[16], state.weapons[17]
+            return mh and true or false, mh and mh * 1000 or 0, 0, 0, oh and true or false, oh and oh * 1000 or 0
+        end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
         issecretvalue = function(v) return v == SECRET end,
         C_UnitAuras = {
@@ -425,7 +438,7 @@ end
 
 -- An empty profile never invents reminders from items in bags.
 do
-    local t = Fixture({ settings = { consumableEntries = {} }, instance = "raid",
+    local t = Fixture({ settings = { consumableEntries = {}, personalBuffs = false }, instance = "raid",
         bags = { 13931, 13510, 13454, 10306 } })
     t.Login()
     Check("empty profile has no automatic reminders", t.Shown(), "")
@@ -542,6 +555,155 @@ do
     t.state.combat = true
     cell.scripts.OnEnter(cell)
     Check("no menu in combat", popup.shown, false)
+end
+
+-- Personal buffs: the best armor you know shows until any armor is up; resting and a pick hide it.
+do
+    local t = Fixture({ units = { player = "MAGE" }, known = { [168] = true, [7302] = true } })
+    t.Login()
+    Check("mage: ice armor missing", t.Shown(), "spell:7302")
+    t.state.auras.player = { { 168, 1700, 1800 } }
+    t.Fire("UNIT_AURA", "player")
+    t.Advance(0.5)
+    Check("frost armor counts", t.Shown(), "")
+    t.state.auras.player = {}
+    t.state.resting = true
+    t.Fire("PLAYER_UPDATE_RESTING")
+    t.Advance(0.5)
+    Check("hidden while resting", t.Shown(), "")
+    t.state.resting = false
+    t.Set("personalBuffPicks", { mageArmor = false })
+    Check("picked off", t.Shown(), "")
+    t.Set("personalBuffPicks", {})
+    t.Set("personalBuffs", false)
+    Check("switched off", t.Shown(), "")
+end
+
+-- A talent buff only once it is known; buffs of another class never show.
+do
+    local t = Fixture({ units = { player = "PRIEST" }, known = { [588] = true, [168] = true } })
+    t.Login()
+    Check("priest without shadowform", t.Shown(), "spell:588")
+    t.state.known[15473] = true
+    t.Fire("SPELLS_CHANGED")
+    t.Advance(0.5)
+    Check("shadowform talented", t.Shown(), "spell:588 spell:15473")
+end
+
+-- Poisons: every equipped weapon needs one; an expiring poison wakes the row.
+do
+    local t = Fixture({ units = { player = "ROGUE" }, known = { [2842] = true }, weapons = { [16] = false } })
+    t.Login()
+    Check("no poison", t.Shown(), "spell:2842")
+    Check("listens for weapon changes", t.Listening("UNIT_INVENTORY_CHANGED"), true)
+    t.state.weapons[16] = 600
+    t.Fire("UNIT_INVENTORY_CHANGED", "player")
+    t.Advance(0.5)
+    Check("poisoned main hand", t.Shown(), "")
+    t.state.weapons[17] = false
+    t.Fire("UNIT_INVENTORY_CHANGED", "player")
+    t.Advance(0.5)
+    Check("off hand unpoisoned", t.Shown(), "spell:2842")
+    t.state.weapons[17] = 60
+    t.Fire("UNIT_INVENTORY_CHANGED", "player")
+    t.Advance(0.5)
+    Check("off hand under Warn With Minutes Left", t.Shown(), "spell:2842")
+    t.state.weapons[17] = 300
+    t.Fire("UNIT_INVENTORY_CHANGED", "player")
+    t.Advance(0.5)
+    Check("both poisoned", t.Shown(), "")
+    t.state.weapons[17] = 115
+    t.Advance(185)
+    Check("woken at two minutes left", t.Shown(), "spell:2842")
+end
+
+-- An enchant the game reports with no time left counts as up and arms no wake timer.
+do
+    local t = Fixture({ units = { player = "SHAMAN" }, known = { [8017] = true }, weapons = { [16] = 0 } })
+    t.Login()
+    Check("untimed imbue counts", t.Shown(), "")
+    Check("untimed imbue arms nothing", t.Pending(), 0)
+end
+
+-- Warn With Minutes Left covers personal buffs, but not one shorter than the warning.
+do
+    local t = Fixture({ units = { player = "MAGE" }, known = { [168] = true },
+        auras = { player = { { 168, 60, 1800 } } } })
+    t.Login()
+    Check("armor running out, with its timer", t.Shown(), "spell:168(t)")
+    t.state.auras.player = { { 168, 300, 1800 } }
+    t.Fire("UNIT_AURA", "player")
+    t.Advance(0.5)
+    Check("armor with time left", t.Shown(), "")
+    t.Advance(185)
+    Check("woken at two minutes left", t.Shown(), "spell:168(t)")
+    local w = Fixture({ units = { player = "WARRIOR" }, known = { [6673] = true },
+        auras = { player = { { 6673, 60, 120 } } } })
+    w.Login()
+    Check("two minute shout is not nagged early", w.Shown(), "")
+end
+
+-- A class with no personal buff: the default profile keeps the row off and the card shows no group.
+do
+    local t = Fixture({ page = true, settings = { consumableEntries = {} }, units = { player = "PALADIN" },
+        known = { [19740] = true } })
+    t.Login()
+    Check("paladin default: no aura listener", t.Listening("UNIT_AURA"), false)
+    local card = t.ns.Shared.Settings.pages["AuraBuffs/Settings"].cards.buffs
+    local found
+    for _, row in ipairs(card.rows) do
+        if row.key == "personalBuffs" then found = true end
+    end
+    Check("paladin default: no personal buffs group", found, nil)
+end
+
+-- Hunter's Mark: only for a hostile elite target without the mark.
+do
+    local t = Fixture({ units = { player = "HUNTER" }, known = { [1130] = true, [19506] = true },
+        auras = { player = { { 19506, 1700, 1800 } } } })
+    t.Login()
+    Check("no target", t.Shown(), "")
+    Check("listens for target changes", t.Listening("PLAYER_TARGET_CHANGED"), true)
+    t.state.target = "elite"
+    t.Fire("PLAYER_TARGET_CHANGED")
+    t.Advance(0.5)
+    Check("elite unmarked", t.Shown(), "spell:1130")
+    t.state.auras.target = { { 14323, 100, 120 } }
+    t.Fire("UNIT_AURA", "target")
+    t.Advance(0.5)
+    Check("elite marked", t.Shown(), "")
+    t.state.auras.target = {}
+    t.state.target = "normal"
+    t.Fire("PLAYER_TARGET_CHANGED")
+    t.Advance(0.5)
+    Check("normal target", t.Shown(), "")
+    t.state.auras.player = {}
+    t.Fire("UNIT_AURA", "player")
+    t.Advance(0.5)
+    Check("trueshot missing", t.Shown(), "spell:19506")
+end
+
+-- The card lists the personal buffs of the player's class only.
+do
+    local t = Fixture({ page = true, units = { player = "SHAMAN" } })
+    local card = t.ns.Shared.Settings.pages["AuraBuffs/Settings"].cards.buffs
+    local fields = {}
+    for _, row in ipairs(card.rows) do
+        if row.key == "personalBuffPicks" then fields[#fields + 1] = row.field end
+    end
+    Check("shaman picks", table.concat(fields, " "), "imbue shield")
+    local shot = card.studio.new(t.ns.Shared.Settings)
+    local function Preview(state)
+        card.studio.paint(shot, state)
+        local out = {}
+        for _, cell in ipairs(shot.cells) do
+            if cell.shown then out[#out + 1] = cell.icon.texture end
+        end
+        if shot.personal.shown then out[#out + 1] = "personal:" .. shot.personal.icon.texture end
+        return table.concat(out, " ")
+    end
+    Check("preview in the world", Preview("world"), "personal:spell:16362")
+    Check("preview resting", Preview("resting"), "")
 end
 
 if failures > 0 then
