@@ -1,8 +1,9 @@
--- Bags.lua: the item buttons in your bags, the game's and EllesmereUI's, for the marks modules paint on them (ns.Shared.Bags).
+-- Bags.lua: the item buttons in your bags, the game's, EllesmereUI's and Baganator's, for the marks modules paint on them (ns.Shared.Bags).
 local ns = _G.NaowhForever
 
 local ELLESMERE_ADDON = "EllesmereUIBags"
 local ELLESMERE_WINDOWS = { "EUI_Bags", "EUI_BagsReagent" }
+local BAGANATOR_ADDON = "Baganator"
 local UPDATE_METHOD = "UpdateItems"
 
 local frames = {}
@@ -38,6 +39,11 @@ end
 function Bags.Ellesmere()
     local bags = _G.EUI_Bags
     return C_AddOns.IsAddOnLoaded(ELLESMERE_ADDON) and bags and bags.RegisterItemOverlayIcon and bags or nil
+end
+
+function Bags.Baganator()
+    local api = _G.Baganator and _G.Baganator.API
+    return C_AddOns.IsAddOnLoaded(BAGANATOR_ADDON) and api and api.RegisterCornerWidget and api or nil
 end
 
 function Bags.RefreshEllesmere()

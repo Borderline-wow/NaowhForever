@@ -23,11 +23,12 @@ local STEP_DELAY = 0.25
 local WEAPON, ARMOR, QUEST_CLASS, KEY_CLASS = 2, 4, 12, 13
 local MARKED, RULED = 1, 2
 local SELL_PRICE = ns.QoLConstants.SELL_PRICE
-local COMMON = 1
+local POOR, COMMON = 0, 1
 local ROUND = ns.QoLConstants.ROUND
 local LEVELS_RANGE = { 5, 30, 1 }
 local EMPTY = {}
 local LAST_BAG = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS
+local BAGANATOR_CORNER = { corner = "top_right", priority = 1 }
 
 local FOR_ALL = {
     [WEAPON] = { [14] = true, [20] = true },
@@ -83,9 +84,12 @@ local TEXT_SELL, TEXT_NOT_NOW = "Sell", "Not Now"
 local TEXT_ASK = "Sell your scrap for %s?"
 local TEXT_SUMMARY = "%d item%s marked"
 local TEXT_IN_BAGS = " in your bags"
+local TEXT_BAGANATOR = "Naowh Forever Scrap"
 
 local marks, hooked, bagOf, slotOf = {}, {}, {}, {}
 local installed, registered, events = false, false, nil
+local baganator
+local owners = {}
 local atMerchant, offerPending = false, false
 local selling, generation, scheduledFor, pending = false, 0, 0, false
 local nextBag, nextSlot, sold, earned, spared = 0, 1, 0, 0, 0
@@ -252,12 +256,16 @@ local function OnClick(button, mouse)
     if id then Toggle(id, bag, slot) end
 end
 
-local function Slot(button, over, bag, slot, id)
-    bagOf[button], slotOf[button] = bag, slot
+local function HookClick(button, onClick)
     if not hooked[button] and not InCombatLockdown() then
         hooked[button] = true
-        button:HookScript("OnClick", OnClick)
+        button:HookScript("OnClick", onClick)
     end
+end
+
+local function Slot(button, over, bag, slot, id)
+    bagOf[button], slotOf[button] = bag, slot
+    HookClick(button, OnClick)
     Paint(button, over, id)
 end
 
@@ -281,10 +289,38 @@ local function EllesmereSlot(button, data)
     Slot(button, button._textOverlay or button, data.bag, data.slot, id)
 end
 
+local function BaganatorClick(button, mouse)
+    bagOf[button], slotOf[button] = button:GetBagID(), button:GetID()
+    OnClick(button, mouse)
+end
+
+local function BaganatorInit(button)
+    local mark = NewMark(button, button)
+    owners[mark] = button
+    return mark
+end
+
+local function BaganatorPaint(mark, details)
+    local button = owners[mark]
+    if not On() or not (button.GetBagID and button:GetBagID()) then return false end
+    HookClick(button, BaganatorClick)
+    showMark = S.Get("scrapMarkerShow")
+    local state = showMark and State(details.itemID)
+    if not state then return false end
+    mark:SetAlpha(state == RULED and RULE_ALPHA or 1)
+    return true
+end
+
+local function BaganatorJunk(_, _, id)
+    local _, _, quality, _, _, _, _, _, _, _, price = GetItemInfo(id)
+    return (quality == POOR and price ~= nil and price > 0) or Scrap.IsScrap(id)
+end
+
 local function Repaint()
     if not installed then return end
     Bags.RepaintGame(GameBag)
     if registered then Bags.RefreshEllesmere() end
+    if baganator then baganator.RequestItemButtonsRefresh() end
 end
 
 local function Changed()
@@ -577,6 +613,12 @@ local function Apply()
         else
             bags.UnregisterItemOverlayIcon(OVERLAY)
         end
+    end
+    local api = on and not baganator and Bags.Baganator()
+    if api then
+        baganator = api
+        api.RegisterCornerWidget(TEXT_BAGANATOR, OVERLAY, BaganatorPaint, BaganatorInit, BAGANATOR_CORNER, true)
+        api.RegisterJunkPlugin(TEXT_BAGANATOR, OVERLAY, BaganatorJunk)
     end
     if selling and not (on and S.Get("scrapMarkerVendor") ~= "none") then Finish() end
     if AskPanel and not (on and S.Get("scrapMarkerVendor") == "ask") then AskPanel:Hide() end

@@ -3,7 +3,9 @@
 -- gear sets and a vendor. Checks: off and hooking nothing by default; a plain Alt-click marks
 -- and unmarks by item ID, other clicks do nothing, and quest items, keys, items with no sell
 -- price, your BiS and gear sets are refused; marks for the account or one character (by GUID);
--- the rules (gear you can't wear, old common gear) and the keep list; the vendor selling a few
+-- the rules (gear you can't wear, old common gear) and the keep list; Baganator's bags (nothing
+-- until it loads, then one corner widget and junk plugin, the Alt-click and the mark on its live
+-- buttons only, read at the click, and a refresh asked on each change); the vendor selling a few
 -- at a time only while it is open and out of combat, rereading each slot, keeping protected
 -- items and stopping when it closes; Ask First's panel and Nothing; the card's summary; the
 -- API Bag Space reads; the Scrap List window (built on first open, its rows, X, scope tag,
@@ -90,6 +92,7 @@ local ITEMS = {
     [211] = { "Rare Ring", 4, 0, "INVTYPE_FINGER", 3, 30, 20000 },
     [212] = { "Silver Bar", 7, 0, "", 2, 0, 15000 },
     [213] = { "Copper Ore", 7, 0, "", 1, 0, 1 },
+    [214] = { "Broken Fang", 15, 0, "", 0, 0, 3 },
 }
 local LINKS = {}
 for id, item in pairs(ITEMS) do LINKS[id] = "[" .. item[1] .. "]" end
@@ -103,7 +106,7 @@ local state = {
     values = {}, listeners = {}, overlays = {}, refreshed = 0, account = {}, printed = {}, postCalls = 0,
     sold = {}, combat = false, ctrl = false, shift = false, alt = false, guid = "Player-1-0001",
     bags = { [0] = {}, [1] = {} }, size = { [0] = 30, [1] = 8 }, locked = {}, refreshPage = 0,
-    bis = {}, setIDs = { 1 }, setItems = {}, level = 30,
+    bis = {}, setIDs = { 1 }, setItems = {}, level = 30, loaded = { EllesmereUIBags = true },
 }
 for k, v in pairs(DEFAULTS) do state.values[k] = v end
 
@@ -205,6 +208,17 @@ local EUI = {
     IsVisible = function() return true end,
 }
 
+local BAGANATOR = { widgets = {}, junk = {}, refreshes = 0 }
+BAGANATOR.API = {
+    RegisterCornerWidget = function(label, id, onUpdate, onInit, defaultPosition, isFast)
+        assert(not BAGANATOR.widgets[id], "corner widget registered twice")
+        BAGANATOR.widgets[id] = { label = label, onUpdate = onUpdate, onInit = onInit, corner = defaultPosition,
+            isFast = isFast }
+    end,
+    RegisterJunkPlugin = function(label, id, callback) BAGANATOR.junk[id] = { label = label, callback = callback } end,
+    RequestItemButtonsRefresh = function() BAGANATOR.refreshes = BAGANATOR.refreshes + 1 end,
+}
+
 local timers = {}
 local hooksOnBag = 0
 local uiParent = Frame()
@@ -266,7 +280,7 @@ local env = setmetatable({
         GetItemIDs = function() return state.setItems end,
     },
     C_CurrencyInfo = { GetCoinTextureString = function(copper) return copper .. "c" end },
-    C_AddOns = { IsAddOnLoaded = function(name) return name == "EllesmereUIBags" end },
+    C_AddOns = { IsAddOnLoaded = function(name) return state.loaded[name] == true end },
     C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
     TooltipDataProcessor = { AddTooltipPostCall = function(_, fn)
         state.postCalls = state.postCalls + 1
@@ -286,6 +300,7 @@ local env = setmetatable({
     UnitLevel = function() return state.level end,
     BACKPACK_CONTAINER = 0, NUM_TOTAL_EQUIPPED_BAG_SLOTS = 1,
     EUI_Bags = EUI,
+    Baganator = BAGANATOR,
     ContainerFrameContainer = { ContainerFrames = { bagFrame } },
     ITEM_QUALITY_COLORS = QUALITY,
     GameTooltip = Frame(),
@@ -483,11 +498,70 @@ Alt(fang)
 check("a second item marked", state.account.scrapItems[206] == true)
 
 -------------------------------------------------------------------------------
+--  Baganator's bags
+-------------------------------------------------------------------------------
+check("Baganator not loaded: nothing registered, no refresh asked, after marking",
+    next(BAGANATOR.widgets) == nil and next(BAGANATOR.junk) == nil and BAGANATOR.refreshes == 0)
+state.loaded.Baganator = true
+ns.Apply()
+ns.Apply()
+local widget, junk = BAGANATOR.widgets.NaowhForeverScrap, BAGANATOR.junk.NaowhForeverScrap
+check("loaded: one corner widget, top right, fast, and one junk plugin, under one name", widget
+    and junk and widget.label == "Naowh Forever Scrap" and junk.label == widget.label
+    and widget.corner.corner == "top_right" and widget.isFast == true)
+local function BaganatorButton(bag, slot)
+    local button = ItemButton(bag, slot)
+    button.GetBagID = function(self) return self.bag end
+    return button
+end
+state.bags[1][1] = 213
+local bCloth, bOre = BaganatorButton(0, 8), BaganatorButton(1, 1)
+local bClothMark, bOreMark = widget.onInit(bCloth), widget.onInit(bOre)
+check("each button's mark made on init, the game's scrap art", bClothMark.made == ns.Shared.Style.SCRAP_ATLAS
+    and bClothMark ~= bOreMark)
+check("a marked item shows the mark, an unmarked one not", widget.onUpdate(bClothMark, { itemID = 201 }) == true
+    and bClothMark.alpha == 1 and widget.onUpdate(bOreMark, { itemID = 213 }) == false)
+check("both live buttons take the click hook", bCloth.hooks.OnClick ~= nil and bOre.hooks.OnClick ~= nil)
+local refreshes = BAGANATOR.refreshes
+Alt(bOre)
+check("Alt-click on a Baganator button marks its item, and asks Baganator to refresh",
+    state.account.scrapItems[213] == true and BAGANATOR.refreshes > refreshes
+    and widget.onUpdate(bOreMark, { itemID = 213 }) == true)
+Click(bOre, "LeftButton")
+Click(bOre, "LeftButton", false, true, true)
+check("plain and Shift-Alt clicks on it do nothing", state.account.scrapItems[213] == true)
+Alt(bOre)
+check("Alt-click again unmarks it", state.account.scrapItems[213] == nil)
+bOre.bag, bOre.slot = 0, 8
+Alt(bOre)
+check("a pooled button moved to another slot marks what is there at the click", state.account.scrapItems[201] == nil
+    and state.account.scrapItems[213] == nil)
+Alt(bOre)
+check("and unmarks it again", state.account.scrapItems[201] == true)
+local bLate = BaganatorButton(0, 6)
+local bLateMark = widget.onInit(bLate)
+state.combat = true
+widget.onUpdate(bLateMark, { itemID = 206 })
+check("no hook added in combat", bLate.hooks.OnClick == nil)
+state.combat = false
+widget.onUpdate(bLateMark, { itemID = 206 })
+check("hooked on its next paint out of combat", bLate.hooks.OnClick ~= nil)
+local bOther = ItemButton(0, 8)
+bOther.GetBagID = function() return nil end
+local bOtherMark = widget.onInit(bOther)
+check("another character's bags: no mark, no click hook", widget.onUpdate(bOtherMark, { itemID = 201 }) == false
+    and bOther.hooks.OnClick == nil)
+check("junk: scrap and grey items with a price, nothing else", junk.callback(0, 8, 201) == true
+    and junk.callback(0, 1, 214) == true and junk.callback(0, 5, 205) == false and junk.callback(0, 4, 204) == false)
+state.bags[1][1] = nil
+
+-------------------------------------------------------------------------------
 --  Show Mark off
 -------------------------------------------------------------------------------
 Set("scrapMarkerShow", false)
 paint(eCloth, data)
-check("Show Mark off: the icons hide", Mark(cloth).shown == false and Mark(eCloth._textOverlay).shown == false)
+check("Show Mark off: the icons hide", Mark(cloth).shown == false and Mark(eCloth._textOverlay).shown == false
+    and widget.onUpdate(bClothMark, { itemID = 201 }) == false)
 Alt(belt)
 check("marking still works without the icon", state.account.scrapItems[205] == true and Mark(belt) == nil)
 Alt(belt)
@@ -855,6 +929,8 @@ Alt(bagFrame.items[1])
 check("marked again for the cost runs", state.account.scrapItems[201] == true and Mark(marked).shown == true)
 Measure(check)("a bag of 30 painted", 1, function() bagFrame:UpdateItems() end)
 Measure(check)("an EllesmereUI slot painted", 1, function() paint(eCloth, data) end)
+local bDetails = { itemID = 201 }
+Measure(check)("a Baganator slot painted", 1, function() widget.onUpdate(bClothMark, bDetails) end)
 merchant.shown = true
 state.keep = true
 while #timers > 0 do RunTimers() end
@@ -880,12 +956,18 @@ check("its rows pooled: no new row on a redraw", #list.pools.item == pooled and 
 Fire("MERCHANT_CLOSED")
 merchant.shown = false
 refreshed = state.refreshed
+refreshes = BAGANATOR.refreshes
 wipe(state.sold)
 Set("scrapMarker", false)
 check("off: icons hide, EllesmereUI's hook let go, no events", Mark(marked).shown == false
     and state.overlays.NaowhForeverScrap == nil and not Registered("MERCHANT_SHOW")
     and not Registered("EQUIPMENT_SETS_CHANGED"))
 check("off: Bag Space is told nothing is scrap", Scrap.IsScrap(201) == false)
+check("off: Baganator refreshed, its marks hidden, only greys junk", BAGANATOR.refreshes > refreshes
+    and widget.onUpdate(bClothMark, { itemID = 201 }) == false and junk.callback(0, 8, 201) == false
+    and junk.callback(0, 1, 214) == true)
+Alt(bCloth)
+check("off: Alt-click on a Baganator button does nothing", state.account.scrapItems[201] == true)
 Alt(marked)
 wipe(tip.lines)
 state.tooltip(tip, { id = 201 })
