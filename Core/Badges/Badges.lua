@@ -44,6 +44,7 @@ local TEXT_PREVIEW_OFF = "Preview off."
 local TEXT_USAGE = "/nf badges id | preview [%smoderator|developer|ellesmere|naowh|none] | preview off | toast"
 local TEXT_USAGE_PATRON = "legendary|"
 local TEXT_SUMMARY = "%d of %d on"
+local PATREON_LINK = { "Patreon", "patreon", function() return "https://www.patreon.com/naowh" end }
 local MONTHS = { "January", "February", "March", "April", "May", "June", "July", "August",
     "September", "October", "November", "December" }
 
@@ -98,6 +99,7 @@ local TIERS = {
     },
 }
 if not PATRONS then TIERS.legendary = nil end
+if PATRONS then ns.LINKS[#ns.LINKS + 1] = PATREON_LINK end
 local BADGE_DROP = 1
 
 for _, tier in pairs(TIERS) do

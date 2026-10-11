@@ -61,7 +61,7 @@ local function fixture(withChatUtil, settings, flag)
         -- in EU (the default region here) their own name has no badge.
         BADGE_STAFF = { [1] = { ["Player-1-SELF"] = "developer" }, [3] = {} },
         BADGE_PATRONS = { [3] = {} },
-        FEATURE_BADGES = flag or 1, BADGES_LIVE = 1,
+        FEATURE_BADGES = flag or 1, BADGES_LIVE = 1, LINKS = { { "Discord", "discord" } },
         Shared = { Roster = { AddTooltip = function(fn) state.roster[#state.roster + 1] = fn end },
             Settings = { Page = function(key)
             return { Card = function(_, def) state.cards[key .. ":" .. def.id] = def end }
@@ -700,6 +700,9 @@ do  -- the settings card, with the flag on
         and #card.rows == 6)
     check("flag 1: its last row shows your badge code", card.rows[6].button == s.ns.ShowBadgeCode)
     check("flag 1: /nf badges answers", type(s.ns.BadgesCommand) == "function" and s.ns.BADGE_TIERS ~= nil)
+    local patreon = s.ns.LINKS[2]
+    check("flag 1: Naowh's Patreon joins the links, after the others", #s.ns.LINKS == 2 and patreon[1] == "Patreon"
+        and patreon[2] == "patreon" and patreon[3]() == "https://www.patreon.com/naowh")
 end
 
 do  -- ns.FEATURE_BADGES = 0: the team's badges only, on the defaults, with no settings card
@@ -717,6 +720,7 @@ do  -- ns.FEATURE_BADGES = 0: the team's badges only, on the defaults, with no s
     check("flag 0: tooltip line on", #s.postCalls == 1)
     check("flag 0: the banner stays off, its default", not s.api.GroupEvents.events.GROUP_ROSTER_UPDATE)
     check("flag 0: no settings card", next(s.cards) == nil)
+    check("flag 0: no Patreon link", #ns.LINKS == 1)
     check("flag 0: a developer's badge in chat", say(filter, "Glyalith", 1, "Player-1-DEV"):find("BadgeDeveloper", 1, true))
     check("flag 0: a moderator's badge in chat", say(filter, "Mod", 2, "Player-1-MOD"):find("BadgeModerator", 1, true))
     check("flag 0: Naowh's badge in chat", say(filter, "Naowh", 3, "Player-1-NAOWH"):find("BadgeNaowh", 1, true))

@@ -94,6 +94,7 @@ switch a settings store declares is in the file, and that every account switch i
 
 `ns.FEATURE_BADGES` is a build flag, not a setting: 0 shows only the team's badges, with no patron
 tier, no settings card and no words about support (Credits and Patch Notes leave those lines out).
+At 1, `Badges.lua` adds Naowh's Patreon to the link icons (`ns.LINKS`), after the others.
 
 ## Why
 
