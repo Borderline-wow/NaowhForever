@@ -42,7 +42,7 @@ for map, list in pairs(ns.TownTravel) do
         end
     end
 end
-Check(total == 24, "both ends of the nine routes, and the three-dock Southshore boat (" .. total .. ")")
+Check(total == 28, "both ends of the eleven routes, and the three-dock Southshore boat (" .. total .. ")")
 Check(towers == 3, "the three zeppelin towers are one pin each")
 Check(ns.TownTravel[1413][1][4] == "Boat to Booty Bay" and ns.TownTravel[1413][1][5] == 1434,
     "Ratchet's boat opens Stranglethorn")

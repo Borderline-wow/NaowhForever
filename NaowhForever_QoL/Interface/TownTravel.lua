@@ -5,8 +5,14 @@ ns.TownTravel = {
     [1411] = {
         { 50.8, 13.3, "H", "Zeppelin to Grom'gol", 1434, "Zeppelin to Undercity", 1420 },
     },
+    [1412] = {
+        { 34.3, 26.1, "H", "Zeppelin to Zephras Isle", 2521 },
+    },
     [1413] = {
         { 63.8, 38.8, "AH", "Boat to Booty Bay", 1434 },
+    },
+    [1416] = {
+        { 12.8, 51.2, "A", "Zeppelin to Zephras Isle", 2521 },
     },
     [1420] = {
         { 61.2, 58.9, "H", "Zeppelin to Orgrimmar", 1411, "Zeppelin to Grom'gol", 1434 },
@@ -42,6 +48,10 @@ ns.TownTravel = {
     },
     [1453] = {
         { 21.8, 56.9, "A", "Boat to Auberdine", 1439 },
+    },
+    [2521] = {
+        { 57.7, 81, "H", "Zeppelin to Mulgore", 1412 },
+        { 65.8, 83.8, "A", "Zeppelin to Dalaran", 1416 },
     },
     [2548] = {
         { 80.6, 54.6, "AH", "Boat to Steamwheedle Port", 1446 },

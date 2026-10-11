@@ -7,8 +7,7 @@ dock's pin names the other end and opens its zone's map. A zeppelin tower's two 
 step apart, too close for two pins, so they share one with both destinations.
 
 Which path is which route, and the zones of its docks, are written here by hand (ROUTES); the
-build checks each dock is on the continent and inside the zone it is listed under. Zephras Isle's
-dock is left out until its route is known.
+build checks each dock is on the continent and inside the zone it is listed under.
 
 Writes NaowhForever_QoL/Interface/TownTravel.lua.
 
@@ -24,7 +23,7 @@ import wago  # noqa: E402
 from journal import ROOT, header, write  # noqa: E402
 
 OUT = ROOT / "NaowhForever_QoL" / "Interface" / "TownTravel.lua"
-EASTERN_KINGDOMS, KALIMDOR = 0, 1
+EASTERN_KINGDOMS, KALIMDOR, ZEPHRAS_ISLE = 0, 1, 2991
 SAME = 2.5   # map percent: docks closer than this share one pin
 # (taxi path, kind, factions, its docks in order): a dock is (place, continent, uiMapID).
 ROUTES = [
@@ -35,6 +34,8 @@ ROUTES = [
      ("Auberdine", KALIMDOR, 1439)),
     (11616, "Boat", "A", ("Auberdine", KALIMDOR, 1439), ("Stormwind Harbor", EASTERN_KINGDOMS, 1453)),
     (11391, "Boat", "AH", ("Steamwheedle Port", KALIMDOR, 1446), ("Powderfuse Port", EASTERN_KINGDOMS, 2548)),
+    (11398, "Zeppelin", "A", ("Dalaran", EASTERN_KINGDOMS, 1416), ("Zephras Isle", ZEPHRAS_ISLE, 2521)),
+    (11457, "Zeppelin", "H", ("Mulgore", KALIMDOR, 1412), ("Zephras Isle", ZEPHRAS_ISLE, 2521)),
     (303, "Boat", "A", ("Feathermoon Stronghold", KALIMDOR, 1444), ("the Feralas coast", KALIMDOR, 1444)),
     (285, "Zeppelin", "H", ("Grom'gol", EASTERN_KINGDOMS, 1434), ("Orgrimmar", KALIMDOR, 1411)),
     (301, "Zeppelin", "H", ("Grom'gol", EASTERN_KINGDOMS, 1434), ("Undercity", EASTERN_KINGDOMS, 1420)),
