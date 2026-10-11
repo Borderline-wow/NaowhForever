@@ -21,6 +21,7 @@
     <Script file="Interface\GlobalCopy.lua"/>
     <Script file="System\SlashCommands.lua"/>
     <Script file="Interface\HideClutter.lua"/>
+    <Script file="Interface\UnitNames.lua"/>
     <Script file="Cursor\Crosshair.lua"/>
     <Script file="Cursor\MouseRing.lua"/>
     <Script file="Combat\PetTracker.lua"/>

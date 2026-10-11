@@ -18,6 +18,7 @@ NaowhForever_QoL/
     SpellEfficiency.lua Mana Efficiency on spell tooltips, its Preview Tooltip and the Tooltips card's preview
     GlobalCopy.lua      /copy, and tooltip IDs with their copy shortcut (the card is Shared/UI/CopyCard.lua)
     HideClutter.lua     UI Clutter
+    UnitNames.lua       Names Over Heads: guild names, guild titles and player titles with player names
     ChatZones.lua       Chat Zones
     TownMailboxes.lua   mailboxes by map (ns.TownMailboxes), generated
     TownSpiritHealers.lua  spirit healers by map (ns.TownSpiritHealers), generated
@@ -152,6 +153,9 @@ NaowhForever_QoL/
   and toasts are closed 0.05s after they display.
 - `showTutorials` is the Show Tutorials box in Blizzard's options. What you had before Turn Off
   Tutorials is kept in the account store and put back when it goes off, even in a later session.
+- Names Over Heads writes the game's own `UnitNamePlayerGuild`, `UnitNameGuildTitle` and
+  `UnitNamePlayerPVPTitle` and keeps nothing: the game saves them. Forever's options have no box for
+  them (only your own, NPC and player names), and a row shows only where the client has its setting.
 - In-game cinematics carry no ID, so one is known by the zone and subzone it plays in. Skipping
   one waits a frame so CinematicFrame has taken the start before it is cancelled.
 - Finishing a movie shows UIParent again, which combat lockdown would block, so a movie is never
