@@ -26,6 +26,7 @@ ns.TownTravel = {
         { 54.8, 97.2, "A", "Boat to Auberdine", 1439 },
     },
     [1439] = {
+        { 30.5, 40.9, "A", "Boat to Stormwind Harbor", 1453 },
         { 32.3, 44.1, "A", "Boat to Menethil Harbor", 1437, "Boat to Southshore", 1424 },
         { 33.3, 39.8, "A", "Boat to Rut'theran Village", 1438 },
     },
@@ -35,5 +36,14 @@ ns.TownTravel = {
     },
     [1445] = {
         { 71.7, 56.7, "A", "Boat to Menethil Harbor", 1437 },
+    },
+    [1446] = {
+        { 68.6, 23, "AH", "Boat to Powderfuse Port", 2548 },
+    },
+    [1453] = {
+        { 21.8, 56.9, "A", "Boat to Auberdine", 1439 },
+    },
+    [2548] = {
+        { 80.6, 54.6, "AH", "Boat to Steamwheedle Port", 1446 },
     },
 }

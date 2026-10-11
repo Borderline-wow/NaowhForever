@@ -33,6 +33,8 @@ ROUTES = [
     (293, "Boat", "A", ("Rut'theran Village", KALIMDOR, 1438), ("Auberdine", KALIMDOR, 1439)),
     (11167, "Boat", "A", ("Menethil Harbor", EASTERN_KINGDOMS, 1437), ("Southshore", EASTERN_KINGDOMS, 1424),
      ("Auberdine", KALIMDOR, 1439)),
+    (11616, "Boat", "A", ("Auberdine", KALIMDOR, 1439), ("Stormwind Harbor", EASTERN_KINGDOMS, 1453)),
+    (11391, "Boat", "AH", ("Steamwheedle Port", KALIMDOR, 1446), ("Powderfuse Port", EASTERN_KINGDOMS, 2548)),
     (303, "Boat", "A", ("Feathermoon Stronghold", KALIMDOR, 1444), ("the Feralas coast", KALIMDOR, 1444)),
     (285, "Zeppelin", "H", ("Grom'gol", EASTERN_KINGDOMS, 1434), ("Orgrimmar", KALIMDOR, 1411)),
     (301, "Zeppelin", "H", ("Grom'gol", EASTERN_KINGDOMS, 1434), ("Undercity", EASTERN_KINGDOMS, 1420)),
