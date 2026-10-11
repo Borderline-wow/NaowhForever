@@ -28,7 +28,7 @@ for map, list in pairs(ns.TownTravel) do
     for _, pin in ipairs(list) do
         Check(pin[1] >= 0 and pin[1] <= 100 and pin[2] >= 0 and pin[2] <= 100, "on the map: " .. map)
         Check(pin[3] == "A" or pin[3] == "H" or pin[3] == "AH", "a faction: " .. map)
-        if pin[6] then towers = towers + 1 end
+        if pin[6] and pin[4]:find("^Zeppelin") then towers = towers + 1 end
         for _, finish in ipairs(Ends(pin)) do
             Check(finish[1]:find("^Boat to ") or finish[1]:find("^Zeppelin to "), "says where it goes: " .. finish[1])
             local back = false
@@ -42,7 +42,7 @@ for map, list in pairs(ns.TownTravel) do
         end
     end
 end
-Check(total == 16, "both ends of the eight routes (" .. total .. ")")
+Check(total == 20, "both ends of the seven routes, and the three-dock Southshore boat (" .. total .. ")")
 Check(towers == 3, "the three zeppelin towers are one pin each")
 Check(ns.TownTravel[1413][1][4] == "Boat to Booty Bay" and ns.TownTravel[1413][1][5] == 1434,
     "Ratchet's boat opens Stranglethorn")

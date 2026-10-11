@@ -11,19 +11,22 @@ ns.TownTravel = {
     [1420] = {
         { 61.2, 58.9, "H", "Zeppelin to Orgrimmar", 1411, "Zeppelin to Grom'gol", 1434 },
     },
+    [1424] = {
+        { 50.7, 70.4, "A", "Boat to Auberdine", 1439, "Boat to Menethil Harbor", 1437 },
+    },
     [1434] = {
         { 25.7, 73.1, "AH", "Boat to Ratchet", 1413 },
         { 31.4, 29.8, "H", "Zeppelin to Orgrimmar", 1411, "Zeppelin to Undercity", 1420 },
     },
     [1437] = {
-        { 4.5, 56.7, "A", "Boat to Auberdine", 1439 },
+        { 4.5, 56.7, "A", "Boat to Auberdine", 1439, "Boat to Southshore", 1424 },
         { 4.7, 63.8, "A", "Boat to Theramore", 1445 },
     },
     [1438] = {
         { 54.8, 97.2, "A", "Boat to Auberdine", 1439 },
     },
     [1439] = {
-        { 32.3, 44.1, "A", "Boat to Menethil Harbor", 1437 },
+        { 32.3, 44.1, "A", "Boat to Menethil Harbor", 1437, "Boat to Southshore", 1424 },
         { 33.3, 39.8, "A", "Boat to Rut'theran Village", 1438 },
     },
     [1444] = {

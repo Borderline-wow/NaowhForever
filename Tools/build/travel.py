@@ -1,14 +1,14 @@
 """Build the town map's boats and zeppelins from the game's own tables (Tools/sources/wago.py).
 
-Every boat and zeppelin rides a taxi path (TaxiPathNode), and waits at each of its two docks:
+Every boat and zeppelin rides a taxi path (TaxiPathNode), and waits at each of its docks:
 the nodes with a delay. Those are where the pins go, in world yards, turned into map
 percentages of the dock's zone with the zone's bounds on its continent (UiMapAssignment). Each
 dock's pin names the other end and opens its zone's map. A zeppelin tower's two docks are a
 step apart, too close for two pins, so they share one with both destinations.
 
 Which path is which route, and the zones of its docks, are written here by hand (ROUTES); the
-build checks each dock is on the continent and inside the zone it is listed under. Forever's own
-docks (Southshore, Zephras Isle) are left out until their routes are known.
+build checks each dock is on the continent and inside the zone it is listed under. Zephras Isle's
+dock is left out until its route is known.
 
 Writes NaowhForever_QoL/Interface/TownTravel.lua.
 
@@ -26,12 +26,13 @@ from journal import ROOT, header, write  # noqa: E402
 OUT = ROOT / "NaowhForever_QoL" / "Interface" / "TownTravel.lua"
 EASTERN_KINGDOMS, KALIMDOR = 0, 1
 SAME = 2.5   # map percent: docks closer than this share one pin
-# (taxi path, kind, factions, its first dock, its second): a dock is (place, continent, uiMapID).
+# (taxi path, kind, factions, its docks in order): a dock is (place, continent, uiMapID).
 ROUTES = [
     (241, "Boat", "AH", ("Ratchet", KALIMDOR, 1413), ("Booty Bay", EASTERN_KINGDOMS, 1434)),
     (292, "Boat", "A", ("Menethil Harbor", EASTERN_KINGDOMS, 1437), ("Theramore", KALIMDOR, 1445)),
     (293, "Boat", "A", ("Rut'theran Village", KALIMDOR, 1438), ("Auberdine", KALIMDOR, 1439)),
-    (295, "Boat", "A", ("Menethil Harbor", EASTERN_KINGDOMS, 1437), ("Auberdine", KALIMDOR, 1439)),
+    (11167, "Boat", "A", ("Menethil Harbor", EASTERN_KINGDOMS, 1437), ("Southshore", EASTERN_KINGDOMS, 1424),
+     ("Auberdine", KALIMDOR, 1439)),
     (303, "Boat", "A", ("Feathermoon Stronghold", KALIMDOR, 1444), ("the Feralas coast", KALIMDOR, 1444)),
     (285, "Zeppelin", "H", ("Grom'gol", EASTERN_KINGDOMS, 1434), ("Orgrimmar", KALIMDOR, 1411)),
     (301, "Zeppelin", "H", ("Grom'gol", EASTERN_KINGDOMS, 1434), ("Undercity", EASTERN_KINGDOMS, 1420)),
@@ -69,17 +70,18 @@ def main():
             bounds[int(row["UiMapID"])] = (int(row["MapID"]), tuple(float(row[f"Region_{i}"]) for i in (0, 1, 3, 4)))
 
     by_map = {}
-    for path, kind, factions, first, second in ROUTES:
+    for path, kind, factions, *listed in ROUTES:
         docks = stops(nodes, path)
-        if len(docks) != 2:
-            sys.exit(f"taxi path {path} has {len(docks)} docks, not 2")
-        for (continent, x, y), (place, want_continent, map_id), (to, _, to_map) in (
-                (docks[0], first, second), (docks[1], second, first)):
+        if len(docks) != len(listed):
+            sys.exit(f"taxi path {path} has {len(docks)} docks, not {len(listed)}")
+        for i, ((continent, x, y), (place, want_continent, map_id)) in enumerate(zip(docks, listed)):
             map_continent, zone = bounds[map_id]
             left, top = map_position(zone, x, y)
             if continent != want_continent or map_continent != continent or not (0 <= left <= 100 and 0 <= top <= 100):
                 sys.exit(f"taxi path {path}: the {place} dock is not in map {map_id}")
-            by_map.setdefault(map_id, []).append((round(left, 1), round(top, 1), f"{kind} to {to}", to_map, factions))
+            for j, (to, _, to_map) in enumerate(listed):
+                if j != i:
+                    by_map.setdefault(map_id, []).append((round(left, 1), round(top, 1), f"{kind} to {to}", to_map, factions))
 
     pins_by_map = {}
     for map_id, docks in by_map.items():
