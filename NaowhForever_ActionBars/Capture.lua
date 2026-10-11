@@ -116,8 +116,8 @@ local function KeptMacros(slots, macros, choices)
     return kept
 end
 
-local function Snapshot(choices)
-    local slots, macros, bindings = Capture(), CaptureMacros(), CaptureBindings()
+local function Snapshot(choices, captured)
+    local slots, macros, bindings = captured or Capture(), CaptureMacros(), CaptureBindings()
     if choices then
         for slot in pairs(choices.skip) do slots[slot] = nil end
         macros = KeptMacros(slots, macros, choices)

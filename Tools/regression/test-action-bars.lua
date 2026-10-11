@@ -16,7 +16,7 @@ local SPELLS = {
 
 local function World(known)
     local w = { bars = {}, macros = {}, charMacros = {}, binds = {}, cursor = nil, opts = {}, account = {},
-        printed = {}, combat = false, level = 1, guid = "Player-1" }
+        printed = {}, combat = false, level = 1, guid = "Player-1", timers = {} }
     local book = {}
     for _, id in ipairs(known) do
         book[#book + 1] = { name = SPELLS[id][1], subName = "Rank " .. SPELLS[id][2], actionID = id,
@@ -167,7 +167,7 @@ local function World(known)
         SaveBindings = function(set) w.savedBindings = set end,
         InCombatLockdown = function() return w.combat end,
         UnitClass = function() return "Priest", "PRIEST" end,
-        UnitName = function() return "Preview" end,
+        UnitName = function() return w.name or "Preview" end,
         UnitLevel = function() return w.level end,
         UnitXP = function() return w.xp or 0 end,
         GetRealmName = function() return "Realm" end,
@@ -182,6 +182,7 @@ local function World(known)
             return f
         end,
         strtrim = function(s) return s:match("^%s*(.-)%s*$") end,
+        C_Timer = { After = function(_, fn) w.timers[#w.timers + 1] = fn end },
         time = os.time, date = os.date,
         print = function(m) w.printed[#w.printed + 1] = m end,
         _G = { NaowhForever = ns },
@@ -192,6 +193,16 @@ local function World(known)
         local chunk = assert(loadfile(path)); setfenv(chunk, env); chunk()
     end
     w.run = ns.ActionBarsCommand
+    -- Changes the bars, lets the logout copy's timer run, then logs out.
+    function w.logout(changed)
+        if changed then
+            w.events.handler(w.events, "ACTIONBAR_SLOT_CHANGED")
+            local timers = w.timers
+            w.timers = {}
+            for _, fn in ipairs(timers) do fn() end
+        end
+        w.events.handler(w.events, "PLAYER_LOGOUT")
+    end
     return w
 end
 
@@ -431,16 +442,77 @@ Case("nothing changes in combat", function()
     w.run("restore C")
     assert(Bars(w) == "")
 end)
-Case("Save on Logout writes back the last set used, only when on", function()
+Case("Save on Logout writes back the last set saved, only when on", function()
     local w = World({ 598, 2055 })
     w.bars = { [2] = Spell(598) }
     w.run("save Daily")
     w.bars = { [2] = Spell(2055) }
-    w.events.handler(w.events, "PLAYER_LOGOUT")
+    w.logout(true)
     assert(w.account.barSets.PRIEST.Daily.slots[2].id == 598, "off: left alone")
-    w.opts.saveOnLogout = true
-    w.events.handler(w.events, "PLAYER_LOGOUT")
+    w.ns.ActionBarSettings.Set("saveOnLogout", true)
+    w.logout(true)
     assert(w.account.barSets.PRIEST.Daily.slots[2].id == 2055, "on: saved again")
+end)
+Case("Save on Logout writes the bars as they were before logging out, not as the game reads them then", function()
+    local w = World({ 598, 2055 })
+    w.ns.ActionBarSettings.Set("saveOnLogout", true)
+    w.bars = { [2] = Spell(598) }
+    w.run("save Daily")
+    w.bars = { [2] = Spell(598), [3] = Spell(2055) }
+    w.events.handler(w.events, "ACTIONBAR_SLOT_CHANGED")
+    for _, fn in ipairs(w.timers) do fn() end
+    w.bars = {}
+    w.events.handler(w.events, "PLAYER_LOGOUT")
+    local set = w.account.barSets.PRIEST.Daily
+    assert(set.slots[2].id == 598 and set.slots[3].id == 2055, "the copy from before logout")
+end)
+Case("Save on Logout leaves a set alone with nothing changed since it was saved", function()
+    local w = World({ 598, 2055 })
+    w.ns.ActionBarSettings.Set("saveOnLogout", true)
+    w.bars = { [2] = Spell(2055) }
+    w.logout(true)
+    w.run("save Daily")
+    w.bars = {}
+    w.logout(false)
+    assert(w.account.barSets.PRIEST.Daily.slots[2].id == 2055, "the hand save stands")
+end)
+Case("switching Save on Logout off drops its copy, and on takes a new one", function()
+    local w = World({ 598, 2055 })
+    local S = w.ns.ActionBarSettings
+    S.Set("saveOnLogout", true)
+    w.bars = { [2] = Spell(598) }
+    w.run("save Daily")
+    w.bars = { [2] = Spell(2055) }
+    w.logout(true)
+    S.Set("saveOnLogout", false)
+    w.bars = { [3] = Spell(598) }
+    S.Set("saveOnLogout", true)
+    for _, fn in ipairs(w.timers) do fn() end
+    w.logout(false)
+    local set = w.account.barSets.PRIEST.Daily
+    assert(set.slots[3] and not set.slots[2], "the bars as they are, not the copy from before")
+end)
+Case("a renamed set keeps its logout copy", function()
+    local w = World({ 598, 2055 })
+    w.ns.ActionBarSettings.Set("saveOnLogout", true)
+    w.bars = { [2] = Spell(598) }
+    w.run("save Daily")
+    w.bars = { [2] = Spell(2055) }
+    w.events.handler(w.events, "ACTIONBAR_SLOT_CHANGED")
+    for _, fn in ipairs(w.timers) do fn() end
+    w.ns.ActionBars.Rename("Daily", "Main")
+    w.logout(false)
+    assert(w.account.barSets.PRIEST.Main.slots[2].id == 2055, "saved under the new name")
+end)
+Case("a set last used before the saved flag existed is still written back", function()
+    local w = World({ 598, 2055 })
+    w.ns.ActionBarSettings.Set("saveOnLogout", true)
+    w.bars = { [2] = Spell(598) }
+    w.run("save Daily")
+    w.account.barSetLast["Preview-Realm"].saved = nil
+    w.bars = { [2] = Spell(2055) }
+    w.logout(true)
+    assert(w.account.barSets.PRIEST.Daily.slots[2].id == 2055, "written back as before")
 end)
 Case("renaming a set to its own name keeps it", function()
     local w = World({ 598 })
@@ -559,8 +631,8 @@ Case("saving again, by hand or on logout, keeps the set's choices", function()
     w.run("save Keep")
     local set = w.account.barSets.PRIEST.Keep
     assert(not set.slots[2] and set.bindings == nil, "slash save keeps the picks")
-    w.opts.saveOnLogout = true
-    w.events.handler(w.events, "PLAYER_LOGOUT")
+    w.ns.ActionBarSettings.Set("saveOnLogout", true)
+    w.logout(true)
     set = w.account.barSets.PRIEST.Keep
     assert(not set.slots[2] and set.bindings == nil and set.choices.skip[2], "logout keeps the picks")
 end)
@@ -576,6 +648,15 @@ local function Alt(known)
     alt.events.handler(alt.events, "PLAYER_LOGIN")
     return alt
 end
+Case("Save on Logout never writes an alt's bars over a set it only imported", function()
+    local alt = Alt({ 598 })
+    alt.name = "Alt"
+    alt.ns.ActionBarSettings.Set("saveOnLogout", true)
+    alt.run("import P")
+    alt.bars[1] = nil
+    alt.logout(true)
+    assert(alt.account.barSets.PRIEST.P.slots[1].id == 598, "the saved set is untouched")
+end)
 Case("the preview says what each slot becomes and changes nothing", function()
     local alt = Alt()
     alt.bars = { [4] = Spell(598), [5] = Spell(598) }

@@ -65,8 +65,8 @@ page:Card({
           set = A.SetAutoImport, needs = On, why = BARS_OFF,
           help = "For your class: imports this set once on a new character, at level 1 with no experience yet." },
         { key = "saveOnLogout", label = "Save on Logout", toggle = true, needs = On, why = BARS_OFF,
-          help = "When you log out, the set this character saved or imported last is saved again with your "
-              .. "bars, macros and keybinds as they are." },
+          help = "When you log out, the set this character saved last is saved again with your bars, "
+              .. "macros and keybinds as they are." },
     },
 })
 
