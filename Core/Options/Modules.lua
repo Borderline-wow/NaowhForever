@@ -150,6 +150,12 @@ local MODULES = {
       tabs = {
           { name = "Settings", reuse = true },
       } },
+    { name = "Damage Meter", group = "COMBAT", navIcon = "bars", settings = "DamageMeterSettings",
+      addon = "NaowhForever_DamageMeter",
+      subtitle = "Damage, healing and more for your group, in your theme.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
     { name = "Group Inspect", group = "COMBAT", navIcon = "group", settings = "QoLSettings",
       enabledKey = "groupInspect", addon = "NaowhForever_GroupInspect", needs = { "NaowhForever_BiS" },
       open = "ToggleGroupInspect",

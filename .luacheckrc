@@ -18,6 +18,8 @@ globals = {
     "NaowhForever_ToggleGroupInspect", "BINDING_NAME_NAOWHFOREVER_GROUPINSPECT",
     "NaowhForever_OnCompartmentEnter", "NaowhForever_OnCompartmentLeave", "NaowhForever_ToggleHudEditor",
     "BINDING_NAME_NAOWHFOREVER_HUD", "NaowhForever_ToggleTraining", "BINDING_NAME_NAOWHFOREVER_TRAINING",
+    "NaowhForever_ResetDamageMeter", "BINDING_NAME_NAOWHFOREVER_DAMAGEMETER_RESET",
+    "NaowhForever_ToggleDamageMeter", "BINDING_NAME_NAOWHFOREVER_DAMAGEMETER_TOGGLE",
     "SLASH_NAOWHFOREVER1", "SLASH_NAOWHFOREVER2", "SLASH_NAOWHFOREVER3",
     "SLASH_NAOWHFOREVERQUESTLIST1", "SLASH_NAOWHFOREVERQUESTLIST2",
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHFOREVERAIM1",
@@ -33,6 +35,8 @@ globals = {
 -- The game's API and constants the addon reads. A name missing here is flagged, which is
 -- how a misspelled global, or one Forever does not have, gets caught.
 read_globals = {
+    "C_PlayerInfo", "GetLocale", "Screenshot", "AbbreviateLargeNumbers", "AbbreviateNumbers",
+    "CLASS_SORT_ORDER", "CreateAbbreviateConfig",
     "AcceptQuest", "ActionBarButtonEventsFrame", "ActionStatus", "AlertFrame", "Ambiguate",
     "AnchorUtil", "AuraContainerSortMethod", "AuraUtil", "BACKPACK_CONTAINER",
     "bit", "BNET_CLIENT_WOW", "BNGetInfo", "BNGetNumFriends", "BreakUpLargeNumbers", "BuyMerchantItem", "BuyTrainerService",
@@ -55,7 +59,7 @@ read_globals = {
     "CreateFrame", "CreateFromMixins", "CreateMacro", "CreateVector2D", "CUSTOM_CLASS_COLORS",
     "C_AddOns", "C_AuctionHouse", "C_BattleNet",
     "C_ChatInfo", "C_ClassColor", "C_ClassTalents", "C_Container",
-    "C_CurrencyInfo", "C_CurveUtil", "C_CVar", "C_DurationUtil",
+    "C_CurrencyInfo", "C_CurveUtil", "C_CVar", "C_DamageMeter", "C_DurationUtil",
     "C_EquipmentSet",
     "C_ActionBar", "C_FriendList", "C_GamepadUI", "C_GossipInfo", "C_GuildInfo",
     "C_Item", "C_KeyBindings", "C_LFGList", "C_LootHistory", "C_MajorFactions", "C_Map", "C_Navigation", "C_MountJournal", "C_Transmog", "C_MerchantFrame", "C_NamePlate", "C_PaperDollInfo",
