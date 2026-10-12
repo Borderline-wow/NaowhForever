@@ -28,7 +28,7 @@ local TEAM = {
 }
 
 local THANKS = {
-    { tier = "ellesmere", name = "Ellesmere", role = "EllesmereUI", line = ns.L("Creator of EllesmereUI, for his help with Naowh Forever.") },
+    { tier = "ellesmere", name = "Ellesmere", role = "EllesmereUI", line = ns.L("Creator of EllesmereUI, for allowing us to add some of EUI's styling and functionality.") },
     { tier = "moderator", name = ns.L("Moderators"), role = "Community", line = ns.L("Every moderator keeping the Naowh community running.") },
     { tier = "legendary", badges = true, name = ns.L("Legendary Supporters"), role = "Supporters", line = ns.L("Everyone wearing the Legendary badge: you keep Naowh Forever going.") },
     { tier = "epic", badges = true, name = ns.L("Epic Supporters"), role = "Supporters", line = ns.L("Everyone wearing the Epic badge: you keep Naowh Forever going too.") },
