@@ -147,6 +147,13 @@ local env = setmetatable({
             return {}
         end,
     },
+    CreateFromMixins = function(...)
+        local t = {}
+        for i = 1, select("#", ...) do for k, v in pairs((select(i, ...))) do t[k] = v end end
+        return t
+    end,
+    MapCanvasPinMixin = {},
+    MapCanvasDataProviderMixin = {},
     UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { map = map, x = x, y = y } end },
 }, { __index = _G })
 env._G = env

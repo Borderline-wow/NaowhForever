@@ -48,6 +48,13 @@ local env = setmetatable({
         GetUserWaypoint = function() return current end,
         GetMapInfo = function() return { name = "Orgrimmar" } end,
     },
+    CreateFromMixins = function(...)
+        local t = {}
+        for i = 1, select("#", ...) do for k, v in pairs((select(i, ...))) do t[k] = v end end
+        return t
+    end,
+    MapCanvasPinMixin = {},
+    MapCanvasDataProviderMixin = {},
     C_SuperTrack = { SetSuperTrackedUserWaypoint = function() tracked = tracked + 1 end },
     UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { map = map, x = x, y = y } end },
 }, { __index = _G })

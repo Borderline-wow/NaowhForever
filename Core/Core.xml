@@ -5,4 +5,12 @@
     <Script file="Profiles\Presets.lua"/>
     <Script file="Senders.lua"/>
     <Script file="Waypoint.lua"/>
+    <Frame name="NaowhForeverWaypointPreviewPinTemplate" mixin="NaowhForeverWaypointPreviewPinMixin" virtual="true">
+        <Size x="30" y="30"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture atlas="Waypoint-MapPin-Tracked" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+    </Frame>
 </Ui>

@@ -32,6 +32,17 @@ function WorldMapFrame:HookScript(script, fn)
     hooks[script] = hooks[script] or {}
     table.insert(hooks[script], fn)
 end
+local providers, pins, shownMap = {}, {}, 1454
+function WorldMapFrame:AddDataProvider(provider) providers[#providers + 1] = provider end
+local canvas = {}
+function canvas:GetMapID() return shownMap end
+function canvas:RemoveAllPinsByTemplate() pins = {} end
+function canvas:AcquirePin()
+    local pin = {}
+    pin.SetPosition = function(p, x, y) p.x, p.y = x, y end
+    pins[#pins + 1] = pin
+    return pin
+end
 local function CloseMap()
     mapOpen = false
     for _, fn in ipairs(hooks.OnHide or {}) do fn(WorldMapFrame) end
@@ -45,6 +56,13 @@ local env = setmetatable({
     NaowhForever = ns,
     WorldMapFrame = WorldMapFrame,
     CreateFrame = NewFrame,
+    CreateFromMixins = function(...)
+        local t = {}
+        for i = 1, select("#", ...) do for k, v in pairs((select(i, ...))) do t[k] = v end end
+        return t
+    end,
+    MapCanvasPinMixin = {},
+    MapCanvasDataProviderMixin = { GetMap = function() return canvas end },
     C_Timer = { After = function() end },
     C_Map = {
         CanSetUserWaypointOnMap = function() return true end,
@@ -63,7 +81,9 @@ local env = setmetatable({
             return current and ("|Hworldmap:%d|h[Map Pin]|h"):format(current.uiMapID)
         end,
         GetMapInfo = function() return { name = "Orgrimmar" } end,
+        GetWorldPosFromMapPos = function() return nil end,
     },
+    CreateVector2D = function(x, y) return { x = x, y = y } end,
     C_SuperTrack = {
         SetSuperTrackedUserWaypoint = function() calls.track = calls.track + 1 end,
         ClearAllSuperTracked = function() calls.untrack = calls.untrack + 1 end,
@@ -84,10 +104,17 @@ Check(hooks.OnHide == nil, "nothing hooked on the map until a change has to wait
 mapOpen = true
 Check(ns.PlaceWaypoint("Hanashi", 1454, 81.5, 19.6, " (Weapon Master)", 132), "placed with the map open")
 Check(calls.set == 1 and calls.track == 1, "not set while the map is open")
+Check(#providers == 1 and #pins == 1 and math.abs(pins[1].x - 0.815) < 1e-9 and math.abs(pins[1].y - 0.196) < 1e-9, "a preview pin on the open map")
 Check(printed[#printed]:find("when you close the map", 1, true) ~= nil, "the chat line says when")
 Check(ns.PlaceWaypoint("Kaja", 1454, 50.0, 50.0, " (Mining Trainer)", 136248), "another while it is open")
 Check(calls.set == 1 and #hooks.OnHide == 1, "still not set, and the map hooked once")
+Check(#providers == 1 and #pins == 1 and pins[1].x == 0.5, "one preview pin, at the latest spot")
+shownMap = 1411
+providers[1]:RefreshAllData()
+Check(#pins == 0, "no preview on a map it is not on")
+shownMap = 1454
 CloseMap()
+Check(#pins == 0, "the preview goes as the map closes")
 Check(calls.set == 2 and calls.track == 2, "set once as the map closes")
 Check(current.uiMapID == 1454 and current.position.x == 0.5 and ns.placedWaypoint.title == "Kaja"
     and ns.placedWaypoint.icon == 136248, "the latest spot, with its title and icon")
@@ -105,7 +132,9 @@ Check(calls.clear == 2 and calls.untrack == 2, "cleared at once with the map clo
 
 mapOpen = true
 ns.PlaceWaypoint("Hanashi", 1454, 81.5, 19.6)
+Check(#pins == 1, "previewed")
 env.C_Map.SetUserWaypoint(env.UiMapPoint.CreateFromCoordinates(1411, 0.25, 0.75))
+Check(#pins == 0, "a newer waypoint of the game's takes the preview away")
 local sets = calls.set
 CloseMap()
 Check(calls.set == sets and current.uiMapID == 1411, "a newer waypoint of the game's drops the waiting one")

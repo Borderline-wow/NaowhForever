@@ -12,6 +12,8 @@ local TEXT_PLACED = ns.L("Waypoint for ")
 local TEXT_ROUTE_STOP = ns.L("%s, stop %d of %d: %s%s")
 local TEXT_NO_WAYPOINTS = ns.L("That map does not take waypoints.")
 local TEXT_LATER = ns.L(" (placed when you close the map)")
+local PREVIEW_TEMPLATE = "NaowhForeverWaypointPreviewPinTemplate"
+local WORLD_POS_RETURN = 2
 
 ns.WAYPOINT_HOLD = 4
 
@@ -20,7 +22,7 @@ local route
 local arrivals = 0
 local watch = CreateFrame("Frame")
 local CLEAR = {}
-local pending, held
+local pending, held, preview
 
 local function MapOpen()
     return WorldMapFrame ~= nil and WorldMapFrame:IsVisible()
@@ -76,11 +78,49 @@ local function TrackNow(quest)
     C_SuperTrack.SetSuperTrackedQuestID(quest)
 end
 
+NaowhForeverWaypointPreviewPinMixin = CreateFromMixins(MapCanvasPinMixin)
+
+function NaowhForeverWaypointPreviewPinMixin:OnLoad()
+    self:SetScalingLimits(1, 1.0, 1.2)
+end
+
+function NaowhForeverWaypointPreviewPinMixin:OnAcquired()
+    self:UseFrameLevelType("PIN_FRAME_LEVEL_WAYPOINT_LOCATION")
+end
+
+function NaowhForeverWaypointPreviewPinMixin:CheckMouseButtonPassthrough() end
+
+local function PreviewSpot(mapID, map, x, y)
+    if map == mapID then return x, y end
+    local continent, world = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(x, y))
+    local pos = continent and world and select(WORLD_POS_RETURN, C_Map.GetMapPosFromWorldPos(continent, world, mapID))
+    if not pos then return end
+    local px, py = pos:GetXY()
+    if px >= 0 and px <= 1 and py >= 0 and py <= 1 then return px, py end
+end
+
+local function NewPreview()
+    local provider = CreateFromMixins(MapCanvasDataProviderMixin)
+    function provider:RemoveAllData()
+        self:GetMap():RemoveAllPinsByTemplate(PREVIEW_TEMPLATE)
+    end
+    function provider:RefreshAllData()
+        self:RemoveAllData()
+        if not (pending and pending[2]) then return end
+        local map = self:GetMap()
+        local x, y = PreviewSpot(map:GetMapID(), pending[2], pending[3] / PERCENT, pending[4] / PERCENT)
+        if x then map:AcquirePin(PREVIEW_TEMPLATE):SetPosition(x, y) end
+    end
+    WorldMapFrame:AddDataProvider(provider)
+    return provider
+end
+
 local function Flush()
     local change = pending
     if not change then return end
     pending = nil
     held:UnregisterAllEvents()
+    preview:RemoveAllData()
     if change == CLEAR then
         ClearNow()
     elseif change.quest then
@@ -93,6 +133,7 @@ end
 local function DropPending()
     pending = nil
     held:UnregisterAllEvents()
+    preview:RemoveAllData()
 end
 
 local function Hold(change)
@@ -101,8 +142,10 @@ local function Hold(change)
         held = CreateFrame("Frame")
         held:SetScript("OnEvent", DropPending)
         WorldMapFrame:HookScript("OnHide", Flush)
+        preview = NewPreview()
     end
     held:RegisterEvent("USER_WAYPOINT_UPDATED")
+    preview:RefreshAllData()
 end
 
 local function SetGameWaypoint(title, map, x, y, note, icon)
