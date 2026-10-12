@@ -1,5 +1,4 @@
 -- esMX.lua: the Spanish (Latin America) strings.
-if NaowhForeverLocaleCode ~= "esMX" then return end
 local L = {}
 NaowhForeverTranslation = L
 

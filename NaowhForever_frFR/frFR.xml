@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- frFR.xml: the French strings. -->
+    <Script file="frFR.lua"/>
+</Ui>

@@ -1,5 +1,4 @@
 -- zhCN.lua: the Simplified Chinese strings.
-if NaowhForeverLocaleCode ~= "zhCN" then return end
 local L = {}
 NaowhForeverTranslation = L
 

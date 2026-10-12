@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- ptBR.xml: the Portuguese (Brazil) strings. -->
+    <Script file="ptBR.lua"/>
+</Ui>

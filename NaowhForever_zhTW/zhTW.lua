@@ -1,5 +1,4 @@
 -- zhTW.lua: the Traditional Chinese strings.
-if NaowhForeverLocaleCode ~= "zhTW" then return end
 local L = {}
 NaowhForeverTranslation = L
 

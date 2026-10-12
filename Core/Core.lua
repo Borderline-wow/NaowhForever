@@ -27,9 +27,9 @@ local SKIN_CLASSIC = "classic"
 -- The Classic+ skin sets text as the game does: Friz Quadrata, and Arial Narrow for compact numbers.
 local FONT_NAOWH, FONT_CLASSIC, FONT_DATA = "Naowh", "Friz Quadrata TT", "Arial Narrow"
 local FONT_HEADING = FONT_CLASSIC
-local LOCALE_ADDON, ENGLISH = "NaowhForever_Locales", "enUS"
+local LOCALE_ADDON_PREFIX, ENGLISH = "NaowhForever_", "enUS"
 local GLYPH_FONTS = { koKR = "Fonts\\2002.TTF", zhCN = "Fonts\\ARKai_T.ttf", zhTW = "Fonts\\bLEI00D.ttf" }
-local FRIZ, FRIZ_CYRILLIC = "Fonts\\FRIZQT__.TTF", "Fonts\\FRIZQT___CYR.TTF"
+local FRIZ_CYRILLIC = "Fonts\\FRIZQT___CYR.TTF"
 local LANGUAGES = { "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "ptBR", "ruRU", "koKR", "zhCN", "zhTW" }
 local LANGUAGE_NAMES = { enUS = "English", deDE = "Deutsch", esES = "Espa\195\177ol (Espa\195\177a)",
     esMX = "Espa\195\177ol (M\195\169xico)", frFR = "Fran\195\167ais", itIT = "Italiano",
@@ -84,8 +84,7 @@ end
 ns.LOCALE = PickLocale()
 ns.LANGUAGES, ns.LANGUAGE_NAMES = LANGUAGES, LANGUAGE_NAMES
 if ns.LOCALE ~= ENGLISH then
-    _G.NaowhForeverLocaleCode = ns.LOCALE
-    C_AddOns.LoadAddOn(LOCALE_ADDON)
+    C_AddOns.LoadAddOn(LOCALE_ADDON_PREFIX .. ns.LOCALE)
 end
 
 local catalog = _G.NaowhForeverLocale or {}
@@ -452,15 +451,18 @@ if LSM then
 end
 
 ns.BLIZZARD_FONT = "__blizzard"
-function ns.LocaleFont(path)
+-- name is the font as requested (an LSM name or one of this file's FONT_* constants), path its
+-- resolved file. The Cyrillic swap keys off the request, not the resolved path, so it still
+-- applies if LSM's registration for Friz Quadrata ever changes.
+function ns.LocaleFont(name, path)
     if GLYPH_FONTS[ns.LOCALE] then return GLYPH_FONTS[ns.LOCALE] end
-    if ns.LOCALE == "ruRU" and path == FRIZ then return FRIZ_CYRILLIC end
+    if ns.LOCALE == "ruRU" and name == FONT_CLASSIC then return FRIZ_CYRILLIC end
     return path
 end
 
 local function FontPath(name)
     if name == nil or name == ns.BLIZZARD_FONT or not LSM then return nil end
-    return ns.LocaleFont(LSM:Fetch("font", name, true) or LSM:Fetch("font", "Naowh", true))
+    return ns.LocaleFont(name, LSM:Fetch("font", name, true) or LSM:Fetch("font", "Naowh", true))
 end
 
 local uiFontPath
@@ -472,7 +474,7 @@ end
 function ns.AddonFontPath(classic)
     if classic == nil then classic = ns.classicSkin end
     local default = classic and FONT_CLASSIC or FONT_NAOWH
-    return FontPath(ns.AccountSettings().uiFont or default) or ns.LocaleFont(STANDARD_TEXT_FONT)
+    return FontPath(ns.AccountSettings().uiFont or default) or ns.LocaleFont(default, STANDARD_TEXT_FONT)
 end
 
 function ns.HeadingFontPath(classic)
@@ -492,7 +494,7 @@ end
 
 -- The title plate is the one place the Classic+ skin keeps the Naowh face.
 function ns.TitleFontPath()
-    return ns.LocaleFont(NAOWH_FONT)
+    return ns.LocaleFont(FONT_NAOWH, NAOWH_FONT)
 end
 
 function ns.UIFontPath()

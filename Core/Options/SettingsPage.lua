@@ -145,18 +145,18 @@ local function MinimapSection(W, parent, y)
     return Rows(W, parent, y, rows)
 end
 
-local function LanguageChoices()
+local LANGUAGE_VALUES, LANGUAGE_ORDER = (function()
     local values, order = { [AUTO] = TEXT_GAME_LANGUAGE }, { AUTO }
     for _, code in ipairs(ns.LANGUAGES) do
         values[code] = ns.L(ns.LANGUAGE_NAMES[code])
         order[#order + 1] = code
     end
-    return values, order
-end
+    local saved = _G.NaowhForeverLanguageDB and _G.NaowhForeverLanguageDB.locale
+    return UI.KeepMissing(values, order, saved)
+end)()
 
 local function WindowSection(W, parent, y)
     local _, h = W:SectionHeader(parent, "OPTIONS WINDOW", y); y = y - h
-    local languages, languageOrder = LanguageChoices()
     _, h = W:DualRow(parent, y,
         { type = "dropdown", text = "Window Scale", values = SCALE_VALUES, order = SCALE_ORDER,
           tooltip = "Size of this options window and the editors it opens, as a percentage. "
@@ -165,7 +165,7 @@ local function WindowSection(W, parent, y)
           .. "profile leaves it alone.",
           getValue = function() return tonumber(ns.AccountSettings().windowScale) or DEFAULT_SCALE end,
           setValue = function(v) ns.SetWindowScale(v) end },
-        { type = "dropdown", text = "Language", values = languages, order = languageOrder,
+        { type = "dropdown", text = "Language", values = LANGUAGE_VALUES, order = LANGUAGE_ORDER,
           tooltip = "The language of this addon. Game Language follows your game client. Saved for this "
           .. "computer.|n|nTakes effect after a /reload.",
           getValue = function() return NaowhForeverLanguageDB and NaowhForeverLanguageDB.locale or AUTO end,

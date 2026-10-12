@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- koKR.xml: the Korean strings. -->
+    <Script file="koKR.lua"/>
+</Ui>

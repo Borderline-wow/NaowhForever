@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- deDE.xml: the German strings. -->
+    <Script file="deDE.lua"/>
+</Ui>

@@ -1,5 +1,4 @@
 -- ptBR.lua: the Portuguese (Brazil) strings.
-if NaowhForeverLocaleCode ~= "ptBR" then return end
 local L = {}
 NaowhForeverTranslation = L
 

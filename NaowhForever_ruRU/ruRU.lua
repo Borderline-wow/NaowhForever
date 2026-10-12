@@ -1,5 +1,4 @@
 -- ruRU.lua: the Russian strings.
-if NaowhForeverLocaleCode ~= "ruRU" then return end
 local L = {}
 NaowhForeverTranslation = L
 

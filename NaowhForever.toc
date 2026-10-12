@@ -3,7 +3,8 @@
 ## Notes: Naowh's Forever companion: the window every module shares.
 ## Author: Naowh
 ## Version: 1.1.10
-## OptionalDeps: NaowhUI_Media, NaowhForever_Language
+## Dependencies: NaowhForever_Language
+## OptionalDeps: NaowhUI_Media
 ## SavedVariables: NaowhForeverDB
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
@@ -13,8 +14,9 @@
 
 Libs\embeds.xml
 
-# The English catalog first; the other languages are NaowhForever_Locales, loaded by Core.lua.
-# Each area loads its own files through its XML, in this order; add a file to that XML, never here.
+# The English catalog first; the other languages are their own NaowhForever_<code> addon, loaded
+# by Core.lua. Each area loads its own files through its XML, in this order; add a file to that
+# XML, never here.
 Core\Locales\enUS.lua
 
 Core\Core.xml

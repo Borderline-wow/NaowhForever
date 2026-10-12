@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- zhTW.xml: the Traditional Chinese strings. -->
+    <Script file="zhTW.lua"/>
+</Ui>

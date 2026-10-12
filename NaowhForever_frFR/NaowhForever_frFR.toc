@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: French
+## Notes: Naowh Forever in French. Loads only when you are using it.
+## Author: Naowh
+## Version: 1.1.10
+## Dependencies: NaowhForever
+## LoadOnDemand: 1
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+
+frFR.xml

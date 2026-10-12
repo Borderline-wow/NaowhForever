@@ -1,5 +1,4 @@
 -- itIT.lua: the Italian strings.
-if NaowhForeverLocaleCode ~= "itIT" then return end
 local L = {}
 NaowhForeverTranslation = L
 

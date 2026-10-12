@@ -1348,7 +1348,7 @@ local function SharedMedia()
     return LibStub and LibStub("LibSharedMedia-3.0", true)
 end
 
-local function KeepMissing(values, order, selected)
+function UI.KeepMissing(values, order, selected)
     if type(selected) == "string" and selected ~= "" and not values[selected] then
         values[selected] = selected .. TEXT_UNAVAILABLE
         order[#order + 1] = selected
@@ -1365,13 +1365,13 @@ function UI.FontChoices(selected)
             order[#order + 1] = name
         end
     end
-    return KeepMissing(values, order, selected)
+    return UI.KeepMissing(values, order, selected)
 end
 
 function UI.FontPath(name)
     local LSM = SharedMedia()
     local path = LSM and name and name ~= "" and LSM:Fetch("font", name, true)
-    return path and ns.LocaleFont(path) or ns.HeadingFontPath()
+    return path and ns.LocaleFont(name, path) or ns.HeadingFontPath()
 end
 
 function UI.TextureChoices(selected, label)
@@ -1385,7 +1385,7 @@ function UI.TextureChoices(selected, label)
             end
         end
     end
-    return KeepMissing(values, order, selected)
+    return UI.KeepMissing(values, order, selected)
 end
 
 function UI.TexturePath(name, fallback)

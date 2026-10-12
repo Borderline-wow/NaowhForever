@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Language.xml: Language.lua, the only file this addon has. -->
+    <Script file="Language.lua"/>
+</Ui>

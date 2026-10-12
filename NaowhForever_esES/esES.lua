@@ -1,5 +1,4 @@
 -- esES.lua: the Spanish (Spain) strings.
-if NaowhForeverLocaleCode ~= "esES" then return end
 local L = {}
 NaowhForeverTranslation = L
 
