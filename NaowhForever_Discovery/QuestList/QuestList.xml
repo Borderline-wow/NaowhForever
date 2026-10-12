@@ -15,7 +15,6 @@
     <Script file="View\View.lua"/>
     <Script file="View\Hero.lua"/>
     <Script file="View\ZoneRow.lua"/>
-    <Script file="View\PartRow.lua"/>
     <Script file="View\QuestRow.lua"/>
     <Script file="View\RareRow.lua"/>
     <Script file="View\DropRow.lua"/>

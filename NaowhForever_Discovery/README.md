@@ -30,7 +30,7 @@ NaowhForever_Discovery/
     BagHero.lua               the Sleeping Bag card
     StepRow.lua               a step of the chain
   UI/
-    Window.lua                the window (/nfdiscovery) and its two tabs
+    Window.lua                the window (/nfdiscovery) and its four tabs; Quest List and Rares are drawn by QuestList/UI/Window.lua
     BookTracker.lua           the Library Books tracker
     BagTracker.lua            the Sleeping Bag tracker
     BookPins.lua, .xml        the book pins on the world map, and their template

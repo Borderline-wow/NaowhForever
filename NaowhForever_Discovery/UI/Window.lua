@@ -1,4 +1,4 @@
--- Window.lua: Discovery's own window (/nfdiscovery): the Library Books and Sleeping Bag tabs.
+-- Window.lua: Discovery's own window (/nfdiscovery): the Library Books, Sleeping Bag, Quest List and Rares tabs.
 local ns = _G.NaowhForever
 
 local Discovery = ns.Discovery
@@ -15,7 +15,10 @@ local WIDTH, HEIGHT = 760, 720
 local CARD = 6
 local PERCENT = C.PERCENT
 local ROUND_HALF = 0.5
-local TABS_W = 260
+local TAB_MARGIN = 28
+local SEARCH_W = 260
+local SEARCH_MIN_W = 140
+local SEARCH_GAP = 12
 local TABS_TOP_GAP = 4
 local SCROLL_TOP_GAP = 8
 local SCROLL_GAP = 4
@@ -24,9 +27,12 @@ local EVENTS = { "BAG_UPDATE_DELAYED", "QUEST_TURNED_IN", "QUEST_ACCEPTED", "PLA
 local FILTERS = {
     { key = "books", label = "Library Books", tip = "Every book for your faction, a tick on those handed in." },
     { key = "bag", label = "Sleeping Bag", tip = "The Cozy Sleeping Bag's hidden quest chain, step by step." },
+    { key = "quests", label = "Quest List", tip = "Every quest of every zone, and where you are in each chain." },
+    { key = "rares", label = "Rares", tip = "Every rare of every zone, and which of them you have killed." },
 }
+local QUEST_TABS = { quests = true, rares = true }
 local TEXT_TITLE = ns.L("Discovery")
-local TEXT_ABOUT = ns.L("Library books to find around Azeroth, and who to hand them to.")
+local TEXT_ABOUT = ns.L("Library books, the Sleeping Bag, quests and rares to find around Azeroth.")
 local TEXT_STEPS = ns.L("Steps")
 local TEXT_OPTIONAL = ns.L("Optional")
 local TEXT_NOT_FOUND = ns.L("Not found yet")
@@ -35,7 +41,7 @@ local TEXT_NO_BOOKS = ns.L("No books for your faction yet.")
 local TEXT_SEPARATOR = "  -  "
 local TEXT_FOR_FACTION = ns.L(" books for your faction")
 
-local window, scroll, view
+local window, scroll, view, questScroll
 local filter = "books"
 local zones
 local zoneBooks = {}
@@ -138,11 +144,27 @@ function Draw:Redraw()
     DrawBooks(self)
 end
 
+local function ShowFilter(opening)
+    local quests = QUEST_TABS[filter]
+    scroll:SetShown(not quests)
+    if quests then
+        ns.Completo.Tabs.Show(filter, opening)
+    else
+        ns.Completo.Tabs.Hide()
+        view:Redraw()
+    end
+end
+
 local function PickFilter(key)
     filter = key
     Parts.PaintTabs(window.filters, filter)
     scroll:SetVerticalScroll(0)
-    view:Redraw()
+    ShowFilter(false)
+end
+
+local function PlaceScroll(frame, left, top, footer)
+    frame:SetPoint("TOPLEFT", left, -top)
+    frame:SetPoint("BOTTOMRIGHT", -(CARD + Style.SCROLLBAR + SCROLL_GAP), footer + CARD + Style.WINDOW_PAD)
 end
 
 local function Build()
@@ -155,24 +177,32 @@ local function Build()
     Parts.FooterBrand(window, PAGE)
     window.note = Parts.FooterNote(window, "")
     local left, top = CARD + Style.CONTENT_INSET, header + CARD + Style.WINDOW_PAD + TABS_TOP_GAP
-    window.filters = Parts.Tabs(window, TABS_W, FILTERS, PickFilter)
+    window.filters = Parts.Tabs(window, 1, FILTERS, PickFilter)
+    Parts.FitTabs(window.filters, FILTERS, TAB_MARGIN)
     window.filters:SetPoint("TOPLEFT", left, -top)
+    local width = WIDTH - left - CARD - Style.SCROLLBAR - Style.CONTENT_INSET
+    questScroll = ns.UI.SlimScroll(window)
+    local search = ns.Completo.Tabs.Build(window, questScroll, width)
+    local room = WIDTH - 2 * left - window.filters:GetWidth() - SEARCH_GAP
+    search:SetSize(math.max(SEARCH_MIN_W, math.min(SEARCH_W, room)), Style.SEARCH_H)
+    search:SetPoint("RIGHT", window, "TOPRIGHT", -left, -(top + Style.TAB_H / 2))
     top = top + Style.TAB_H + Style.TAB_GAP + SCROLL_TOP_GAP
     scroll = ns.UI.SlimScroll(window)
-    scroll:SetPoint("TOPLEFT", left, -top)
-    scroll:SetPoint("BOTTOMRIGHT", -(CARD + Style.SCROLLBAR + SCROLL_GAP), footer + CARD + Style.WINDOW_PAD)
+    PlaceScroll(scroll, left, top, footer)
+    PlaceScroll(questScroll, left, top, footer)
     view = Shared.View.New(scroll, V.Kinds, Draw)
-    view:SetWidth(WIDTH - left - CARD - Style.SCROLLBAR - Style.CONTENT_INSET)
+    view:SetWidth(width)
     scroll:SetScrollChild(view)
 end
 
 local function Paint()
     window.backdrop:Paint(Opacity() / PERCENT)
     window.opacity._refreshValue()
+    Parts.PaintTabs(window.filters, filter)
+    if QUEST_TABS[filter] then return end
     local _, total = Library.Progress()
     window.note.text:SetText(total .. TEXT_FOR_FACTION)
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
-    Parts.PaintTabs(window.filters, filter)
 end
 
 local function IsShown()
@@ -184,7 +214,7 @@ local function OnSettingChanged(key)
 end
 
 local function OnApply()
-    if not IsShown() then return end
+    if not IsShown() or QUEST_TABS[filter] then return end
     Paint()
     view:Redraw()
 end
@@ -195,11 +225,11 @@ function ns.OpenDiscoveryWindow(tab)
     window:SetScale(ns.UIScale())
     window:Show()
     Paint()
-    view:Redraw()
+    ShowFilter(true)
 end
 
-function ns.ToggleDiscoveryWindow()
-    if IsShown() then window:Hide() else ns.OpenDiscoveryWindow() end
+function ns.ToggleDiscoveryWindow(tab)
+    if IsShown() and (not tab or tab == filter) then window:Hide() else ns.OpenDiscoveryWindow(tab) end
 end
 
 S.OnChange(OnSettingChanged)

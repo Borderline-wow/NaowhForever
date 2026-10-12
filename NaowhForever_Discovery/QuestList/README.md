@@ -3,8 +3,8 @@
 Discovery's Quest List and Rares tabs (Completo in the code: `ns.Completo`, `/nfcompleto`, the
 `completo` settings store), everything there is to do and how much of it you have done. They
 share Discovery's switch: the Quest List follows Discovery's `enabled`, and an old profile with
-Completo on turns Discovery on. The Quest List window's Overview tab, where it opens first, shows how far along you are in Quests and Rares, everywhere and in the zone you are in.
-Its Quests tab has every quest of every zone for your character, how many you have done per zone, and for each quest chain the step
+Completo on turns Discovery on. Both are tabs of the Discovery window, next to Library Books and Sleeping Bag.
+The Quest List tab has every quest of every zone for your character, how many you have done per zone, and for each quest chain the step
 you are on; its Rares tab every rare of every zone and which of them this character has killed.
 Map Pins put a ! on the world map at each quest giver with a quest for you, and a star where each
 rare spawns; Rare Alerts warn you when a rare is near, and a left-click on the alert targets it. Off by default, every feature too: players
@@ -33,7 +33,6 @@ NaowhForever_Discovery/QuestList/
     View.lua                  the window's row kinds and what its rows share (Completo.View)
     Hero.lua                  the card on top of a page: done of total, count and bar
     ZoneRow.lua               a zone on All Zones, and the progress row it shares (View.ProgressRow)
-    PartRow.lua               Quests or Rares on the Overview, everywhere or in your zone
     QuestRow.lua              a quest, and a chain's tree line
     RareRow.lua               a rare
     DropRow.lua               a rare's drop, under it while open
@@ -41,10 +40,10 @@ NaowhForever_Discovery/QuestList/
   UI/
     RareAlert.lua             the alert on screen: seeing a rare, the card, its place, its click that
                               targets the rare (Completo.RareAlert)
-    Window.lua                the Quest List window (its key binding) and its three tabs
+    Window.lua                the Quest List and Rares tabs of the Discovery window (Completo.Tabs), and the key binding's toggle
     QuestPins.lua, .xml       the quest giver pins on the world map, and their template
     RarePins.lua, .xml        the rare stars on the world map, and their template
-    GeneralSettings.lua       the key binding and window cards, on the Discovery/Quest List page
+    GeneralSettings.lua       the key binding card, on the Discovery/Quest List page
     QuestsSettings.lua        the quest cards on the Discovery/Quest List page, and the quest pins on QoL > Map & Pins
     RaresSettings.lua         the Discovery/Rares settings page, with the alert's live preview, and the rare pins on QoL > Map & Pins
 ```
@@ -81,7 +80,7 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
 
 ## Why
 
-- Nothing runs until the window is open: it reads what you have done when it draws, and listens
+- Nothing runs until one of its tabs is open: it reads what you have done when it draws, and listens
   for quest events only while it is shown. Which quests are yours (faction, race, class) is worked
   out once, the first time it is asked; none of it changes while you play.
 - `RACE_BITS` maps the client's race IDs to their bit in Wowhead's race masks, Forever's own two
@@ -163,7 +162,6 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
   that so (focus) after the pointer moves off, with no panel; right-click it again, or another
   star, to let go. Let go of, every star is back at once, not only once the pointer moves off,
   and its tooltip stays while the pointer is still on it. Another map lets go of it.
-- The Overview listens for quest events like the Quests tab, and redraws on a rare killed.
 - The Rares tab listens to no events: a rare changes only by a kill counted, which redraws it.
 - A search names every zone, so its rows do not name their zone; a rare opened from the map stays
   listed even with Hide Killed Rares.
@@ -174,7 +172,7 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
 
 - `/nfquests` and `/nfcompleto` are made in `Core/Commands.lua`, not here, and call
   `NaowhForever_ToggleCompleto`, which the core defines as "Discovery is switched off" and this
-  window's file replaces when Discovery loads. So with Discovery off they say so instead of doing
+  tabs' file replaces when Discovery loads. So with Discovery off they say so instead of doing
   nothing, as the key binding does, and `/nf help` lists them.
 
 ## Checking

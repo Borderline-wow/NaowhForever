@@ -7,7 +7,7 @@ local OLD_ADDON = "NaowhForever_Completo"
 local TEXT_OLD_FOLDER = ns.L("Completo is part of Discovery now. Its old folder has been turned off; reload to finish.")
 
 local S = ns.UI.ModuleSettings("completo", {
-    enabled = F.enabled, hideDone = false, windowAlpha = 1, windowScale = 1,
+    enabled = F.enabled, hideDone = false,
     mapPins = F.mapPins, mapGrey = false, mapChainsOnly = false, mapPinSize = 20,
     rareHideKilled = false, rareAlert = F.rareAlert, rareAlertKilled = false,
     rareSound = true, rareSoundKey = "file:gruntlinghorn", rareAlertPosition = nil, rareAlertScale = 1,
