@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.1.9
+
+### Changed
+- Dungeon Journal: boss loot updated from the latest Forever loot lists.
+- BiS List: picks updated from wowsrc.com's latest lists.
+
+### Fixed
+- BiS List: ten picks wowsrc lists were missing from the lists (wowsrc shows them blue, the game
+  green).
 
 ## 1.1.8
 
