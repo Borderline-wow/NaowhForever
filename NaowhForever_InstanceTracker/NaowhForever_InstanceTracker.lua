@@ -966,10 +966,10 @@ local COPY_KINDS = {
 }
 
 local function PlainGuid(guid)
-    if type(guid) ~= "string" or guid == "" then return false end
+    if type(guid) ~= "string" then return false end
     if issecretvalue and issecretvalue(guid) then return false end
     if canaccessvalue and not canaccessvalue(guid) then return false end
-    return true
+    return guid ~= ""
 end
 
 local function CopyParts(guid)
@@ -1569,8 +1569,8 @@ end
 -- Target, mouseover, and nameplates. A cast GUID arrives on its own event.
 -- Outdoor GUIDs and secrets return nothing, and this does not poll.
 local function UnitCopy(unit)
-    if type(unit) ~= "string" or unit == "" or not UnitGUID then return end
-    if Secret(unit) then return end
+    if type(unit) ~= "string" or Secret(unit) then return end
+    if unit == "" or not UnitGUID then return end
     return CopyParts(UnitGUID(unit))
 end
 
