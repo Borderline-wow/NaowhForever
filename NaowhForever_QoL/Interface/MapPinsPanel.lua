@@ -1,4 +1,4 @@
--- MapPinsPanel.lua: the Map Options and Pins button on the world map and its drawer of which pins and options show.
+-- MapPinsPanel.lua: the Town Pins button on the world map and its drawer of which town pins show.
 local ns = _G.NaowhForever
 
 local T = ns.THEME
@@ -25,8 +25,8 @@ local ICON_INSET = 4
 local SCROLL_W, SCROLL_IN = 4, 2
 local TRACK_W, BOX_W, BOX_H, BOX_ALPHA, SLIDER_GAP = 70, 30, 14, 1, 6
 
-local TEXT_TITLE = "Map Options and Pins"
-local TEXT_TIP = "Click to choose which pins and options show on the map."
+local TEXT_TITLE = "Town Pins"
+local TEXT_TIP = "Click to choose which town pins show on the map."
 local TEXT_CLOSE = "x"
 local TEXT_TOWN, TEXT_TOWN_PINS, TEXT_TOWN_TIP = ns.TownPinTexts.group, ns.TownPinTexts.switch, ns.TownPinTexts.tip
 local TEXT_SIZE, TEXT_SIZE_TIP = "Town Pin Size", "How big the town pins are on the world map."
@@ -222,17 +222,12 @@ local function BuildPanel()
     scroll:SetScript("OnSizeChanged", function(_, w) content:SetWidth(w) end)
     MakeGroup(content, TEXT_TOWN:upper())
     MakeRow(content, S, "townMap", TEXT_TOWN_PINS, TEXT_TOWN_TIP)
+    local _, class = UnitClass("player")
     for _, row in ipairs(ROWS) do
         if row.header then
             MakeGroup(content, row.header)
-        else
+        elseif not row.class or row.class == class then
             MakeRow(content, S, row.key, row.text, row.tip, TownOn)
-        end
-    end
-    for _, section in ipairs(ns.Shared.MapPinSections()) do
-        if section.title then MakeGroup(content, section.title:upper()) end
-        for _, row in ipairs(section.rows) do
-            if row.toggle then MakeRow(content, row.store, row.key, row.label, row.help, row.needs) end
         end
     end
     MakeRow(content, S, "townPinSize", TEXT_SIZE, TEXT_SIZE_TIP, TownOn, ns.TownPinRange)
@@ -321,13 +316,6 @@ end
 
 local function OnLogin(self)
     self:UnregisterAllEvents()
-    local watched = {}
-    for _, section in ipairs(ns.Shared.MapPinSections()) do
-        if not watched[section.store] then
-            watched[section.store] = true
-            section.store.OnChange(Apply)
-        end
-    end
     Apply()
 end
 

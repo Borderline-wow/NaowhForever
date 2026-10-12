@@ -48,7 +48,7 @@ ns.PRESETS = {
                 bagMapPinSize = 16,
                 bagMapPins = true,
                 enabled = false,
-                mapPinSize = 16,
+                mapPinSize = 18,
                 mapPins = false,
             },
             journal = {
@@ -342,7 +342,7 @@ ns.PRESETS = {
                 bagMapPinSize = 16,
                 bagMapPins = true,
                 enabled = true,
-                mapPinSize = 16,
+                mapPinSize = 18,
                 mapPins = true,
             },
             journal = {

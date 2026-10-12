@@ -9,7 +9,7 @@ through `Shared.xml`. Nothing is made or listened to at load.
 ```
 Shared/
   Shared.xml       what loads, in order (the core TOC's Shared load point)
-  Shared.lua       the namespace (ns.Shared), the map pin sections that QoL and other modules add to its Map Options and Pins
+  Shared.lua       the namespace (ns.Shared), the map pin sections that QoL and other modules add to its Map & Pins tab
                    (Shared.MapPins, in order by Shared.MapPinSections), a map pin's scale (Shared.ScalePin), what a character keeps by its
                    GUID (Shared.CharacterData), and how long ago a time was (Shared.Ago)
   Style.lua        the house look: colors (BiS stars, worn green, looks, red and warning orange), icons, sizes
@@ -37,7 +37,7 @@ Shared/
   Game/Roster.lua  our part of a player's tooltip in the Guild & Communities and Friends lists (Badges, Naowh Score)
   Game/Places.lua  zones by name, and showing one on the world map
   Game/Towns.lua   town service NPCs by world map (ns.TownNPCs) and the capitals (ns.TownCapitals), by hand:
-                   QoL's Map Options and Pins, the Training Planner's trainers and Professions' rank alerts read it
+                   QoL's town pins, the Training Planner's trainers and Professions' rank alerts read it
   Game/Played.lua  the character's /played time, asked for once with the chat print muted (XP Bar, XP per Hour)
   UI/Parts.lua     the small parts: icons in text (Parts.Inline), smooth textures, hover cards (Parts.Tip,
                    Parts.TipLines), the chevron, links, icon buttons, a short label in a pill of its color
@@ -272,10 +272,13 @@ What a comment in the code used to say, in short. The house rules behind it are 
 - `Shared.ScalePin` is a map pin's `ApplyCurrentScale`. Pins sit on the map's canvas, which the
   map scales to fit and to zoom, so the pin's scale is `PIN_SCALE` (1.5) over the canvas scale:
   the same size on screen at every zoom. The map's global pin scale still applies. An optional
-  `factor` sizes one kind of pin against the rest (QoL's town pins are 0.75).
+  `factor` sizes one kind of pin against the rest, so that `PIN_SIZE_DEFAULT` (20) is the right size for each
+  and one Pin Size number means the same on every kind (town 0.5625, quests, library books and Sleeping Bag steps 0.5, rares 0.75).
+  On the full screen map pins are `FULL_SCREEN_PIN_SCALE` (1.5) times that: the same size on screen
+  as in the small map's window read as too small on a map that fills the screen.
 - `Shared.MapPins` is a plain list, filled at load by the modules that have map pins and read
-  only when QoL's Map Options and Pins card or drawer is drawn, so the load order of the addons does not matter.
-  A section is `{ title, order, store, switch, rows }`: `switch` is its own on and off key in `store`, `order` (default 50, after the lower ones, then by load order) where it comes, and `title` its group, none to continue the one above.
+  only when QoL's Map Options or Map Pins card is drawn, so the load order of the addons does not matter.
+  A section is `{ title, order, store, switch, rows, map }`: `map` puts it on the Map Options card instead of Map Pins, `switch` is its own on and off key in `store`, `order` (default 50, after the lower ones, then by load order) where it comes, and `title` its group, none to continue the one above.
 - A settings row marked `lent` belongs to another module's store: its card's Reset and changed
   count leave it out, while its own changed dot still resets it.
 - `Decode.lua` loads with nothing else from the addon and returns its table, so the offline
@@ -307,7 +310,7 @@ What a comment in the code used to say, in short. The house rules behind it are 
   with `PI`, not `math.pi`: the offline tests load `Style.lua` without the math library.
 - The slider ranges every module shares live here: `OPACITY_RANGE` (a window's opacity, from
   `OPACITY_MIN`), `ALPHA_RANGE` (a HUD part's opacity, down to 0), `SCALE_RANGE`,
-  `PIN_SIZE_RANGE` (a map pin) and `HUD_TEXT_RANGE` (a HUD part's text size in `Settings.Look`).
+  `PIN_SIZE_RANGE` (a map pin, `PIN_SIZE_DEFAULT` the default every pin size shares) and `HUD_TEXT_RANGE` (a HUD part's text size in `Settings.Look`).
   `PERCENT_SCALE` turns a percent slider into the 0 to 1 the setting saves.
 - `STAGE_MARGIN`, `STAGE_NOTE_Y` and `STAGE_NOTE_SIZE` place a settings card's live preview and
   the muted note under it.

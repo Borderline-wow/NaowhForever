@@ -45,8 +45,8 @@ NaowhForever_Discovery/QuestList/
     QuestPins.lua, .xml       the quest giver pins on the world map, and their template
     RarePins.lua, .xml        the rare stars on the world map, and their template
     GeneralSettings.lua       the key binding and window cards, on the Discovery/Quest List page
-    QuestsSettings.lua        the quest cards on the Discovery/Quest List page, and the quest pins on Map Options and Pins
-    RaresSettings.lua         the Discovery/Rares settings page, with the alert's live preview, and the rare pins on Map Options and Pins
+    QuestsSettings.lua        the quest cards on the Discovery/Quest List page, and the quest pins on QoL > Map & Pins
+    RaresSettings.lua         the Discovery/Rares settings page, with the alert's live preview, and the rare pins on QoL > Map & Pins
 ```
 
 Each layer only uses the ones above it: `Data` fills the rules, `View` draws what they decide,
@@ -108,8 +108,10 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
   Our pins want their clicks, so there is nothing to pass through.
 - The pin mixins are globals so the XML templates can name them.
 - Quest and rare pins scale with `ns.Shared.ScalePin`, so they keep one size on screen however far
-  the map is zoomed, in the small map's window and on the full screen map alike.
-- Their switches, Pin Sizes and options are rows on QoL's Map Options and Pins card and in its world map drawer
+  the map is zoomed, in the small map's window and on the full screen map alike. Quest pins take
+  `QUEST_PIN_SCALE` (0.5) of it and rares `RARE_PIN_SCALE` (0.75), so at 20, the default every map pin
+  shares (`PIN_SIZE_DEFAULT`), each is the size that reads best: the same number sizes every kind of pin alike.
+- Their switches, Pin Sizes and options are rows on the Map Pins card of QoL's Map & Pins tab
   (`ns.Shared.MapPins`), with every other map pin; the keys stay in Completo's store.
 - Quest pins redraw on a quest taken, handed in or dropped, and on a level up (which turns some
   grey and lets others be picked up). A giver whose quests are all repeatable gets the game's blue
