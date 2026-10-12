@@ -32,11 +32,11 @@ function Shared.CharacterData(key, create)
     return Child(all, guid, create)
 end
 
-function Shared.ScalePin(pin)
+function Shared.ScalePin(pin, factor)
     local map = pin:GetMap()
     local canvas = map and map.GetCanvasScale and map:GetCanvasScale()
     if not canvas or canvas <= 0 then return end
-    local scale = PIN_SCALE / canvas
+    local scale = PIN_SCALE * (factor or 1) / canvas
     if map.GetGlobalPinScale and not (pin.IsIgnoringGlobalPinScale and pin:IsIgnoringGlobalPinScale()) then
         scale = scale * map:GetGlobalPinScale()
     end

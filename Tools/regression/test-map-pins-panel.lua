@@ -147,7 +147,7 @@ Check(Read("NaowhForever_QoL/Interface/TownMap.xml"):find('<Script file="MapPins
 local settings = { enabled = true, townMap = false }
 local canvasHeight = 600
 local S = { Get = function(key) return settings[key] end, Set = function(key, v) settings[key] = v end }
-local ns = { QoLSettings = S, TownPinRows = pinRows, Apply = function() end, THEME = { bg = {}, line = {}, accent = {}, accentSoft = {}, panel = {}, fg = {} }, UI = {} }
+local ns = { QoLSettings = S, TownPinRows = pinRows, Apply = function() end, THEME = { bg = {}, line = {}, accent = {}, accentSoft = {}, panel = {}, fg = {}, muted = {} }, UI = {} }
 local made, boot, button, panel = 0, nil, nil, nil
 local mapLeft, maximized, mapHeight = 500, false, 700
 local canvasLeft = 350
@@ -202,6 +202,15 @@ end
 local scroll = { SetPoint = function() end, SetScript = function() end, bar = { SetFrameLevel = function() end },
     SetScrollChild = function(self, child) self.child = child end }
 ns.UI.SlimScroll = function() return scroll end
+local slider
+ns.UI.BuildSliderCore = function()
+    local box = { SetPoint = function() end, SetAlpha = function(self, a) self.alpha = a end,
+        EnableMouse = function(self, on) self.mouse = on end, ClearFocus = function(self) self.cleared = true end }
+    slider = { SetPoint = function() end, _refreshValue = function() end, _valBox = box,
+        SetAlpha = function(self, a) self.alpha = a end, EnableMouse = function(self, on) self.mouse = on end }
+    return slider, box
+end
+ns.TownPinRange = { 10, 28, 1 }
 local env = setmetatable({
     _G = { NaowhForever = ns },
     CreateFrame = function(kind)
@@ -262,8 +271,10 @@ quest.set(true)
 toggles[1].set(false)
 Check(panel.shown and flight.mouse == false and toggles[1].mouse == nil,
     "Town Pins off: the town rows are dimmed, its own switch stays")
+Check(slider.alpha == 0.35 and slider.mouse == false and slider._valBox.alpha == 0.35
+    and slider._valBox.mouse == false and slider._valBox.cleared, "Town Pin Size too, its number box with it")
 toggles[1].set(true)
-Check(flight.mouse == true, "and back")
+Check(flight.mouse == true and slider._valBox.alpha == 1 and slider._valBox.mouse == true, "and back")
 quest.set(false)
 toggles[1].set(false)
 Check(button.shown and panel.shown, "everything off: the button and drawer stay, to turn it back on")

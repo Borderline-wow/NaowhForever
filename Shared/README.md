@@ -271,7 +271,8 @@ What a comment in the code used to say, in short. The house rules behind it are 
   Forever, so a name key collides. It returns nil before the game knows who you are.
 - `Shared.ScalePin` is a map pin's `ApplyCurrentScale`. Pins sit on the map's canvas, which the
   map scales to fit and to zoom, so the pin's scale is `PIN_SCALE` (1.5) over the canvas scale:
-  the same size on screen at every zoom. The map's global pin scale still applies.
+  the same size on screen at every zoom. The map's global pin scale still applies. An optional
+  `factor` sizes one kind of pin against the rest (QoL's town pins are 0.75).
 - `Shared.MapPins` is a plain list, filled at load by the modules that have map pins and read
   only when QoL's Map Options and Pins card or drawer is drawn, so the load order of the addons does not matter.
   A section is `{ title, order, store, switch, rows }`: `switch` is its own on and off key in `store`, `order` (default 50, after the lower ones, then by load order) where it comes, and `title` its group, none to continue the one above.

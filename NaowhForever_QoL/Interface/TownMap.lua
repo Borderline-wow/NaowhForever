@@ -27,6 +27,7 @@ local EMPTY = {}
 local MINI_SIZE = 12
 local MINI_INTERVAL = 0.05
 local PIN_RANGE = { 10, 28, 1 }
+local TOWN_PIN_SCALE = 0.75
 local MINI_EVENTS = { "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_ENTERING_WORLD" }
 local MOVE_EVENTS = { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING", "MINIMAP_UPDATE_ZOOM" }
 local AUDIT_EVENTS = { "GOSSIP_SHOW", "MERCHANT_SHOW", "TRAINER_SHOW", "TAXIMAP_OPENED",
@@ -200,8 +201,12 @@ local function TravelArt(label)
     return TRAVEL_ATLAS
 end
 
+local function ScaleTownPin(pin)
+    ScalePin(pin, TOWN_PIN_SCALE)
+end
+
 NaowhForeverTownPinMixin = CreateFromMixins(MapCanvasPinMixin)
-NaowhForeverTownPinMixin.ApplyCurrentScale = ScalePin
+NaowhForeverTownPinMixin.ApplyCurrentScale = ScaleTownPin
 
 function NaowhForeverTownPinMixin:OnLoad()
     self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
@@ -232,7 +237,7 @@ function NaowhForeverTownPinMixin:OnMouseLeave()
 end
 
 NaowhForeverZoneLinkPinMixin = CreateFromMixins(MapCanvasPinMixin)
-NaowhForeverZoneLinkPinMixin.ApplyCurrentScale = ScalePin
+NaowhForeverZoneLinkPinMixin.ApplyCurrentScale = ScaleTownPin
 
 function NaowhForeverZoneLinkPinMixin:OnLoad()
     self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
@@ -566,6 +571,7 @@ boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", Apply)
 
 ns.TownPinRows = PIN_ROWS
+ns.TownPinRange = PIN_RANGE
 ns.TownPinTexts = { group = TEXT_TOWN, switch = TEXT_TOWN_PINS, tip = TEXT_TOWN_TIP }
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
