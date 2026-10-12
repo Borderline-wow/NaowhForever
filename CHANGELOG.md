@@ -1,6 +1,81 @@
 # Changelog
 
-## Unreleased
+## 1.1.10
+
+### Added
+- QoL > Questing & Group: Always Free for All sets your party's loot to Free for All whenever you
+  lead it.
+- Journeys (Adventure > Journeys, off by default): every waypoint a module places can become a
+  journey over walking, the flights you know, your faction's boats and zeppelins, the Deeprun Tram,
+  the Darnassus portal, your Hearthstone and class teleports.
+- Journeys: walking follows the real terrain, with a compact Journey card for the steps and the
+  route drawn on the world map.
+- Journeys: tracking a far-away quest starts a journey to it, including quests the game gives no
+  marker for.
+- QoL > Questing & Group > On-Screen Buttons: Invite Buttons, a button per Battle.net friend or
+  character you keep, and an Invite All button.
+- Discovery: left-click a Rare Alert to target its rare.
+- Map Options and Pins drawer: Town Pin Size slider at the bottom.
+- QoL: a Map & Pins tab with Map Options and Map Pins, the home of every map option and map pin
+  setting.
+- Damage Meter: your group's damage, healing, absorbs, damage taken, interrupts, dispels and deaths
+  in your theme, in up to three windows, with fight history, a summary line and the fight time.
+- Damage Meter: hover a row for its spells and enemies, click it to drill in, report to chat or
+  reset from the menu or a key binding.
+- Damage Meter: choose a row's columns, texts, fonts and colors, and save looks by name to copy to
+  other windows or share as text.
+- Journeys: the route is drawn on the minimap too (Route on the Minimap in the Journeys settings).
+- Journeys: Learn Lifts as You Ride (off by default) notes the lifts you ride; /nf lifts lists them.
+- German: the whole addon now shows in German on German clients: settings, windows, tooltips, the
+  HUD Editor and the messages in your chat.
+- Top Bar: Clock Color, under Colors.
+- Journeys: walks take the Great Lift, the Freewind Post lift and the Thunder Bluff and Undercity
+  lifts.
+- Consumable Bar: Remove Empty in Edit Items takes off every item you have none of.
+
+### Changed
+- QoL > Questing & Group > On-Screen Buttons: the Invite Player row is replaced by Invite Buttons,
+  and the target Invite button can be turned off.
+- Professions: Disenchant Window: right-click keeps only that copy of an item; Shift-right-click
+  keeps every copy.
+- Map Pins: town pins are smaller on the world map.
+- Map: the map button's drawer holds the town pins only; every other pin and map option is on QoL >
+  Map & Pins.
+- Map: the windowed world map can always be resized from its corner and moved by its title bar; Map
+  Window is no longer a setting.
+- Map Pins: every pin size defaults to 20, and the same number gives every kind of pin the same
+  size; quest pins are smaller by default, about 56% of their old size.
+- Map Pins: pins are larger on the full screen map.
+- Map Pins: Skyborne Spots only shows for Skyborne characters, Stable Masters only for hunters.
+- QoL: a setting EllesmereUI also has no longer shows "EllesmereUI has it on"; turning one on while
+  it is on in both now asks you to turn one off.
+- Credits: the line under Ellesmere's name now thanks him for allowing us to add some of EUI's
+  styling and functionality.
+- Consumable Bar: Hide When Out is on by default and takes an item you have run out of off the bar,
+  so the bar closes up; it comes back in its place when you get more.
+- Consumable Bar: Scan Bags and Ask to Add leave Other Consumables out unless you switch them on in
+  the Scan Filters.
+- Waypoints: a waypoint placed while the world map is open now shows on the map at once instead of
+  after you close and reopen it.
+- Discovery: Quest List and Rares are now tabs of the Discovery window, next to Library Books and
+  Sleeping Bag; Shift-L and /nfquests open it on the Quest List tab.
+
+### Fixed
+- Consumable Bar: Ask to Add New Consumables and Scan Bags only offer scrolls that give a buff.
+- Performance: clarify that the Auto Push Spells to Bars recommendation stops automatic spell
+  pushes.
+- Map Pins: library book and Sleeping Bag pins no longer grow huge on the full screen map.
+- Always Free for All: no longer keeps asking for Free for All when the game turns it down.
+- Invite buttons: a Battle.net friend's alt on the other faction is no longer picked when
+  cross-faction parties are off.
+- Invite buttons: a button changed in combat invites the person it shows, not whoever took its place
+  in the list.
+- Journeys: walks to Marshal's Refuge, Morgan's Vigil and the Stormwind Harbor dock follow the
+  ground instead of a straight line.
+- Journeys: quests whose turn-in is in Stormwind, Mulgore, Redridge or the Eastern Plaguelands lead
+  to the right spot.
+- Instance Tracker: no more "attempt to compare a secret string value" errors when nameplates
+  appear.
 
 ## 1.1.9
 
