@@ -3185,6 +3185,7 @@ L["Off by default: the Blessings module covers them."] = true
 L["Off Hand Color"] = true
 L["Off Hand Enchant"] = true
 L["Off Screen"] = true
+L["Off thanks every caster with the /thank emote instead; needs Thank With an Emote."] = true
 L["Off, for the highest frame rate"] = true
 L["Off. Click to turn it back on."] = true
 L["Off: a reminder for each kind you watch, even with none in your bags."] = true
@@ -4979,6 +4980,7 @@ L["While you cast, mark where the cast ends on the Main Hand bar. It turns red w
 L["whisper"] = true
 L["Whisper "] = true
 L["Whisper Lines"] = true
+L["Whisper Named Players"] = true
 L["Whisper your target"] = true
 L["Whispers for "] = true
 L["Whispers thanks when a player gives you a class buff in the open world; turn friendly nameplates on so the game can name them."] = true

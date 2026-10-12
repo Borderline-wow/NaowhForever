@@ -152,6 +152,7 @@ local S = UI.ModuleSettings("qol", {
     talentPointsFontSize = 22, talentPointsOutline = "OUTLINE", talentPointsBackground = "none",
     talentPointsTheme = false,
     buffThanks = F.buffThanks, buffThanksCooldown = 10, buffThanksGroup = false, buffThanksEmote = false,
+    buffThanksWhisper = true,
     buffThanksText = "Thanks for the {buff}, fellow traveler!\nMuch appreciated, {name}, thanks for the {buff}!",
     buffThanksPerBuff = false,
     buffThanksIntellect = "Thanks for the {buff}! I feel smarter already.\nThanks for the {buff}, {name}, my brain thanks you!\nIQ is rising, thank you for the {buff}, {name}!",

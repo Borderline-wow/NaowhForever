@@ -4,7 +4,7 @@
 -- while it is off.
 local settings = {
     enabled = true, buffThanks = false, buffThanksCooldown = 10, buffThanksGroup = false,
-    buffThanksEmote = false, buffThanksText = "Thanks for the {buff}, {name}!",
+    buffThanksEmote = false, buffThanksWhisper = true, buffThanksText = "Thanks for the {buff}, {name}!",
     buffThanksPerBuff = false, buffThanksBlessing = "Light be with you, {name}!", buffThanksIntellect = "",
 }
 local S = { Get = function(key) return settings[key] end }
@@ -180,6 +180,18 @@ Case("unnamed casters with the emote on: one built-in /thank per cooldown", func
     now = now + 3600
     Gain(20217, "Blessing of Kings", nil)
     assert(#sent == 2 and sent[2].emote == "THANK", #sent)
+end)
+Case("whispers off with the emote on: a named caster gets the one /thank, group and self still skipped", function()
+    now = now + 3600
+    settings.buffThanksWhisper = false
+    Gain(9885, "Mark of the Wild", "nameplate38")
+    assert(#sent == 1 and sent[1].emote == "THANK" and sent[1].channel == nil, #sent)
+    Gain(467, "Thorns", "party1")
+    assert(#sent == 1, #sent)
+    now = now + 3600
+    Gain(467, "Thorns", "player")
+    assert(#sent == 1, #sent)
+    settings.buffThanksWhisper = true
 end)
 Case("several lines: one is picked, trimmed, placeholders filled in", function()
     now = now + 3600
