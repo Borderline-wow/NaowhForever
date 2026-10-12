@@ -39,19 +39,10 @@ LINKS = [
     ("Portal", "AH", "Rut'theran Village", 542, "Darnassus", 527, 5),
     ("Tram", "AH", "Ironforge", 2175, "Stormwind", 2173, 150),
 ]
-# Lifts: (factions, seconds, low end, high end), each end (continent, x, y, z, place), as /nf lifts prints
-# them from play (Journeys' Learn Lifts as You Ride). Lifts are server-spawned, so neither the client's tables
-# nor Wowhead have where they stand. Add what players learn beside the seven there. The seconds are one trip of the
-# lift's TransportAnimation in the client (its height difference picks the entry: 129 yards, 61, 71 and 97).
-LIFTS = [
-    ("AH", 30, (1, -4668.1, -1838.6, -44.0, "The Great Lift, bottom"), (1, -4668.1, -1838.6, 85.4, "The Great Lift, top")),
-    ("AH", 30, (1, -5390.8, -2497.0, -40.4, "Freewind Post, bottom"), (1, -5390.8, -2497.0, 89.0, "Freewind Post, top")),
-    ("AH", 30, (1, -1297.3, 187.5, 68.7, "Thunder Bluff west lift, bottom"), (1, -1297.3, 187.5, 130.1, "Thunder Bluff west lift, top")),
-    ("AH", 30, (1, -1032.7, -38.8, 69.1, "Thunder Bluff north lift, bottom"), (1, -1032.7, -38.8, 140.5, "Thunder Bluff north lift, top")),
-    ("AH", 17, (0, 1596.2, 291.8, -40.8, "Undercity west lift, bottom"), (0, 1596.2, 291.8, 55.7, "Undercity west lift, top")),
-    ("AH", 17, (0, 1595.3, 188.6, -40.8, "Undercity east lift, bottom"), (0, 1595.3, 188.6, 55.7, "Undercity east lift, top")),
-    ("AH", 17, (0, 1544.2, 240.8, -40.8, "Undercity south lift, bottom"), (0, 1544.2, 240.8, 55.7, "Undercity south lift, top")),
-]
+# Lifts, learned from play (/nf lifts, Journeys' Learn Lifts as You Ride): (factions, seconds, low end,
+# high end), each end (continent, x, y, z, place), as the command prints them. Lifts are server-spawned, so
+# neither the client's tables nor Wowhead have them. Paste a line's numbers here and run this again.
+LIFTS = []
 TELEPORT = 1   # TaxiPathNode flag: the next step is a jump, not sailed
 SAME_DOCK = 10   # yards: a path that starts and ends at one dock lists it twice, this far apart
 
