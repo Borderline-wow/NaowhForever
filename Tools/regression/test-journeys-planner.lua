@@ -86,6 +86,19 @@ Check(measured and Modes(measured) == "walk" and math.abs(measured.seconds - 700
 local unknown2 = Plan({ to = { c = 0, x = -4900, y = -1100, name = "Bank" }, walk = function() return nil end })
 Check(math.abs(unknown2.seconds - short.seconds) < 0.01, "no answer falls back to the straight line")
 
+local lifts = 0
+for _, link in ipairs(ns.JourneyNetwork.links) do
+    if link[1] == "Lift" then
+        lifts = lifts + 1
+        local low, high = link[4], link[5]
+        Check(low[1] == high[1] and math.abs(low[2] - high[2]) < 1 and math.abs(low[3] - high[3]) < 1,
+            "a lift's two ends stand over each other: " .. low[4])
+        Check(high[5] - low[5] > 50 and high[5] - low[5] < 140 and link[3] >= 15 and link[3] <= 30,
+            "and are 50 to 140 yards apart, ridden in 15 to 30 seconds: " .. low[4])
+    end
+end
+Check(lifts == 7, "the seven lifts are in the network: " .. lifts)
+
 local links = ns.JourneyNetwork.links
 links[#links + 1] = { "Lift", "AH", 30, { 0, -3000, 0, "Base", 0 }, { 0, 3000, 0, "Top", 100 } }
 local up = Plan({ known = {}, from = { c = 0, x = -3000, y = 0 }, to = { c = 0, x = 3010, y = 0, name = "Up there" } })

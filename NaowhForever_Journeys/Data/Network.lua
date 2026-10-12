@@ -386,5 +386,12 @@ ns.JourneyNetwork = {
     links = {
         { "Portal", "AH", 5, { 1, 8799.4, 969.8, "Rut'theran Village" }, { 1, 9947.5, 2630.0, "Darnassus" } },
         { "Tram", "AH", 150, { 0, -4840.3, -1330.5, "Ironforge" }, { 0, -8346.5, 514.0, "Stormwind" } },
+        { "Lift", "AH", 30, { 1, -4668.1, -1838.6, "The Great Lift, bottom", -44.0 }, { 1, -4668.1, -1838.6, "The Great Lift, top", 85.4 } },
+        { "Lift", "AH", 30, { 1, -5390.8, -2497.0, "Freewind Post, bottom", -40.4 }, { 1, -5390.8, -2497.0, "Freewind Post, top", 89.0 } },
+        { "Lift", "AH", 30, { 1, -1297.3, 187.5, "Thunder Bluff west lift, bottom", 68.7 }, { 1, -1297.3, 187.5, "Thunder Bluff west lift, top", 130.1 } },
+        { "Lift", "AH", 30, { 1, -1032.7, -38.8, "Thunder Bluff north lift, bottom", 69.1 }, { 1, -1032.7, -38.8, "Thunder Bluff north lift, top", 140.5 } },
+        { "Lift", "AH", 17, { 0, 1596.2, 291.8, "Undercity west lift, bottom", -40.8 }, { 0, 1596.2, 291.8, "Undercity west lift, top", 55.7 } },
+        { "Lift", "AH", 17, { 0, 1595.3, 188.6, "Undercity east lift, bottom", -40.8 }, { 0, 1595.3, 188.6, "Undercity east lift, top", 55.7 } },
+        { "Lift", "AH", 17, { 0, 1544.2, 240.8, "Undercity south lift, bottom", -40.8 }, { 0, 1544.2, 240.8, "Undercity south lift, top", 55.7 } },
     },
 }

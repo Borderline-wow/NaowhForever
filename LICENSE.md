@@ -893,3 +893,15 @@ NaowhForever/Core/Media/Fonts/JetBrainsMono-OFL.txt.
 ```
 Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
 ```
+
+## Shortest Path Forever (lift positions)
+
+**Path**: NaowhForever/NaowhForever_Journeys/Data/Network.lua (the "Lift" links, built by Tools/build/journeys.py)
+
+### Permission
+
+```
+The positions of the Great Lift, the Freewind Post lift, two Thunder Bluff lifts and three Undercity lifts are
+from Shortest Path Forever by Cillian Berragan (cjber), https://github.com/cjber/shortest-path-forever, used
+with his permission for the lifts only. Nothing else of that addon is used.
+```

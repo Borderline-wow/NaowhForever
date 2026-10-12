@@ -61,7 +61,9 @@ NaowhForever_Journeys/
   than `LIFT_DRIFT` yards sideways and not falling, flying, swimming or on a taxi, is a lift ride (a boat or a
   zeppelin drifts, so it never counts). Its two ends and its seconds are kept account-wide, the same lift
   merged within `LIFT_MERGE` yards, and `/nf lifts` prints each as a line to paste into `LIFTS` in
-  `Tools/build/journeys.py`, which makes it a "Lift" link in the network like the tram. The watch only runs
+  `Tools/build/journeys.py`, which makes it a "Lift" link in the network like the tram. The seven lifts there
+  now (the Great Lift, Freewind Post, two in Thunder Bluff, three in Undercity) are Shortest Path Forever's
+  positions, used with its author's permission for the lifts only (see LICENSE.md). The watch only runs
   for `LIFT_WINDOW` seconds after you stop, one check a second, and ends the moment you move.
 - Water costs `SWIM` times its yards and the sea `SEA` times, the same factors the bake used.
 - Tracking a quest (`SUPER_TRACKING_CHANGED`) starts a journey to the game's own next point for it
