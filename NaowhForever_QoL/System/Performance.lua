@@ -87,7 +87,7 @@ local CATEGORIES = {
     { name = "Network, Logging & Interface", cvars = {
         { "advancedCombatLogging", "1", "Advanced Combat Logging", "On" },
         { "disableServerNagle", "1", "Disable Server Nagle", "On, for lower latency" },
-        { "AutoPushSpellToActionBar", "0", "Auto Push Spells to Bars", "Off" },
+        { "AutoPushSpellToActionBar", "0", "Stop Auto Push Spells to Bars", "Off, so new spells stay in your spellbook" },
         { "cameraDistanceMaxZoomFactor", "2.6", "Max Camera Zoom", "2.6x" },
         { "nameplateShowFriendlyClassColor", "1", "Friendly Class Colors", "On" },
         { "UnitNameFriendlyPlayerName", "1", "Friendly Player Names", "On" },
