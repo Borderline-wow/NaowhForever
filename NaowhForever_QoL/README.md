@@ -54,6 +54,7 @@ NaowhForever_QoL/
   Questing/
     BuffThanks.lua      Buff Thank You Message and its line editor
     GroupButtons.lua    On-Screen Buttons (Invite, Disband)
+    FreeForAll.lua      Always Free for All, the party loot method while you lead
     TalentPoints.lua    the unspent talent points reminder
     QuestAutomation.lua accept, hand in and share quests, saved reward picks
     PlayerHistory.lua   Player History (ns.PlayerHistory), read by the Naowh Inspect panel
@@ -698,6 +699,12 @@ NaowhForever_QoL/
 - The pace arrow sits a share of the text size lower (`DROP_SHARE`), level with the letters: the Naowh font leaves room above capitals.
 - The file sits close to Lua 5.1's 200-local cap for one chunk, so new constants are grouped into tables (`FORMAT`, `DEFAULT_POS`); the XP Bar folds its texts into `TEXT` for the same reason.
 
+
+### Always Free for All
+- Raids are left alone: a raid usually sets its own loot rules.
+- The method is set again whenever it changes, so a leader who wants another one turns the switch off.
+- `C_PartyInfo.SetLootMethod` is marked HasRestrictions in the Forever API docs; it is called only out
+  of combat, from an event handler, never from a secure path.
 
 ### QoL defaults (Core/Settings.lua)
 - Every on/off switch default in the QoL store is read from `ns.FEATURES.qol`; the values are unchanged.
