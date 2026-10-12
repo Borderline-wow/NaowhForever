@@ -15,6 +15,9 @@ local TEXT_ADDED = ns.L("Added %d consumables to the Consumable Bar.")
 local TEXT_NOTHING_NEW = ns.L("No consumables in your bags that are not on the bar already.")
 local TEXT_CLEAR = ns.L("Remove every item from the Consumable Bar?")
 local TEXT_ASK_AGAIN = ns.L("The Consumable Bar will ask about those items again.")
+local TEXT_REMOVE_EMPTY_ONE = ns.L("Remove 1 item you have none of from the Consumable Bar?")
+local TEXT_REMOVE_EMPTY = ns.L("Remove %d items you have none of from the Consumable Bar?")
+local TEXT_NONE_EMPTY = ns.L("You have at least one of every item on the Consumable Bar.")
 local LIST_JOIN = ", "
 local LOOK_FLAGS = { textOn = true, text = true, textFont = true, textSize = true, textColor = true,
     textPoint = true, textOutside = true, textX = true, textY = true }
@@ -320,6 +323,19 @@ end
 
 function CB.Clear()
     ns.Confirm(TEXT_CLEAR, ClearAll)
+end
+
+function CB.RemoveEmpty()
+    local empty = {}
+    for _, entry in ipairs(CB.SavedItems()) do
+        if type(entry) == "number" and C_Item.GetItemCount(entry) == 0 then empty[#empty + 1] = entry end
+    end
+    if #empty == 0 then
+        ns.Print(TEXT_NONE_EMPTY)
+        return
+    end
+    local text = #empty == 1 and TEXT_REMOVE_EMPTY_ONE or TEXT_REMOVE_EMPTY:format(#empty)
+    ns.Confirm(text, function() CB.RemoveEntries(empty) end)
 end
 
 function CB.ForgetDeclined()

@@ -28,7 +28,7 @@ local buttons = {}
 local pool = {}
 local events
 
-local UpdateVisibility
+local UpdateVisibility, Apply
 
 local function Driver(f, rule)
     if f.visRule == rule then return end
@@ -94,7 +94,7 @@ function CB.BarFrame()
 end
 
 local function Layout()
-    local items = CB.Items()
+    local items = CB.ShownItems()
     local size, gap, grow, perRow = CB.Grid()
     local inUse = {}
     for i = #buttons, 1, -1 do buttons[i] = nil end
@@ -204,6 +204,15 @@ local function HasMacros()
     return Has(CB.MacroInfo)
 end
 
+local function OutChanged()
+    if not S.Get("consumableBarHideEmpty") then return false end
+    for _, entry in ipairs(CB.Items()) do
+        local button = pool[entry]
+        if (button ~= nil and button.entry ~= nil) == CB.Out(entry) then return true end
+    end
+    return false
+end
+
 local function RefreshMacros()
     local fight = InCombatLockdown()
     for _, button in ipairs(buttons) do
@@ -221,6 +230,7 @@ local function RefreshMacros()
     UpdateVisibility()
     QueueKeys()
     CB.Changed()
+    if OutChanged() then Apply() end
 end
 
 local function SyncMacros()
@@ -240,8 +250,6 @@ local function AnyHideUsed()
     end
     return false
 end
-
-local Apply
 
 local function OnEvent(_, event, unit, _, spellID)
     if event == "PLAYER_LOGIN" then
@@ -268,6 +276,7 @@ local function OnEvent(_, event, unit, _, spellID)
     elseif event == "BAG_UPDATE_DELAYED" then
         UpdateCounts()
         UpdateCooldowns()
+        if OutChanged() then Apply() end
         CB.CheckNewItems()
         CB.Changed()
     else

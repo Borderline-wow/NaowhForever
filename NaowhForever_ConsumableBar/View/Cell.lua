@@ -91,6 +91,20 @@ function CB.ShowCount(cell, itemID, faded)
     cell:SetAlpha(cell.empty and faded or 1)
 end
 
+function CB.Out(entry)
+    if not S.Get("consumableBarHideEmpty") or CB.unlocked then return false end
+    local itemID = CB.Resolve(entry)
+    return not itemID or GetItemCount(itemID) == 0
+end
+
+function CB.ShownItems()
+    local shown = {}
+    for _, entry in ipairs(CB.Items()) do
+        if not CB.Out(entry) then shown[#shown + 1] = entry end
+    end
+    return shown
+end
+
 function CB.ShowCooldown(cell, itemID)
     if not (itemID and S.Get("consumableBarCooldown")) then
         cell.timer:Hide()

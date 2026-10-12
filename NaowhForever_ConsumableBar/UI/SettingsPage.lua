@@ -39,7 +39,7 @@ local function NewPreview(stage)
 end
 
 local function PaintPreview(holder, state)
-    local items = CB.Items()
+    local items = CB.ShownItems()
     local size, gap, grow, perRow = CB.Grid()
     local map = CB.KeyMap()
     local combat = state == "combat"
@@ -65,7 +65,7 @@ end
 
 local function StageHeight()
     local size, gap, grow, perRow = CB.Grid()
-    local _, h = ItemBar.Size(#CB.Items(), size, gap, grow, perRow)
+    local _, h = ItemBar.Size(#CB.ShownItems(), size, gap, grow, perRow)
     return math.max(STAGE_MIN, h + 2 * C.BG_PAD + STAGE_PAD)
 end
 
@@ -123,7 +123,7 @@ for _, row in ipairs(ItemBar.TextRows(S, CB.PREFIX)) do barRows[#barRows + 1] = 
 for _, row in ipairs({
     Group("Showing"),
     { key = "consumableBarHideEmpty", label = "Hide When Out", toggle = true,
-      help = "Hides an item you have run out of instead of showing NONE." },
+      help = "Takes an item you have run out of off the bar until you get more." },
     { key = "consumableBarHideCombat", label = "Hide Bar in Combat", toggle = true,
       help = "Hides the whole bar while you are in combat." },
     { key = "consumableBarBackground", label = "Show Background", toggle = true,

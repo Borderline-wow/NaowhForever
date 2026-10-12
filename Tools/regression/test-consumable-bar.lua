@@ -14,6 +14,9 @@ local DEFAULTS = (function()
     defaults.enabled = true
     return defaults
 end)()
+-- Most checks lay out items they have none of; the ones about Hide When Out switch it on themselves.
+local SHIPPED_HIDE_EMPTY = DEFAULTS.consumableBarHideEmpty
+DEFAULTS.consumableBarHideEmpty = false
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
@@ -34,6 +37,7 @@ local KNOWN = {
     [2862] = { 135248, 7, 2828, 0 },  -- Rough Sharpening Stone, filed as a trade good here
     [5509] = { 135230, 0, 6263, 8 },  -- Healthstone, Other Consumables
     [21023] = { 134021, 0, 24869, 5 }, -- Dirge's Kickin' Chimaerok Chops: eating, then Well Fed
+    [17202] = { 132387, 0, 21343, 8 }, -- Snowball, Other Consumables
 }
 
 -- Food and drink by the spell they cast, as Shared/Game/Consumables.lua reads them.
@@ -503,17 +507,36 @@ do
     s.set('consumableBarFontSize', 30)
     check('NONE follows the icon, not the font size', b[2].none.fontSize == noneSize)
 
+    check('on by default, Hide When Out', SHIPPED_HIDE_EMPTY == true)
+    check('both items take their place', s.bar.w == 132)
     s.set('consumableBarHideEmpty', true)
-    check('Hide When Out hides an empty icon instead of NONE', b[2].alpha == 0 and not b[2].none.shown)
+    check('Hide When Out takes an empty item off the bar', #s.buttons() == 1 and s.buttons()[1] == b[1]
+        and not b[2].shown)
+    check('and the bar closes up behind it', s.bar.w == 64)
     check('Hide When Out leaves a carried item alone', b[1].alpha == 1)
     s.fight(true)
+    local before = s.blocked
     s.counts[13446] = 0
     s.fire('BAG_UPDATE_DELAYED')
-    check('the last one used in combat hides at once', b[1].alpha == 0)
+    check('the last one used in combat fades at once', b[1].alpha == 0 and b[1].shown)
     s.counts[13446] = 3
     s.fire('BAG_UPDATE_DELAYED')
     check('one looted in combat comes back at once', b[1].alpha == 1 and b[1].count.text == 3)
+    s.counts[5512] = 1
+    s.fire('BAG_UPDATE_DELAYED')
+    check('one gained in combat waits for the fight to end', #s.buttons() == 1 and s.blocked == before)
     s.fight(false)
+    check('then takes its old place on the bar', #s.buttons() == 2 and s.buttons()[2] == b[2] and b[2].shown
+        and s.bar.w == 132)
+    s.counts[13446] = 0
+    s.fire('BAG_UPDATE_DELAYED')
+    check('one used up out of combat leaves at once', #s.buttons() == 1 and s.buttons()[1] == b[2]
+        and b[2].point[4] == 0)
+    s.ns.ShowUnlockMode()
+    check('Unlock Mode shows every item', #s.buttons() == 2)
+    s.ns.HideUnlockMode()
+    s.counts[13446] = 3
+    s.set('consumableBarHideEmpty', false)
 
     s.fight(true)
     local blocked = s.blocked
@@ -667,19 +690,21 @@ do
     local s = fixture({ consumableBar = true, consumableBarHideEmpty = true, consumableBarItems = { 13446, 20007 } })
     s.counts[13446], s.counts[20007] = 0, 2
     s.fire('BAG_UPDATE_DELAYED')
-    local out, have = s.buttons()[1], s.buttons()[2]
-    check('an icon hidden when out takes no clicks', out.alpha == 0 and out.mouse == false and have.mouse == true)
+    check('an item you have none of has no button on the bar', #s.buttons() == 1
+        and s.buttons()[1].attrs.item1 == 'item:20007')
     s.counts[13446] = 1
     s.fire('BAG_UPDATE_DELAYED')
-    check('it takes them again once you have one', out.alpha == 1 and out.mouse == true)
+    local out = s.buttons()[1]
+    check('it gets one, first in line, once you have one', #s.buttons() == 2 and out.attrs.item1 == 'item:13446'
+        and out.mouse == true)
     s.fight(true)
     s.counts[13446] = 0
     s.fire('BAG_UPDATE_DELAYED')
-    check('in combat it can only fade', out.alpha == 0 and out.mouse == true)
+    check('in combat it can only fade', out.alpha == 0 and out.mouse == true and out.shown)
     s.fight(false)
-    check('after the fight it stops taking clicks', out.mouse == false)
+    check('after the fight it leaves the bar', not out.shown and out.slot == nil and #s.buttons() == 1)
     s.set('consumableBarHideEmpty', false)
-    check('with Hide When Out off, NONE stays clickable', out.mouse == true)
+    check('with Hide When Out off, NONE stays clickable', out.shown and out.mouse == true and out.none.shown)
 end
 
 -- Show Before It Ends
@@ -1002,6 +1027,13 @@ do
     check('the stage fits one row', studio.height() == 90)
     s.set('consumableBarGrow', 'DOWN')
     check('a column makes it taller', studio.height() == 3 * 40 - 4 + 2 * s.CB.C.BG_PAD + 24)
+    s.set('consumableBarHideCombat', false)
+    s.set('consumableBarGrow', 'RIGHT')
+    s.counts[5512] = 1
+    s.set('consumableBarHideEmpty', true)
+    studio.paint(holder, 'rest')
+    check('Hide When Out leaves the preview what you carry', holder.cells[1].itemID == 5512
+        and not holder.cells[2].shown and holder.w == 36)
     s.set('consumableBarItems', {})
     studio.paint(holder, 'rest')
     check('an empty bar says how to add items', holder.note.shown and not holder.cells[1].shown)
@@ -1317,6 +1349,33 @@ do
     check('clear removes every item', #s.settings.consumableBarItems == 0)
 end
 
+-- Other Consumables are left to the player; Remove Empty
+do
+    local s = fixture({ consumableBar = true })
+    s.bags[0] = { 13446, 17202, 5512 }
+    s.counts[13446], s.counts[17202], s.counts[5512] = 2, 5, 1
+    s.CB.ScanBags()
+    local items = s.settings.consumableBarItems
+    check('by default a scan leaves Other Consumables out', #items == 2 and not s.CB.Has(items, 17202))
+    s.set('consumableBarSkip', {})
+    s.CB.ScanBags()
+    check('switched on, the next scan adds them', s.CB.Has(s.settings.consumableBarItems, 17202))
+    s.CB.SetMacro('health', true)
+    s.counts[13446], s.counts[17202] = 0, 0
+    s.confirm = nil
+    s.CB.RemoveEmpty()
+    check('Remove Empty asks first, saying how many', s.confirm ~= nil
+        and s.confirmText:find('Remove 2 items', 1, true) ~= nil and #s.settings.consumableBarItems == 4)
+    s.confirm()
+    items = s.settings.consumableBarItems
+    check('then takes off the items you have none of and keeps Smart Macros', #items == 2 and items[1] == 5512
+        and items[2] == 'macro:health')
+    s.confirm = nil
+    s.CB.RemoveEmpty()
+    check('with nothing to take off it only says so', s.confirm == nil
+        and s.printed:find('at least one of every item', 1, true) ~= nil)
+end
+
 do
     local s = fixture()
     local parse = s.CB.ParseItems
@@ -1368,7 +1427,9 @@ do
     check('shown at the chosen opacity', b[1].bg.shown and b[1].bg.alpha == 0.5)
     s.set('consumableBarHideEmpty', true)
     s.fire('BAG_UPDATE_DELAYED')
-    check('an icon hidden when out takes its piece with it', b[3].alpha == 0 and b[1].alpha == 1)
+    check('an icon hidden when out takes its piece with it', not b[3].shown and b[1].shown)
+    check('and the icon above its old place reaches past the bottom now', select(4, reach(b[1])) == 3)
+    s.set('consumableBarHideEmpty', false)
     s.set('consumableBarGrow', 'DOWN')
     l, r, t, bo = reach(b[1])
     check('growing down: neighbours below and to the right', l == 3 and r == 2 and t == 3 and bo == 2)
@@ -1662,6 +1723,14 @@ do
     s.counts[13446] = 0
     s.fire('BAG_UPDATE_DELAYED')
     check('out of the item the macro still names: NONE', b.none.shown and b.icon.texture == 134830)
+    s.set('consumableBarHideEmpty', true)
+    check('with Hide When Out it leaves the bar', not b.shown and b.slot == nil)
+    s.counts[5509] = 1
+    s.macroBodies['NF Health'] = '#showtooltip\n/use item:5509'
+    s.fire('UPDATE_MACROS')
+    check('and comes back when the macro is rewritten to an item you carry', b.shown and b.slot ~= nil
+        and b.itemID == 5509)
+    s.set('consumableBarHideEmpty', false)
 
     s.pageRow('adding', 'NF Health').set(false)
     check('switching it off takes it off the bar', not s.CB.HasMacro('health') and #s.buttons() == 1)

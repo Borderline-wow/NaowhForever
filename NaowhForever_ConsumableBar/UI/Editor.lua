@@ -38,6 +38,7 @@ local TEXT_REMOVE = ns.L("Remove From Bar")
 local TEXT_SAME_FONT = ns.L("Same as Count")
 local BUTTONS = {
     { "Scan Bags", "ScanBags", ns.L("Adds the consumables in your bags that are not on the bar yet.") },
+    { "Remove Empty", "RemoveEmpty", ns.L("Takes every item you have none of off the bar, after asking.") },
     { "Remove All", "Clear", ns.L("Takes every item off the bar, after asking.") },
 }
 local DEFAULTS = {
