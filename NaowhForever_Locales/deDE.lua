@@ -1,6 +1,7 @@
 -- deDE.lua: the German strings.
-local L = _G.NaowhForeverLocale
-if not L then return end
+if NaowhForeverLocaleCode ~= "deDE" then return end
+local L = {}
+NaowhForeverTranslation = L
 
 L["Threat Meter"] = "Bedrohungsanzeige"
 L["Meter"] = "Anzeige"
@@ -5258,3 +5259,10 @@ L["|cffffffffLinen Cloth|r |cff20ff20x3|r"] = "|cffffffffLeinenstoff|r |cff20ff2
 L["|nClick to change."] = "|nKlicke zum Ändern."
 L["|n|nCompleted Quests (both), Rested Experience, Time to Level and XP per Hour are hidden at max level."] = "|n|nErledigte Quests (beide), Erholungsbonus, Zeit bis Aufstieg und EP pro Stunde sind auf Höchststufe ausgeblendet."
 L["|n|nSwitches with %s."] = "|n|nWird mit dem Modul %s ein- und ausgeschaltet."
+L["Language"] = "Sprache"
+L["Game Language"] = "Spielsprache"
+L["Reload UI to switch the language."] = "Lade das Interface neu, um die Sprache zu wechseln."
+L["The language of this addon. Game Language follows your game client. Saved for this computer.|n|nTakes effect after a /reload."] = "Die Sprache dieses Addons. Spielsprache folgt deinem Spielclient. Für diesen Computer gespeichert.|n|nWirkt nach einem /reload."
+L["Korean"] = "Koreanisch"
+L["Chinese (Simplified)"] = "Chinesisch (vereinfacht)"
+L["Chinese (Traditional)"] = "Chinesisch (traditionell)"

@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: Translations
+## Notes: Naowh Forever in other languages. Loads only when one is in use.
+## Author: Naowh
+## Version: 1.1.10
+## LoadOnDemand: 1
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+
+Locales.xml

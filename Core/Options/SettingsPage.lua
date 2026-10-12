@@ -15,6 +15,7 @@ local SCALE_ORDER = { 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90,
 local CUSTOM = "custom"
 local SKIN_CLASSIC = "classic"
 local DEFAULT_START = "default"
+local AUTO = "auto"
 local MINIMAP_NAME = "NaowhForever"
 local SWATCHES = { { "bg", "Background", "panel", "Panels" }, { "line", ns.L("Borders & Lines"), "fg", "Text" },
     { "muted", ns.L("Secondary Text"), "accent", "Accent" } }
@@ -40,6 +41,8 @@ local TEXT_MINIMAP_TIP = ns.L("A minimap button that opens %s. /nf%s does the sa
 local TEXT_TURNED_OFF = ns.L("%s is turned off, so its settings are hidden. Turn it on under Modules below.")
 local NONE = {}
 local TEXT_ON_ITS_OWN, TEXT_ITS_SETTINGS = ns.L("%s on its own"), ns.L("%s's settings")
+local TEXT_GAME_LANGUAGE = ns.L("Game Language")
+local TEXT_LANGUAGE_RELOAD = ns.L("Reload UI to switch the language.")
 
 local colorsPending = false
 local rxpPending = false
@@ -142,8 +145,18 @@ local function MinimapSection(W, parent, y)
     return Rows(W, parent, y, rows)
 end
 
+local function LanguageChoices()
+    local values, order = { [AUTO] = TEXT_GAME_LANGUAGE }, { AUTO }
+    for _, code in ipairs(ns.LANGUAGES) do
+        values[code] = ns.L(ns.LANGUAGE_NAMES[code])
+        order[#order + 1] = code
+    end
+    return values, order
+end
+
 local function WindowSection(W, parent, y)
     local _, h = W:SectionHeader(parent, "OPTIONS WINDOW", y); y = y - h
+    local languages, languageOrder = LanguageChoices()
     _, h = W:DualRow(parent, y,
         { type = "dropdown", text = "Window Scale", values = SCALE_VALUES, order = SCALE_ORDER,
           tooltip = "Size of this options window and the editors it opens, as a percentage. "
@@ -151,7 +164,16 @@ local function WindowSection(W, parent, y)
           .. "only enlarges the editors.|n|nSaved for this computer instead of in the profile, so switching "
           .. "profile leaves it alone.",
           getValue = function() return tonumber(ns.AccountSettings().windowScale) or DEFAULT_SCALE end,
-          setValue = function(v) ns.SetWindowScale(v) end }
+          setValue = function(v) ns.SetWindowScale(v) end },
+        { type = "dropdown", text = "Language", values = languages, order = languageOrder,
+          tooltip = "The language of this addon. Game Language follows your game client. Saved for this "
+          .. "computer.|n|nTakes effect after a /reload.",
+          getValue = function() return NaowhForeverLanguageDB and NaowhForeverLanguageDB.locale or AUTO end,
+          setValue = function(v)
+              NaowhForeverLanguageDB = NaowhForeverLanguageDB or {}
+              NaowhForeverLanguageDB.locale = v ~= AUTO and v or nil
+              ns.ConfirmReload(TEXT_LANGUAGE_RELOAD)
+          end }
     )
     return y - h
 end

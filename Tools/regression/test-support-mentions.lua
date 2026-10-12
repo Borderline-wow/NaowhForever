@@ -108,7 +108,7 @@ end
 
 local scanned, hitFiles = 0, {}
 for _, path in ipairs(TOC_LUA) do
-    local f = not path:find("^Libs/") and not path:find("^Core/Locales/") and io.open(path, "rb")
+    local f = not path:find("^Libs/") and not path:find("^Core/Locales/") and not path:find("^NaowhForever_Locales/") and io.open(path, "rb")
     if f then
         local src = f:read("*a")
         f:close()

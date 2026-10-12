@@ -1371,7 +1371,7 @@ end
 function UI.FontPath(name)
     local LSM = SharedMedia()
     local path = LSM and name and name ~= "" and LSM:Fetch("font", name, true)
-    return path or ns.HeadingFontPath()
+    return path and ns.LocaleFont(path) or ns.HeadingFontPath()
 end
 
 function UI.TextureChoices(selected, label)

@@ -1,0 +1,1 @@
+-- Language.lua: nothing to run; this addon holds the language picked in Settings (NaowhForeverLanguageDB) and loads before Naowh Forever, so its first file can read it.

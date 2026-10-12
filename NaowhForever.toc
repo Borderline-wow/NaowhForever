@@ -3,7 +3,7 @@
 ## Notes: Naowh's Forever companion: the window every module shares.
 ## Author: Naowh
 ## Version: 1.1.10
-## OptionalDeps: NaowhUI_Media
+## OptionalDeps: NaowhUI_Media, NaowhForever_Language
 ## SavedVariables: NaowhForeverDB
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
@@ -13,11 +13,9 @@
 
 Libs\embeds.xml
 
-# Locales stay in the TOC: AllowLoadTextLocale is a TOC option. Each area loads its own
-# files through its XML, in this order; add a file to that XML, never here.
+# The English catalog first; the other languages are NaowhForever_Locales, loaded by Core.lua.
+# Each area loads its own files through its XML, in this order; add a file to that XML, never here.
 Core\Locales\enUS.lua
-Core\Locales\deDE.lua [AllowLoadTextLocale deDE]
-Core\Locales\ruRU.lua [AllowLoadTextLocale ruRU]
 
 Core\Core.xml
 Core\Integrations\RestedXP\RestedXP.xml
