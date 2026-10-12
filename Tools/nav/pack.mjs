@@ -20,7 +20,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
 const NETWORK = join(ROOT, 'NaowhForever_Journeys', 'Data', 'Network.lua');
 const Q = 1;
-const ATTACH_REACH = 80;
+const ATTACH_REACH = 200;
 const NO_WAY = -1;
 const MAIN_SIZE = 300;
 const MAX_POLY_VERTS = 8;   // Walk.lua keys a polygon's edges as polygon * 8 + edge
@@ -44,8 +44,8 @@ export async function places(map) {
   });
   const links = lua.slice(lua.indexOf('links = {')).split('\n').filter(l => l.includes('{ "'));
   links.forEach((line, l) => {
-    [...line.matchAll(/\{ (\d+), (-?[\d.]+), (-?[\d.]+), "/g)].forEach((m, e) => {
-      if (Number(m[1]) === map) out.push({ key: `l${l + 1}.${e + 1}`, x: Number(m[2]), y: Number(m[3]), z: null });
+    [...line.matchAll(/\{ (\d+), (-?[\d.]+), (-?[\d.]+), "(?:[^"\\]|\\.)*"(?:, (-?[\d.]+))? \}/g)].forEach((m, e) => {
+      if (Number(m[1]) === map) out.push({ key: `l${l + 1}.${e + 1}`, x: Number(m[2]), y: Number(m[3]), z: m[4] === undefined ? null : Number(m[4]) });
     });
   });
   return out;

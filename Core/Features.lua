@@ -115,6 +115,7 @@ ns.FEATURES = {
     journeys = {
         enabled = false,
         card = true,
+        learnLifts = false,
     },
     training = {
         enabled = true,

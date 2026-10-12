@@ -9,8 +9,10 @@
     <Script file="World.lua"/>
     <Script file="Walk.lua"/>
     <Script file="Guide.lua"/>
+    <Script file="Lifts.lua"/>
     <Script file="Quests.lua"/>
     <Script file="UI\Card.lua"/>
     <Include file="UI\MapRoute.xml"/>
+    <Script file="UI\MinimapRoute.lua"/>
     <Script file="UI\SettingsPage.lua"/>
 </Ui>

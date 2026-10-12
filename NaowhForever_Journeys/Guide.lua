@@ -18,6 +18,7 @@ local TEXT_FLY = "Fly to %s"
 local TEXT_SHIP = "%s to %s"
 local TEXT_TRAM = "Deeprun Tram to %s"
 local TEXT_PORTAL = "Portal to %s"
+local TEXT_LIFT = "Lift to %s"
 local TEXT_HEARTH = "Hearthstone to %s"
 local TEXT_TELEPORT = "Teleport to %s"
 local TEXT_NO_WAY = "No way found to %s from here; placed a plain waypoint."
@@ -49,6 +50,7 @@ function Guide.LegText(leg)
     if mode == "ship" then return TEXT_SHIP:format(leg.shipKind or "", name) end
     if mode == "tram" then return TEXT_TRAM:format(name) end
     if mode == "portal" then return TEXT_PORTAL:format(name) end
+    if mode == "lift" then return TEXT_LIFT:format(name) end
     if mode == "hearth" then return TEXT_HEARTH:format(name) end
     return TEXT_TELEPORT:format(name)
 end
@@ -278,6 +280,25 @@ end
 
 function Guide.Current()
     return journey
+end
+
+function Guide.Points()
+    if not journey or not journey.plan then return nil end
+    local legs = journey.plan.legs
+    if #legs == 0 then return nil end
+    local list, first = {}, 1
+    local corners = journey.corners
+    if corners then
+        for i = (journey.corner or 1) * 2 - 1, #corners, 2 do
+            list[#list + 1] = { c = legs[1].c, x = corners[i], y = corners[i + 1], walk = true }
+        end
+        first = 2
+    end
+    for i = first, #legs do
+        local leg = legs[i]
+        list[#list + 1] = { c = leg.c, x = leg.x, y = leg.y, walk = leg.mode == "walk" }
+    end
+    return list
 end
 
 function Guide.Dismissed()

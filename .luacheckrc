@@ -95,7 +95,7 @@ read_globals = {
     "GetQuestLogQuestText", "GetQuestLogRewardInfo", "GetQuestLogRewardMoney", "GetQuestLogRewardXP",
     "GetNumQuestLogChoices", "GetNumQuestLogRewards", "QuestUtils_IsQuestWatched",
     "GetQuestItemInfo", "GetQuestItemLink", "GetQuestLogChoiceInfo", "GetQuestLogItemLink",
-    "GetQuestLogRewardXP", "GetQuestReward", "GetRaidRosterInfo", "GetRealmName", "GetRealZoneText", "GetServerTime", "C_EncodingUtil", "debugprofilestop", "geterrorhandler", "WHO_LIST_FORMAT", "WHO_LIST_GUILD_FORMAT", "GetSavedInstanceInfo",
+    "GetQuestLogRewardXP", "GetQuestReward", "GetRaidRosterInfo", "GetRealmName", "GetRealZoneText", "GetServerTime", "IsFalling", "IsFlying", "IsSwimming", "C_EncodingUtil", "debugprofilestop", "geterrorhandler", "WHO_LIST_FORMAT", "WHO_LIST_GUILD_FORMAT", "GetSavedInstanceInfo",
     "GetRepairAllCost", "GetShapeshiftForm", "GetShapeshiftFormID",
     "GetSpecializationInfoByID", "GetSpellBaseCooldown", "GetSubZoneText", "GetTaxiMapID",
     "GetTime", "GetTitleText", "GetTrainerServiceCost", "GetTrainerServiceIcon", "GetTrainerServiceInfo",

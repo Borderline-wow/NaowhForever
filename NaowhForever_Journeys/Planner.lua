@@ -8,6 +8,7 @@ local sqrt = math.sqrt
 local huge = math.huge
 
 local START, GOAL = 1, 2
+local LINK_MODE = { Tram = "tram", Lift = "lift" }
 
 local Planner = {}
 Jy.Planner = Planner
@@ -184,7 +185,7 @@ local function RelaxLink(state, nodes, u, net)
     local a = nodes[u]
     if state.done[a.other] then return end
     local seconds = net.links[a.link][3] + C.TRANSFER
-    Relax(state, u, a.other, seconds, { mode = a.linkKind == "Tram" and "tram" or "portal", seconds = seconds })
+    Relax(state, u, a.other, seconds, { mode = LINK_MODE[a.linkKind] or "portal", seconds = seconds })
 end
 
 local function RelaxJumps(state, nodes)

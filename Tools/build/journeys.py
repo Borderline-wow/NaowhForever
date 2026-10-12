@@ -39,6 +39,10 @@ LINKS = [
     ("Portal", "AH", "Rut'theran Village", 542, "Darnassus", 527, 5),
     ("Tram", "AH", "Ironforge", 2175, "Stormwind", 2173, 150),
 ]
+# Lifts, learned from play (/nf lifts, Journeys' Learn Lifts as You Ride): (factions, seconds, low end,
+# high end), each end (continent, x, y, z, place), as the command prints them. Lifts are server-spawned, so
+# neither the client's tables nor Wowhead have them. Paste a line's numbers here and run this again.
+LIFTS = []
 TELEPORT = 1   # TaxiPathNode flag: the next step is a jump, not sailed
 SAME_DOCK = 10   # yards: a path that starts and ends at one dock lists it twice, this far apart
 
@@ -191,7 +195,8 @@ def main():
         lines.append("        { " + ", ".join(fields) + " },")
     lines.append("    },")
     triggers = {int(row["ID"]): row for row in wago.table("AreaTrigger", build)}
-    # links = { { kind, factions, seconds, { continent, x, y, place }, { continent, x, y, place } }, ... }
+    # links = { { kind, factions, seconds, { continent, x, y, place[, z] }, { continent, x, y, place[, z] } }, ... }
+    # z is only given for a lift, whose two ends stand over each other.
     lines.append("    links = {")
     for kind, side, here, here_id, there, there_id, seconds in LINKS:
         ends = []
@@ -199,10 +204,13 @@ def main():
             row = triggers[trigger]
             ends.append(f"{{ {row['ContinentID']}, {float(row['Pos_0']):.1f}, {float(row['Pos_1']):.1f}, {lua_string(place)} }}")
         lines.append(f'        {{ "{kind}", "{side}", {seconds}, {ends[0]}, {ends[1]} }},')
+    for side, seconds, *ends in LIFTS:
+        ends = [f"{{ {c}, {x:.1f}, {y:.1f}, {lua_string(place)}, {z:.1f} }}" for c, x, y, z, place in ends]
+        lines.append(f'        {{ "Lift", "{side}", {seconds}, {ends[0]}, {ends[1]} }},')
     lines.append("    },")
     lines.append("}")
     write(OUT, lines)
-    print(f"{len(used)} flight points ({moved} at their flight master), {len(hops)} flights, {len(ROUTES)} ships, {len(LINKS)} links -> {OUT.relative_to(ROOT)}")
+    print(f"{len(used)} flight points ({moved} at their flight master), {len(hops)} flights, {len(ROUTES)} ships, {len(LINKS) + len(LIFTS)} links -> {OUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

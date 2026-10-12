@@ -26,26 +26,13 @@ local function Continent(mapID)
     return c
 end
 
-local function Add(c, x, y, walk)
-    points[#points + 1] = { c = c, x = x, y = y, walk = walk }
-end
-
-local function Collect(journey)
+local function Collect()
     wipe(points)
-    local legs = journey.plan and journey.plan.legs
-    if not legs then return end
-    local corners, at = journey.corners, journey.corner or 1
+    local ahead = Guide.Points()
+    if not ahead then return end
     local here = Jy.World.Player()
-    if here then Add(here.c, here.x, here.y, true) end
-    local first = 1
-    if corners then
-        for i = at * 2 - 1, #corners, 2 do Add(legs[1].c, corners[i], corners[i + 1], true) end
-        first = 2
-    end
-    for i = first, #legs do
-        local leg = legs[i]
-        Add(leg.c, leg.x, leg.y, leg.mode == "walk")
-    end
+    if here then points[1] = { c = here.c, x = here.x, y = here.y, walk = true } end
+    for _, p in ipairs(ahead) do points[#points + 1] = p end
 end
 
 function NaowhForeverJourneyRoutePinMixin:OnLoad()
@@ -111,7 +98,7 @@ function provider:RefreshAllData()
     self:RemoveAllData()
     local journey = Guide.Current()
     if not (On() and journey) then return end
-    Collect(journey)
+    Collect()
     if #points > 1 then self:GetMap():AcquirePin(TEMPLATE) end
 end
 

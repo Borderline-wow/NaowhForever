@@ -86,6 +86,14 @@ Check(measured and Modes(measured) == "walk" and math.abs(measured.seconds - 700
 local unknown2 = Plan({ to = { c = 0, x = -4900, y = -1100, name = "Bank" }, walk = function() return nil end })
 Check(math.abs(unknown2.seconds - short.seconds) < 0.01, "no answer falls back to the straight line")
 
+local links = ns.JourneyNetwork.links
+links[#links + 1] = { "Lift", "AH", 30, { 0, -3000, 0, "Base", 0 }, { 0, 3000, 0, "Top", 100 } }
+local up = Plan({ known = {}, from = { c = 0, x = -3000, y = 0 }, to = { c = 0, x = 3010, y = 0, name = "Up there" } })
+Check(up and Modes(up):find("lift", 1, true) and up.seconds < 120, "a lift beats a long walk to the same place: " .. (up and Modes(up) or "none"))
+local back = Plan({ known = {}, from = { c = 0, x = 3000, y = 0 }, to = { c = 0, x = -3010, y = 0, name = "Down there" } })
+Check(back and Modes(back):find("lift", 1, true), "and is taken both ways")
+links[#links] = nil
+
 local ship = ns.JourneyNetwork.ships[3]
 Check(math.abs(P.Sail(nil, ship, 1, 2) + P.Sail(nil, ship, 2, 1) + ship[3][6] + ship[4][6] - P.Period(nil, ship)) < 0.01,
     "there and back again is one period")

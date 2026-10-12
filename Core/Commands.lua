@@ -120,6 +120,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ActionBarsCommand(strtrim(msg):match("^%S+%s*(.-)$"))
     elseif cmd == "ab" and ns.ActionBarsImportCommand then
         ns.ActionBarsImportCommand(strtrim(msg):match("^%S+%s*(.-)$"))
+    elseif cmd == "lifts" and ns.LiftsCommand then
+        ns.LiftsCommand(arg)
     elseif cmd == "lockouts" and ns.LockoutsCommand then
         ns.LockoutsCommand()
     elseif cmd == "ranks" and ns.TrainerRankCheck then

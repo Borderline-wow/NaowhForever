@@ -326,6 +326,8 @@ Check(ns.PlaceWaypoint(unpack(DESTINATION)) and not Jy.Guide.Current(),
 env.C_Map.CanSetUserWaypointOnMap = function() return true end
 Jy.Walk.From = realFrom
 
+Check(Jy.Guide.LegText({ mode = "lift", name = "The Rise" }) == "Lift to The Rise", "a lift step reads as one")
+
 Jy.Settings.Set("enabled", false)
 Check(not Jy.Guide.Current(), "turning Journeys off ends the journey")
 

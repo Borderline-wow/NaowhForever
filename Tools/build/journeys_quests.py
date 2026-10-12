@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import paths  # noqa: E402
 import wowhead  # noqa: E402
+from completo_quests import REDRAWN_BOUNDS, forever_spot  # noqa: E402
 from journal import header, write  # noqa: E402
 from quest_chains import ZONE_MAP  # noqa: E402
 
@@ -59,6 +60,22 @@ def fetch(quest_id):
     return points
 
 
+TWIN = 0.8   # map percent: a classic point shifted onto Forever's map lands this close to its Forever twin
+
+
+def forever_points(ui_map, coords):
+    """On a map Forever redrew, a page lists an NPC's classic spawn and its Forever spawn side by side
+    (Dungar Longdrink in Stormwind: two points on the old map, one on the new). A point is Forever's when
+    another point, moved onto Forever's map, lands on it; a page with no such pair is taken as listed."""
+    if ui_map not in REDRAWN_BOUNDS:
+        return coords
+    shifted = [forever_spot(ui_map, *c) for c in coords]
+    twins = [c for i, c in enumerate(coords)
+             if any(j != i and abs(shifted[j][0] - c[0]) <= TWIN and abs(shifted[j][1] - c[1]) <= TWIN
+                    for j in range(len(coords)))]
+    return twins or coords
+
+
 def camps(coords):
     """Groups points within CAMP of each other; the biggest groups first, as (x, y, count)."""
     groups = []
@@ -86,14 +103,14 @@ def spot(zone, x, y):
 def quest_spots(points):
     """(turn-in or None, [objective camps]) from a page's points."""
     end = next((p for p in points if p["point"] == "end"), None)
-    turn_in = end and spot(end["zone"], *end["coords"][0])
+    turn_in = end and spot(end["zone"], *forever_points(ZONE_MAP.get(end["zone"]), end["coords"])[0])
     sources = [p for p in points if p["point"] == "sourcerequirement"]
     targets = [p for p in points if p["point"] == "requirement"]
     if len(sources) <= MAX_SOURCES:
         targets += sources
     objectives = []
     for p in targets:
-        for x, y, count in camps(p["coords"]):
+        for x, y, count in camps(forever_points(ZONE_MAP.get(p["zone"]), p["coords"])):
             s = spot(p["zone"], x, y)
             if s:
                 objectives.append((*s, count))

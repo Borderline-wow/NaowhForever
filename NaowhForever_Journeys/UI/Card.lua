@@ -14,7 +14,7 @@ local CROSS = ns.MEDIA .. "cross"
 local SETTINGS_PAGE = "Journeys/Settings"
 local PLACE = { "RIGHT", "RIGHT", -260, 40 }
 local MODE_ICON = { walk = "walk", fly = "fly", ship = "ship", tram = "tram", portal = "portal", hearth = "hearth",
-    teleport = "teleport" }
+    teleport = "teleport", lift = "lift" }
 local CARD_W, PAD, HEADER_H, STRIP_H = 280, 12, 34, 2
 local SEG_H, SEG_GAP, SEG_BELOW = 3, 3, 6
 local ROW_H, ROW_ICON, ROW_GAP, EDGE_W = 30, 16, 9, 2

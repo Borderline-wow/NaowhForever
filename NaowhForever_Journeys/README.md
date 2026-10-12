@@ -18,10 +18,12 @@ NaowhForever_Journeys/
   World.lua                   the player's spot, map and world positions, learned flight points and landings
   Walk.lua                    walking costs and paths over the baked walking maps, loaded when first needed
   Guide.lua                   the journey being followed, one step at a time on the game's waypoint
+  Lifts.lua                   learns the lifts you ride, for /nf lifts
   Quests.lua                  a far quest you track becomes a journey, handed back to the game on arrival
-  Media/                      the mode icons (walk, ship, fly, tram, portal, hearth, teleport, goal), drawn by Tools/media/make_media.py
+  Media/                      the mode icons (walk, ship, fly, tram, portal, hearth, teleport, lift, goal), drawn by Tools/media/make_media.py
   UI/Card.lua                 the Journey card
   UI/MapRoute.lua, .xml       the journey drawn on the world map
+  UI/MinimapRoute.lua         the journey drawn on the minimap
   UI/SettingsPage.lua         the settings page, as cards
 ```
 
@@ -50,6 +52,17 @@ NaowhForever_Journeys/
 - A walk's path is the crossings it passes, then each tile's polygons between them, pulled tight by
   the funnel algorithm. The guide puts the waypoint on each corner in turn, at least `CORNER_GAP`
   yards apart, and plans again at the last.
+- The minimap route is lines on a frame over the minimap, each segment clipped to the minimap's circle in
+  code (a line frame cannot be masked), placed from your position with `C_Minimap.GetViewRadius` and turned by
+  `GetPlayerFacing` when `rotateMinimap` is on. It redraws every `UPDATE_EVERY` seconds, only while a
+  journey is on, so a moving player keeps it in place; with none it has no update at all.
+- Lifts are spawned by the server: neither the client's tables nor Wowhead have where they stand. With Learn
+  Lifts as You Ride on, standing still while your height changes by `LIFT_RISE` yards, without drifting more
+  than `LIFT_DRIFT` yards sideways and not falling, flying, swimming or on a taxi, is a lift ride (a boat or a
+  zeppelin drifts, so it never counts). Its two ends and its seconds are kept account-wide, the same lift
+  merged within `LIFT_MERGE` yards, and `/nf lifts` prints each as a line to paste into `LIFTS` in
+  `Tools/build/journeys.py`, which makes it a "Lift" link in the network like the tram. The watch only runs
+  for `LIFT_WINDOW` seconds after you stop, one check a second, and ends the moment you move.
 - Water costs `SWIM` times its yards and the sea `SEA` times, the same factors the bake used.
 - Tracking a quest (`SUPER_TRACKING_CHANGED`) starts a journey to the game's own next point for it
   (`C_QuestLog.GetNextWaypoint`), or its marker on your map, when that is over `QUEST_NEAR` yards away

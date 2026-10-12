@@ -28,9 +28,9 @@ local function Secret(v)
 end
 
 function World.Player()
-    local x, y, _, c = UnitPosition(PLAYER)
+    local x, y, z, c = UnitPosition(PLAYER)
     if not x or Secret(x) then return nil end
-    return { c = c, x = x, y = y }
+    return { c = c, x = x, y = y, z = not Secret(z) and z or nil }
 end
 
 function World.FromMap(map, x, y)
