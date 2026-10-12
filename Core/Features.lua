@@ -113,6 +113,10 @@ ns.FEATURES = {
     statWeights = {
         enabled = false,
     },
+    journeys = {
+        enabled = false,
+        card = true,
+    },
     training = {
         enabled = true,
         levelUpToast = true,
