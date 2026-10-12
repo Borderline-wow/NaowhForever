@@ -41,8 +41,7 @@ LINKS = [
 ]
 # Lifts: (factions, seconds, low end, high end), each end (continent, x, y, z, place), as /nf lifts prints
 # them from play (Journeys' Learn Lifts as You Ride). Lifts are server-spawned, so neither the client's tables
-# nor Wowhead have where they stand. These seven are Shortest Path Forever's, by Cillian Berragan (cjber), used
-# with his permission for the lifts only; add what players learn beside them. The seconds are one trip of the
+# nor Wowhead have where they stand. Add what players learn beside the seven there. The seconds are one trip of the
 # lift's TransportAnimation in the client (its height difference picks the entry: 129 yards, 61, 71 and 97).
 LIFTS = [
     ("AH", 30, (1, -4668.1, -1838.6, -44.0, "The Great Lift, bottom"), (1, -4668.1, -1838.6, 85.4, "The Great Lift, top")),
