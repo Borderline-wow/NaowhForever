@@ -14,8 +14,8 @@ local UNDERLINE_DROP = 1
 local PILL_PAD, PILL_FILL = 4, St.TAB_FILL
 local WORN_W, WORN_OUT, WORN_END = 2, 2, 4
 local TIP_TITLE = 1
-local ID_LABELS = { item = "Item ID", spell = "Spell ID", quest = "Quest ID", npc = "NPC ID", object = "Object ID" }
-local TEXT_ID = "ID"
+local ID_LABELS = { item = ns.L("Item ID"), spell = ns.L("Spell ID"), quest = ns.L("Quest ID"), npc = ns.L("NPC ID"), object = ns.L("Object ID") }
+local TEXT_ID = ns.L("ID")
 local COPY_FIELD = "url"
 
 local function Tip(owner, anchor, x, y)
@@ -26,8 +26,8 @@ end
 
 local function TipLines(owner, anchor, title, line)
     if not Parts.Tip(owner, anchor) then return false end
-    GameTooltip:SetText(title, TIP_TITLE, TIP_TITLE, TIP_TITLE)
-    if line then GameTooltip:AddLine(line, T.muted.r, T.muted.g, T.muted.b, true) end
+    GameTooltip:SetText(ns.L(title), TIP_TITLE, TIP_TITLE, TIP_TITLE)
+    if line then GameTooltip:AddLine(ns.L(line), T.muted.r, T.muted.g, T.muted.b, true) end
     GameTooltip:Show()
     return true
 end
@@ -73,8 +73,8 @@ end
 local function IconEnter(button)
     IconColor(button, T.fg)
     if not Tip(button, "ANCHOR_TOP") then return end
-    GameTooltip:SetText(button.tip)
-    if button.hint then GameTooltip:AddLine(button.hint, T.accentSoft.r, T.accentSoft.g, T.accentSoft.b) end
+    GameTooltip:SetText(ns.L(button.tip))
+    if button.hint then GameTooltip:AddLine(ns.L(button.hint), T.accentSoft.r, T.accentSoft.g, T.accentSoft.b) end
     GameTooltip:Show()
 end
 
@@ -119,7 +119,7 @@ function Parts.Link(parent, onClick, arrow)
 end
 
 function Parts.SetLink(link, text)
-    link.text:SetText(text)
+    link.text:SetText(ns.L(text))
     link:SetWidth(math.ceil(link.text:GetStringWidth()) + (link.arrow and LINK_ARROW_ROOM or 0))
 end
 
@@ -157,7 +157,7 @@ function Parts.ColorPill(pill, color)
 end
 
 function Parts.SetPill(pill, text)
-    pill.text:SetText(text)
+    pill.text:SetText(ns.L(text))
     pill:SetWidth(math.ceil(pill.text:GetStringWidth()) + 2 * PILL_PAD)
     return pill:GetWidth()
 end

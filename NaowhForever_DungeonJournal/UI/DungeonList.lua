@@ -28,15 +28,15 @@ local FOR_YOUR_LEVEL, COMING_UP, RAIDS, LOW_LEVEL = 1, 2, 3, 4
 local ORDER = { LOW_LEVEL, FOR_YOUR_LEVEL, COMING_UP, RAIDS }
 local CONTESTED_SIDE = "Contested"
 
-local TEXT_HERE = "You are here"
+local TEXT_HERE = ns.L("You are here")
 local TEXT_ZONE = "%s  %s%s|r"
-local TEXT_RAID = "A raid for %d players"
-local TEXT_LEVEL = "Level "
-local TEXT_NO_BOSSES = "No boss data for it yet."
-local TEXT_TO_PICK_UP = "%d |4quest:quests; to pick up"
-local TEXT_IN_LOG = "%d in your log"
-local TEXT_BIS = "%s%d of your %d BiS here are yours|r"
-local TEXT_LOOKS = "%s%d new |4look:looks;|r"
+local TEXT_RAID = ns.L("A raid for %d players")
+local TEXT_LEVEL = ns.L("Level ")
+local TEXT_NO_BOSSES = ns.L("No boss data for it yet.")
+local TEXT_TO_PICK_UP = ns.L("%d |4quest:quests; to pick up")
+local TEXT_IN_LOG = ns.L("%d in your log")
+local TEXT_BIS = ns.L("%s%d of your %d BiS here are yours|r")
+local TEXT_LOOKS = ns.L("%s%d new |4look:looks;|r")
 local TEXT_DONE_GAP = "  "
 
 local rows, groups = {}, {}
@@ -254,7 +254,7 @@ function List.Build(parent, select)
     onSelect = select
     scroll, content = LP.NewScroll(parent)
     for g, text in ipairs(GROUPS) do
-        groups[g] = LP.Header(content, text, GroupClicked)
+        groups[g] = LP.Header(content, ns.L(text), GroupClicked)
         groups[g].group = g
     end
     for i, dungeon in ipairs(J.Dungeons()) do rows[i] = Row(content, dungeon) end

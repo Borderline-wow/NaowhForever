@@ -19,8 +19,8 @@ local NO_LEVEL = 1
 local ROUND = B.C.ROUND
 local TEXT_UNKNOWN = "World drop"
 local TEXT_QUEST = "Quest"
-local TEXT_LEVEL = "Level "
-local TEXT_ITEM = "Item "
+local TEXT_LEVEL = ns.L("Level ")
+local TEXT_ITEM = ns.L("Item ")
 local OWN_QUEST = { Alliance = "Quest (Alliance)", Horde = "Quest (Horde)" }
 local FOREVER_KIND = B.C.FOREVER_KIND
 
@@ -49,7 +49,7 @@ local function Place(itemID)
     local place, detail = R.Place(ns.BiSSource(itemID) or TEXT_UNKNOWN)
     ownQuest = ownQuest or OWN_QUEST[UnitFactionGroup("player")] or false
     if place == ownQuest then place = TEXT_QUEST end
-    return place, detail
+    return ns.L(place), detail and ns.L(detail)
 end
 
 local function LevelText(required, above, withLevel)

@@ -61,7 +61,7 @@ local coinCalls = 0
 local tooltip = Frame()
 tooltip.GetOwner = function() return nil end
 
-local ns = {
+local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
     THEME = setmetatable({}, { __index = function() return WHITE end }),
     Color = function(_, text) return tostring(text) end,
     Font = function(parent) return Frame(parent) end,
@@ -451,7 +451,12 @@ local helpers = assert(widgets:match("\n(local function SharedMedia%(%).-\nfunct
     or widgets:match("\n(function UI%.FontPath%(name%).-\nfunction UI%.TexturePath%(name, fallback%).-\nend)\n"),
     "Widgets: FontPath to TexturePath")
 local texts = {}
-for line in widgets:gmatch("\n(local TEXT_[%w_, ]+ = \"[^\n]*\")\n") do texts[#texts + 1] = line end
+for line in widgets:gmatch("[^\n]+") do
+    local open, close = select(2, line:gsub("%(", "")), select(2, line:gsub("%)", ""))
+    if line:match("^local TEXT_[%w_, ]+ = ") and line:match("[\"%)]$") and open == close then
+        texts[#texts + 1] = line
+    end
+end
 helpers = table.concat(texts, "\n") .. "\n" .. helpers
 local MEDIA = { font = { Naowh = "naowh.ttf" },
     statusbar = { Blizzard = "bar.blp", Solid = "solid", ["Naowh Gradient"] = "gradient.tga" } }

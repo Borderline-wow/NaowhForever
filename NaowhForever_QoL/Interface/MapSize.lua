@@ -18,7 +18,7 @@ local HANDLE_LEVEL = 80
 local KEEP_ON_SCREEN = 60
 
 local TEXT_TITLE = "Map Window"
-local TEXT_TIP = "Drag to make the map bigger or smaller.\nRight-click: back to 100%."
+local TEXT_TIP = ns.L("Drag to make the map bigger or smaller.\nRight-click: back to 100%.")
 
 local grip, handle
 local hooked, applied

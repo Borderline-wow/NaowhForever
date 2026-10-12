@@ -25,8 +25,8 @@ local ICON_INSET = 4
 local SCROLL_W, SCROLL_IN = 4, 2
 local TRACK_W, BOX_W, BOX_H, BOX_ALPHA, SLIDER_GAP = 70, 30, 14, 1, 6
 
-local TEXT_TITLE = "Town Pins"
-local TEXT_TIP = "Click to choose which town pins show on the map."
+local TEXT_TITLE = ns.L("Town Pins")
+local TEXT_TIP = ns.L("Click to choose which town pins show on the map.")
 local TEXT_CLOSE = "x"
 local TEXT_TOWN, TEXT_TOWN_PINS, TEXT_TOWN_TIP = ns.TownPinTexts.group, ns.TownPinTexts.switch, ns.TownPinTexts.tip
 local TEXT_SIZE, TEXT_SIZE_TIP = "Town Pin Size", "How big the town pins are on the world map."
@@ -149,7 +149,7 @@ local function MakeRow(parent, store, key, text, tip, needs, range)
     label:SetWordWrap(false)
     label:SetPoint("LEFT", PAD, 0)
     label:SetPoint("RIGHT", control, "LEFT", -LABEL_GAP, 0)
-    label:SetText(text)
+    label:SetText(ns.L(text))
     if tip then ns.Tooltip(frame, text, tip) end
     rows[#rows + 1] = { control = control, label = label, needs = needs, store = store }
 end

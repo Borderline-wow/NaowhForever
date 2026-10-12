@@ -62,22 +62,22 @@ local LINKS = {
     { "GitHub", "github", function() return "https://github.com/naowh-gaming/NaowhForever" end },
 }
 local SYSTEM_NAV = { { "Settings", "settings" }, { UI.PROFILES_PAGE, "person" }, { "Patch Notes", "notes" }, { "Credits", "heart" } }
-local TEXT_VERSION, TEXT_UNKNOWN = "v", "unknown"
-local TEXT_COMING_SOON = "Coming soon"
-local TEXT_ENABLE = "Enable"
-local TEXT_OPEN = "Open"
+local TEXT_VERSION, TEXT_UNKNOWN = "v", ns.L("unknown")
+local TEXT_COMING_SOON = ns.L("Coming soon")
+local TEXT_ENABLE = ns.L("Enable %s")
+local TEXT_OPEN = ns.L("Open %s")
 local TEXT_BRAND = "Naowh Forever"
 local TEXT_CLOSE = "X"
-local TEXT_HUD_EDITOR = "HUD Editor"
-local TEXT_SUB_COMMAND = "%s  (/nf%s)"
-local TEXT_HUD_HELP = "Place and size each display. Exit Config returns to this window."
-local TEXT_RELOAD = "Reload UI"
-local TEXT_MODULE, TEXT_MODULE_HELP = "Module", "Turn this module on or off. Your settings are kept."
-local TEXT_BACK = "Back to Settings"
-local TEXT_ON = "On. Click to turn the whole module off."
-local TEXT_OFF = "Off. Click to turn it back on."
-local TEXT_SWITCHED_OFF = "%s is switched off. Turn it on under Settings > Modules."
-local TEXT_NO_MATCH = "Nothing on this page matches the search."
+local TEXT_HUD_EDITOR = ns.L("HUD Editor")
+local TEXT_SUB_COMMAND = ns.L("%s  (/nf%s)")
+local TEXT_HUD_HELP = ns.L("Place and size each display. Exit Config returns to this window.")
+local TEXT_RELOAD = ns.L("Reload UI")
+local TEXT_MODULE, TEXT_MODULE_HELP = ns.L("Module"), ns.L("Turn this module on or off. Your settings are kept.")
+local TEXT_BACK = ns.L("Back to Settings")
+local TEXT_ON = ns.L("On. Click to turn the whole module off.")
+local TEXT_OFF = ns.L("Off. Click to turn it back on.")
+local TEXT_SWITCHED_OFF = ns.L("%s is switched off. Turn it on under Settings > Modules.")
+local TEXT_NO_MATCH = ns.L("Nothing on this page matches the search.")
 
 ns.LINKS, ns.LINK_ICONS = LINKS, LINK_ICONS
 
@@ -222,8 +222,8 @@ end
 local function LayoutHeader(page, mod, headerH)
     headerTitle:SetText(mod and DisplayName(mod) or ns.L(page.title))
     breadcrumb:SetText(mod and (DisplayName(mod) .. " / " .. ns.L(page.name)) or TEXT_BRAND)
-    headerSub:SetText(mod and (mod.command and TEXT_SUB_COMMAND:format(mod.subtitle, mod.command) or mod.subtitle)
-        or page.subtitle)
+    headerSub:SetText(mod and (mod.command and TEXT_SUB_COMMAND:format(ns.L(mod.subtitle), mod.command)
+        or ns.L(mod.subtitle)) or ns.L(page.subtitle))
     contentHeader:ClearAllPoints()
     contentHeader:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W, -TOP_H)
     contentHeader:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, -TOP_H)
@@ -231,7 +231,7 @@ local function LayoutHeader(page, mod, headerH)
     moduleSwitch:SetShown(mod ~= nil and not page.soon)
     moduleLabel:SetShown(mod ~= nil and not page.soon)
     if mod and not page.soon then
-        moduleLabel:SetText(ns.L(TEXT_ENABLE) .. " " .. ns.L(mod.name))
+        moduleLabel:SetText(ns.L(TEXT_ENABLE, ns.L(mod.name)))
         moduleSwitch._refreshValue()
     end
 end
@@ -598,7 +598,7 @@ local function OpenEnter(open)
     PaintNavButton(open:GetParent(), true)
     open.icon:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1)
     GameTooltip:SetOwner(open, "ANCHOR_RIGHT")
-    GameTooltip:SetText(ns.L(TEXT_OPEN) .. " " .. DisplayName(open:GetParent().mod), 1, 1, 1)
+    GameTooltip:SetText(ns.L(TEXT_OPEN, DisplayName(open:GetParent().mod)), 1, 1, 1)
     GameTooltip:Show()
 end
 
@@ -954,7 +954,7 @@ local function ModuleHeader(win, mod)
     title:SetText(ns.L(mod.name))
     local sub = ns.Font(header, MW.subSize, nil, T.muted)
     sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", MW.subX, -MW.subGap)
-    sub:SetText(mod.subtitle)
+    sub:SetText(ns.L(mod.subtitle))
     local close = ns.Button(header, TEXT_CLOSE, MW.close, MW.close, function() win:Hide() end)
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", -MW.closeInset, -MW.closeInset)
     local switch = UI.BuildToggleControl(header, header:GetFrameLevel() + MW.switchRaise,

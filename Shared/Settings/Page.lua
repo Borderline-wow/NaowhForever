@@ -10,7 +10,7 @@ local COG_W = 380
 local TWO_COLUMNS_W = SS.TWO_COLUMNS_W
 local DRAG_WAIT = 0.05
 local NO_EVENTS = {}
-local TEXT_NO_MATCH = "Nothing on this page matches the search."
+local TEXT_NO_MATCH = ns.L("Nothing on this page matches the search.")
 
 local Draw = {}
 local watched = {}
@@ -166,7 +166,7 @@ end
 local function OpenCog(icon, setting)
     CogPanel()
     cog.card, cog.label, cog.page = setting.card, setting.label, icon:GetParent():GetParent()
-    cog.title:SetText((setting.cog and setting.cog.title) or setting.label)
+    cog.title:SetText(ns.L((setting.cog and setting.cog.title) or setting.label))
     Watch(setting.card.store, cog.view)
     cog:Show()
     Settings.CogAnchored(icon, setting)

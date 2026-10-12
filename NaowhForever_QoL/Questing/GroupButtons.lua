@@ -15,14 +15,14 @@ local TEXT_RANGE = ns.Shared.Style.HUD_TEXT_RANGE
 local MOVER_LABEL = "Group Buttons"
 local SETTINGS_PAGE = "QoL/Questing & Group"
 local SETTINGS_CARD = "QoL/Questing & Group:groupButtons"
-local TEXT_INVITE, TIP_INVITE = "Invite", "Invites your target. Works in combat."
-local TIP_PERSON = "Invites %s."
-local TEXT_INVITE_ALL, TIP_INVITE_ALL = "Invite All", "Invites everyone on your invite buttons."
-local TEXT_DISBAND = "Disband"
-local TIP_DISBAND = "Removes everyone from your group. Group leader only, out of combat."
-local TEXT_IN_COMBAT = "The group can be disbanded once the fight is over."
+local TEXT_INVITE, TIP_INVITE = ns.L("Invite"), ns.L("Invites your target. Works in combat.")
+local TIP_PERSON = ns.L("Invites %s.")
+local TEXT_INVITE_ALL, TIP_INVITE_ALL = ns.L("Invite All"), ns.L("Invites everyone on your invite buttons.")
+local TEXT_DISBAND = ns.L("Disband")
+local TIP_DISBAND = ns.L("Removes everyone from your group. Group leader only, out of combat.")
+local TEXT_IN_COMBAT = ns.L("The group can be disbanded once the fight is over.")
 local LAYOUT_NAMES = { stacked = "Stacked", row = "Side by Side" }
-local SUMMARY_ROW, SUMMARY_STACKED = "Side by Side", "Stacked"
+local SUMMARY_ROW, SUMMARY_STACKED = ns.L("Side by Side"), ns.L("Stacked")
 
 local bar, moving, pending
 local events = CreateFrame("Frame")

@@ -14,15 +14,15 @@ local PIN_SIZE = St.PIN_SIZE_RANGE
 local OPACITY_RANGE = St.OPACITY_RANGE
 local PERCENT_SCALE = St.PERCENT_SCALE
 local ORDER_TRACKER = 10
-local TEXT_SECTION = "Sleeping Bag"
-local TEXT_OFF = "Turn on Discovery"
-local TEXT_PINS_OFF = "Turn on Sleeping Bag pins"
-local TEXT_HAVE_BAG = "You have the Cozy Sleeping Bag"
-local TEXT_STEP_OF = "Step %d of %d"
-local TEXT_HEADLINE = "Sleeping Bag: step %d of %d"
-local TEXT_REST = "Rest in it for a bonus to experience."
-local TEXT_STARTS = "It starts at level %d."
-local TEXT_NEXT = "Next: %s, %s."
+local TEXT_SECTION = ns.L("Sleeping Bag")
+local TEXT_OFF = ns.L("Turn on Discovery")
+local TEXT_PINS_OFF = ns.L("Turn on Sleeping Bag pins")
+local TEXT_HAVE_BAG = ns.L("You have the Cozy Sleeping Bag")
+local TEXT_STEP_OF = ns.L("Step %d of %d")
+local TEXT_HEADLINE = ns.L("Sleeping Bag: step %d of %d")
+local TEXT_REST = ns.L("Rest in it for a bonus to experience.")
+local TEXT_STARTS = ns.L("It starts at level %d.")
+local TEXT_NEXT = ns.L("Next: %s, %s.")
 
 local function On() return S.Get("enabled") == true end
 local function PinsOn() return On() and S.Get("bagMapPins") == true end

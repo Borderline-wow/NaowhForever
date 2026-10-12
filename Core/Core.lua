@@ -55,6 +55,10 @@ local TEXT_LIBRARIES_MISSING = "Libraries missing (%s), so parts of the addon wi
 local TEXT_RELOAD_BLOCKED = "Can't reload from a button in combat. Type /reload."
 local TEXT_COPY_HINT = "Ctrl+A, Ctrl+C to copy"
 local TEXT_GAME_DEFAULT = "Game Default"
+local UTF8_LATIN = "\195"
+local LATIN_CAPITAL, LATIN_SMALL = "\195([\128-\158])", "\195([\160-\190])"
+local LATIN_CASE_STEP, LATIN_TIMES, LATIN_DIVIDE = 32, 151, 183
+local SHARP_S, SHARP_S_UPPER = "\195\159", "SS"
 
 local ns = {}
 _G.NaowhForever = ns
@@ -67,6 +71,26 @@ function ns.L(key, ...)
     if text == nil or text == true then text = key end
     if select("#", ...) > 0 then return text:format(...) end
     return text
+end
+
+local function LatinUpper(byte)
+    local b = byte:byte()
+    if b == LATIN_DIVIDE then return nil end
+    return UTF8_LATIN .. string.char(b - LATIN_CASE_STEP)
+end
+
+local function LatinLower(byte)
+    local b = byte:byte()
+    if b == LATIN_TIMES then return nil end
+    return UTF8_LATIN .. string.char(b + LATIN_CASE_STEP)
+end
+
+function ns.Upper(text)
+    return (text:upper():gsub(LATIN_SMALL, LatinUpper):gsub(SHARP_S, SHARP_S_UPPER))
+end
+
+function ns.Lower(text)
+    return (text:lower():gsub(LATIN_CAPITAL, LatinLower))
 end
 
 ns.CODE_BUILD = "1.1.9"
@@ -315,7 +339,7 @@ ns.PRINT_LOGO = ("|T%s:0:0:0:%d|t"):format(PRINT_LOGO_PATH, -PRINT_LOGO_DROP)
 
 function ns.Print(msg)
     if issecretvalue and issecretvalue(msg) then
-        msg = ns.Color("accent", TEXT_SECRET)
+        msg = ns.Color("accent", ns.L(TEXT_SECRET))
     end
     print(ns.PRINT_LOGO .. " " .. ns.Color("accent", "Naowh") .. " Forever: " .. tostring(msg))
 end
@@ -326,7 +350,7 @@ local function OnLibraryCheck()
         if not (LibStub and LibStub(name, true)) then missing[#missing + 1] = name end
     end
     if #missing == 0 then return end
-    ns.Print(ns.Color(WARNING, TEXT_LIBRARIES_MISSING:format(table.concat(missing, ", "))))
+    ns.Print(ns.Color(WARNING, ns.L(TEXT_LIBRARIES_MISSING, table.concat(missing, ", "))))
 end
 
 local libCheck = CreateFrame("Frame")
@@ -380,7 +404,7 @@ local function CoverWithReload(btn)
 end
 
 local function ReloadBlocked()
-    ns.Print(TEXT_RELOAD_BLOCKED)
+    ns.Print(ns.L(TEXT_RELOAD_BLOCKED))
 end
 
 function ns.MakeReloadButton(btn)
@@ -737,10 +761,11 @@ end
 local function ComposeTooltip(frame)
     local b = frame._tipBody
     if type(b) == "function" then b = b() end
+    local title = ns.L(frame._tipTitle)
     if b and b ~= "" then
-        return ns.Color("accent", frame._tipTitle) .. "\n" .. b
+        return ns.Color("accent", title) .. "\n" .. ns.L(b)
     end
-    return frame._tipTitle
+    return title
 end
 
 local TOOLTIP_OPTS = { anchor = "cursor", justify = "LEFT" }
@@ -922,7 +947,7 @@ function ns.PromptText(title, text, maxLetters, onAccept)
     local head = UI.KeepFont(panel, "head", DIALOG_HEAD_SIZE, "OUTLINE")
     head:SetPoint("TOP", 0, -DIALOG_PAD)
     head:SetWidth(PROMPT_TEXT_W)
-    head:SetText(title)
+    head:SetText(ns.L(title))
     panel:SetHeight(math.max(PROMPT_H, head:GetStringHeight() + PROMPT_ROOM))
     local box = UI.Keep(panel, "box", ns.NewEditBox)
     box:SetPoint("TOP", head, "BOTTOM", 0, -PROMPT_BOX_GAP)
@@ -965,10 +990,10 @@ function ns.ShowCopyBox(title, text, onClose)
     local dimmer, panel = ns.MakeModal(COPY_W, COPY_H, "copyBox")
     local head = UI.KeepFont(panel, "head", DIALOG_HEAD_SIZE, "OUTLINE", T.accent)
     head:SetPoint("TOPLEFT", DIALOG_PAD, -COPY_HEAD_Y)
-    head:SetText(title)
+    head:SetText(ns.L(title))
     local hint = UI.KeepFont(panel, "hint", COPY_HINT_SIZE, nil, T.muted)
     hint:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -COPY_HINT_GAP)
-    hint:SetText(TEXT_COPY_HINT)
+    hint:SetText(ns.L(TEXT_COPY_HINT))
     UI.KeepButton(panel, "close", "X", COPY_CLOSE_SIZE, COPY_CLOSE_SIZE, function() dimmer:Hide() end)
         :SetPoint("TOPRIGHT", -COPY_CLOSE_INSET, -COPY_CLOSE_INSET)
 
@@ -991,7 +1016,7 @@ local function ConfirmHead(UI, panel, text)
     local head = UI.KeepFont(panel, "head", CONFIRM_TEXT_SIZE, nil)
     head:SetPoint("TOP", 0, -CONFIRM_TEXT_Y)
     head:SetWidth(CONFIRM_TEXT_W)
-    head:SetText(text)
+    head:SetText(ns.L(text))
     return head
 end
 
@@ -1354,7 +1379,7 @@ end
 
 function ns.SwitchProfile(name)
     local sv = DB()
-    if type(sv.profiles[name]) ~= "table" then return false, ERR_NO_PROFILE end
+    if type(sv.profiles[name]) ~= "table" then return false, ns.L(ERR_NO_PROFILE) end
     sv.charActive[CharKey()] = name
     activeRoot = nil
     local spec = ns.CurrentSpec and ns.CurrentSpec()
@@ -1369,8 +1394,8 @@ end
 
 local function ValidName(name, allowExisting)
     name = Trimmed(name)
-    if name == "" then return nil, "the name is empty" end
-    if not allowExisting and DB().profiles[name] then return nil, "that name is taken" end
+    if name == "" then return nil, ns.L("the name is empty") end
+    if not allowExisting and DB().profiles[name] then return nil, ns.L("that name is taken") end
     return name
 end
 
@@ -1381,7 +1406,7 @@ end
 
 function ns.SetAccountProfile(name)
     local sv = DB()
-    if type(sv.profiles[name]) ~= "table" then return false, ERR_NO_PROFILE end
+    if type(sv.profiles[name]) ~= "table" then return false, ns.L(ERR_NO_PROFILE) end
     sv.defaultProfile = name
     for char in pairs(sv.charActive) do sv.charActive[char] = name end
     sv.charActive[CharKey()] = name
@@ -1415,7 +1440,7 @@ end
 
 function ns.CopyProfile(src, name, overwrite)
     local sv = DB()
-    if type(sv.profiles[src]) ~= "table" then return false, ERR_NO_PROFILE end
+    if type(sv.profiles[src]) ~= "table" then return false, ns.L(ERR_NO_PROFILE) end
     local err
     name, err = ValidName(name, overwrite)
     if not name then return false, err end
@@ -1429,7 +1454,7 @@ end
 
 function ns.ResetProfileNamed(name)
     local sv = DB()
-    if type(sv.profiles[name]) ~= "table" then return false, ERR_NO_PROFILE end
+    if type(sv.profiles[name]) ~= "table" then return false, ns.L(ERR_NO_PROFILE) end
     if name == sv.charActive[CharKey()] then
         ns.SettingsRoot().tankReminder = nil
         return true
@@ -1455,8 +1480,8 @@ end
 
 function ns.DeleteProfile(name)
     local sv = DB()
-    if type(sv.profiles[name]) ~= "table" then return false, ERR_NO_PROFILE end
-    if CountProfiles(sv) <= 1 then return false, "the last profile cannot be deleted" end
+    if type(sv.profiles[name]) ~= "table" then return false, ns.L(ERR_NO_PROFILE) end
+    if CountProfiles(sv) <= 1 then return false, ns.L("the last profile cannot be deleted") end
     local wasMine = sv.charActive[CharKey()] == name
     sv.profiles[name] = nil
     local fallback = FallbackProfile(sv)

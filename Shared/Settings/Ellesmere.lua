@@ -9,9 +9,9 @@ local DB = "EllesmereUIDB"
 local QUEST_DB = "_EQT_DB"
 local WINDOW_OPENERS = { "Show", "Toggle", "ShowModule" }
 local LIST_JOIN = ", "
-local TEXT_BOTH = "%s is on in both EllesmereUI and Naowh Forever. Turn one of them off."
-local TEXT_BOTH_MANY = "%s are on in both EllesmereUI and Naowh Forever. Turn one of each off."
-local TEXT_OFF_HERE, TEXT_KEEP = "Turn Off Here", "Keep Both"
+local TEXT_BOTH = ns.L("%s is on in both EllesmereUI and Naowh Forever. Turn one of them off.")
+local TEXT_BOTH_MANY = ns.L("%s are on in both EllesmereUI and Naowh Forever. Turn one of each off.")
+local TEXT_OFF_HERE, TEXT_KEEP = ns.L("Turn Off Here"), ns.L("Keep Both")
 local TRACKER_ON = { path = { QUEST_DB, "profile", "questTracker", "enabled" }, default = true }
 
 local OVERLAPS = {

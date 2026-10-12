@@ -175,7 +175,7 @@ local ASSASSINATION = { name = "Assassination Rogue" }
 local WEIGHTS = { agi = 1, hit = 10, str = 0.5, int = 0 }
 local STATS = { 44, 80 }   -- your Strength and Agility
 
-local ns = {
+local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
     THEME = setmetatable({}, { __index = function() return WHITE end }),
     Color = function(_, text) return tostring(text) end,
     Font = function(parent) return Frame(parent) end,
@@ -363,6 +363,18 @@ check("the frame: its border, portrait, panes' art, divider and close button's l
     character.NineSlice.alpha == 0 and character.PortraitContainer.alpha == 0 and leftArt.alpha == 0
     and rightArt.alpha == 0 and divider.alpha == 0 and closeArt.alpha == 0)
 check("its title and level in our font", title.size == 12 and levelText.size == 14)
+local statRow = Frame()
+statRow.Label, statRow.Value, statRow.Background, statRow.Title = Frame(statRow), Frame(statRow), false, false
+local statLabel = statRow.Label
+statLabel.anchors, statLabel.wrap = { { "LEFT", statRow, "LEFT", 11, 0 } }, true
+statLabel.GetNumPoints = function(self) return #self.anchors end
+statLabel.GetPoint = function(self, i) return unpack(self.anchors[i]) end
+statLabel.GetWordWrap = function(self) return self.wrap end
+statLabel.SetWordWrap = function(self, on) self.wrap = on end
+statLabel:SetPoint("LEFT", statRow)
+CP.StatsLook.Style(nil, statRow)
+check("a game stat's long name (German Bewegungsgeschwindigkeit) stops short of its number, on one line",
+    statLabel.points.LEFT == statRow and statLabel.points.RIGHT == statRow.Value and statLabel.wrap == false)
 local badge = CP.badge
 check("your Naowh Score big under your level, shown", badge and badge.parent == statsList
     and badge.shown ~= false and badge.points.TOP == levelText)
@@ -672,6 +684,8 @@ check("its sheet at Blizz Default: Naowh's is on again", CP.On() and head.normal
 -------------------------------------------------------------------------------
 S.Set("characterPanel", false)
 check("off: the game's list back where the game had it", statsList.drop == 0 and statsList.lift == 0)
+check("off: a stat's name back where the game placed it, wrapping as before",
+    statLabel.points.LEFT == statRow and statLabel.points.RIGHT == nil and statLabel.wrap == true)
 check("off: the game's art back and ours hidden", head.normal.alpha == 1 and head.IconBorder.alpha == 1
     and head.icon.crop == 0 and h.shown == false)
 check("the frame's art back, its title and level in the game's font again", character.NineSlice.alpha == 1
@@ -832,7 +846,7 @@ local function PanelCard(flag)
         Default = function() return true end,
         OnChange = function() listeners = listeners + 1 end,
     }
-    local flagNs = {
+    local flagNs = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
         FEATURE_BADGES = flag, BADGES_LIVE = 1, THEME = ns.THEME, QoLSettings = store,
         CharacterPanel = { EllesmereSheet = function() return false end },
         Shared = { Style = dofile("Tools/regression/shared_style.lua"), Settings = { Page = function()

@@ -22,7 +22,7 @@ local chunk = assert(loadstring(constants .. Slice("local function ApplyNow()", 
     .. "\n" .. Slice("local reapplyPending")))
 
 local frames, timers, applied, watched = {}, {}, 0, 0
-local ns = { Shared = { Settings = { WatchEllesmere = function() watched = watched + 1 end } } }
+local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, Shared = { Settings = { WatchEllesmere = function() watched = watched + 1 end } } }
 local env = setmetatable({
     NaowhForever = ns,
     ns = ns,
