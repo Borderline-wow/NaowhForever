@@ -69,6 +69,7 @@ local ROWS = {
     Group("Colors"),
     { key = "iconColor", label = "Icon Color", colour = true, needs = NotClassic, why = TEXT_CLASSIC_ICONS,
       help = "The tint on every button's icon: Naowh's own and any addon's." },
+    { key = "clockColor", label = "Clock Color", colour = true, needs = "showClock" },
     Group("Visibility"),
     { key = "hideInCombat", label = "Hide In Combat", toggle = true, help = "The FPS / MS readout stays up." },
     { key = "mouseover", label = "Show On Mouseover", toggle = true,

@@ -8,7 +8,7 @@ local S = ns.UI.ModuleSettings("topBar", {
     showClock = F.showClock,
     iconSize = 22, clockSize = 27, clockFont = "Gotham Narrow Ultra", clockOutline = "NONE", use24h = false,
     font = "", outline = "OUTLINE",
-    bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 },
+    bgAlpha = 85, iconColor = { r = 1, g = 1, b = 1 }, clockColor = { r = 1, g = 1, b = 1 },
     hideInCombat = false, mouseover = false, mouseoverAlpha = 0,
     showSystem = F.showSystem, systemTooltip = true, sysSize = 13, tooltipScale = 120,
     layout = { left = { "ldb:NaowhForeverJournal", "ldb:NaowhForeverDiscovery" },

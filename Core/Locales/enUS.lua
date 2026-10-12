@@ -1544,6 +1544,7 @@ L["Click: show it on your map"] = true
 L["Click: show the quest"] = true
 L["Clicks Yes on popups"] = true
 L["Clock"] = true
+L["Clock Color"] = true
 L["Clock Font"] = true
 L["Clock Outline"] = true
 L["Clock Size"] = true

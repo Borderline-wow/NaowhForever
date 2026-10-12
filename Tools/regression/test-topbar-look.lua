@@ -31,6 +31,7 @@ for key, value in source:match("UI%.ModuleSettings%(\"topBar\", (%b{})"):gmatch(
 end
 defaults.iconSize, defaults.sysSize, defaults.clockSize = 22, 13, 27
 defaults.iconColor = { r = 1, g = 1, b = 1 }
+defaults.clockColor = { r = 1, g = 1, b = 1 }
 local settings = {}
 local S = { Get = function(k) if settings[k] == nil then return defaults[k] end return settings[k] end }
 
@@ -51,7 +52,7 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.up
 local function Text()
     return {
         SetFont = function(self, path, size, flags) self.path, self.size, self.flags = path, size, flags; return true end,
-        SetTextColor = function() end,
+        SetTextColor = function(self, r, g, b) self.r, self.g, self.b = r, g, b end,
     }
 end
 local function Button()
@@ -112,6 +113,11 @@ settings.clockOutline, settings.sysSize = "OUTLINE", 16
 Paint()
 check("Clock Outline outlines the clock", clock.flags == "OUTLINE")
 check("FPS / MS Size sizes the readout", sys.size == 16)
+check("the clock is white by default", clock.r == 1 and clock.g == 1 and clock.b == 1)
+settings.clockColor = { r = 1, g = 0.5, b = 0 }
+Paint()
+check("Clock Color colours the clock", clock.r == 1 and clock.g == 0.5 and clock.b == 0)
+check("not the readout", sys.g == 0)
 
 local rows, groupOf, groups, current = {}, {}, {}, nil
 for _, row in ipairs(api.ROWS) do
@@ -131,6 +137,8 @@ check("Outline is the shared choice", rows.outline.choice == OUTLINES)
 check("Clock Outline is the shared choice too", rows.clockOutline.choice == OUTLINES)
 check("Hide In Combat and the mouseover fade under Visibility", groupOf.hideInCombat == "Visibility"
     and groupOf.mouseover == "Visibility" and groupOf.mouseoverAlpha == "Visibility")
+check("Clock Color under Colors, only with the clock", groupOf.clockColor == "Colors"
+    and rows.clockColor.colour and rows.clockColor.needs == "showClock")
 check("the defaults are today's look", defaults.font == "" and defaults.outline == "OUTLINE"
     and defaults.clockOutline == "NONE")
 

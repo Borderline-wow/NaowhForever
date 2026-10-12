@@ -155,7 +155,8 @@ function Look.ClockFont(clock)
         clock:SetFont(ns.UIFontPath(), size, flags)
     end
     Parts.HudText(clock, outline == "" and "card" or false)
-    clock:SetTextColor(Tone("fg", WHITE))
+    local c = S.Get("clockColor")
+    clock:SetTextColor(c.r, c.g, c.b)
 end
 
 function Look.ClockText()
