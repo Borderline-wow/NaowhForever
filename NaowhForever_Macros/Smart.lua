@@ -20,7 +20,8 @@ local TEXT_REMOVE_IN_COMBAT = ns.L("Remove macros outside combat.")
 local TEXT_HEADLINE = ns.L("%d of %d macros kept current for you")
 local TEXT_OFF = ns.L("Turn on Macros to keep them current.")
 local TEXT_NO_CLASS_MACROS = ns.L("Your profile has no class macros for your %s.")
-local TEXT_CLASS_MACROS = ns.L("%d class macro%s from your profile for your %s.")
+local TEXT_CLASS_MACRO = ns.L("%d class macro from your profile for your %s.")
+local TEXT_CLASS_MACROS = ns.L("%d class macros from your profile for your %s.")
 local TEXT_ON_BAR = ns.L("%s is on the Consumable Bar. Take it off the bar first (Consumable Bar > Settings).")
 
 local MACROS = {
@@ -303,7 +304,7 @@ local function Detail()
     local name, class = UnitClass("player")
     local count = #((S.Get("classMacros") or {})[class] or {})
     if count == 0 then return TEXT_NO_CLASS_MACROS:format(name) end
-    return TEXT_CLASS_MACROS:format(count, count == 1 and "" or "s", name)
+    return (count == 1 and TEXT_CLASS_MACRO or TEXT_CLASS_MACROS):format(count, name)
 end
 
 local Smart = { list = MACROS, bag = BAG_MACROS, Body = Body, Write = Write, On = On, KeptCount = KeptCount,

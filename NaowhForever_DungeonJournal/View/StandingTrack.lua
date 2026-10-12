@@ -19,9 +19,8 @@ local SEG_LABEL_PAD = 6
 local HIT_LIFT = 4
 local ROUND_HALF = J.C.ROUND_HALF
 
-local TEXT_UNLOCKS = ns.L("%d %s for you %s here")
-local TEXT_REWARD, TEXT_REWARDS = ns.L("reward"), ns.L("rewards")
-local TEXT_UNLOCK_ONE, TEXT_UNLOCK_MANY = ns.L("unlocks"), ns.L("unlock")
+local TEXT_UNLOCKS_ONE = ns.L("%d reward unlocks for you here")
+local TEXT_UNLOCKS = ns.L("%d rewards unlock for you here")
 local TEXT_NO_REWARDS = ns.L("No rewards for you here")
 local TEXT_NOT_MET = ns.L("You have not met them yet.")
 local TEXT_HERE = ns.L("You are here.")
@@ -35,8 +34,7 @@ local TEXT_REWARD_COUNTS = ns.L(" rewards")
 
 local function RewardsLine(count)
     if count <= 0 then return TEXT_NO_REWARDS end
-    return TEXT_UNLOCKS:format(count, count == 1 and TEXT_REWARD or TEXT_REWARDS,
-        count == 1 and TEXT_UNLOCK_ONE or TEXT_UNLOCK_MANY)
+    return (count == 1 and TEXT_UNLOCKS_ONE or TEXT_UNLOCKS):format(count)
 end
 
 local function WhereLine(s, info)

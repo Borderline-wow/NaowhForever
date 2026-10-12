@@ -32,7 +32,8 @@ local TEXT_SETS = ns.L("Bar sets: ")
 local TEXT_NO_SETS = ns.L("No bar sets saved for your class.")
 local TEXT_DELETE = ns.L("Delete the bar set %s?")
 local TEXT_HEADLINE_NONE = ns.L("No bar sets saved for your %s yet")
-local TEXT_HEADLINE = ns.L("%d bar set%s saved for your %s")
+local TEXT_HEADLINE_ONE = ns.L("%d bar set saved for your %s")
+local TEXT_HEADLINE = ns.L("%d bar sets saved for your %s")
 local TEXT_DETAIL_OFF = ns.L("Turn on Action Bars to save and import your bars.")
 local TEXT_DETAIL_LAST = ns.L("This character last used %s. Import any set from the window, out of combat.")
 local TEXT_DETAIL = ns.L("Save your bars from the window, or with /nf bars save and a name.")
@@ -162,7 +163,7 @@ local function Headline()
     local n = SetCount()
     local class = UnitClass("player")
     if n == 0 then return TEXT_HEADLINE_NONE:format(class) end
-    return TEXT_HEADLINE:format(n, n == 1 and "" or "s", class)
+    return (n == 1 and TEXT_HEADLINE_ONE or TEXT_HEADLINE):format(n, class)
 end
 
 local function Detail()

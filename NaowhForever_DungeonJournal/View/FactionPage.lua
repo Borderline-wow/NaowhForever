@@ -36,16 +36,22 @@ local TEXT_NO_RANK = ns.L("The game has no PvP rank for you yet. It shows once t
 local TEXT_RANK_REWARDS = ns.L("Rank Rewards")
 local TEXT_NO_RANK_REWARDS = ns.L("The game lists no rank rewards for this season yet.")
 local TEXT_YOU_HAVE = ns.L("you have ")
-local TEXT_SPEND = ns.L("Unlocked and not yours yet: %d %s, %s")
-local TEXT_REWARD, TEXT_REWARDS_WORD = ns.L("reward"), ns.L("rewards")
+local TEXT_SPEND_ONE = ns.L("Unlocked and not yours yet: %d reward, %s")
+local TEXT_SPEND = ns.L("Unlocked and not yours yet: %d rewards, %s")
 local TEXT_CODE_END = "|r"
-local TEXT_IS, TEXT_ARE = ns.L("is"), ns.L("are")
-local TEXT_WHY_RECIPES = ns.L("%d %s for professions you do not have (My Professions Only)")
-local TEXT_IS_RECIPE, TEXT_ARE_RECIPES = ns.L("is a recipe"), ns.L("are recipes")
-local TEXT_WHY_CLASS = ns.L("%d %s not for your class (My Class Only)")
-local TEXT_WHY_COSMETIC = ns.L("%d %s cosmetic (Show Cosmetic Items, off)")
-local TEXT_WHY_BIS = ns.L("%d %s not BiS you are missing (Missing BiS Only)")
-local TEXT_WHY_UPGRADES = ns.L("%d %s not an upgrade over what you wear (Upgrades Only)")
+local WHY = {
+    recipes = { one = ns.L("%d is a recipe for professions you do not have (My Professions Only)"),
+        many = ns.L("%d are recipes for professions you do not have (My Professions Only)") },
+    class = { one = ns.L("%d is not for your class (My Class Only)"),
+        many = ns.L("%d are not for your class (My Class Only)") },
+    cosmetic = { one = ns.L("%d is cosmetic (Show Cosmetic Items, off)"),
+        many = ns.L("%d are cosmetic (Show Cosmetic Items, off)") },
+    bis = { one = ns.L("%d is not BiS you are missing (Missing BiS Only)"),
+        many = ns.L("%d are not BiS you are missing (Missing BiS Only)") },
+    upgrades = { one = ns.L("%d is not an upgrade over what you wear (Upgrades Only)"),
+        many = ns.L("%d are not an upgrade over what you wear (Upgrades Only)") },
+}
+local WHY_ORDER = { "recipes", "class", "cosmetic", "bis", "upgrades" }
 local TEXT_NO_REWARDS = ns.L("WoW Forever's build %s has no rewards for it yet: they show here once a build has them.")
 local TEXT_NOTHING_HERE = ns.L("Nothing here for you: of its rewards, %s. Turn %s off in Filters to see them.")
 local TEXT_THAT_FILTER, TEXT_THOSE_FILTERS = ns.L("that filter"), ns.L("those filters")
@@ -67,10 +73,6 @@ end
 
 local function OpenRepQuests()
     S.Set("repQuestsOpen", not S.Get("repQuestsOpen"))
-end
-
-local function IsAre(n)
-    return n == 1 and TEXT_IS or TEXT_ARE
 end
 
 local function HiddenBy(filters, id)
@@ -202,14 +204,10 @@ function ViewMixin:HiddenWhy(faction)
     end
     local why = wipe(self.whyParts or {})
     self.whyParts = why
-    local recipes = hidden.recipes
-    if recipes > 0 then
-        why[#why + 1] = TEXT_WHY_RECIPES:format(recipes, recipes == 1 and TEXT_IS_RECIPE or TEXT_ARE_RECIPES)
+    for _, by in ipairs(WHY_ORDER) do
+        local n = hidden[by]
+        if n > 0 then why[#why + 1] = WHY[by][n == 1 and "one" or "many"]:format(n) end
     end
-    if hidden.class > 0 then why[#why + 1] = TEXT_WHY_CLASS:format(hidden.class, IsAre(hidden.class)) end
-    if hidden.cosmetic > 0 then why[#why + 1] = TEXT_WHY_COSMETIC:format(hidden.cosmetic, IsAre(hidden.cosmetic)) end
-    if hidden.bis > 0 then why[#why + 1] = TEXT_WHY_BIS:format(hidden.bis, IsAre(hidden.bis)) end
-    if hidden.upgrades > 0 then why[#why + 1] = TEXT_WHY_UPGRADES:format(hidden.upgrades, IsAre(hidden.upgrades)) end
     if #why == 0 then return TEXT_NO_REWARDS:format(J.DATA_BUILD or "") end
     return TEXT_NOTHING_HERE:format(table.concat(why, TEXT_LIST), #why == 1 and TEXT_THAT_FILTER or TEXT_THOSE_FILTERS)
 end
@@ -237,7 +235,7 @@ function ViewMixin:DrawSpend(faction, reaction)
     local money = GetMoney()
     local have = TEXT_YOU_HAVE .. GetCoinTextureString(money)
     self.watchMoney = true
-    self:Add("line", SPEND_ICON, TEXT_SPEND:format(count, count == 1 and TEXT_REWARD or TEXT_REWARDS_WORD,
+    self:Add("line", SPEND_ICON, (count == 1 and TEXT_SPEND_ONE or TEXT_SPEND):format(count,
         GetCoinTextureString(copper)), money < copper and St.RED_CODE .. have .. TEXT_CODE_END or have)
 end
 

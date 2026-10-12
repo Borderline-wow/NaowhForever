@@ -30,7 +30,7 @@ local BLANK = " "
 local LEARN = { trainer = ns.L("trainers teach it"), vendor = ns.L("a vendor sells the formula"),
     drop = ns.L("its formula drops"), quest = ns.L("from a quest") }
 
-local ItemLevelText = B.View.Memo(ns.L("Best for this level %d item%s"))
+local ItemLevelText = B.View.Memo(ns.L("Best for this level %d item"))
 
 local function SpellName(spell)
     return C_Spell.GetSpellName(spell) or (TEXT_ENCHANT .. spell)
