@@ -1109,7 +1109,10 @@ specWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
 specWatch:RegisterUnitEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
 specWatch:SetScript("OnEvent", function() ns.ApplySpecProfile((ns.CurrentSpec())) end)
 
-local function ApplyNow() ns.Apply() end
+local function ApplyNow()
+    ns.Shared.Settings.WatchEllesmere()
+    ns.Apply()
+end
 
 local function OnReapplyEvent(_, event)
     if event == "PLAYER_LOGIN" then

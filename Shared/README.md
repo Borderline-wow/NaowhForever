@@ -80,8 +80,8 @@ Shared/
                    value, an X)
   Settings/
     Settings.lua   every settings page, declared once: pages, cards, rows, what changed, reset, search index
-    Ellesmere.lua  the note on a setting EllesmereUI also has, saying whether it is on there
-                   (Settings.EllesmereNote)
+    Ellesmere.lua  the popup when a setting is on in both EllesmereUI and here
+                   (Settings.EllesmereClash)
     Style.lua      the numbers a settings page's controls, rows and page share (Settings.Style)
     Controls.lua   the control on a row for each kind of setting, made once per row (Settings.Control)
     Rows.lua       a settings page's row kinds: a setting, a card's head and foot, a group, an info line,
@@ -115,7 +115,7 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   card, and a search hit on one opens the cog. `icons = { { texture, tip, open, enabled }, ... }`
   adds other icons beside it. A row's or card's `note` is a function given the row or card that
   returns a short line for it, or nil: beside a row's control, after a card's summary.
-  `Settings.EllesmereNote` is the one for a setting EllesmereUI also has. A card's
+  A card's
   `watch = { store, ... }` draws it again when another module's settings change too. A card's
   or row's `search = "..."` adds words the settings
   search finds but nothing shows, for clicks and slash commands too small for its help. The page
@@ -477,11 +477,19 @@ What a comment in the code used to say, in short. The house rules behind it are 
 - A cog opens one shared panel, drawn with the page's own row kinds, so its rows' dots, controls
   and help are the same. A redraw of the page puts it back under the cog. The page's rows hide for
   a moment on every redraw, so the panel closes only once the page itself is gone, a frame later.
-- `Settings.EllesmereNote` reads EllesmereUI's saved settings where its own code reads them:
-  `EllesmereUIDB` (account-wide, Forever Essentials' features in a table of their own) and the
-  Quest Tracker's profile (`_EQT_DB`). A value it never saved reads as its default, as EllesmereUI
-  does. Nothing shows while the addon that runs the feature is off, or its table is not there.
-  Auto-accept and hand-in read off while the Quest Tracker itself is off: they never run then.
+- A setting EllesmereUI also has (`OVERLAPS` in `Settings/Ellesmere.lua`) asks the player to turn
+  one of them off when both end up on: right after a toggle or card switch is clicked on here, or
+  when EllesmereUI's window closes with one newly on there. Only a click asks, so a profile import
+  or a setup never pops it. Turn Off Here turns ours off; EllesmereUI's settings are never written.
+- EllesmereUI's toggles save straight to its tables with no event, so its side is checked when its
+  window closes, against what was on when it opened. Its window is found through
+  `EllesmereUI:GetMainFrame()` after its Show, Toggle or ShowModule, hooked by Core a second after
+  login (`Settings.WatchEllesmere`), once every addon has loaded.
+- EllesmereUI's saved settings are read where its own code reads them: `EllesmereUIDB`
+  (account-wide, Forever Essentials' features in a table of their own) and the Quest Tracker's
+  profile (`_EQT_DB`). A value it never saved reads as its default, as EllesmereUI does. Nothing is
+  on there while the addon that runs the feature is off, or its table is not there. Auto-accept and
+  hand-in read off while the Quest Tracker itself is off: they never run then.
 - A settings view changed while hidden is marked stale and drawn again as it shows, so it never
   shows an old value (an options window that stepped aside for a picker, a page another changed).
 
