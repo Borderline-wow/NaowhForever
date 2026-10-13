@@ -124,9 +124,9 @@ do
     Setup.Toggle(picks, "qol", false)
     check("turning Quality of Life off turns the Top Bar off", not picks.modules.topBar and not picks.modules.qol)
     Setup.Toggle(picks, "professions", false)
-    check("Professions off takes the Training Planner", not picks.modules.training)
+    check("Professions off leaves the Training Planner on", picks.modules.training)
     Setup.Toggle(picks, "training", true)
-    check("the Training Planner brings Professions", picks.modules.training and picks.modules.professions)
+    check("the Training Planner does not bring Professions", not picks.modules.professions)
     Setup.Toggle(picks, "groupInspect", true)
     Setup.Toggle(picks, "bis", false)
     check("the BiS List off takes Group Inspect", not picks.modules.bis and not picks.modules.groupInspect)
@@ -250,7 +250,7 @@ end
 
 do
     local enabled = All(true)
-    enabled.NaowhForever_Training, enabled.NaowhForever_Professions = false, false
+    enabled.NaowhForever_TopBar, enabled.NaowhForever_QoL = false, false
     local w = Game({ enabled = enabled, loaded = enabled, account = { welcomeSeen = true },
         root = { pvp = { enabled = false }, qol = { characterPanel = true, inspectPanel = false, groupInspect = true } } })
     local Setup = w.ns.Setup
@@ -265,11 +265,11 @@ do
         w.root.qol.characterPanelPicked == true and w.root.qol.inspectPanelPicked == nil)
     Setup.Restore()
     picks = Setup.Fresh()
-    Setup.Toggle(picks, "training", true)
+    Setup.Toggle(picks, "topBar", true)
     plan = Applied(w, picks)
     check("a module whose addon is off: it and what it needs enabled, with a reload", plan.reload
-        and Names(plan.on) == "Training Planner,Professions" and w.enabled.NaowhForever_Training
-        and w.enabled.NaowhForever_Professions and w.Switch("training"))
+        and Names(plan.on) == "Quality of Life,Top Bar" and w.enabled.NaowhForever_TopBar
+        and w.enabled.NaowhForever_QoL and w.Switch("topBar"))
     Setup.Restore()
     picks = Setup.Fresh()
     Setup.Toggle(picks, "bis", false)

@@ -5,7 +5,7 @@ it costs, with the trainer's own prices once you have visited one. A road to 60 
 level that brings spells, a Builds tab with talent builds level by level (Naowh's, saved, imported,
 edited, followed as you level), a mini bar, a level-up toast and a panel beside your class trainer.
 Laid out like the [Dungeon Journal](../NaowhForever_DungeonJournal/README.md), on
-[`Shared/`](../Shared/README.md). It depends on Professions, whose trainer service reading it uses.
+[`Shared/`](../Shared/README.md).
 
 ## Layout
 

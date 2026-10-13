@@ -8,6 +8,8 @@ local Prices = Training.Prices
 local Changed = Training.Changed
 
 local LEVEL, SPELL = Training.C.ENTRY_LEVEL, Training.C.ENTRY_SPELL
+local KINDS = { available = true, unavailable = true, used = true, header = true }
+local ICON_MIN_ID = 1000
 local FOLLOW_EVENTS = { "TRAIT_TREE_CURRENCY_INFO_UPDATED", "PLAYER_REGEN_ENABLED" }
 
 local scanQueued, changeQueued = false, false
@@ -23,6 +25,17 @@ local function SpellsByService()
         end
     end
     return byKey
+end
+
+local function ServiceInfo(i)
+    local values = { GetTrainerServiceInfo(i) }
+    local kind, icon
+    for k = 2, #values do
+        local v = values[k]
+        if not kind and type(v) == "string" and KINDS[v] then kind = v end
+        if not icon and type(v) == "number" and v > ICON_MIN_ID then icon = v end
+    end
+    return values[1], kind, icon
 end
 
 local function ServiceSpell(byKey, i)
@@ -107,6 +120,7 @@ local function OnLogin(self)
 end
 
 Training.SpellsByService = SpellsByService
+Training.ServiceInfo = ServiceInfo
 Training.ServiceSpell = ServiceSpell
 Training.Apply = Apply
 

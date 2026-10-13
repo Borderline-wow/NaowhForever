@@ -77,4 +77,19 @@ Case("QoL declares the Trainer Popup card on its XP page, so it shows without th
         and source:find('S.Set("trainerPos", nil)', 1, true))
     assert(card:find("button = ns.TrainerRankCheck,", 1, true) and card:find("button = ns.TrainerForgetKept,", 1, true))
 end)
+Case("a profession trainer's offers and known recipes are not new spells; class spells are", function()
+    local trainer, recipes = true, {}
+    local env = { atTrainer = true, IsTradeskillTrainer = function() return trainer end,
+        C_TradeSkillUI = { GetRecipeInfo = function(id) return recipes[id] end } }
+    local chunk = assert(loadstring(Slice("local function IsRecipe(", "\nlocal function Learned(")
+        .. "\nreturn IsRecipe"))
+    setfenv(chunk, env)
+    local IsRecipe = chunk()
+    assert(IsRecipe(1), "any offer at a profession trainer")
+    trainer, recipes[2] = false, {}
+    assert(IsRecipe(2), "a recipe the game knows")
+    assert(not IsRecipe(3), "a class spell")
+    env.atTrainer, trainer = false, true
+    assert(not IsRecipe(3), "the trainer flag counts only at a trainer")
+end)
 print(count .. " trainer rank regressions passed")

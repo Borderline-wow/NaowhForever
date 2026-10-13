@@ -420,8 +420,12 @@ local function OnShowTimer()
     if showPending == 0 and not atTrainer then Show() end
 end
 
+local function IsRecipe(spellID)
+    return (atTrainer and IsTradeskillTrainer()) or C_TradeSkillUI.GetRecipeInfo(spellID) ~= nil
+end
+
 local function Learned(spellID)
-    if C_Spell.IsSpellPassive(spellID) then return end
+    if C_Spell.IsSpellPassive(spellID) or IsRecipe(spellID) then return end
     learned[#learned + 1] = spellID
     if S.Get("trainerGlow") then
         NewSpells()[spellID] = true

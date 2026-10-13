@@ -706,9 +706,9 @@ confirmText = nil
 Click(Button("Professions")); Flush()
 switch.scripts.OnClick(); Flush()
 switch.scripts.OnClick(); Flush()
-Check(confirmText and confirmText:find("Training Planner", 1, true), "Professions takes Training Planner with it")
+Check(confirmText and not confirmText:find("Training Planner", 1, true), "Professions leaves Training Planner alone")
 confirmYes()
-Check(disabled.NaowhForever_Professions and disabled.NaowhForever_Training and not disabled.NaowhForever_BiS,
+Check(disabled.NaowhForever_Professions and not disabled.NaowhForever_Training and not disabled.NaowhForever_BiS,
     "and only the modules that need it")
 missingAddOns.NaowhForever_Professions = true
 for _, page in ipairs(UI.SearchPages()) do

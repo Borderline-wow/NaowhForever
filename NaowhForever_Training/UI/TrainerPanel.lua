@@ -75,7 +75,7 @@ local function Offers()
     local byKey = Training.SpellsByService()
     local out, myLevel = {}, UnitLevel("player")
     for i = 1, GetNumTrainerServices() do
-        local name, kind, icon = ns.TrainerServiceInfo(i)
+        local name, kind, icon = Training.ServiceInfo(i)
         local level = select(SERVICE_LEVEL, GetTrainerServiceInfo(i)) or 0
         local spell = Training.ServiceSpell(byKey, i)
         local open = kind == "available"
@@ -117,7 +117,7 @@ local function LearnAll()
     local buy = Affordable(panel.offers)
     table.sort(buy, LastFirst)
     for _, offer in ipairs(buy) do
-        if ns.TrainerServiceInfo(offer.index) == offer.name then
+        if Training.ServiceInfo(offer.index) == offer.name then
             BuyTrainerService(offer.index)
             learned = learned + 1
         end

@@ -69,7 +69,7 @@ local MODULES = {
           { name = "Character", reuse = true },
       } },
     { name = "Training Planner", group = "ADVENTURE", navIcon = "notes", settings = "TrainingSettings",
-      addon = "NaowhForever_Training", needs = { "NaowhForever_Professions" },
+      addon = "NaowhForever_Training",
       open = "ToggleTrainingWindow",
       command = "training", short = "Training", icon = "Interface\\Icons\\INV_Misc_Book_11",
       subtitle = "What you can train now, what each level brings and what it costs.",
