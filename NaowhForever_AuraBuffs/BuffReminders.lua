@@ -214,12 +214,17 @@ local function Lasts(left, warn, duration)
     return true
 end
 
+local function SlotEnchanted(weaponSlot, warn)
+    for _, enchant in pairs(C_Item.GetWeaponEnchantInfo(weaponSlot)) do
+        if enchant.hasEnchant and Lasts(enchant.timeLeft / 1000, warn) then return true end
+    end
+    return false
+end
+
 local function Enchanted(slots, warn)
-    local enchants = { GetWeaponEnchantInfo() }
     for _, slot in ipairs(slots) do
-        local i = slot == 16 and 1 or 5
-        if GetInventoryItemID("player", slot) then
-            if not (enchants[i] and Lasts(enchants[i + 1] / 1000, warn)) then return false end
+        if GetInventoryItemID("player", slot) and not SlotEnchanted(slot == 16 and 0 or 1, warn) then
+            return false
         end
     end
     return true

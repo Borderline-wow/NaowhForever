@@ -97,7 +97,9 @@ NaowhForever_AuraBuffs/
   known spell, so families list the best first. Forever adds its own IDs: Trueshot Aura 1299346 and
   1299348, Water Shield 408510 (the TBC IDs do not exist), Fel Armor 403619 (Wowhead dataEnv=16,
   2026-10-11; not yet checked in the client).
-- Poisons and imbues are temporary weapon enchants (`GetWeaponEnchantInfo`), so any one counts,
+- Poisons and imbues are temporary weapon enchants (`C_Item.GetWeaponEnchantInfo`, which lists
+  several per weapon with the empty ones first: Windfury is its second entry, where the old
+  `GetWeaponEnchantInfo` global reads only the first), so any one counts,
   a sharpening stone too. Nothing reliable fires when one runs out (Blizzard's own display polls),
   so its expiry is timed. Poisons check every equipped weapon, imbues the main hand. An enchant
   reported with no time left counts as up and times nothing.

@@ -144,10 +144,6 @@ local function Fixture(opts)
         UnitCanAttack = function() return true end,
         UnitClassification = function() return state.target end,
         GetInventoryItemID = function(_, slot) return state.weapons[slot] ~= nil and 1000 + slot or nil end,
-        GetWeaponEnchantInfo = function()
-            local mh, oh = state.weapons[16], state.weapons[17]
-            return mh and true or false, mh and mh * 1000 or 0, 0, 0, oh and true or false, oh and oh * 1000 or 0
-        end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
         issecretvalue = function(v) return v == SECRET end,
         C_UnitAuras = {
@@ -172,6 +168,11 @@ local function Fixture(opts)
                 if spell then return "spell", spell end
             end,
             RequestLoadItemDataByID = function(id) state.requested[id] = true end,
+            GetWeaponEnchantInfo = function(weaponSlot)
+                local left = state.weapons[weaponSlot == 0 and 16 or 17]
+                return { { hasEnchant = false, timeLeft = 0 },
+                    { hasEnchant = left and true or false, timeLeft = left and left * 1000 or 0 } }
+            end,
         },
         C_Spell = {
             GetSpellTexture = function(id) return "spell:" .. id end,
