@@ -154,13 +154,18 @@ end
 check("the weapon shot (Aimed Shot) is left out", Data[19434] == nil)
 check("Multi-Shot is left out", Data[2643] == nil)
 check("seals and Judgement are left out", Data[21084] == nil and Data[20271] == nil and Data[20154] == nil)
-check("area triggers (Consecration, Blizzard) are left out", Data[26573] == nil and Data[10] == nil)
+check("percent of power and over time triggers are left out (Healing Rain, Penance, Light's Vigil, Starfall)",
+    Data[415236] == nil and Data[402174] == nil and Data[1310911] == nil and Data[439748] == nil)
 check("Swiftmend's scripted heal is left out", Data[18562] == nil)
 local function Area(id) return tonumber(Data[id]:match("^%d+,%d+,%d+,(%d)")) end
 check("area spells are flagged (Frost Nova, Arcane Explosion, Prayer of Healing, Tranquility, Wild Growth, Mind Sear)",
     Area(122) == 1 and Area(1449) == 1 and Area(596) == 1 and Area(740) == 1 and Area(408120) == 1 and Area(15237) == 1)
 check("single target spells and chains are not (Frostbolt, Lesser Heal, Chain Heal, Chain Lightning)",
     Area(116) == 0 and Area(2050) == 0 and Area(1064) == 0 and Area(421) == 0)
+check("area triggers are in and flagged (Blizzard, Rain of Fire, Flamestrike, Consecration, Hurricane, Volley, Fire Nova)",
+    Area(10) == 1 and Area(5740) == 1 and Area(2120) == 1 and Area(26573) == 1 and Area(16914) == 1
+    and Area(1510) == 1 and Area(408341) == 1)
+check("Holy Shock is in, not area, with a damage part and a heal part", Area(20473) == 0 and #Data[20473] > 40)
 check("Hellfire counts the triggered spell's 82 a tick, not its self damage as well",
     Area(1949) == 1 and Data[1949]:match(",(%d+),[%d.]+,[%d.]+,15,15$") == "82")
 check("Lesser Heal, Frostbolt, Shadow Word: Pain, Exorcism, Arcane Missiles are in",
@@ -254,6 +259,20 @@ costs[900002], casts[900002] = { { type = 0, cost = 10 } }, 1000
 lines = Show(900002)
 check("both on one target: a damage line and a heal line", #lines == 2
     and lines[1][1] == "4.00 damage per mana  ||  40 per second" and lines[2][1] == "2.00 healing per mana  ||  20 per second")
+
+local frostPower = power[5]
+power[5] = 0
+costs[10], casts[10] = { { type = 0, cost = 320 } }, 0
+check("Blizzard 1 is one target's eight ticks of 24.5, per target", Show(10)[1][1]
+    == "0.61 damage per mana / target  ||  25 per second / target")
+power[5] = frostPower
+costs[5740], casts[5740] = { { type = 0, cost = 500 } }, 0
+check("Rain of Fire 1 is four ticks of 41.5", Show(5740)[1][1]
+    == "0.33 damage per mana / target  ||  21 per second / target")
+costs[20473], casts[20473] = { { type = 0, cost = 90 } }, 0
+lines = Show(20473)
+check("Holy Shock 1 gets a damage line and a heal line, for one target each",
+    #lines == 2 and lines[1][1] == "2.02 damage per mana" and lines[2][1] == "1.73 healing per mana")
 
 Data[900003] = "2,60,0,1,0,40,0,0,0,0,0,0,0"
 costs[900003], casts[900003] = { { type = 0, cost = 10 } }, 1000

@@ -153,5 +153,77 @@ class Spells(unittest.TestCase):
         self.assertEqual(se.lua_number(-0.0), "0")
 
 
+class Triggers(unittest.TestCase):
+    """Spells whose amount is in the spell their description names."""
+
+    def setUp(self):
+        t = tables()
+        cast = [20, 21, 22, 23, 24, 25, 26]
+        t["SkillLineAbility"] += [{"SkillLine": HOLY, "Spell": str(s), "ClassMask": "16"} for s in cast]
+        t["SpellPower"] += [{"SpellID": str(s), "PowerType": "0", "ManaCost": "50", "PowerCostPct": "0"} for s in cast]
+        t["SpellDuration"] += [{"ID": "9", "Duration": "8000"}]
+        t["SpellMisc"] += [{"SpellID": str(s), "DurationIndex": "9", "SchoolMask": "16"} for s in (20, 21, 24, 26)]
+        t["SpellLevels"] += [{"SpellID": "20", "SpellLevel": "20", "MaxLevel": "25"}]
+        t["SpellEffect"] = t["SpellEffect"] + [
+            effect(20, 0, 3, coefficient=0.03, target="87", target1="16"),                  # Blizzard
+            effect(20, 1, 179, target="87", target1="16"),
+            effect(20, 2, 6, aura=226, period=1000, target="1"),
+            effect(120, 0, 2, base=24, per_level=0.1, coefficient=0.042, target="87", target1="16"),
+            effect(21, 0, 2, base=60, coefficient=0.157, target="16"),                     # Flamestrike
+            effect(21, 1, 179, target="87", target1="16"),
+            effect(21, 2, 6, aura=226, period=2000, target="1"),
+            effect(121, 0, 2, base=11, coefficient=0.032, target="87", target1="16"),
+            effect(22, 0, 3, coefficient=1, target="25"),                                  # Holy Shock
+            effect(122, 0, 2, base=182, coefficient=0.429, target="6"),
+            effect(123, 0, 10, base=156, coefficient=0.429, target="21"),
+            effect(23, 0, 3, target="25"),                                                 # Penance
+            effect(124, 0, 2, base=81, coefficient=0.285, target="6"),
+            effect(24, 0, 179, target="87", target1="16"),                                 # a count of five
+            effect(24, 1, 6, aura=226, period=2000, target="1"),
+            effect(25, 0, 3, target="25"),                                                 # Healing Rain
+            effect(25, 1, 179, target="132", target1="31"),
+            effect(25, 2, 6, aura=226, period=1000, target="1"),
+            effect(125, 0, 10, base=15, coefficient=0.063, target="87", target1="31"),
+            effect(26, 0, 3, target="25"),                                                 # Fire Nova
+            effect(126, 0, 2, base=52, coefficient=0.1, target="22", target1="15"),
+        ]
+        t["Spell"] = [
+            {"ID": "20", "Description_lang": "Ice shards doing ${$120m1*$d*$<frostdamage>} Frost damage over $d."},
+            {"ID": "21", "Description_lang": "Burns for $s1 Fire damage and ${$121m1*4} Fire damage over $d."},
+            {"ID": "22", "Description_lang": "Causing $122s1 Holy damage to an enemy, or $123s1 healing to an ally."},
+            {"ID": "23", "Description_lang": "Causing $124s1 Holy damage to an enemy, instantly and every $2t2 sec for $2d."},
+            {"ID": "24", "Description_lang": "Burns for ${5*$124m1} Fire damage over $d."},
+            {"ID": "25", "Description_lang": "Heals for ${$<healpower>*$125m1/100} every second."},
+            {"ID": "26", "Description_lang": "Inflicts $126s1 fire damage to enemies within $126a1 yd."},
+        ]
+        self.found = se.entries(t)
+
+    def test_area_trigger_is_one_targets_ticks_of_the_named_spell(self):
+        entry = self.found[20]
+        part, = entry["parts"]
+        self.assertEqual((entry["area"], entry["school"], entry["level"], entry["maxLevel"]), (1, 5, 20, 25))
+        self.assertEqual((part["heal"], part["direct"], part["tick"], part["tickPerLevel"], part["tickCoefficient"],
+                          part["ticks"], part["seconds"]), (se.DAMAGE, 0, 24, 0.1, 0.042, 8, 8))
+
+    def test_the_spells_own_damage_stays_direct_and_the_named_one_ticks(self):
+        part, = self.found[21]["parts"]
+        self.assertEqual((part["direct"], part["directCoefficient"], part["tick"], part["ticks"]), (60, 0.157, 11, 4))
+
+    def test_dummy_spell_gets_a_part_for_each_named_spell(self):
+        entry = self.found[22]
+        self.assertEqual(entry["area"], 0)
+        self.assertEqual(sorted((p["heal"], p["direct"]) for p in entry["parts"]), [(se.DAMAGE, 182), (se.HEAL, 156)])
+
+    def test_over_time_percent_of_power_and_unnamed_are_left_out(self):
+        self.assertNotIn(23, self.found, "a volley over time: one hit would undercount it")
+        self.assertNotIn(25, self.found, "an amount that is a percent of healing power")
+
+    def test_dummy_spell_area_follows_the_named_spells_targets(self):
+        self.assertEqual(self.found[26]["area"], 1)
+
+    def test_a_count_that_disagrees_with_the_ticks_is_left_out(self):
+        self.assertNotIn(24, self.found, "five times over eight seconds of two-second ticks")
+
+
 if __name__ == "__main__":
     unittest.main()
