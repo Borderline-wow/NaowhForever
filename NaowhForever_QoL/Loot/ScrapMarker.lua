@@ -656,7 +656,7 @@ local function Summary()
 end
 
 Shared.Settings.Page("QoL/Loot & Items", S):Card({
-    id = "scrapMarker", name = "Scrap Marker", order = 25, switch = "scrapMarker",
+    id = "scrapMarker", name = "Scrap Marker", order = 65, switch = "scrapMarker",
     help = "Alt-click an item in your bags to mark it as scrap, and sell it at the next vendor.",
     search = "/nf scrap nf scrap list",
     summary = Summary,
