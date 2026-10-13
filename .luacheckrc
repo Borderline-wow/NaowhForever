@@ -1,7 +1,7 @@
 -- luacheck settings for Naowh Forever. From the repo root: luacheck .
 -- Lua 5.1, as the game runs it. Libs/ is fetched by the packager and not ours to lint.
 std = "lua51"
-exclude_files = { "Libs/", ".claude/" }
+exclude_files = { "Libs/", ".claude/", "NaowhForever_DamageMeter/" }
 
 -- WoW calls handlers with fixed arguments (self, event, ...), so unused ones are normal.
 ignore = { "212" }
@@ -20,8 +20,6 @@ globals = {
     "NaowhForever_OnCompartmentEnter", "NaowhForever_OnCompartmentLeave", "NaowhForever_ToggleHudEditor",
     "NaowhForever_ToggleModule",
     "BINDING_NAME_NAOWHFOREVER_HUD", "NaowhForever_ToggleTraining", "BINDING_NAME_NAOWHFOREVER_TRAINING",
-    "NaowhForever_ResetDamageMeter", "BINDING_NAME_NAOWHFOREVER_DAMAGEMETER_RESET",
-    "NaowhForever_ToggleDamageMeter", "BINDING_NAME_NAOWHFOREVER_DAMAGEMETER_TOGGLE",
     "SLASH_NAOWHFOREVER1", "SLASH_NAOWHFOREVER2", "SLASH_NAOWHFOREVER3",
     "SLASH_NAOWHFOREVERQUESTLIST1", "SLASH_NAOWHFOREVERQUESTLIST2",
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHFOREVERAIM1",

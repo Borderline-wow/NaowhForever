@@ -189,9 +189,6 @@ ns.FEATURES = {
         focusEnabled = false,
         warnSound = false,
     },
-    damageMeter = {
-        enabled = false,
-    },
     pvp = {
         enabled = false,
         auras = true,

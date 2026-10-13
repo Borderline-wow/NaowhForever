@@ -127,9 +127,9 @@ Namespace and builds
   from a client that was not reloaded.
 - Libs/ is not in git; the packager adds it. An install from the source zip has none, so login
   says so once instead of features failing one by one.
-- The Damage Meter turns the game's meter (`damageMeterEnabled`) off and keeps what it was on the
-  account. With that addon disabled or removed nothing of it runs to put it back, so the core does at
-  login when it is not loaded.
+- The Damage Meter module is no longer shipped (its folder stays in git). It turned the game's meter
+  (`damageMeterEnabled`) off and kept what it was on the account, so the core puts that back at login
+  when the addon is not loaded.
 
 Theme
 - Naowh's scheme is dark grey with his blue (#0091ed) as the single accent. Each preset keeps text
