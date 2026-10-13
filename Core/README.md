@@ -292,6 +292,9 @@ Profile strings
   reads are copied in.
 - What one player answered about EllesmereUI's windows, and their invite buttons' friends (`ns.PROFILE_OWN`),
   are never shared.
+- A module's on/off switch lives in the WoW AddOn list, not SavedVariables, so the Settings part
+  also carries each module's addon name and state (`__modules`) and import applies it with
+  `EnableAddOn`/`DisableAddOn` rather than merging it into the module's own settings table.
 - The skin travels in a profile string's Look part, with the theme, font and window scale. A
   consumable needs only its item ID; its buff IDs may be left out.
 - A multiline edit box is as tall as its text, so an empty one is given a height or it takes no

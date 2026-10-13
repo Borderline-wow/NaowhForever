@@ -182,6 +182,41 @@ Case("the parts a string holds, for the import's ticks", function()
         .. "builds:1 builds,bisLists:1 lists,look", table.concat(keys, ","))
 end)
 
+Case("a module's on/off travels with Settings, through the AddOn list rather than SavedVariables",
+    function()
+    local w = World()
+    local store = { Set = function() end }
+    local calls = {}
+    _G.C_AddOns = {
+        EnableAddOn = function(addon) calls[#calls + 1] = "enable:" .. addon end,
+        DisableAddOn = function(addon) calls[#calls + 1] = "disable:" .. addon end,
+    }
+    w.ns.LinkedAddons = function(addon) return { addon } end
+    w.ns.ModuleAddons = function()
+        return {
+            { addon = "NaowhForever_Discovery", store = store, key = "enabled", on = true },
+            { addon = "NaowhForever_GearSets", store = store, key = "gearSets", on = false },
+        }
+    end
+    local text = assert(w.ns.ExportProfile())
+    local parts = assert(w.ns.DecodeProfile(text)).parts
+    assert(parts.settings.__modules.NaowhForever_Discovery == true)
+    assert(parts.settings.__modules.NaowhForever_GearSets == false)
+
+    -- the importing character starts with the opposite state
+    w.ns.ModuleAddons = function()
+        return {
+            { addon = "NaowhForever_Discovery", store = store, key = "enabled", on = false },
+            { addon = "NaowhForever_GearSets", store = store, key = "gearSets", on = true },
+        }
+    end
+    w.ns.ImportProfile(assert(w.ns.DecodeProfile(text)), { settings = true }, "Modules")
+    assert(calls[1] == "enable:NaowhForever_Discovery", calls[1])
+    assert(calls[2] == "disable:NaowhForever_GearSets", calls[2])
+    assert(#calls == 2, "a module already in the wanted state is left alone")
+    _G.C_AddOns = nil
+end)
+
 Case("import: a new profile with every part, switched to, the old one untouched", function()
     local w = World()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))

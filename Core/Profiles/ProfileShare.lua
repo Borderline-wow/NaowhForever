@@ -205,6 +205,20 @@ local function CollectSettings(root, budget)
     return next(settings) and settings or nil
 end
 
+local MODULE_STATE_KEY = "__modules"
+
+local function CollectModuleState()
+    if type(ns.ModuleAddons) ~= "function" then return nil end
+    local out
+    for _, m in ipairs(ns.ModuleAddons()) do
+        if type(m.addon) == "string" then
+            out = out or {}
+            out[m.addon] = m.on == true
+        end
+    end
+    return out
+end
+
 local function CollectMacros(root, utility, budget)
     local macros = {}
     if type(root.macros) == "table" then macros.module = Plain(root.macros, 1, budget) end
@@ -269,6 +283,11 @@ local function Collect()
     local utility = Utility(root.tankReminder)
     local parts = {}
     parts.settings = CollectSettings(root, budget)
+    local moduleState = CollectModuleState()
+    if moduleState then
+        parts.settings = parts.settings or {}
+        parts.settings[MODULE_STATE_KEY] = moduleState
+    end
     parts.macros = CollectMacros(root, utility, budget)
     parts.consumables = CollectConsumables(utility, budget)
     parts.bisLists = CollectBisLists(account, budget)
@@ -305,10 +324,22 @@ local function OldConsumables(parts)
     end
 end
 
+local function ValidModuleState(state)
+    if type(state) ~= "table" then return false end
+    for addon, on in pairs(state) do
+        if type(addon) ~= "string" or type(on) ~= "boolean" then return false end
+    end
+    return true
+end
+
 local function CleanParts(payload)
     local Text, parts = ns.Shared.Decode.Text, payload.parts
     payload.name, payload.author = Text(payload.name, TEXT_MAX), Text(payload.author, TEXT_MAX)
     payload.made = Text(payload.made, TEXT_MAX)
+    if type(parts.settings) == "table" then
+        local state = parts.settings[MODULE_STATE_KEY]
+        parts.settings[MODULE_STATE_KEY] = ValidModuleState(state) and state or nil
+    end
     OldConsumables(parts)
     parts.consumables = ValidConsumables(parts.consumables) and CleanConsumables(parts.consumables) or nil
     local macros = parts.macros
@@ -357,7 +388,11 @@ local function ListCount(data)
 end
 
 local function PartDetail(key, data)
-    if key == "settings" then return TEXT_MODULES:format(Count(data)) end
+    if key == "settings" then
+        local n = Count(data)
+        if data[MODULE_STATE_KEY] then n = n - 1 end
+        return TEXT_MODULES:format(n)
+    end
     if key == "macros" then return TEXT_CLASS_MACROS:format(ClassMacroCount(data)) end
     if LIST_NOUN[key] then return ("%d %s"):format(ListCount(data), LIST_NOUN[key]) end
 end
@@ -587,6 +622,23 @@ local function AddBuilds(incoming)
     return added
 end
 
+local function ApplyModuleState(state)
+    if type(state) ~= "table" or type(ns.ModuleAddons) ~= "function" or type(ns.LinkedAddons) ~= "function" then
+        return
+    end
+    for _, m in ipairs(ns.ModuleAddons()) do
+        local want = state[m.addon]
+        if want ~= nil and want ~= m.on then
+            if want then
+                for _, addon in ipairs(ns.LinkedAddons(m.addon, true)) do C_AddOns.EnableAddOn(addon) end
+                if m.store then m.store.Set(m.key, true) end
+            else
+                C_AddOns.DisableAddOn(m.addon)
+            end
+        end
+    end
+end
+
 local function ImportSettings(root, settings, wanted)
     for key, values in pairs(settings) do
         local defaults = ns.ModuleDefaults(key)
@@ -594,6 +646,7 @@ local function ImportSettings(root, settings, wanted)
             root[key] = DropOwn(key, Checked(values, defaults))
         end
     end
+    ApplyModuleState(settings[MODULE_STATE_KEY])
     if wanted.acting then return end
     for _, item in ipairs(ACTING) do
         local values = root[item.module]
