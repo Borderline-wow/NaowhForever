@@ -21,6 +21,7 @@ local function Learn(unit)
     Q.Refresh()
     local trivial = not C_Minimap.IsFilteredOut(Enum.MinimapTrackingFilter.TrivialQuests)
     for _, id in ipairs(Q.GiverQuests(UnitName(unit), zone.map)) do
+        if offered[id] and Q.Expected(id) == "later" then Q.SetOpened(id) end
         if Q.Expected(id) == "open" and (trivial or not Q.Trivial(id)) then
             Q.SetOffered(id, offered[id] == true)
         end

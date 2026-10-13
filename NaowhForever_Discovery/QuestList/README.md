@@ -67,7 +67,10 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
   that drops it as its giver, and the item. Spots on the maps Forever redrew are moved from
   Wowhead's classic ones onto Forever's.
 - `D.Repeatable[questID] = true`: quests you can do again and again (Wowhead's repeatable flag).
-- `D.Requires[questID]`: the quests before it, any one of which opens it.
+- `D.Requires[questID]`: what must be done before it opens, every element of the list. An element is a
+  quest, or a list of alternatives one of which will do: quests of one name (each class's or faction's
+  version) and the quests the zones lack, which cannot be told apart. From Forever's Series box and
+  Wowhead Classic's Requires box, so a Forever-only quest (id 10000 and up) has only its Series.
 - `D.Chains`: each chain's steps in order. A step with more than one quest has parallel quests,
   all of which finish it, or with `any = true` the faction or class versions of one quest.
 - `D.Rares[npcID]`: name, lowest and highest level (0 when not known, -1 for a boss level, "??"),
@@ -90,10 +93,14 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
   level 15 for a level 60 quest, and the game does not offer it at 15), so no quest is taken as
   needing less than its own level less 10.
 - A repeatable quest is never done for good, so zone counts leave it out.
-- The data cannot know every prerequisite (a quest outside its chain, a reputation). A quest it
-  says you could take, but whose giver does not offer it, is held back ("Not offered yet", no !)
-  until you level up or hand in a quest in its zone. It is kept per character (name-realm) in the
-  account settings, `completoNotOffered` and `completoTurnIns`.
+- A quest with an unmet requirement is "Needs an earlier quest", with no ! on the map, and its row
+  says "Requires: <quest>" (up to three, all of them in its tooltip). The data cannot know every
+  prerequisite (a reputation, a skill, a Forever-only quest's quests). A quest it says you could take,
+  but whose giver does not offer it, is held back ("Not offered yet", no !) until you level up or
+  hand in a quest in its zone. It is kept per character (name-realm) in the account settings,
+  `completoNotOffered` and `completoTurnIns`. A quest held back as "Needs an earlier quest" that its
+  giver does offer is taken as open for good (`completoOpened`), so a requirement the data has wrong
+  corrects itself the first time you speak to the giver.
 - The giver's list is read from the gossip window, the quest greeting (the quest ID is
   `GetAvailableQuestInfo`'s fifth answer where the client gives it, else the quest is found by its
   title), or the one quest an NPC with nothing else opens straight away. That last is skipped when
@@ -181,6 +188,8 @@ quest and creature pages. Do not edit them by hand: change the tool and run it a
 - `lua Tools/regression/test-completo-rares.lua`: the rare rules, counting kills, Rare Alerts,
   their settings and preview, and the rare map pins and their focus. Its `SetRaidTarget` raises
   an error, so no rare path may set a raid mark.
+- `lua Tools/regression/test-completo-quest-prereqs.lua`: requirements, what a row says is missing, and a quest
+  its giver offers.
 - `lua Tools/regression/test-completo-quest-pins.lua`: the quest pins are Pin Size and keep one
   size on screen as the map zooms.
 - In game: `/reload` after changing a file. A new file needs a restart.

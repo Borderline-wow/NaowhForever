@@ -195,11 +195,8 @@ def lua_string(s):
 
 
 def prerequisites(quests, requires, known):
-    """questID -> the quests before it, any one of which opens it: the step before it in its
-    Forever Series (the faction or class versions of one step), and Wowhead Classic's
-    Requires box. Any one, not all: a Requires box also lists each class's version of a
-    quest, and one too many would hide a quest the game offers, where one too few only shows
-    it early (and its quest giver not offering it hides it in game)."""
+    """questID -> the quests before it: the step before it in its Forever Series (the faction
+    or class versions of one step), and Wowhead Classic's Requires box."""
     before = {}
     for entry in quests.values():
         chain = entry and entry.get("chain")
@@ -215,6 +212,21 @@ def prerequisites(quests, requires, known):
     for qid in before:
         before[qid].discard(qid)
     return {q: sorted(p) for q, p in before.items() if p}
+
+
+def requirements(before, known):
+    """questID -> what must be done before it: each element a quest, or a list of alternatives,
+    one of which will do. Quests of one name are alternatives (a Requires box lists each class's
+    version of a quest), as are the ones the zones lack, which cannot be told apart. The
+    versions that are not the player's own are left out by the addon."""
+    out = {}
+    for qid, prev in before.items():
+        groups = {}
+        for p in prev:
+            groups.setdefault(known[p][1]["name"] if p in known else None, []).append(p)
+        out[qid] = sorted((g if len(g) > 1 else g[0] for g in groups.values()),
+                          key=lambda e: e[0] if isinstance(e, list) else e)
+    return out
 
 
 def chains_of(quests, before, known):
@@ -431,8 +443,10 @@ def write(zones, quests, requires, items):
         "",
         "D.Requires = {",
     ]
-    for qid in sorted(before):
-        lines.append(f"    [{qid}] = {{ {', '.join(map(str, before[qid]))} }},")
+    required = requirements(before, rows)
+    for qid in sorted(required):
+        parts = ["{ " + ", ".join(map(str, e)) + " }" if isinstance(e, list) else str(e) for e in required[qid]]
+        lines.append(f"    [{qid}] = {{ {', '.join(parts)} }},")
     lines += [
         "}",
         "",

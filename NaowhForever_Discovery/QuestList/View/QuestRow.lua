@@ -26,6 +26,10 @@ local TEXT_WAYPOINT = ns.L("Waypoint")
 local TEXT_LEVEL = ns.L("Level")
 local TEXT_REQUIRES = ns.L("Requires level")
 local TEXT_STATUS = ns.L("Status")
+local TEXT_NEEDS_QUEST = ns.L("Requires quest")
+local TEXT_NEEDS_LINE = ns.L("Requires: %s")
+local TEXT_QUEST_ID = ns.L("Quest %d")
+local MAX_NAMED = 3
 local TEXT_CHAIN = ns.L("Chain")
 local TEXT_CHAIN_STEPS = ns.L("%d steps, %s")
 local TEXT_EVERY_STEP = ns.L("every step done")
@@ -57,6 +61,22 @@ local function ChainLine(id)
     return TEXT_CHAIN_STEPS:format(steps, where)
 end
 
+local function BlockerName(id)
+    return Q.Title(id) or TEXT_QUEST_ID:format(id)
+end
+
+local function BlockerLine(id)
+    local names = {}
+    for i, blocker in ipairs(Q.Blocking(id)) do
+        if i > MAX_NAMED then
+            names[#names] = "..."
+            break
+        end
+        names[i] = BlockerName(blocker)
+    end
+    return table.concat(names, ", ")
+end
+
 local function QuestEnter(row)
     row.hover:Show()
     if not Parts.Tip(row, "ANCHOR_RIGHT") then return end
@@ -70,6 +90,11 @@ local function QuestEnter(row)
     GameTooltip:AddDoubleLine(TEXT_STATUS, text, m.r, m.g, m.b, color.r, color.g, color.b)
     local chain = ChainLine(id)
     if chain then GameTooltip:AddDoubleLine(TEXT_CHAIN, chain, m.r, m.g, m.b, 1, 1, 1) end
+    if Q.State(id) == "later" then
+        for _, blocker in ipairs(Q.Blocking(id)) do
+            GameTooltip:AddDoubleLine(TEXT_NEEDS_QUEST, BlockerName(blocker), m.r, m.g, m.b, 1, 1, 1)
+        end
+    end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine((Q.Spot(id) and TEXT_PIN_TIP or "") .. TEXT_WOWHEAD, V.Soft())
     GameTooltip:Show()
@@ -152,7 +177,7 @@ local function Place(row, left)
     row.title:SetPoint("TOPLEFT", left + Style.LEVEL_W + TITLE_GAP, -Style.ROW_TOP)
 end
 
-local function SubLine(id, part, shown)
+local function SubLine(id, part, shown, state)
     local sub = ""
     local chain = Q.Chain(id)
     if part == "head" then
@@ -164,6 +189,7 @@ local function SubLine(id, part, shown)
     end
     local home = Q.Zone(id)
     if shown and home and home ~= shown then sub = V.Join(sub, home.name) end
+    if state == "later" then sub = V.Join(sub, TEXT_NEEDS_LINE:format(BlockerLine(id))) end
     return sub
 end
 
@@ -196,7 +222,7 @@ local function SetQuest(row, id, part, first, last, stripe)
     V.Paint(row.title, finished and T.muted or T.fg)
     row.where:SetWidth(textW)
     local titleH = math.ceil(row.title:GetStringHeight())
-    local sub = SubLine(id, part, row:GetParent():ShownZone())
+    local sub = SubLine(id, part, row:GetParent():ShownZone(), state)
     local h = Style.ROW_TOP + titleH + Style.ROW_BOTTOM + V.SubHeight(row, sub)
     row.trunk:SetShown(step)
     row.branch:SetShown(step)

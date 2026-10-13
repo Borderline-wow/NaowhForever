@@ -11,6 +11,7 @@ local UNIT_ID = 3
 local MAX_UNDER = 10
 local CLASSIC_GREEN_RANGE = 8
 local NOT_OFFERED_STORE, TURN_INS_STORE = "completoNotOffered", "completoTurnIns"
+local OPENED_STORE = "completoOpened"
 local NONE = {}
 
 local mine, zoneOf, chains, chainOf
@@ -20,6 +21,7 @@ local zoneChains, zoneSingles, seenChain = {}, {}, {}
 local found, foundIn = {}, {}
 local named = {}
 local givers, spare, giverAt = {}, {}, {}
+local blocking = {}
 
 local Q = {}
 Completo.Quests = Q
@@ -265,15 +267,55 @@ function Q.State(id)
     return state
 end
 
-function Q.Opened(id)
-    local before = D.Requires[id]
-    if not before then return true end
+local function Counts(id)
+    return mine[id] or not D.Quests[id]
+end
+
+local function Met(element)
+    if type(element) == "number" then
+        return done[element] or not Counts(element)
+    end
     local counted = false
-    for _, other in ipairs(before) do
-        if done[other] then return true end
-        if mine[other] or not D.Quests[other] then counted = true end
+    for _, id in ipairs(element) do
+        if done[id] then return true end
+        if Counts(id) then counted = true end
     end
     return not counted
+end
+
+function Q.Opened(id)
+    for _, element in ipairs(D.Requires[id] or NONE) do
+        if not Met(element) then return CharStore(OPENED_STORE)[id] == true end
+    end
+    return true
+end
+
+function Q.SetOpened(id)
+    CharStore(OPENED_STORE)[id] = true
+end
+
+function Q.Blocking(id)
+    wipe(blocking)
+    for _, element in ipairs(D.Requires[id] or NONE) do
+        if not Met(element) then
+            local first = element
+            if type(element) == "table" then
+                for _, other in ipairs(element) do
+                    if Counts(other) then
+                        first = other
+                        break
+                    end
+                end
+            end
+            blocking[#blocking + 1] = first
+        end
+    end
+    return blocking
+end
+
+function Q.Title(id)
+    local quest = D.Quests[id]
+    return quest and quest[NAME] or C_QuestLog.GetTitleForQuestID(id)
 end
 
 function Q.Expected(id)
