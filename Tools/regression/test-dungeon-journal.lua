@@ -162,6 +162,7 @@ local function fixture(settings, noBis)
         Show = function(self) self.shown = true end,
         Hide = function(self) self.shown = false; state.gameHides = (state.gameHides or 0) + 1 end,
         SetAlpha = function(self, alpha) self.alpha = alpha end,
+        GetAlpha = function(self) return self.alpha end,
     }
     local values = {
         enabled = false, mapPanel = true, usableOnly = true, showChance = true,
@@ -1543,6 +1544,8 @@ do
     game:SetAlpha(1)
     game:Show()
     check("and stays faded when the game shows it again", game.shown and game.alpha == 0)
+    game:SetAlpha(1)
+    check("and when the game only sets its alpha back (the managed frames' fade in)", game.shown and game.alpha == 0)
     state.combat = true
     game:SetAlpha(1)
     game:Show()
@@ -1551,6 +1554,9 @@ do
     tracker:Hide()
     tracker.scripts.OnHide(tracker)
     check("closing this one brings the game's back", game.shown and game.alpha == 1)
+    game:SetAlpha(0.5)
+    check("and its own alpha changes are left alone then", game.alpha == 0.5)
+    game:SetAlpha(1)
     EnterWorld()
     check("closed in there, it stays closed", not tracker:IsShown())
     state.instance = nil

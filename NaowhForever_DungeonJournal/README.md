@@ -489,7 +489,9 @@ the game's own tables, and what they can't settle is listed in the pull request 
   zooms (`ns.Shared.ScalePin`). Its switch and Entrance Icon Size (a pin size number like the other pins' sizes, saved as the fraction `mapEntranceScale`, 20 being 1) are rows on the Map Pins card of QoL's Map & Pins tab
   (`ns.Shared.MapPins`); the keys stay in the Journal's store.
 - The game's quest tracker is faded with `SetAlpha`, never hidden: it is an Edit Mode frame with
-  secure quest item buttons.
+  secure quest item buttons. The game sets its alpha back to 1 without showing it
+  (`ManagedFrameContainerMixin:AnimInManagedFrames`, run whenever UIParent is shown again), so
+  `Show` and `SetAlpha` are both hooked; `GetAlpha` stops the hook from re-entering itself.
 - The quest tracker scrolls past 70% of the screen's height at its scale, and 420 at the least.
   After a `/reload` its auto-open runs inside that loading screen's `PLAYER_ENTERING_WORLD`, too
   late to hear it, so it also looks where you are as it is switched on.

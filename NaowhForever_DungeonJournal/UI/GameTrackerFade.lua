@@ -10,7 +10,7 @@ local FADED, SHOWN = 0, 1
 local gameFaded, gameHooked = false, false
 
 local function KeepFaded(frame)
-    if gameFaded then frame:SetAlpha(FADED) end
+    if gameFaded and frame:GetAlpha() ~= FADED then frame:SetAlpha(FADED) end
 end
 
 local function ShouldFade()
@@ -24,6 +24,7 @@ function Tracker.SyncGameTracker()
         if not gameHooked then
             gameHooked = true
             hooksecurefunc(frame, "Show", KeepFaded)
+            hooksecurefunc(frame, "SetAlpha", KeepFaded)
         end
         gameFaded = true
         frame:SetAlpha(FADED)
