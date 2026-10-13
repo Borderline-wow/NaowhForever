@@ -1976,6 +1976,8 @@ L["Fire Damage"] = true
 L["Fireball - Preview"] = true
 L["First Aid"] = true
 L["Fish"] = true
+L["Fishing %d-%d"] = true
+L["Fishing Levels"] = true
 L["fishing"] = true
 L["Fist Weapon"] = true
 L["Flask"] = true
@@ -4171,6 +4173,7 @@ L["Shows a dungeon's bosses and loot beside the world map while you are inside."
 L["Shows a healing item's icon the moment your health drops below the threshold, in combat too: the game shows and hides it itself. Move it in the HUD Editor."] = true
 L["Shows a sample spell's tooltip with the line as your settings draw it."] = true
 L["Shows a zone's level range when you hover it on the world map."] = true
+L["Shows the Fishing skill a zone needs when you hover it on the world map."] = true
 L["Shows an icon on screen while you know Find Herbs, Find Minerals or Find Fish but are tracking none of them. Click it to start tracking: left-click for the first, right-click for the second, middle-click for the third. Hover it to see which is which. Hidden in combat. Move it in the HUD Editor."] = true
 L["Shows each Sleeping Bag step, with how to reach the next one and a waypoint."] = true
 L["Shows every bonus again; click one on the preview to hide it."] = true
