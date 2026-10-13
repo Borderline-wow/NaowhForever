@@ -18,8 +18,8 @@ local C = ns.QoLConstants
 local St = ns.Shared.Style
 local Data = ns.SpellEfficiencyData
 
-local SCHOOL, LEVEL, MAX_LEVEL = 1, 2, 3
-local PART_START, PART_SIZE = 4, 9
+local SCHOOL, LEVEL, MAX_LEVEL, AREA = 1, 2, 3, 4
+local PART_START, PART_SIZE = 5, 9
 local KIND, DIRECT, DIRECT_PER_LEVEL, DIRECT_COEFFICIENT = 0, 1, 2, 3
 local TICK, TICK_PER_LEVEL, TICK_COEFFICIENT, TICKS, SECONDS = 4, 5, 6, 7, 8
 local HEAL, DAMAGE = 1, 0
@@ -38,6 +38,7 @@ local SEPARATOR = "  ||  "
 local LONG_FIRST = { ns.L("%s %s per mana"), ns.L("%s %s per second"), ns.L("%s %s per mana per second") }
 local LONG_NEXT = { ns.L("%s per mana"), ns.L("%s per second"), ns.L("%s per mana per second") }
 local SHORT_PIECE = "%s %s"
+local PER_TARGET = ns.L("%s / target")
 local SHORT_LABELS = {
     [HEAL] = { "HPM", "HPS", "HPM/s" },
     [DAMAGE] = { "DPM", "DPS", "DPM/s" },
@@ -46,7 +47,7 @@ local KIND_WORDS = { [HEAL] = "healing", [DAMAGE] = "damage" }
 local PER_MANA, PER_SECOND, PER_MANA_SECOND = 1, 2, 3
 local WHOLE = "%d"
 
-local STAGE_H = 180
+local STAGE_H = 254
 local MOCK_PAD, MOCK_LINE, MOCK_GAP = 8, 16, 10
 local MOCK_ROWS = 3
 local TITLE_SIZE, TEXT_SIZE = 13, 11
@@ -54,6 +55,7 @@ local SAMPLE_POWER = 100
 local SAMPLES = {
     { name = ns.L("Sample Heal"), kind = HEAL, amount = 450, coefficient = 0.857, mana = 300, cast = 2.5 },
     { name = ns.L("Sample Bolt"), kind = DAMAGE, amount = 400, coefficient = 0.857, mana = 200, cast = 3 },
+    { name = ns.L("Sample Nova"), kind = DAMAGE, amount = 150, coefficient = 0.107, mana = 100, cast = 1.5, area = true },
 }
 local TEXT_MANA = ns.L("%d Mana")
 local TEXT_CAST = ns.L("%s sec cast")
@@ -97,7 +99,7 @@ local function Decode(text)
         entry[count] = tonumber(field)
         at = stop and stop + 1
     until not at
-    if count <= MAX_LEVEL or (count - MAX_LEVEL) % PART_SIZE ~= 0 then return false end
+    if count < PART_START or (count - AREA) % PART_SIZE ~= 0 then return false end
     for part = PART_START, count, PART_SIZE do
         local kind = entry[part + KIND]
         if kind ~= HEAL and kind ~= DAMAGE then return false end
@@ -131,7 +133,7 @@ local function Shows(kind)
     return true
 end
 
-local function Piece(text, which, kind, value)
+local function Piece(text, which, kind, value, area)
     local number = which == PER_SECOND and WHOLE:format(floor(value + C.ROUND))
         or (NUMBER_FORMATS[S.Get("spellEfficiencyDecimals")] or NUMBER_FORMATS[DEFAULT_DECIMALS]):format(value)
     local piece
@@ -142,17 +144,18 @@ local function Piece(text, which, kind, value)
     else
         piece = LONG_FIRST[which]:format(number, KIND_WORDS[kind])
     end
+    if area then piece = PER_TARGET:format(piece) end
     if not text then return piece end
     return text .. SEPARATOR .. piece
 end
 
-local function Line(kind, amount, mana, seconds)
+local function Line(kind, amount, mana, seconds, area)
     if not (amount > 0 and mana > 0) then return nil end
     local perMana = amount / mana
-    local text = S.Get("spellEfficiencyPerMana") and Piece(nil, PER_MANA, kind, perMana) or nil
+    local text = S.Get("spellEfficiencyPerMana") and Piece(nil, PER_MANA, kind, perMana, area) or nil
     if seconds and seconds > 0 then
-        if S.Get("spellEfficiencyPerSecond") then text = Piece(text, PER_SECOND, kind, amount / seconds) end
-        if S.Get("spellEfficiencyPerManaSecond") then text = Piece(text, PER_MANA_SECOND, kind, perMana / seconds) end
+        if S.Get("spellEfficiencyPerSecond") then text = Piece(text, PER_SECOND, kind, amount / seconds, area) end
+        if S.Get("spellEfficiencyPerManaSecond") then text = Piece(text, PER_MANA_SECOND, kind, perMana / seconds, area) end
     end
     return text
 end
@@ -234,6 +237,7 @@ local function AddLines(tooltip, spellID)
     local level = UnitLevel("player")
     if not Readable(level) then return end
     local gain = Gain(entry, level)
+    local area = entry[AREA] == 1
     local color = LineColor()
     local first
     for at = PART_START, #entry, PART_SIZE do
@@ -241,7 +245,7 @@ local function AddLines(tooltip, spellID)
         if Shows(kind) then
             local bonus = Bonus(entry, kind)
             if not bonus then return end
-            local text = Line(kind, Amount(entry, at, gain, bonus), mana, Seconds(entry, at, castMs))
+            local text = Line(kind, Amount(entry, at, gain, bonus), mana, Seconds(entry, at, castMs), area)
             if text then
                 if not first then
                     if AlreadyDecorated(tooltip, text) then return end
@@ -317,7 +321,7 @@ end
 local function SampleLine(sample)
     if not Shows(sample.kind) then return nil end
     local bonus = S.Get("spellEfficiencyBonus") and SAMPLE_POWER * sample.coefficient or 0
-    return Line(sample.kind, sample.amount + bonus, sample.mana, sample.cast)
+    return Line(sample.kind, sample.amount + bonus, sample.mana, sample.cast, sample.area)
 end
 
 local function NewMock(shot)

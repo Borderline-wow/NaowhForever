@@ -16,6 +16,8 @@ second at hover time, without reading tooltip text:
   EffectBonusCoefficient;
 - the ticks: the aura's duration (SpellMisc.DurationIndex -> SpellDuration) over its
   EffectAuraPeriod;
+- whether it is an area spell: its first amount effect reaches everyone in an area or cone, or
+  puts an aura on everyone near (a flag on the entry, so the tooltip says per target);
 - the levels the per-level growth counts between (SpellLevels.SpellLevel and MaxLevel), and
   the school spell damage is read for (SpellMisc.SchoolMask).
 
@@ -57,6 +59,11 @@ PERIODIC_TRIGGER = 23            # EffectAura: periodic trigger spell
 ELSEWHERE_EFFECTS = {3, 77, 17, 31, 58, 121, 64, 142, 179}
 # Auras whose amount the tables do not hold: proc trigger spell (plain, with value), periodic dummy.
 ELSEWHERE_AURAS = {42, 231, 226}
+# Implicit targets that reach every unit in an area or cone (Frost Nova, Prayer of Healing, Cone of
+# Cold), and the effects that put an aura on everyone near (Tranquility). A chain jumps one target
+# to the next with less each time, so it counts as its first target and is not area.
+AREA_TARGETS = {15, 16, 24, 30, 31, 33, 34, 37, 54, 56, 61}
+AREA_EFFECTS = {27, 35, 65}
 PLACEHOLDER = 1                  # a direct base of 1 with no bonus stands in for a scripted amount (Swiftmend)
 MS = 1000
 DECIMALS = 4
@@ -75,7 +82,7 @@ COLUMNS = {
 # An entry's fields, in order, then one or two parts of PART_FIELDS each (a damage part and a
 # heal part when the spell does both to its target), written as one string (lua_entry).
 # SpellEfficiency.lua reads them by place.
-FIELDS = ("school", "level", "maxLevel")
+FIELDS = ("school", "level", "maxLevel", "area")
 PART_FIELDS = ("heal", "direct", "directPerLevel", "directCoefficient", "tick", "tickPerLevel",
                "tickCoefficient", "ticks", "seconds")
 
@@ -124,6 +131,16 @@ def elsewhere(effect):
 
 def target(effect):
     return effect.get("ImplicitTarget_0") or "0", effect.get("ImplicitTarget_1") or "0"
+
+
+def is_area(effect, effects):
+    """Whether the effect lands on everyone in an area; a periodic trigger is area when the spell
+    it triggers is."""
+    if int(effect["EffectAura"] or 0) == PERIODIC_TRIGGER and int(effect["Effect"] or 0) in AURA_EFFECTS:
+        triggered = effects.get(int(effect["EffectTriggerSpell"] or 0), [])
+        return any(is_area(row, effects) for row in triggered if direct_amount(row))
+    return (int(effect["Effect"] or 0) in AREA_EFFECTS
+            or any(int(effect.get(key) or 0) in AREA_TARGETS for key in ("ImplicitTarget_0", "ImplicitTarget_1")))
 
 
 def direct_amount(effect):
@@ -208,8 +225,14 @@ def entry(spell, effects, levels, misc, durations):
     info = misc.get(spell, {})
     duration = durations.get(info.get("DurationIndex"), 0)
     parts = {}
+    triggers = any(int(e["EffectAura"] or 0) == PERIODIC_TRIGGER and periodic_amount(e, effects) for e in own)
     for effect in own:
-        if target(effect) == target(first) and not add_effect(parts, effect, effects, duration):
+        if target(effect) != target(first):
+            continue
+        # Hellfire's own damage to the caster is not what its triggered spell does to each enemy.
+        if triggers and int(effect["EffectAura"] or 0) in PERIODIC:
+            continue
+        if not add_effect(parts, effect, effects, duration):
             return None
     found = [part for part in parts.values() if part["direct"] or part["directCoefficient"] or part["ticks"]]
     if not found:
@@ -222,6 +245,7 @@ def entry(spell, effects, levels, misc, durations):
         "school": (mask & -mask).bit_length() or 1,
         "level": int(level.get("SpellLevel") or 0),
         "maxLevel": int(level.get("MaxLevel") or 0),
+        "area": int(is_area(first, effects)),
         "parts": found,
     }
 

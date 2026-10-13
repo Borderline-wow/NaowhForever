@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: Mana Efficiency (QoL > Interface > Tooltips) on stubs.
 -- The generated data's shape (one string per spell), the line's math (direct, periodic, hybrid, both
 -- on one target, spell power and its sub-20 penalty, cast against instant), mana-only gating, secrets
--- and malformed entries failing to no line, no garbage per hover once a spell is decoded, off meaning
+-- area spells saying per target, and malformed entries failing to no line, no garbage per hover once a spell is decoded, off meaning
 -- no hook, every option's effect on the line, a bad imported color falling back to the default, the
 -- card's preview and Preview Tooltip, and the card's rows, defaults and search.
 local checks = 0
@@ -15,7 +15,7 @@ local function Read(path)
 end
 
 local DATA = "NaowhForever_QoL/Interface/SpellEfficiencyData.lua"
-local FIELDS, PART = 3, 9
+local FIELDS, PART = 4, 9
 
 local source = Read(DATA)
 check("the data's header names its builder", source:match("^%-%- SpellEfficiencyData%.lua: .-Tools/build/spell_efficiency%.py"))
@@ -156,6 +156,13 @@ check("Multi-Shot is left out", Data[2643] == nil)
 check("seals and Judgement are left out", Data[21084] == nil and Data[20271] == nil and Data[20154] == nil)
 check("area triggers (Consecration, Blizzard) are left out", Data[26573] == nil and Data[10] == nil)
 check("Swiftmend's scripted heal is left out", Data[18562] == nil)
+local function Area(id) return tonumber(Data[id]:match("^%d+,%d+,%d+,(%d)")) end
+check("area spells are flagged (Frost Nova, Arcane Explosion, Prayer of Healing, Tranquility, Wild Growth, Mind Sear)",
+    Area(122) == 1 and Area(1449) == 1 and Area(596) == 1 and Area(740) == 1 and Area(408120) == 1 and Area(15237) == 1)
+check("single target spells and chains are not (Frostbolt, Lesser Heal, Chain Heal, Chain Lightning)",
+    Area(116) == 0 and Area(2050) == 0 and Area(1064) == 0 and Area(421) == 0)
+check("Hellfire counts the triggered spell's 82 a tick, not its self damage as well",
+    Area(1949) == 1 and Data[1949]:match(",(%d+),[%d.]+,[%d.]+,15,15$") == "82")
 check("Lesser Heal, Frostbolt, Shadow Word: Pain, Exorcism, Arcane Missiles are in",
     Data[2050] and Data[116] and Data[589] and Data[879] and Data[5143])
 
@@ -239,14 +246,32 @@ check("Frostbolt 1 with no frost damage", Show(116)[1][1] == "0.84 damage per ma
 power[5] = 100
 check("Frostbolt 1 with 100 frost damage", Show(116)[1][1] == "1.49 damage per mana  ||  25 per second")
 
-Data[900001] = "3,60,0,0,100,0,0,0,0,0,0,0"
+Data[900001] = "3,60,0,0,0,100,0,0,0,0,0,0,0"
 costs[900001], casts[900001] = { { type = 0, cost = 50 } }, 0
 check("an instant spell with no periodic part has no per second", Show(900001)[1][1] == "2.00 damage per mana")
-Data[900002] = "2,60,0,0,40,0,0,0,0,0,0,0,1,20,0,0,0,0,0,0,0"
+Data[900002] = "2,60,0,0,0,40,0,0,0,0,0,0,0,1,20,0,0,0,0,0,0,0"
 costs[900002], casts[900002] = { { type = 0, cost = 10 } }, 1000
 lines = Show(900002)
 check("both on one target: a damage line and a heal line", #lines == 2
     and lines[1][1] == "4.00 damage per mana  ||  40 per second" and lines[2][1] == "2.00 healing per mana  ||  20 per second")
+
+Data[900003] = "2,60,0,1,0,40,0,0,0,0,0,0,0"
+costs[900003], casts[900003] = { { type = 0, cost = 10 } }, 1000
+Data[900004] = "2,60,0,1,0,40,0,0,0,0,0,0,0,1,20,0,0,0,0,0,0,0"
+costs[900004], casts[900004] = { { type = 0, cost = 10 } }, 1000
+check("an area spell says per target on every number",
+    Show(900003)[1][1] == "4.00 damage per mana / target  ||  40 per second / target")
+lines = Show(900004)
+check("an area spell with both parts says per target on both", #lines == 2
+    and lines[1][1] == "4.00 damage per mana / target  ||  40 per second / target"
+    and lines[2][1] == "2.00 healing per mana / target  ||  20 per second / target")
+settings.spellEfficiencyStyle, settings.spellEfficiencyPerManaSecond = "short", true
+check("Short area line", Show(900003)[1][1] == "DPM 4.00 / target  ||  DPS 40 / target  ||  DPM/s 4.00 / target")
+settings.spellEfficiencyStyle, settings.spellEfficiencyPerManaSecond = "long", false
+settings.spellEfficiencyPerMana = false
+check("without per mana the first part names the kind and the target", Show(900003)[1][1] == "40 damage per second / target")
+settings.spellEfficiencyPerMana = true
+check("a single target spell has no target suffix", not Show(2050)[1][1]:find("target", 1, true))
 
 costs[2050] = { { type = 1, cost = 10 } }
 check("a spell that costs rage gets nothing", #Show(2050) == 0)
@@ -269,14 +294,14 @@ check("readable spell info again: the line", Show(2050)[1][1] == "1.76 healing p
 check("a spell with no data gets nothing", #Show(12345) == 0)
 
 local MALFORMED = {
-    [900010] = "3,60,0,0,100,0,0,0,0,0,0",
+    [900010] = "3,60,0,0,0,100,0,0,0,0,0,0",
     [900011] = "3,60,0",
-    [900012] = "3,60,0,0,abc,0,0,0,0,0,0,0",
-    [900013] = "3,60,0,0,100,0,0,0,0,0,0,0,",
-    [900014] = "3,60,0,0,,0,0,0,0,0,0,0",
-    [900015] = "3,60,0,2,100,0,0,0,0,0,0,0",
-    [900016] = "3,60,0,0,inf,0,0,0,0,0,0,0",
-    [900017] = "3,60,0,0,0x10,0,0,0,0,0,0,0",
+    [900012] = "3,60,0,0,0,abc,0,0,0,0,0,0,0",
+    [900013] = "3,60,0,0,0,100,0,0,0,0,0,0,0,",
+    [900014] = "3,60,0,0,0,,0,0,0,0,0,0,0",
+    [900015] = "3,60,0,0,2,100,0,0,0,0,0,0,0",
+    [900016] = "3,60,0,0,0,inf,0,0,0,0,0,0,0",
+    [900017] = "3,60,0,0,0,0x10,0,0,0,0,0,0,0",
     [900018] = "",
     [900019] = { 3, 60, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0 },
 }
@@ -318,7 +343,7 @@ local function Garbage(data, runs, warm)
     collectgarbage("restart")
     return grown
 end
-Data[900020] = "2,60,0,1,80,0,0,0,0,0,0,0"
+Data[900020] = "2,60,0,0,1,80,0,0,0,0,0,0,0"
 costs[900020], casts[900020] = { { type = 0, cost = 20 } }, 2000
 local fresh = { type = 1, id = 900020 }
 check("a spell's first hover decodes its entry (allocates)", Garbage(fresh, 1) > 0 and added == 1)
@@ -404,13 +429,15 @@ local studio = ns.SpellEfficiencyStudio
 check("the card's preview is a studio", studio and studio.new and studio.paint and studio.states[1].key)
 local shot = studio.new(Frame())
 studio.paint(shot, studio.states[1].key)
-local heal, bolt = shot.mocks[1].line, shot.mocks[2].line
+local heal, bolt, nova = shot.mocks[1].line, shot.mocks[2].line, shot.mocks[3].line
 check("preview: the sample heal", heal.text == "1.79 healing per mana  ||  214 per second")
 check("preview: the sample bolt", bolt.text == "2.43 damage per mana  ||  162 per second")
+check("preview: the area sample says per target", nova.text == "1.61 damage per mana / target  ||  107 per second / target")
 check("preview: in the line's color", heal.color[1] == 0.3 and heal.color[3] == 0.96)
 settings.spellEfficiencyStyle = "short"
 studio.paint(shot, studio.states[1].key)
 check("preview redraws with Short", heal.text == "HPM 1.79  ||  HPS 214" and bolt.text == "DPM 2.43  ||  DPS 162")
+check("preview: the area sample says per target in Short", nova.text == "DPM 1.61 / target  ||  DPS 107 / target")
 settings.spellEfficiencyStyle = "long"
 settings.spellEfficiencyBonus = false
 studio.paint(shot, studio.states[1].key)

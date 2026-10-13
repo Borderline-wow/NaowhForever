@@ -15,11 +15,11 @@ import spell_efficiency as se  # noqa: E402
 HOLY, PET, RUNES = "56", "188", "2853"
 
 
-def effect(spell, index, kind, base=0, aura=0, coefficient=0, per_level=0, period=0, trigger=0, target="6"):
+def effect(spell, index, kind, base=0, aura=0, coefficient=0, per_level=0, period=0, trigger=0, target="6", target1="0"):
     return {"SpellID": str(spell), "EffectIndex": str(index), "Effect": str(kind), "EffectAura": str(aura),
             "EffectBasePointsF": str(base), "EffectRealPointsPerLevel": str(per_level),
             "EffectBonusCoefficient": str(coefficient), "EffectAuraPeriod": str(period),
-            "EffectTriggerSpell": str(trigger), "ImplicitTarget_0": target, "ImplicitTarget_1": "0"}
+            "EffectTriggerSpell": str(trigger), "ImplicitTarget_0": target, "ImplicitTarget_1": target1}
 
 
 def tables():
@@ -27,13 +27,13 @@ def tables():
         "SkillLine": [{"ID": HOLY, "CategoryID": "7"}, {"ID": PET, "CategoryID": "7"},
                       {"ID": RUNES, "CategoryID": "7"}, {"ID": "164", "CategoryID": "11"}],
         "SkillLineAbility": (
-            [{"SkillLine": HOLY, "Spell": str(s), "ClassMask": "16"} for s in range(1, 13)]
+            [{"SkillLine": HOLY, "Spell": str(s), "ClassMask": "16"} for s in list(range(1, 13)) + [13, 14]]
             + [{"SkillLine": PET, "Spell": "50", "ClassMask": "0"},
                {"SkillLine": RUNES, "Spell": "51", "ClassMask": "16"},
                {"SkillLine": RUNES, "Spell": "52", "ClassMask": "2"},
                {"SkillLine": "164", "Spell": "53", "ClassMask": "16"}]),
         "SpellPower": ([{"SpellID": str(s), "PowerType": "0", "ManaCost": "30", "PowerCostPct": "0"}
-                        for s in list(range(1, 12)) + [50, 51, 52, 53]]
+                        for s in list(range(1, 12)) + [13, 14, 50, 51, 52, 53]]
                        + [{"SpellID": "12", "PowerType": "1", "ManaCost": "10", "PowerCostPct": "0"}]),
         "SpellEffect": [
             effect(1, 0, 10, base=51, coefficient=0.429, per_level=0.9, target="21"),
@@ -57,6 +57,10 @@ def tables():
             effect(12, 0, 2, base=50),
             effect(50, 0, 2, base=50), effect(51, 0, 2, base=50), effect(52, 0, 2, base=50),
             effect(53, 0, 2, base=50),
+            effect(13, 0, 2, base=20, coefficient=0.1, target="22", target1="15"),
+            effect(14, 0, 6, aura=23, period=1000, trigger=61, target="1"),
+            effect(14, 1, 6, base=82, aura=3, coefficient=0.022, period=1000, target="1"),
+            effect(61, 0, 2, base=82, coefficient=0.022, target="18", target1="16"),
         ],
         "SpellLevels": [{"SpellID": "1", "SpellLevel": "1", "MaxLevel": "3"},
                         {"SpellID": "2", "SpellLevel": "8", "MaxLevel": "13"}],
@@ -67,7 +71,8 @@ def tables():
                          {"SpellID": "5", "DurationIndex": "0", "SchoolMask": "1"},
                          {"SpellID": "6", "DurationIndex": "27", "SchoolMask": "64"},
                          {"SpellID": "7", "DurationIndex": "28", "SchoolMask": "32"},
-                         {"SpellID": "8", "DurationIndex": "0", "SchoolMask": "4"}]),
+                         {"SpellID": "8", "DurationIndex": "0", "SchoolMask": "4"},
+                         {"SpellID": "14", "DurationIndex": "27", "SchoolMask": "4"}]),
         "SpellDuration": [{"ID": "8", "Duration": "15000"}, {"ID": "86", "Duration": "21000"},
                           {"ID": "27", "Duration": "3000"}, {"ID": "28", "Duration": "5000"},
                           {"ID": "0", "Duration": "0"}],
@@ -122,6 +127,14 @@ class Spells(unittest.TestCase):
         heal = sorted(part["heal"] for part in self.found[10]["parts"])
         self.assertEqual(heal, [se.DAMAGE, se.HEAL])
 
+    def test_area(self):
+        self.assertEqual([self.found[s]["area"] for s in (1, 4, 13)], [0, 0, 1])
+        self.assertEqual(self.found[14]["area"], 1, "a periodic trigger is area when its triggered spell is")
+
+    def test_trigger_replaces_the_casters_own_periodic_damage(self):
+        part = self.found[14]["parts"][0]
+        self.assertEqual((part["tick"], part["ticks"]), (82, 3))
+
     def test_skipped(self):
         self.assertNotIn(5, self.found, "weapon damage")
         self.assertNotIn(8, self.found, "an area trigger")
@@ -132,7 +145,7 @@ class Spells(unittest.TestCase):
         lines = se.lua(self.found, "1.60.1.1")
         self.assertTrue(lines[0].startswith("-- SpellEfficiencyData.lua: "))
         self.assertIn("Tools/build/spell_efficiency.py", lines[0])
-        self.assertIn('    [1] = "2,1,3,1,51,0.9,0.429,0,0,0,0,0",', lines)
+        self.assertIn('    [1] = "2,1,3,0,1,51,0.9,0.429,0,0,0,0,0",', lines)
         both = next(line for line in lines if line.startswith("    [10] = "))
         self.assertRegex(both, r'^    \[10\] = "[-0-9.,]+",$', "one string of numbers, nothing else")
         self.assertEqual(both.count(","), len(se.FIELDS) + 2 * len(se.PART_FIELDS))
