@@ -806,7 +806,7 @@ local function OtherMeters()
     return TEXT_OTHERS_NAMED:format(names)
 end
 
-Settings.Page("QoL/Combat", S):Card({
+Settings.Page("QoL/Damage Meter", S):Card({
     id = "damageMeterSkin", name = "Default Damage Meter", order = CARD_ORDER, note = OtherMeters,
     help = "The game's own damage meter: in your theme, sized and set here instead of in Edit Mode.",
     search = "damage meter skin reskin blizzard default bar height move resize edit mode style numbers padding",

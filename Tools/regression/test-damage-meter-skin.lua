@@ -237,7 +237,8 @@ local function Boot(settings, loaded, windows)
                     fs.sx, fs.sy, fs.shadow, fs.shadowMode = 2, -2, { 0, 0, 0, 0.8 }, "house"
                 end
             end },
-            Settings = { Group = function(title) return { group = title } end, Page = function(_, name)
+            Settings = { Group = function(title) return { group = title } end, Page = function(key, name)
+                s.pageKey = key
                 local page = { name = name }
                 function page:Card(def) s.cards[#s.cards + 1] = def; return self end
                 return page
@@ -296,7 +297,7 @@ end
 -- the card
 do
     local s = Boot()
-    check("one card, on the Combat page's store", #s.cards == 1)
+    check("one card, on the Damage Meter page", #s.cards == 1 and s.pageKey == "QoL/Damage Meter")
     local card = s.cards[1]
     check("its id and name, a Reskin toggle first and no switch of its own", card.id == "damageMeterSkin"
         and card.name == "Default Damage Meter" and card.switch == nil and card.rows[1].key == "damageMeterSkin"

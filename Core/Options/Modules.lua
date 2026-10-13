@@ -34,6 +34,7 @@ local MODULES = {
           { name = "Map & Pins", reuse = true },
           { name = "Cursor & Crosshair", reuse = true },
           { name = "Combat", reuse = true },
+          { name = "Damage Meter", reuse = true },
           { name = "Questing & Group", reuse = true },
           { name = "XP", reuse = true },
           { name = "Loot & Items", reuse = true },

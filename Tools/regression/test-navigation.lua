@@ -245,7 +245,9 @@ Check(Text("Quality of Life / Interface") ~= nil and Head("Top Bar") ~= nil, "op
 Check(Text("ADVENTURE") and Text("COMBAT") and Text("UTILITIES"), "grouped navigation")
 Check(not Text("Close") and Button("Reload UI") ~= nil, "no footer: Reload UI sits in the header, closing is the X")
 Check(not Text("Custom Reminders"), "unfinished module is absent from navigation")
-Check(not Text("Damage Meter"), "the Damage Meter is not shipped, so it is not listed")
+local damageMeterLabels = 0
+for _, f in ipairs(frames) do if f.text == "Damage Meter" and f:IsShown() then damageMeterLabels = damageMeterLabels + 1 end end
+Check(damageMeterLabels == 1, "the Damage Meter is not shipped as a module: only the QoL tab carries the name")
 Check(Button("Quality of Life").switch == nil, "navigation does not toggle modules")
 for _, name in ipairs({ "Quality of Life", "Dungeon Journal", "Instance Tracker", "Discovery", "BiS List", "Professions",
     "Gear & Trinkets", "Blessings", "AuraBuffs", "Threat Meter", "Swing Timer",
@@ -423,7 +425,7 @@ for _, child in ipairs(strip.children) do
         Check(child.points.LEFT and child.points.LEFT[4] == 0, "QoL categories share one row")
     end
 end
-Check(tabs == 9, "every QoL category has a tab")
+Check(tabs == 10, "every QoL category has a tab")
 Check(strip.buttons and strip:GetWidth() <= 1440 - 240 - 56, "the tabs are the boxed switch, inside the content width")
 Click(Button("Combat")); Flush()
 Check(Text("Quality of Life / Combat") ~= nil, "category navigation works")
