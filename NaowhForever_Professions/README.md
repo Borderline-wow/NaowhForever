@@ -80,6 +80,10 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   its art at zero alpha; the buttons stay children of that card, where their click reads the
   spellbook offset. They are secure: docked out of combat only, and undocked whenever the overview
   is not showing.
+- Blizzard only makes a tab for a profession you have learned, so an unlearned one has none. The docked
+  tabs get a Naowh-blue outline so they stand out on the dark window. The Unlearn button beside a skill
+  bar is drawn from the atlas `Profession-button-red-crossmark` at 20px and full strength; where that
+  atlas is missing it falls back to the red cross of `ReadyCheck-NotReady`, or the button shows nothing.
 - With the overview docked our window holds secure buttons and is protected, so closing it in combat
   makes it transparent instead of hiding it. Resizing waits for combat to end for the same reason.
 - Once dragged, Blizzard's window is moved to where ours was put, out of combat only (it holds secure

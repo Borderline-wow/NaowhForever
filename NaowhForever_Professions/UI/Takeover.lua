@@ -12,6 +12,9 @@ local STRATA = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", 
 local FALLBACK_STRATA = "HIGH"
 local TABS_DROP = -60
 local UNLEARN_GAP = 6
+local UNLEARN_ATLAS = "Profession-button-red-crossmark"
+local UNLEARN_FALLBACK = "Interface/RAIDFRAME/ReadyCheck-NotReady"
+local UNLEARN_SIZE = 20
 local CARD_LEVEL, UNLEARN_LEVEL = 3, 10
 local RANK_INSET = 2
 local BURST = 0.1
@@ -38,6 +41,7 @@ local win, hooked, lastMode
 local queued = false
 local savedTabPoints
 local docked = {}
+local outlines = setmetatable({}, { __mode = "k" })
 local bookDocked, bookPending = false, nil
 local events = CreateFrame("Frame")
 
@@ -50,6 +54,20 @@ local function NextStrata(strata)
         if s == strata then return STRATA[math.min(i + 1, #STRATA)] end
     end
     return FALLBACK_STRATA
+end
+
+local function OutlineTab(tab, on)
+    if on and not outlines[tab] then outlines[tab] = ns.Border(tab, ns.THEME.accent) end
+    if outlines[tab] then outlines[tab]._frame:SetShown(on) end
+end
+
+local function ShowUnlearn(button)
+    local icon = button.Icon
+    if not icon then return end
+    if not C_Texture.GetAtlasInfo(UNLEARN_ATLAS) then icon:SetTexture(UNLEARN_FALLBACK) end
+    icon:SetSize(UNLEARN_SIZE, UNLEARN_SIZE)
+    icon:SetAlpha(1)
+    if button.Overlay then button.Overlay:SetSize(UNLEARN_SIZE, UNLEARN_SIZE) end
 end
 
 local function DockTabs(on)
@@ -68,8 +86,10 @@ local function DockTabs(on)
         savedTabPoints = nil
     end
     if head.SetIgnoreParentAlpha then head:SetIgnoreParentAlpha(on) end
+    OutlineTab(head, on)
     for _, tab in ipairs(ProfessionsFrame.rightProfessionTabs or EMPTY) do
         if tab.SetIgnoreParentAlpha then tab:SetIgnoreParentAlpha(on) end
+        OutlineTab(tab, on)
     end
 end
 
@@ -140,6 +160,7 @@ local function DockCards(content)
             if type(blizz.UnlearnButton) == "table" then
                 Dock(blizz.UnlearnButton, function(f) f:SetPoint("LEFT", card.bar, "RIGHT", UNLEARN_GAP, 0) end,
                     card:GetFrameLevel() + UNLEARN_LEVEL)
+                ShowUnlearn(blizz.UnlearnButton)
             end
         end
     end
