@@ -10,6 +10,15 @@
     <Binding name="NAOWHFOREVER_COMPLETO" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleCompleto()</Binding>
     <Binding name="NAOWHFOREVER_BOSSLOOT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_BossLoot()</Binding>
     <Binding name="NAOWHFOREVER_HUD" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleHudEditor()</Binding>
+    <Binding name="NAOWHFOREVER_INSTANCE" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("instance")</Binding>
+    <Binding name="NAOWHFOREVER_DISCOVERY" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("discovery")</Binding>
+    <Binding name="NAOWHFOREVER_GEAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("gear")</Binding>
+    <Binding name="NAOWHFOREVER_BLESS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("bless")</Binding>
+    <Binding name="NAOWHFOREVER_MACROS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("macros")</Binding>
+    <Binding name="NAOWHFOREVER_BARS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("bars")</Binding>
+    <Binding name="NAOWHFOREVER_BUFFS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("buffs")</Binding>
+    <Binding name="NAOWHFOREVER_THREAT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("threat")</Binding>
+    <Binding name="NAOWHFOREVER_PVP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("pvp")</Binding>
     <Binding name="NAOWHFOREVER_TRAINING" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleTraining()</Binding>
     <Binding name="NAOWHFOREVER_DAMAGEMETER_TOGGLE" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleDamageMeter()</Binding>
     <Binding name="NAOWHFOREVER_DAMAGEMETER_RESET" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ResetDamageMeter()</Binding>

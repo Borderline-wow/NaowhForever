@@ -7,11 +7,14 @@ local MODULES, OpenModule, DisplayName = O.MODULES, O.OpenModule, O.DisplayName
 local COMMAND_PREFIX = "/nf"
 local SLASH_KEY = "NAOWHFOREVER"
 local MODULE_ARGS = { bars = "ActionBarsCommand" }
+local MODULE_KEYS = { instance = true, discovery = true, gear = true, bless = true, macros = true, bars = true,
+    buffs = true, threat = true, pvp = true }
 local TIP_TITLE = { r = 1, g = 0.82, b = 0 }
 local TIP_TEXT = { r = 1, g = 1, b = 1 }
 local TEXT_BRAND = "Naowh Forever"
 local TEXT_CLICK = ns.L("Click to open settings.")
 local TEXT_SWITCHED_OFF = ns.L("%s is switched off. Turn it on under Settings > Modules.")
+local TEXT_OPEN = ns.L("Open %s")
 local TEXT_HELP_TITLE = ns.L("Commands:")
 local TEXT_HELP_MODULE = ns.L("%s%s: opens %s")
 local TEXT_HELP_ALIAS = ns.L("%s%s or %s%s: opens %s")
@@ -165,4 +168,13 @@ end
 
 for _, mod in ipairs(MODULES) do
     if mod.command then AddModuleCommand(mod) end
+    if MODULE_KEYS[mod.command] then
+        _G["BINDING_NAME_NAOWHFOREVER_" .. mod.command:upper()] = TEXT_OPEN:format(DisplayName(mod))
+    end
+end
+
+function _G.NaowhForever_ToggleModule(command)
+    for _, mod in ipairs(MODULES) do
+        if mod.command == command then return OpenModule(mod) end
+    end
 end

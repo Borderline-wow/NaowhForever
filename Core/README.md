@@ -110,7 +110,8 @@ The QoL store and the Alerts group
 - Before the group each alert had its own spot (`OLD_POSITIONS`): the first one a player had
   moved, from the bottom up, becomes the group's.
 - A key binding whose module is off prints that it is switched off (`SwitchedOff`), instead of
-  calling a function that was never made.
+  calling a function that was never made. The bindings for the modules' own windows and settings
+  (`NaowhForever_ToggleModule`) go through `OpenModule`, which says the same.
 
 Namespace and builds
 - `MODULE_KEY` must match the addon folder: the DB and saved positions key off it.

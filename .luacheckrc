@@ -18,6 +18,7 @@ globals = {
     "NaowhForever_OnCompartmentClick", "NaowhForever_BagSpacePickUp", "NaowhForever_BossLoot", "NaowhForever_ToggleJournal", "NaowhForever_ToggleBis", "NaowhForever_ToggleCompleto",
     "NaowhForever_ToggleGroupInspect", "BINDING_NAME_NAOWHFOREVER_GROUPINSPECT",
     "NaowhForever_OnCompartmentEnter", "NaowhForever_OnCompartmentLeave", "NaowhForever_ToggleHudEditor",
+    "NaowhForever_ToggleModule",
     "BINDING_NAME_NAOWHFOREVER_HUD", "NaowhForever_ToggleTraining", "BINDING_NAME_NAOWHFOREVER_TRAINING",
     "NaowhForever_ResetDamageMeter", "BINDING_NAME_NAOWHFOREVER_DAMAGEMETER_RESET",
     "NaowhForever_ToggleDamageMeter", "BINDING_NAME_NAOWHFOREVER_DAMAGEMETER_TOGGLE",

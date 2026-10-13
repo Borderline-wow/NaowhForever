@@ -146,6 +146,26 @@ do
     check("which says so while the Damage Meter is not loaded", t.printed[#t.printed]:find("Damage Meter", 1, true))
 end
 
+local KEYED = { instance = "Instance Tracker", discovery = "Discovery", gear = "Gear & Trinkets", bless = "Blessings",
+    macros = "Macros", bars = "Action Bars", buffs = "AuraBuffs", threat = "Threat Meter", pvp = "PvP" }
+for command, name in pairs(KEYED) do
+    local key = "NAOWHFOREVER_" .. command:upper()
+    check("a key binding for " .. name, bindings:find('<Binding name="' .. key
+        .. '" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("' .. command .. '")</Binding>', 1, true))
+    local t = Fixture(0)
+    check("with its name", t.env["BINDING_NAME_" .. key] == "Open " .. name)
+    t.env.NaowhForever_ToggleModule(command)
+    check("which opens its module", t.opened[#t.opened] == command)
+end
+do
+    local t = Fixture(0)
+    t.env.NaowhForever_ToggleModule("nonsense")
+    check("an unknown command opens nothing", #t.opened == 0)
+end
+for key in bindings:gmatch('<Binding name="(NAOWHFOREVER_[%w_]+)"[^>]*>NaowhForever_ToggleModule') do
+    check(key .. " is one of the keyed modules", KEYED[key:match("^NAOWHFOREVER_(.+)$"):lower()])
+end
+
 local toc = Read("NaowhForever.toc")
 local s = Fixture(0)
 for fn in toc:gmatch("## AddonCompartmentFunc%w*: (%S+)") do
