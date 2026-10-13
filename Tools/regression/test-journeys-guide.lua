@@ -405,6 +405,32 @@ Check(ns.PlaceWaypoint(unpack(DESTINATION)) and not Jy.Guide.Current(),
 env.C_Map.CanSetUserWaypointOnMap = function() return true end
 Jy.Walk.From = realFrom
 
+local realPath, realCost = Jy.Walk.Path, Jy.Walk.Cost
+local WALK_START_X, WALK_START_Y = -4821.8, -1155.4
+local WALK_MID_X, WALK_MID_Y = WALK_START_X - 30, WALK_START_Y
+local WALK_END_X, WALK_END_Y = WALK_START_X - 60, WALK_START_Y
+Jy.Walk.From = function(spot) return { c = spot.c, x = spot.x, y = spot.y } end
+Jy.Walk.Path = function(a, b) return { a.x, a.y, WALK_MID_X, WALK_MID_Y, b.x, b.y } end
+Jy.Walk.Cost = function(_, a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return nil end
+    local dx, dy = a.x - b.x, a.y - b.y
+    return math.sqrt(dx * dx + dy * dy)
+end
+MAPS[IRONFORGE] = { c = 0, x = WALK_END_X, y = WALK_END_Y }
+here = { x = WALK_START_X, y = WALK_START_Y, c = 0 }
+Check(ns.PlaceWaypoint("Nearby Spot", IRONFORGE, 50, 50), "a short walk-only journey")
+Check(Jy.Guide.Current() ~= nil, "it starts a journey")
+here = { x = WALK_MID_X, y = WALK_MID_Y, c = 0 }
+Fire("NAVIGATION_DESTINATION_REACHED", false)
+RunTimers()
+Check(Jy.Guide.Current() ~= nil, "not there yet, at the walk's middle corner")
+here = { x = WALK_END_X, y = WALK_END_Y, c = 0 }
+Fire("NAVIGATION_DESTINATION_REACHED", false)
+RunTimers()
+Check(not Jy.Guide.Current(), "arriving at the walk's last corner ends the journey")
+Check(current == nil, "and clears the game's waypoint, instead of leaving the pin where you now stand")
+Jy.Walk.Path, Jy.Walk.Cost = realPath, realCost
+
 Check(Jy.Guide.LegText({ mode = "lift", name = "The Rise" }) == "Lift to The Rise", "a lift step reads as one")
 
 Jy.Settings.Set("enabled", false)

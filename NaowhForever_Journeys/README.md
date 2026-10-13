@@ -37,6 +37,9 @@ NaowhForever_Journeys/
   shows "step N of M" and the next step.
 - The game clears a user waypoint itself when you reach it, so a waypoint cleared near the step means
   arrived; a waypoint set anywhere else ends the journey, as clearing it from the navigator does.
+- Reaching the game's own destination only clears its super-tracking, not the pin itself, so the last
+  stop of a journey with no quest to hand back to clears the waypoint on arrival; otherwise it would
+  sit on the map pointing at where you already are.
 - The plan is made again from where you stand on each arrival, landing, loading screen and the end of
   combat, never on a timer. In combat it waits: cooldowns and spell reads may be secret then.
 - Positions are world yards on a continent, as `UnitPosition`, `C_Map.GetWorldPosFromMapPos` and the
