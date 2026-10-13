@@ -66,6 +66,8 @@ NaowhForever_ConsumableBar/
 - Ask to Add learns what the bags hold on the first bag update, not at login, when they may not
   be filled yet. What waits to be asked about is checked again when it is shown: declined, filtered
   out, no longer in the bags or on the bar already, it is skipped.
+  Only what the bags hold now counts as known, so an item that left the bags and is looted again
+  is new again.
 - After Hide After Use hides an item, the bar looks again when its cooldown or effect should end,
   `WAKE_LEAD` (0.1 s) after. Only the soonest look is scheduled; a later one just looks again.
 - Hide When Out (on by default) lays the bar out with only what you carry, in the saved order, so

@@ -114,6 +114,9 @@ function CB.CheckNewItems()
         end
         known[id] = true
     end
+    for id in pairs(known) do
+        if not seenInBags[id] then known[id] = nil end
+    end
     ShowAsk()
 end
 

@@ -1322,6 +1322,34 @@ do
     check('with the option off nothing asks', not ask.shown)
 end
 
+-- An item that left the bags and is looted again is new again
+do
+    local s = fixture({ consumableBar = true, consumableBarAskNew = true, consumableBarItems = {} })
+    s.fire('BAG_UPDATE_DELAYED')
+    local function popup()
+        for _, f in ipairs(s.frames) do
+            local icon = rawget(f, 'icon')
+            if type(icon) == 'table' and rawget(icon, 'tex') then return f end
+        end
+    end
+    s.bags[0] = { 5512, 20007 }
+    s.counts[5512], s.counts[20007] = 1, 1
+    s.fire('BAG_UPDATE_DELAYED')
+    local ask = popup()
+    check('the first of two new items asks, the other waits', ask and ask.shown and ask.itemID == 5512)
+    s.bags[0] = { 5512 }
+    s.counts[20007] = 0
+    s.fire('BAG_UPDATE_DELAYED')
+    for _, f in ipairs(s.frames) do
+        if f.parent == ask and f.label == 'Add' then f.onClick() end
+    end
+    check('the one used up meanwhile is not asked about', not ask.shown)
+    s.bags[0] = { 5512, 20007 }
+    s.counts[20007] = 1
+    s.fire('BAG_UPDATE_DELAYED')
+    check('looted again, it asks', ask.shown and ask.itemID == 20007)
+end
+
 do
     local s = fixture({ consumableBar = true, consumableBarAskNew = true, consumableBarDeclined = { [20007] = true } })
     s.fire('BAG_UPDATE_DELAYED')
