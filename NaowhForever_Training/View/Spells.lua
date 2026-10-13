@@ -272,16 +272,16 @@ function Spells.DrawAll(plan, y)
         y = Header(y, TEXT_SOON, #plan.soon, TEXT_SOON_NOTE:format(Training.SOON, Training.Coins(Training.Total(plan.soon))))
         y = DrawRows(plan, "soon", y, LevelWhy) - Style.SECTION_GAP
     end
-    if #plan.later > 0 then y = DrawLater(plan, y) end
-    if #plan.talent > 0 then
-        y = Header(y, TEXT_TALENT, #plan.talent, TEXT_TALENT_NOTE)
-        y = DrawRows(plan, "talent", y, LevelWhy) - Style.SECTION_GAP
-    end
     local weapons = Training.Weapons()
     if #weapons > 0 then
         y = Header(y, TEXT_WEAPONS, #weapons, TEXT_WEAPONS_NOTE)
         for _, entry in ipairs(weapons) do y = Row(entry, "weapon", y, WeaponWhy(entry)) end
         y = y - Style.SECTION_GAP
+    end
+    if #plan.later > 0 then y = DrawLater(plan, y) end
+    if #plan.talent > 0 then
+        y = Header(y, TEXT_TALENT, #plan.talent, TEXT_TALENT_NOTE)
+        y = DrawRows(plan, "talent", y, LevelWhy) - Style.SECTION_GAP
     end
     if #plan.ignored > 0 then
         y = Header(y, TEXT_SKIPPED, #plan.ignored, TEXT_SKIPPED_NOTE .. Training.Coins(Training.Total(plan.ignored)))
