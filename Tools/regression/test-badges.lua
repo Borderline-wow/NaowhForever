@@ -12,7 +12,8 @@ local DEFAULTS = { badgeChat = true, badgeCard = true, badgeTooltip = true,
 local function fixture(withChatUtil, settings, flag)
     local state = { nameFilters = {}, callbacks = {}, postCalls = {}, printed = {}, sounds = 0,
         group = {}, raid = false, combat = false, region = 3, me = "Player-1-SELF", account = {},
-        guild = {}, onLoaded = {}, frames = 0, hooks = 0, cards = {}, roster = {} }
+        guild = {}, onLoaded = {}, frames = 0, hooks = 0, cards = {}, roster = {},
+        sent = {}, now = 1000, faction = "Alliance", players = {}, unitFaction = {} }
     local values = {}
     for k, v in pairs(DEFAULTS) do values[k] = v end
     for k, v in pairs(settings or {}) do values[k] = v end
@@ -62,6 +63,7 @@ local function fixture(withChatUtil, settings, flag)
         BADGE_STAFF = { [1] = { ["Player-1-SELF"] = "developer" }, [3] = {} },
         BADGE_PATRONS = { [3] = {} },
         FEATURE_BADGES = flag or 1, BADGES_LIVE = 1, LINKS = { { "Discord", "discord" } },
+        SETUPS_PAGE = "Profiles/Setups",
         Shared = { Roster = { AddTooltip = function(fn) state.roster[#state.roster + 1] = fn end },
             Settings = { Page = function(key)
             return { Card = function(_, def) state.cards[key .. ":" .. def.id] = def end }
@@ -129,6 +131,24 @@ local function fixture(withChatUtil, settings, flag)
         Enum = { TooltipDataType = { Unit = 2 } },
         EventUtil = { ContinueOnAddOnLoaded = function(name, fn) state.onLoaded[name] = fn end },
         ScrollBoxListMixin = { Event = { OnInitializedFrame = "OnInitializedFrame" } },
+        bit = dofile("Tools/regression/bit_stub.lua"),
+        BNGetInfo = function() return nil, state.battletag end,
+        C_ChatInfo = {
+            RegisterAddonMessagePrefix = function(prefix) state.prefix = prefix end,
+            SendAddonMessage = function(prefix, message, channel, target)
+                state.sent[#state.sent + 1] = { prefix = prefix, message = message, channel = channel, target = target }
+            end,
+            InChatMessagingLockdown = function() return state.lockdown == true end,
+        },
+        GetTime = function() return state.now end,
+        GetPlayerInfoByGUID = function(guid)
+            local p = state.players[guid]
+            if p then return nil, nil, nil, p.race, nil, p.name, p.second end
+        end,
+        UnitFactionGroup = function(unit)
+            if unit == "player" then return state.faction end
+            return state.unitFaction[unit]
+        end,
     }
     if withChatUtil then
         env.ChatFrameUtil = {
@@ -141,6 +161,7 @@ local function fixture(withChatUtil, settings, flag)
         }
     end
     setmetatable(env, { __index = _G })
+    local confirm = assert(loadfile("Core/Badges/Confirm.lua")); setfenv(confirm, env); confirm()
     local chunk = assert(loadfile("Core/Badges/Badges.lua")); setfenv(chunk, env); chunk()
     ns.Apply()  -- what login does
     state.names = names
@@ -184,10 +205,13 @@ local function fixture(withChatUtil, settings, flag)
         ns.BADGE_STAFF[region or 3][guid] = entry
         state.api.BuildRoster()
     end
-    function state.patron(guid, since, region, tier)
+    -- A patron whose own client has already confirmed it, unless asked to stay unconfirmed.
+    function state.patron(guid, since, region, tier, unconfirmed, claim)
         ns.BADGE_PATRONS[region or 3] = ns.BADGE_PATRONS[region or 3] or {}
-        ns.BADGE_PATRONS[region or 3][guid] = { since = since, tier = tier }
+        ns.BADGE_PATRONS[region or 3][guid] = { since = since, tier = tier, claim = claim }
         state.api.BuildRoster()
+        ns.Apply()
+        if not unconfirmed then ns.BadgeConfirm._Test.confirmed[guid] = true end
     end
     return state
 end
@@ -381,7 +405,7 @@ do  -- chat, card, tooltip
     s.ns.BadgesCommand("preview off")
     check("preview off", say(filter, "Me", 901, "Player-1-SELF") == "Me")
     s.ns.BadgesCommand("id")
-    check("id shows your GUID with its region", s.box.text == "3:Player-1-SELF")
+    check("id shows your GUID with its region and name", s.box.text == "3:Player-1-SELF=Me_Myself")
     s.ns.BadgesCommand("nope")
     local usage = s.printed[#s.printed]
     check("the help names both patron tiers, its pipes escaped", usage:find("[legendary||epic||moderator||", 1, true)
@@ -574,9 +598,13 @@ do  -- regions, staff over patrons, the badge code and who may preview
     s.api.GroupEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
     s.fire("PLAYER_ENTERING_WORLD")
     s.region, s.me = 3, "Player-1-ALT1"
+    s.ns.AccountSettings().badgeCharacters[3]["Player-1-OLD"] = true
     local code, count = s.api.BadgeCode()
-    check("one code for every character, this one first, by region",
-        code == "3:Player-1-ALT1,Player-1-ALT2,Player-1-SELF;1:Player-7-US" and count == 4)
+    check("one code for every character, this one first, by region, with names", code
+        == "3:Player-1-ALT1=Me_Myself,Player-1-ALT2=Me_Myself,Player-1-OLD,Player-1-SELF=Me_Myself;1:Player-7-US=Me_Myself"
+        and count == 5)
+    s.ns.AccountSettings().badgeCharacters[3]["Player-1-OLD"] = nil
+    code = s.api.BadgeCode()
     s.ns.BadgesCommand("id")
     check("id shows the code in a copy box", s.box.text == code and s.modal.visible)
     s.box.scripts.OnTextChanged(s.box, true)
@@ -713,6 +741,218 @@ do  -- the guild and community member list
     print(("  guild list, 20 rows filled: %.5f ms, %.4f KB"):format(ms, kb))
     check("filling a screen of the guild list: under 0.05 ms", ms < 0.05)
     check("and no garbage", kb < 0.01)
+end
+
+do  -- claims: the hash is naowh.gg's, byte for byte
+    local s = fixture(true)
+    local hash = s.ns.BadgeConfirm.Hash
+    check("claim hash: Die's claim and BattleTag", hash("K7P2-9XQM", "Dieman#21611", "Player-4613-006EB819") == "8c39fddd")
+    check("claim hash: UTF-8 BattleTag", hash("ABCD-2345", "\195\156n\195\175code#1234", "Player-1-0000BEEF") == "db7190c9")
+    check("claim hash: short", hash("ZZZZ-9999", "A#1", "Player-1-00000001") == "04bb847a")
+    check("claim hash: empty", hash("", "", "") == "5558edc5")
+    check("claim hash: the same claim on a friend's BattleTag differs",
+        hash("K7P2-9XQM", "Friend#4321", "Player-4613-006EB819") ~= "8c39fddd")
+end
+
+local function answer(s, sender, message)
+    s.ns.BadgeConfirm._Test.OnMessage(nil, "CHAT_MSG_ADDON", "NaowhBadge", message, "WHISPER", sender)
+end
+
+do  -- same faction: no badge until the wearer's own client says yes
+    local s = fixture(true)
+    s.patron("Player-1-PAT", "2026-01", nil, nil, true, "abcd")
+    local filter = s.nameFilters[1]
+    local scroll = s.communities({ "Player-1-PAT" })
+    s.onLoaded.Blizzard_Communities()
+    check("confirm: listening once the list has a patron", s.ns.BadgeConfirm._Test.Listening() and s.prefix == "NaowhBadge")
+    check("confirm: an unconfirmed patron's line is plain", say(filter, "Pat-Ron", 1, "Player-1-PAT") == "Pat-Ron")
+    check("confirm: and their client is asked, by addon whisper", #s.sent == 1 and s.sent[1].message == "1 Q"
+        and s.sent[1].channel == "WHISPER" and s.sent[1].target == "Pat-Ron")
+    say(filter, "Pat-Ron", 2, "Player-1-PAT")
+    check("confirm: asked once a minute at most", #s.sent == 1)
+    answer(s, "Someone Else", "1 Y")
+    check("confirm: a yes from another character counts for nothing", say(filter, "Pat-Ron", 3, "Player-1-PAT") == "Pat-Ron")
+    answer(s, "Pat Ron", "1 Y")
+    check("confirm: the asked character's yes shows the badge", say(filter, "Pat-Ron", 4, "Player-1-PAT"):find("BadgeLegendary", 1, true))
+    check("confirm: the guild list repaints when it arrives", scroll.rows[1].NameFrame and s.api.ListBadges[scroll.rows[1]] ~= nil)
+
+    s.patron("Player-1-NO", "2026-01", nil, nil, true, "abcd")
+    say(filter, "Nope", 5, "Player-1-NO")
+    answer(s, "Nope", "1 N")
+    check("confirm: a no keeps the badge off", say(filter, "Nope", 6, "Player-1-NO") == "Nope")
+
+    s.patron("Player-1-LATE", "2026-01", nil, nil, true, "abcd")
+    say(filter, "Late", 7, "Player-1-LATE")
+    s.now = s.now + 11
+    answer(s, "Late", "1 Y")
+    check("confirm: a yes after ten seconds is ignored", say(filter, "Late", 8, "Player-1-LATE") == "Late")
+    s.now = s.now + 60
+    local before = #s.sent
+    say(filter, "Late", 9, "Player-1-LATE")
+    check("confirm: asked again after a minute", #s.sent == before + 1)
+end
+
+do  -- limits, lockdown and the other faction
+    local s = fixture(true)
+    local filter = s.nameFilters[1]
+    for i = 1, 12 do s.patron("Player-1-P" .. i, "2026-01", nil, nil, true, "abcd") end
+    for i = 1, 12 do say(filter, "P" .. i, i, "Player-1-P" .. i) end
+    check("confirm: at most ten asks in ten seconds", #s.sent == 10)
+    s.now = s.now + 10
+    say(filter, "P11", 20, "Player-1-P11")
+    check("confirm: the window reopens", #s.sent == 11)
+
+    local t = fixture(true)
+    t.patron("Player-1-LOCK", "2026-01", nil, nil, true, "abcd")
+    t.lockdown = true
+    say(t.nameFilters[1], "Lock", 1, "Player-1-LOCK")
+    check("confirm: nothing is sent while addon chat is locked down", #t.sent == 0)
+
+    local u = fixture(true)
+    u.patron("Player-1-HORDE", "2026-01", nil, nil, true, "abcd")
+    u.players["Player-1-HORDE"] = { race = "Orc", name = "Grunt", second = "Smash" }
+    check("confirm: the other faction sees the badge as listed", say(u.nameFilters[1], "Grunt", 1, "Player-1-HORDE")
+        :find("BadgeLegendary", 1, true) and #u.sent == 0)
+    u.players["Player-1-ALLY"] = { race = "Human", name = "Anna", second = "Smith" }
+    u.patron("Player-1-ALLY", "2026-01", nil, nil, true, "abcd")
+    local lines = {}
+    local tooltip = { AddLine = function(_, text) lines[#lines + 1] = text end,
+        GetUnit = function() return "Anna", "mouseover" end }
+    u.env.UnitFullName = function() return "Anna", "Smith" end
+    u.unitFaction.mouseover = "Alliance"
+    u.postCalls[1](tooltip, { guid = "Player-1-ALLY" })
+    check("confirm: a same-faction tooltip asks by the unit's full name", #lines == 0 and u.sent[1]
+        and u.sent[1].target == "Anna Smith")
+end
+
+local DIE, DIE_CLAIM, DIE_HASH = "Player-4613-006EB819", "K7P2-9XQM", "8c39fddd"
+
+do  -- your own badge and your answers
+    local s = fixture(true)
+    s.me = DIE
+    s.patron(s.me, "2026-01", nil, nil, true, DIE_HASH)
+    s.battletag = "Dieman#21611"
+    s.ns.BADGE_CLAIMS = { [DIE] = { "ZZZZ-9999", DIE_CLAIM } }
+    s.fire("PLAYER_ENTERING_WORLD")
+    local filter = s.nameFilters[1]
+    check("self: the app's claim and your BattleTag show your own badge", say(filter, "Die", 1, s.me)
+        :find("BadgeLegendary", 1, true) and #s.printed == 0)
+    answer(s, "Asker", "1 Q")
+    check("self: a stranger asking gets a yes", s.sent[1] and s.sent[1].message == "1 Y" and s.sent[1].target == "Asker")
+    answer(s, "Asker", "1 Q")
+    check("self: the same asker within three seconds gets nothing more", #s.sent == 1)
+    for i = 1, 12 do answer(s, "Asker" .. i, "1 Q") end
+    check("self: at most ten answers in ten seconds", #s.sent == 10)
+
+    local t = fixture(true)
+    t.me = DIE
+    t.patron(t.me, "2026-01", nil, nil, true, DIE_HASH)
+    t.battletag = "Friend#4321"
+    t.ns.BADGE_CLAIMS = { [DIE] = { DIE_CLAIM } }
+    t.fire("PLAYER_ENTERING_WORLD")
+    check("self: the claim handed to a friend on another Battle.net account shows nothing",
+        say(t.nameFilters[1], "Die", 1, t.me) == "Die")
+    check("self: and says why, once", #t.printed == 1 and t.printed[1]:find("BattleTag", 1, true))
+    say(t.nameFilters[1], "Die", 2, t.me)
+    check("self: only once", #t.printed == 1)
+    answer(t, "Asker", "1 Q")
+    check("self: a stranger asking gets a no", t.sent[1] and t.sent[1].message == "1 N")
+
+    local u = fixture(true)
+    u.me = DIE
+    u.patron(u.me, "2026-01", nil, nil, true, DIE_HASH)
+    u.battletag = "Dieman#21611"
+    u.fire("PLAYER_ENTERING_WORLD")
+    check("self: no claim on this PC, no badge", say(u.nameFilters[1], "Die", 1, u.me) == "Die")
+    check("self: and how to claim it", #u.printed == 1 and u.printed[1]:find("/nf badges claim", 1, true))
+    u.ns.BadgesCommand("claim not-a-code")
+    check("claim: a bad code says what one looks like", u.printed[#u.printed]:find("K7P2-9XQM", 1, true))
+    u.ns.BadgesCommand("claim zzzz-9999")
+    check("claim: another character's claim is refused", u.printed[#u.printed]:find("not this character's", 1, true))
+    u.ns.BadgesCommand("CLAIM k7p2-9xqm")
+    check("claim: the right one, typed in any case, claims it", u.printed[#u.printed]:find("is claimed", 1, true)
+        and u.account.badgeClaims[DIE] == DIE_CLAIM)
+    check("claim: and the badge shows", say(u.nameFilters[1], "Die", 2, u.me):find("BadgeLegendary", 1, true))
+
+    local v = fixture(true)
+    v.me = "Player-4613-0000F00D"
+    v.ns.BadgesCommand("claim K7P2-9XQM")
+    check("claim: saved before the character is on the list", v.printed[#v.printed]:find("next Naowh Forever update", 1, true))
+
+    local x = fixture(true)
+    x.me = DIE
+    x.patron(x.me, "2026-01", nil, nil, true, DIE_HASH)
+    x.battletag = "Dieman#21611"
+    x.fire("PLAYER_ENTERING_WORLD")
+    local accept
+    x.ns.PromptText = function(_, _, letters, onAccept) accept = onAccept; x.letters = letters end
+    x.cards["Profiles/Setups:yourBadge"].rows[1].button()
+    check("claim button: asks for the code in the shared prompt", accept ~= nil and x.letters == 9)
+    accept("k7p2-9xqm")
+    check("claim button: a pasted code claims the badge", x.account.badgeClaims[DIE] == DIE_CLAIM
+        and x.cards["Profiles/Setups:yourBadge"].summary() == "Legendary Patron, your claim matches naowh.gg")
+end
+
+do  -- the group banner waits for the confirmation
+    local s = fixture(true, { badgeBanner = true })
+    s.patron("Player-1-JOIN", "2026-01", nil, nil, true, "abcd")
+    s.fire("PLAYER_ENTERING_WORLD")
+    s.group = { "Player-1-JOIN" }
+    s.fire("GROUP_ROSTER_UPDATE")
+    check("banner: no toast before the confirmation", s.api.QueueSize() == 0 and (not s.api.Toast() or not s.api.Toast().visible))
+    answer(s, "Someone Surname", "1 Y")
+    check("banner: the toast comes with the yes", s.api.Toast() and s.api.Toast().visible)
+end
+
+do  -- your badge's status, at the top of Profiles and from /nf badges status
+    local s = fixture(true)
+    local card = s.cards["Profiles/Setups:yourBadge"]
+    check("status: the Your Badge card is on Profiles, before Setups", card and card.order < 10
+        and card.rows[1].button == s.ns.PromptBadgeClaim and card.rows[2].button == s.ns.ShowBadgeCode
+        and card.rows[2].label == "Show My Character Code")
+    s.me = "Player-1-PLAIN"
+    check("status: no badge", card.summary() == "No badge on this character")
+    s.me = "Player-1-STAFF"
+    s.staff(s.me, { tier = "developer", title = "Lead Developer" })
+    check("status: the team's title", card.summary() == "Lead Developer")
+
+    local t = fixture(true)
+    t.me = DIE
+    t.patron(t.me, "2026-01", nil, nil, true, DIE_HASH)
+    t.ns.BADGE_CLAIMS = { [DIE] = { DIE_CLAIM } }
+    t.fire("PLAYER_ENTERING_WORLD")
+    local tcard = t.cards["Profiles/Setups:yourBadge"]
+    check("status: checking while Battle.net has not answered", tcard.summary() == "Legendary Patron, checking your claim")
+    t.battletag = "Dieman#21611"
+    check("status: confirmed", tcard.summary() == "Legendary Patron, your claim matches naowh.gg")
+    t.ns.BadgesCommand("status")
+    check("status: /nf badges status prints it", t.printed[#t.printed] == "Legendary Patron, your claim matches naowh.gg")
+
+    local u = fixture(true)
+    u.me = DIE
+    u.patron(u.me, "2026-01", nil, nil, true, DIE_HASH)
+    u.battletag = "Other#2222"
+    u.ns.BADGE_CLAIMS = { [DIE] = { DIE_CLAIM } }
+    u.fire("PLAYER_ENTERING_WORLD")
+    check("status: off, with why", u.cards["Profiles/Setups:yourBadge"].summary()
+        == "Legendary Patron, off: the claim or BattleTag does not match naowh.gg")
+
+    local w = fixture(true)
+    w.me = DIE
+    w.patron(w.me, "2026-01", nil, nil, true, DIE_HASH)
+    w.battletag = "Dieman#21611"
+    w.fire("PLAYER_ENTERING_WORLD")
+    check("status: not claimed yet", w.cards["Profiles/Setups:yourBadge"].summary()
+        == "Legendary Patron, not claimed on this character yet")
+end
+
+do  -- free while off: no patrons, or the patron flag at 0, means no listening at all
+    local s = fixture(true)
+    check("free: no patron on the list, nothing registered", not s.ns.BadgeConfirm._Test.Listening() and s.prefix == nil)
+    local t = fixture(true, nil, 0)
+    t.patron("Player-1-LEG", "2026-03")
+    t.ns.Apply()
+    check("free: flag 0, nothing registered", not t.ns.BadgeConfirm._Test.Listening() and t.prefix == nil)
 end
 
 do  -- the settings card, with the flag on

@@ -211,8 +211,11 @@ local function Shown(flag)
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
         strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end,
         date = os.date,
+        -- The patron is of the other faction, whose badges show as listed, with no whisper to confirm.
+        UnitFactionGroup = function() return "Alliance" end,
+        GetPlayerInfoByGUID = function(guid) if guid == "Player-1-PATRON" then return nil, nil, nil, "Orc" end end,
     }, { __index = _G })
-    Load({ Located("Core/Badges/Badges.lua"), Located("CharacterPanel/UI/SettingsPage.lua"),
+    Load({ Located("Core/Badges/Confirm.lua"), Located("Core/Badges/Badges.lua"), Located("CharacterPanel/UI/SettingsPage.lua"),
         Located("InspectPanel/UI/SettingsPage.lua"),
         Located("Core/Pages/Credits.lua"), Located("Core/Pages/PatchNotes.lua") }, env)
     ns.BuildCreditsPage({ GetWidth = function() return 800 end }, 0)

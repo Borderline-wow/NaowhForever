@@ -4,8 +4,9 @@
 
 Writes Core/Badges/Patrons.lua from naowh.gg's list of active Legendary and Epic patrons
 (https://naowh.gg/api/forever/badges, or a saved copy with --from): each region's character
-GUIDs, with the month their pledge started and their tier ("legendary" when left out, or
-"epic"). Patrons add their characters' codes (/nf badges id)
+GUIDs, with the month their pledge started, their tier ("legendary" when left out, or
+"epic") and the hash of their claim, which the character's own client checks with its own BattleTag
+before its faction sees the badge (Core/Badges/Confirm.lua). Patrons add their characters' codes (/nf badges id)
 on naowh.gg/forever/account; naowh.gg keeps a lapsed patron's codes, so they come back on a
 re-sub, and lists only the active ones here. Every entry is checked before the file is written,
 the output is sorted so an unchanged list writes an unchanged file, and the file keeps its CRLF
@@ -23,6 +24,7 @@ URL = "https://naowh.gg/api/forever/badges"
 OUT = Path("Core/Badges/Patrons.lua")
 GUID = re.compile(r"^Player-\d+-[0-9A-F]{8}$")
 MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+CLAIM = re.compile(r"^[0-9a-f]{8}$")
 TIERS = ("legendary", "epic")
 DEFAULT_TIER = "legendary"
 
@@ -51,10 +53,11 @@ def validated(data):
         for guid, entry in characters.items():
             since = entry.get("since") if isinstance(entry, dict) else None
             tier = entry.get("tier", DEFAULT_TIER) if isinstance(entry, dict) else None
+            claim = entry.get("claim") if isinstance(entry, dict) else None
             if not GUID.match(guid) or not isinstance(entry, dict) or (since is not None and not MONTH.match(str(since))) \
-                    or tier not in TIERS:
+                    or tier not in TIERS or (claim is not None and not CLAIM.match(str(claim))):
                 raise ValueError(f"bad entry {region}:{guid} {entry!r}")
-            out.setdefault(int(region), {})[guid] = (since, tier)
+            out.setdefault(int(region), {})[guid] = (since, tier, claim)
     return out
 
 
@@ -63,8 +66,9 @@ def render(patrons):
     for region in sorted(patrons):
         lines.append(f"    [{region}] = {{")
         for guid in sorted(patrons[region]):
-            since, tier = patrons[region][guid]
-            fields = ([f'since = "{since}"'] if since else []) + ([f'tier = "{tier}"'] if tier != DEFAULT_TIER else [])
+            since, tier, claim = patrons[region][guid]
+            fields = ([f'since = "{since}"'] if since else []) + ([f'tier = "{tier}"'] if tier != DEFAULT_TIER else []) \
+                + ([f'claim = "{claim}"'] if claim else [])
             value = f"{{ {', '.join(fields)} }}" if fields else "{}"
             lines.append(f'        ["{guid}"] = {value},')
         lines.append("    },")

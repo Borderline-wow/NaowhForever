@@ -2,5 +2,6 @@
     <!-- Badges.xml: the staff and patron lists, then the badges that read them. -->
     <Script file="Staff.lua"/>
     <Script file="Patrons.lua"/>
+    <Script file="Confirm.lua"/>
     <Script file="Badges.lua"/>
 </Ui>
