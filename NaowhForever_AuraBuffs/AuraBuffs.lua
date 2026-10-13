@@ -10,7 +10,7 @@ local S = ns.UI.ModuleSettings("auraBuffs", {
     onlyIfCarried = true, hideResting = true,
     raidBuffs = F.raidBuffs, raidBuffsOwn = true,
     raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
-    personalBuffs = F.personalBuffs, personalBuffPicks = {},
+    personalBuffs = F.personalBuffs, personalBuffPicks = {}, weaponEnhancements = F.weaponEnhancements,
     iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
     buffsPos = { point = "TOP", relPoint = "TOP", x = 0, y = -232 },
 

@@ -26,6 +26,12 @@ D.ELIXIRS = {
     { stat = "Major Troll's Blood", items = { 20004 }, auras = { 24361 } },
 }
 
+D.WEAPON_ITEMS = {
+    20750, 20749, 20748, 20747, 20746, 20745, 20744, 23123, 3829, 3824,
+    23122, 18262, 12404, 7964, 2871, 2863, 2862,
+    12643, 7965, 3241, 3240, 3239,
+}
+
 D.SCROLLS = {
     { stat = "Agility", items = { 3012, 1477, 4425, 10309 }, auras = { 8115, 8116, 8117, 12174 } },
     { stat = "Intellect", items = { 955, 2290, 4419, 10308 }, auras = { 8096, 8097, 8098, 12176 }, raid = "intellect" },
@@ -34,6 +40,13 @@ D.SCROLLS = {
     { stat = "Stamina", items = { 1180, 1711, 4422, 10307 }, auras = { 8099, 8100, 8101, 12178 }, raid = "stamina" },
     { stat = "Strength", items = { 954, 2289, 4426, 10310 }, auras = { 8118, 8119, 8120, 12179 } },
 }
+
+D.DEFAULT_GROUPS = { flask = { items = D.FLASKS.items, auras = D.FLASKS.auras },
+    battle = { items = {}, auras = {} } }
+for _, elixir in ipairs(D.ELIXIRS) do
+    for _, id in ipairs(elixir.items) do table.insert(D.DEFAULT_GROUPS.battle.items, id) end
+    for _, id in ipairs(elixir.auras) do table.insert(D.DEFAULT_GROUPS.battle.auras, id) end
+end
 
 D.RAID = {
     { key = "intellect", name = "Arcane Intellect", class = "MAGE", skip = { WARRIOR = true, ROGUE = true },

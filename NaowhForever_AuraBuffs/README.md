@@ -110,6 +110,11 @@ NaowhForever_AuraBuffs/
   trained more than one. `UNIT_SPELLCAST_SUCCEEDED` remembers the last one actually cast
   (`lastImbue`) and the icon follows that instead, falling back to the first known spell until a
   cast is seen.
+- With Only If I Carry One off, flasks and elixirs with no entries still get a reminder: any flask or elixir of the
+  classic lists in `D.DEFAULT_GROUPS` (no battle/guardian split on Forever, so one elixir reminder, skipped when
+  guardian entries exist). Scrolls stay opt-in. Weapon Enhancement Reminder (off by default) asks for a stone or
+  oil (`D.WEAPON_ITEMS`) on each equipped weapon, an off hand only when it is a weapon, and defers to a class's
+  own poison or imbue reminder.
 - Warn With Minutes Left covers personal buffs too, except a buff no longer than the warning
   (Battle Shout's 2 minutes), which would otherwise show the moment it is cast. Poisons last 30
   minutes and Forever's imbues 60, past the slider's 10.

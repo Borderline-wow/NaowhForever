@@ -180,6 +180,7 @@ ns.FEATURES = {
         enabled = true,
         raidBuffs = false,
         personalBuffs = true,
+        weaponEnhancements = false,
         campfire = true,
         campNearbyAlert = true,
         lowHealth = true,

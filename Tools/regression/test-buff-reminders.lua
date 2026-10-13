@@ -45,6 +45,7 @@ local function Fixture(opts)
         group = opts.group,                         -- nil solo, "party" or "raid"
         units = opts.units or {},                   -- unit -> class; player included
         known = opts.known or {},
+        shields = opts.shields or {},               -- slot -> true for a shield in that slot
         weapons = opts.weapons or {},               -- slot -> enchant seconds left, false for none
         target = opts.target,                       -- nil, or the target's classification
         itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
@@ -88,7 +89,7 @@ local function Fixture(opts)
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
-        personalBuffs = true, personalBuffPicks = {},
+        personalBuffs = true, personalBuffPicks = {}, weaponEnhancements = false,
     }
     local S = {}
     function S.Get(k)
@@ -129,6 +130,7 @@ local function Fixture(opts)
     local env = {
         NUM_BAG_SLOTS = 0,
         UIParent = {},
+        Enum = { ItemClass = { Weapon = 2 } },
         GetTime = function() return state.now end,
         InCombatLockdown = function() return state.combat end,
         IsResting = function() return state.resting end,
@@ -172,6 +174,10 @@ local function Fixture(opts)
                 local left = state.weapons[weaponSlot == 0 and 16 or 17]
                 return { { hasEnchant = false, timeLeft = 0 },
                     { hasEnchant = left and true or false, timeLeft = left and left * 1000 or 0 } }
+            end,
+            GetItemInfoInstant = function(id)
+                local class = state.shields[id - 1000] and 4 or 2
+                return id, nil, nil, nil, nil, class
             end,
         },
         C_Spell = {
@@ -720,6 +726,67 @@ do
     end
     Check("preview in the world", Preview("world"), "personal:spell:16362")
     Check("preview resting", Preview("resting"), "")
+end
+
+-- Only If I Carry One off: flasks and elixirs show with none listed or carried, food only when listed.
+do
+    local t = Fixture({ instance = "raid", settings = { consumableEntries = {
+        { category = "food", itemID = 13931, auras = { 1249520 } } }, onlyIfCarried = false } })
+    t.Login()
+    Check("kinds not listed", t.Shown(), "item:13931 item:13510 item:13452")
+    t.state.auras.player = { { 1249520, 1800, 3600 }, { 17626, 7000, 7200 }, { 11334, 3000, 3600 } }
+    t.Fire("UNIT_AURA", "player")
+    t.Advance(0.5)
+    Check("any flask and elixir counts", t.Shown(), "")
+    t.Set("consumableEntries", { { category = "guardian", itemID = 13445, auras = { 11348 } } })
+    t.state.auras.player = {}
+    t.Fire("UNIT_AURA", "player")
+    t.Advance(0.5)
+    Check("guardian listed, no generic elixir", t.Shown(), "item:13510 item:13445")
+end
+
+-- With nothing listed, nothing shows until Only If I Carry One goes off.
+do
+    local t = Fixture({ instance = "raid", units = { player = "MAGE" }, settings = { personalBuffs = false } })
+    t.Login()
+    Check("nothing listed, nothing shown", t.Shown(), "")
+    t.Set("onlyIfCarried", false)
+    Check("switch off, kinds shown", t.Shown(), "item:13931 item:13510 item:13454")
+    t.Set("onlyIfCarried", true)
+    Check("switch back on, nothing shown", t.Shown(), "")
+end
+
+-- Weapon Enhancement Reminder: stone or oil missing on a weapon, off by default.
+do
+    local t = Fixture({ instance = "raid", units = { player = "MAGE" }, bags = { 20750 },
+        weapons = { [16] = false, [17] = false }, shields = { [17] = true },
+        settings = { consumableEntries = { { category = "food", itemID = 13931 } } } })
+    t.Login()
+    Check("off by default", t.Shown(), "")
+    t.Set("weaponEnhancements", true)
+    Check("oil carried, main hand bare", t.Shown(), "item:20750")
+    t.state.bags = {}
+    t.Fire("BAG_UPDATE_DELAYED")
+    t.Advance(0.5)
+    Check("none carried", t.Shown(), "")
+    t.Set("onlyIfCarried", false)
+    Check("none carried, switch off", t.Shown(), "item:13931 item:13510 item:13452 item:20750")
+    t.state.weapons[16] = 1800
+    t.Fire("UNIT_INVENTORY_CHANGED", "player")
+    t.Advance(0.5)
+    Check("main hand enchanted, shield ignored", t.Shown(), "item:13931 item:13510 item:13452")
+    t.state.shields[17] = nil
+    t.Fire("UNIT_INVENTORY_CHANGED", "player")
+    t.Advance(0.5)
+    Check("off hand weapon bare", t.Shown(), "item:13931 item:13510 item:13452 item:20750")
+end
+
+-- A class with its own poison reminder does not get the generic one.
+do
+    local t = Fixture({ instance = "raid", units = { player = "ROGUE" }, known = { [2842] = true },
+        bags = { 20750 }, weapons = { [16] = false }, settings = { weaponEnhancements = true } })
+    t.Login()
+    Check("rogue keeps poisons only", t.Shown(), "spell:2842")
 end
 
 if failures > 0 then
