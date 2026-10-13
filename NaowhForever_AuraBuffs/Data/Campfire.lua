@@ -22,7 +22,7 @@ D.FEATURES = {
       aliases = { "Faction Banner", "Spinning Wheel", "Loom" } },
     { id = 1230098, tag = "+Stats", short = "Stats", unit = "%", name = "Fish Bowl", stat = "All stats",
       amount = "+%s%% all stats", aliases = { "Fish Bowl", "Fishing Rack", "Fishing Hut" } },
-    { id = 1230653, tag = "+ARM", short = "Armor", name = "Enchanted Lute", stat = "Armor, all stats and resistances",
+    { id = 1230653, tag = "+MotW", short = "Armor", name = "Enchanted Lute", stat = "Armor, all stats and resistances",
       amount = "+%s Armor, +%s all stats, +%s resistances", points = 3, aliases = { "Enchanted Lute" } },
     { id = 1230164, tag = "+ATK", short = "AP", name = "Lodestone", stat = "Melee Attack Power",
       amount = "+%s Melee Attack Power", aliases = { "Lodestone", "Rock Garden", "Molten Foundry" } },
@@ -42,7 +42,7 @@ D.SAMPLE_BONUSES = { { D.FEATURES[1] }, { D.FEATURES[3], 56 }, { D.FEATURES[4], 
 D.EFFECT_TAGS = {
     { "rested", "+Rested" }, { "rest experience", "+Rested" }, { "disenchant", "+Disenchant" },
     { "critical strike", "+Crit" }, { "spell damage", "+Spell" }, { "spell power", "+Spell" },
-    { "armor", "+ARM" }, { "attack power", "+ATK" }, { "strength", "+STR" }, { "stamina", "+STA" },
+    { "armor", "+MotW" }, { "attack power", "+ATK" }, { "strength", "+STR" }, { "stamina", "+STA" },
     { "intellect", "+INT" }, { "spirit", "+Spirit" }, { "mana", "+MP5" }, { "mp5", "+MP5" },
     { "stats", "+Stats" },
 }

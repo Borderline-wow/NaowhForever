@@ -440,7 +440,7 @@ do
         { { "Incense Candle: An unfamiliar effect with a very long description." }, "+INT" },
         { { "Faction Banner: Spirit increased by 27." }, "+Spirit" },
         { { "Lodestone: Melee attack power increased by 49." }, "+ATK" },
-        { { "Enchanted Lute: Armor increased by 114 and all stats by 7." }, "+ARM" },
+        { { "Enchanted Lute: Armor increased by 114 and all stats by 7." }, "+MotW" },
         { { "Fish Bowl: All stats increased by 8%." }, "+Stats" },
         { { "Fish Bowl: Strength, Agility, Stamina, Intellect and Spirit increased by 8%." }, "+Stats" },
         { { "Anvil: Strength increased by 20.", "Toxin Study: Stamina increased by 34." }, "+STR\n+STA" },
