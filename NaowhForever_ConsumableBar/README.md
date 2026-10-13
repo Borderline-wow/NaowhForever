@@ -93,24 +93,40 @@ NaowhForever_ConsumableBar/
 - An item given its own text before the Custom Text switch existed keeps showing it.
 - The bar starts at `HOME_Y` (-260), under the Food & Drink Bar's spot (-210), so the two never sit
   on top of each other.
-- An entry is an item ID or a Smart Macro (`macro:health`, `macro:healthstone`, `macro:healthPotion`,
+- An entry is an item ID, a Smart Macro (`macro:health`, `macro:healthstone`, `macro:healthPotion`,
   `macro:mana`, `macro:food`, `macro:drink`, `macro:bandage`, while the Macros module is loaded: it
-  loads first, `OptionalDeps`). A macro's button runs it by name, so Macros' rewrite needs nothing
-  protected here. The bar never flips your Macros switches: Macros keeps a macro the bar uses
-  (`ns.ConsumableBarUsesMacro`), and the bar only asks it to update (`ns.UpdateManagedMacros`) when
-  the macros it uses change, so a bar that is off costs nothing. A rewrite in combat only redraws
-  the icon, since resizing a secure button waits for the fight to end.
+  loads first, `OptionalDeps`), or a Food & Drink button (`smart:food`, `smart:drink`). A macro's
+  button runs it by name, so Macros' rewrite needs nothing protected here. The bar never flips your
+  Macros switches: Macros keeps a macro the bar uses (`ns.ConsumableBarUsesMacro`), and the bar only
+  asks it to update (`ns.UpdateManagedMacros`) when the macros it uses change, so a bar that is off
+  costs nothing. A rewrite in combat only redraws the icon, since resizing a secure button waits for
+  the fight to end.
+- A Food & Drink button is a secure item button pointed at your best food or drink
+  (`ns.BestFoodAndDrink`), out of combat only: a bag change in a fight points it when the fight
+  ends. Its key is the Food & Drink Bar's own (`ns.FoodBarBindings`), which clicks that bar's hidden
+  buttons, so one key works on either bar. With QoL not loaded there are no such buttons, so the
+  bar's own take their names (`ns.FOOD_BUTTONS`) and the same key clicks them; buttons are built at
+  login, when that is known.
+- The Food & Drink buttons do NF Food's and NF Drink's job, so the bar takes the buttons or those
+  macros, not both; the one held back says which is in the way. While the buttons are on the bar,
+  the Food & Drink Bar steps aside.
 - NF Health's priority and NF Food's Food Only sit behind cogs on their rows. They are the Macros
   module's own settings (`ns.MacroSettings`), shown in both places, so there is never a second copy.
-- A Smart Macro covers a kind of item: NF Health healthstones and healing potions, NF Healthstone
-  and NF Health Potion one of those each, NF Mana mana potions, NF Food food and drink (food alone
-  with Macros' Food Only on), NF Drink drinks, NF Bandage bandages. Scan Bags and Ask to Add skip
-  what is covered; adding one by hand asks first.
-- For a class with no mana (warriors and rogues, `ns.UsesMana`) NF Mana and NF Drink are
-  not shown, even from another character's profile, but stay saved and kept by Macros
+- A smart button covers a kind of item: the food button food and the drink button drinks, each on
+  its own, NF Health healthstones and healing potions, NF Healthstone and NF Health Potion one of
+  those each, NF Mana mana potions, NF Food food and drink (food alone with Macros' Food Only on),
+  NF Drink drinks, NF Bandage bandages. Scan Bags and Ask to Add skip what is covered; adding one
+  by hand asks first.
+- Either Food & Drink button on the bar counts as the buttons being there (`CB.HasFoodButtons`), so
+  one left alone still keeps the Food & Drink Bar aside and its keys working. The drink button
+  counts only for a class with mana: a warrior on a caster's profile does not see it, so it does not
+  take their Food & Drink Bar away.
+- For a class with no mana (warriors and rogues, `ns.UsesMana`) NF Mana, NF Drink and the drink
+  button are not shown, even from another character's profile, but stay saved and kept by Macros
   (`ns.ConsumableBarUsesMacro` reads the saved list): the NF macros are account-wide, so letting one
-  go would delete a caster's macro from their action bars. Edits on that character keep them for the next; their switches wait, saying why, and Scan Bags and Ask to
-  Add skip drinks and mana potions; adding one by hand asks first.
+  go would delete a caster's macro from their action bars. Edits on that character keep them for the
+  next; their switches wait, saying why, and Scan Bags and Ask to Add skip drinks and mana potions;
+  adding one by hand asks first.
 - Anchoring is the shared one (`Shared/UI/Anchor.lua`): unit frames there, and the HUD Editor's own
   Anchor for another Naowh Forever element (Anchor to an Element). Another addon's frame could move
   in combat, and the bar's secure buttons on it would block that.

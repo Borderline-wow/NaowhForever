@@ -11,13 +11,22 @@ local MACRO_PREFIX = "macro:"
 local MACRO_PATTERN = "^macro:(%a+)$"
 local MACRO_NAME = "%s (%s)"
 local ITEM_IN_BODY = "item:(%d+)"
+local FOOD, DRINK = "smart:food", "smart:drink"
 local MANA_MACRO, DRINK_MACRO = "macro:mana", "macro:drink"
 
-local NEEDS_MANA = { [MANA_MACRO] = true, [DRINK_MACRO] = true }
+local NEEDS_MANA = { [DRINK] = true, [MANA_MACRO] = true, [DRINK_MACRO] = true }
+
+local SMART = {
+    [FOOD] = { label = ns.L("Best Food"), button = "SmartFood", icon = ns.NO_FOOD.icon, empty = ns.NO_FOOD.text,
+        binding = "food" },
+    [DRINK] = { label = ns.L("Best Drink"), button = "SmartDrink", icon = ns.NO_DRINK.icon, empty = ns.NO_DRINK.text,
+        binding = "drink" },
+}
 
 local NO_FLAGS = {}
 local NO_ITEMS = {}
 local listeners = {}
+local best = {}
 local shownFor, shown
 
 local CB = {}
@@ -26,6 +35,7 @@ CB.S = S
 CB.PREFIX = "consumableBar"
 CB.PAGE = "Consumable Bar/Settings"
 CB.CARD = "Consumable Bar/Settings:bar"
+CB.FOOD, CB.DRINK = FOOD, DRINK
 
 function CB.On()
     return S.Get("consumableBar") == true
@@ -104,8 +114,19 @@ function CB.MacroEntry(key)
     return MACRO_PREFIX .. key
 end
 
+function CB.Smart(entry)
+    return SMART[entry]
+end
+
+function CB.RefreshSmart()
+    best[FOOD], best[DRINK] = ns.BestFoodAndDrink()
+    local point = ns.FoodBarPoint
+    if point then point(best[FOOD], best[DRINK]) end
+end
+
 function CB.Resolve(entry)
     if type(entry) == "number" then return entry end
+    if SMART[entry] then return best[entry] end
     local info = CB.MacroInfo(entry)
     local body = info and GetMacroBody(info.name)
     return body and tonumber(body:match(ITEM_IN_BODY))
@@ -114,6 +135,8 @@ end
 function CB.EntryName(entry)
     local info = CB.MacroInfo(entry)
     if info then return MACRO_NAME:format(info.label, info.name) end
+    local smart = SMART[entry]
+    if smart then return smart.label end
     if type(entry) ~= "number" then return entry end
     return CB.ItemName(entry)
 end
@@ -121,11 +144,13 @@ end
 function CB.EntryIcon(entry)
     local item = CB.Resolve(entry)
     if item then return C_Item.GetItemIconByID(item) or CB.C.EMPTY_ICON end
-    local info = CB.MacroInfo(entry)
+    local info = CB.MacroInfo(entry) or SMART[entry]
     return info and info.icon or CB.C.EMPTY_ICON
 end
 
 function CB.EmptyTip(entry)
+    local smart = SMART[entry]
+    if smart then return smart.empty end
     local info = CB.MacroInfo(entry)
     return info and CB.EntryName(entry)
 end
@@ -133,10 +158,16 @@ end
 function CB.ButtonName(entry)
     local key = CB.MacroKey(entry)
     if key then return BUTTON_NAMED:format((key:gsub("^%l", string.upper))) end
+    local smart = SMART[entry]
+    if smart and not ns.FoodBarBindings then return ns.FOOD_BUTTONS[smart.binding] end
+    if smart then return BUTTON_NAMED:format(smart.button) end
     return BUTTON_ITEM:format(tostring(entry))
 end
 
 function CB.BindAction(entry)
+    local smart = SMART[entry]
+    local shared = ns.FoodBarBindings
+    if smart and shared then return shared[smart.binding] end
     return BIND_CLICK:format(CB.ButtonName(entry))
 end
 
@@ -146,6 +177,15 @@ end
 
 function ns.ConsumableBarUsesMacro(key)
     return CB.On() and CB.HasMacro(key) or false
+end
+
+function CB.HasFoodButtons()
+    local saved = CB.SavedItems()
+    return CB.Has(saved, FOOD) or (ns.UsesMana() and CB.Has(saved, DRINK))
+end
+
+function ns.ConsumableBarUsesFood()
+    return CB.On() and CB.HasFoodButtons() or false
 end
 
 function CB.OnChange(fn)

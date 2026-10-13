@@ -16,13 +16,15 @@ local CARD_ID = "foodBar"
 local ORDER_CONSUMABLE, ORDER_LOOT = 35, 55
 local SUMMARY = ns.L("%d px buttons")
 local BAR_NAME = ns.L("Food & Drink Bar")
+local TEXT_ON_CONSUMABLE = ns.L("Its buttons are on the Consumable Bar")
 
-local EMPTY = { { icon = 133971, text = ns.L("No food in your bags") },
-    { icon = 132794, text = ns.L("No drink in your bags") } }
+local EMPTY = { ns.NO_FOOD, ns.NO_DRINK }
 local STAGE_H = 100
 local ICON_RANGE = { 20, 70, 1 }
-local BUTTON_NAMES = { "NaowhForeverFoodBarFood", "NaowhForeverFoodBarDrink" }
-local BINDINGS = { "CLICK NaowhForeverFoodBarFood:LeftButton", "CLICK NaowhForeverFoodBarDrink:LeftButton" }
+local BIND_CLICK = "CLICK %s:LeftButton"
+local BUTTON_NAMES = { ns.FOOD_BUTTONS.food, ns.FOOD_BUTTONS.drink }
+local BINDINGS = { BIND_CLICK:format(BUTTON_NAMES[1]), BIND_CLICK:format(BUTTON_NAMES[2]) }
+ns.FoodBarBindings = { food = BINDINGS[1], drink = BINDINGS[2] }
 local MOVED = { "foodBar", "foodBarSize", "foodBarPos" }
 local LOOK = { foodBarShowCount = true, foodBarFont = true, foodBarFontSize = true, foodBarTextColor = true,
     foodBarTextPoint = true, foodBarTextOutside = true, foodBarTextX = true, foodBarTextY = true,
@@ -37,12 +39,19 @@ local bar, moving, pending
 local events = CreateFrame("Frame")
 
 local function Drinks()
-    local class = select(2, UnitClass("player"))
-    return class ~= "WARRIOR" and class ~= "ROGUE"
+    return ns.UsesMana()
+end
+
+local function OnConsumableBar()
+    return ns.ConsumableBarUsesFood ~= nil and ns.ConsumableBarUsesFood()
 end
 
 local function On()
-    return S.Get("enabled") and S.Get("foodBar")
+    return S.Get("enabled") and S.Get("foodBar") and not OnConsumableBar()
+end
+
+local function Kept()
+    return (S.Get("enabled") and S.Get("foodBar")) or OnConsumableBar()
 end
 
 local function Migrate()
@@ -78,10 +87,13 @@ local function FillButton(button, i, id)
     Look.Fill(button, i, id and (C_Item.GetItemIconByID(id) or EMPTY[i].icon), id and C_Item.GetItemCount(id))
 end
 
-local function Fill()
-    local food, drink = ns.BestFoodAndDrink()
+local function Point(food, drink)
     FillButton(bar.buttons[1], 1, food)
     FillButton(bar.buttons[2], 2, Drinks() and drink or nil)
+end
+
+local function Fill()
+    Point(ns.BestFoodAndDrink())
 end
 
 local function ItemOfSlot(slot, item)
@@ -128,21 +140,21 @@ local function Apply()
         return
     end
     pending = false
-    if not On() then
+    if not Kept() then
         events:UnregisterAllEvents()
         if bar then bar:Hide() end
         return
     end
-    ActionKeys.Listen(events, false)
-    events:RegisterEvent("BAG_UPDATE_DELAYED")
+    if On() then events:RegisterEvent("BAG_UPDATE_DELAYED") else events:UnregisterEvent("BAG_UPDATE_DELAYED") end
     ActionKeys.Listen(events, S.Get("foodBarKeybinds"))
     if not bar then Build() end
     Look.Layout(bar, S.Get("foodBarSize"))
     ItemBar.Put(bar, S, PREFIX, DEFAULT_Y)
     Fill()
     QueueKeys()
-    bar.mover:SetShown(moving == true)
-    bar:Show()
+    local shown = On()
+    bar.mover:SetShown(shown and moving == true)
+    bar:SetShown(shown)
 end
 
 local function OnEvent(_, event)
@@ -150,7 +162,7 @@ local function OnEvent(_, event)
         events:UnregisterEvent("PLAYER_REGEN_ENABLED")
         if not pending then return end
     elseif event == "BAG_UPDATE_DELAYED" then
-        if bar and bar:IsShown() and not InCombatLockdown() then
+        if bar and Kept() and not InCombatLockdown() then
             Fill()
             QueueKeys()
             return
@@ -160,6 +172,12 @@ local function OnEvent(_, event)
         return
     end
     Apply()
+end
+
+function ns.FoodBarPoint(food, drink)
+    if not bar or On() or not Kept() or InCombatLockdown() then return end
+    Point(food, drink)
+    QueueKeys()
 end
 
 local function Restyle()
@@ -178,7 +196,8 @@ end
 local function OnSettingChanged(key)
     if LOOK[key] then
         Restyle()
-    elseif key == "enabled" or (key:find("^foodBar") and key ~= "foodBarPos") then
+    elseif key == "enabled" or key == "consumableBar" or key == "consumableBarItems"
+        or (key:find("^foodBar") and key ~= "foodBarPos") then
         Apply()
     end
 end
@@ -226,6 +245,10 @@ local function Summary(store)
     return SUMMARY:format(store.Get("foodBarSize"))
 end
 
+local function SwitchWhy()
+    if OnConsumableBar() then return TEXT_ON_CONSUMABLE end
+end
+
 local ANCHOR = { store = S, prefix = PREFIX, name = BAR_NAME, on = On, frame = function() return bar end }
 
 local rows = {
@@ -243,7 +266,7 @@ rows[#rows + 1] = Group("Anchor")
 for _, row in ipairs(Shared.Anchor.Rows(ANCHOR)) do rows[#rows + 1] = row end
 
 Settings.Page(page, S):Card({
-    id = "foodBar", name = "Food & Drink Bar", order = order, switch = "foodBar",
+    id = "foodBar", name = "Food & Drink Bar", order = order, switch = "foodBar", switchWhy = SwitchWhy,
     help = "Buttons for the best food and drink in your bags, conjured first; food only if you have "
         .. "no mana. Move it in the HUD Editor.",
     summary = Summary,

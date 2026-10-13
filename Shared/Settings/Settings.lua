@@ -397,11 +397,15 @@ end
 function Settings.Off(row)
     local card = row.card
     if card.switchGet and not row.always and not card.switchGet() then return true end
+    local held = not row.always and card.switchWhy and card.switchWhy()
+    if held then return true, held end
     local needs = row.needs
     if not needs then return false end
     if type(needs) == "function" then
         if needs() then return false end
-        return true, row.why
+        local why = row.why
+        if type(why) == "function" then why = why() end
+        return true, why
     end
     local store = row.store
     if type(needs) == "string" then

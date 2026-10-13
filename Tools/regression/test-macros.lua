@@ -655,6 +655,10 @@ do
     t.Tick()
     local bar = t.FoodBar()
     local food, drink = bar.buttons[1], bar.buttons[2]
+    local before = food.attrs.item1
+    t.ns.FoodBarPoint(4599, 1179)
+    Check("shown on its own, it keeps its own search", food.attrs.item1, before)
+    Check("and listens to the bags itself", t.Listening("BAG_UPDATE_DELAYED"), true)
     local foodEvents, registers = t.FoodEvents(), 0
     local register = foodEvents.RegisterEvent
     function foodEvents:RegisterEvent(event)
@@ -742,6 +746,65 @@ do
     Check("its name still says food", card.name:find("Food") ~= nil, true)
     Check("the same switch", card.switch, "foodBar")
     Check("the HUD Editor opens it there", t.Mover().feature, "Consumable Bar/Settings:foodBar")
+end
+
+-- While its buttons are on the Consumable Bar, the Food & Drink Bar steps aside, and its card says why.
+do
+    local t = Fixture({ consumableBarLoaded = true, qol = { foodBar = true, consumableBar = true }, bags = { 5349 } })
+    local onMain = false
+    t.ns.ConsumableBarUsesFood = function() return onMain end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local bar = t.FoodBar()
+    local card = t.cards["Consumable Bar/Settings:foodBar"]
+    Check("up while its buttons are not on the main bar", bar.shown, true)
+    Check("its switch is its own", card.switchWhy(), nil)
+    onMain = true
+    t.SetQoL("consumableBarItems", { "smart:food", "smart:drink" })
+    Check("their being put on the main bar hides it", bar.shown, false)
+    Check("its switch is held, saying why", card.switchWhy(), "Its buttons are on the Consumable Bar")
+    Check("its own setting is kept for later", t.qol.foodBar, true)
+    onMain = false
+    t.SetQoL("consumableBarItems", {})
+    Check("taken off the main bar, it is back", bar.shown, true)
+end
+
+-- Hidden for the Consumable Bar, it is still kept on your best food and drink: the keys both bars
+-- share click its buttons. That holds with the Food & Drink Bar itself switched off.
+do
+    local t = Fixture({ qol = { foodBar = false }, bags = { 5349, 8766 } })
+    local onMain = true
+    t.ns.ConsumableBarUsesFood = function() return onMain end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local bar = t.FoodBar()
+    Check("built for the Consumable Bar's keys", bar ~= nil, true)
+    Check("but hidden", bar.shown, false)
+    Check("its buttons on your best food and drink", bar.buttons[1].attrs.item1 .. bar.buttons[2].attrs.item1,
+        "item:5349item:8766")
+    Check("it leaves the bags to the Consumable Bar, so they are searched once", t.Listening("BAG_UPDATE_DELAYED"),
+        false)
+    t.ns.FoodBarPoint(4599, 8766)
+    Check("kept current while hidden, on what that bar found", bar.buttons[1].attrs.item1, "item:4599")
+    t.ns.ShowUnlockMode()
+    Check("nor shown in the HUD Editor", bar.mover.shown, false)
+    t.ns.HideUnlockMode()
+    Check("the bindings both bars use", t.ns.FoodBarBindings.food, "CLICK NaowhForeverFoodBarFood:LeftButton")
+    local rows = t.cards["QoL/Loot & Items:foodBar"].rows
+    local food
+    for _, row in ipairs(rows) do if row.label == "Use Best Food" then food = row end end
+    Check("the same as its own Use Best Food row", food.binding, t.ns.FoodBarBindings.food)
+    onMain = false
+    t.SetQoL("consumableBarItems", {})
+    Check("taken off the main bar with its own switch off, it rests", t.Listening("BAG_UPDATE_DELAYED"), false)
+end
+
+-- The Consumable Bar is its own switch, so the keys stay with QoL's switch off too.
+do
+    local t = Fixture({ qol = { enabled = false, foodBar = true }, bags = { 5349 } })
+    t.ns.ConsumableBarUsesFood = function() return true end
+    t.Fire("PLAYER_ENTERING_WORLD")
+    local bar = t.FoodBar()
+    Check("with QoL off, its buttons are kept for the Consumable Bar", bar ~= nil and bar.buttons[1].attrs.item1,
+        "item:5349")
 end
 
 -- No mana (warriors and rogues): the food button alone, and the drink button does nothing.

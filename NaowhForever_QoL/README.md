@@ -271,6 +271,15 @@ NaowhForever_QoL/
 - Its icons are cropped like the rest of the addon's (`ItemBar.CropIcon`). Before, it showed the
   full item art with the game's rounded border; for that look on this bar alone, add
   `ItemBar.CropIcon(button.icon, 0)` after `ItemBar.SecureButton` in `Build()`.
+- While its Food & Drink buttons, or either one, are on the Consumable Bar
+  (`ns.ConsumableBarUsesFood`), the bar steps aside and its card is held with why, its settings
+  greyed (the Consumable Bar's apply). The `foodBar` setting itself is kept, so the bar comes back
+  as it was once they leave the Consumable Bar.
+- Those buttons on the Consumable Bar use this bar's key bindings (`ns.FoodBarBindings`), so one key
+  works on either bar and shows in both places. Meanwhile this bar is still built and kept on your
+  best food and drink, hidden: its buttons are what those keys click. It does not search the bags
+  then: the Consumable Bar hands it what it found (`ns.FoodBarPoint`), so a bag change is one
+  search.
 - Alts are kept per realm and faction, because characters there can mail each other. Forever has
   been seen to return "Name-Realm" for the player, and the mail box wants the bare name, so the
   name is cut at the dash.

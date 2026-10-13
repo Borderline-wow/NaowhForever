@@ -108,7 +108,10 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   studio, rows = { ... } })`, rows like `{ key = "iconSize", label = "Icon Size", slider = { 12,
   32, 1 } }` and `Settings.Group("Clock")` between them (see `Settings/Settings.lua`). A
   row with `field` (and its own `get`/`set`) is one entry of a table setting `key`, with its own dot
-  and reset (AuraBuffs' raid buff switches). A row or
+  and reset (AuraBuffs' raid buff switches). A card's `switchWhy`, a function, holds its switch
+  and its rows while it returns a reason, greyed with the reason in place of Off (the Food & Drink Bar while its
+  buttons are on the Consumable Bar). A row's `why` beside a `needs` function may be a function
+  too, for a row held for more than one reason (NF Drink on the Consumable Bar). A row or
   group with `hidden` is left off the page: `true` for one set on the preview instead, or a
   function, so rows for one choice only (the Campfire's Round and Simple rows) show with it. A
   row's `cog = { title, tip }` puts a cog left of its control, opening a small panel of the rows

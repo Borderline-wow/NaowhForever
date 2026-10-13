@@ -1,4 +1,4 @@
--- Items.lua: the Consumable Bar's item rules: what counts as a consumable, what a Smart Macro covers, the list on the bar and each item's settings.
+-- Items.lua: the Consumable Bar's item rules: what counts as a consumable, what a smart button covers, the list on the bar and each item's settings.
 local ns = _G.NaowhForever
 
 local CB = ns.ConsumableBar
@@ -23,8 +23,11 @@ local LOOK_FLAGS = { textOn = true, text = true, textFont = true, textSize = tru
     textPoint = true, textOutside = true, textX = true, textY = true }
 
 local TEXT_NO_MANA = ns.L("You don't use mana. Add %s anyway?")
-local TEXT_MIXED = ns.L("A Smart Macro already covers some of these, or they need mana: %s. Add them anyway?")
+local TEXT_MIXED = ns.L("A smart button already covers some of these, or they need mana: %s. Add them anyway?")
 local TEXT_NEEDS_MANA = ns.L("You don't use mana, so that button would do nothing.")
+local TEXT_BLOCK_MACRO = ns.L("The Food & Drink buttons are on the bar. Take them off to use %s.")
+local TEXT_BLOCK_BUTTONS = ns.L("%s is on the bar. Take it off to use the Food & Drink buttons.")
+local FOOD_MACROS = { "food", "drink" }
 
 local function FoodOnly()
     local M = ns.MacroSettings
@@ -35,7 +38,15 @@ local function NotADrinkForFoodOnly(itemID)
     return not (FoodOnly() and ns.IsDrink(itemID))
 end
 
+local function NotADrink(itemID)
+    return not ns.IsDrink(itemID)
+end
+
 local COVERS = {
+    [CB.FOOD] = { ask = ns.L("The food button already uses your best food. Add %s too?"), category = "food",
+        also = NotADrink },
+    [CB.DRINK] = { ask = ns.L("The drink button already uses your best drink. Add %s too?"), category = "food",
+        also = ns.IsDrink },
     ["macro:food"] = { ask = ns.L("NF Food already uses your best food and drink. Add %s too?"),
         category = "food", also = NotADrinkForFoodOnly },
     ["macro:drink"] = { ask = ns.L("NF Drink already uses your best drink. Add %s too?"), category = "food",
@@ -64,7 +75,7 @@ function CB.CoveredBy(itemID)
     local category
     for _, entry in ipairs(CB.Items()) do
         local cover = COVERS[entry]
-        if cover and CB.MacroInfo(entry) then
+        if cover and (CB.Smart(entry) or CB.MacroInfo(entry)) then
             category = category or CB.Category(itemID)
             local kind = (cover.category and cover.category == category) or (cover.list and CB.Has(ns[cover.list], itemID))
             if kind and (not cover.also or cover.also(itemID)) then return entry end
@@ -82,8 +93,21 @@ function CB.Wanted(itemID)
     return category ~= nil and not skip[category] and not CB.CoveredBy(itemID) and not CB.ManaOnly(itemID)
 end
 
+local function FoodMacroOnBar()
+    for _, key in ipairs(FOOD_MACROS) do
+        local info = CB.HasMacro(key) and CB.MacroInfo(CB.MacroEntry(key))
+        if info then return info end
+    end
+end
+
 function CB.Blocked(entry)
     if CB.NeedsMana(entry) and not ns.UsesMana() then return TEXT_NEEDS_MANA end
+    local key = CB.MacroKey(entry)
+    if (key == "food" or key == "drink") and CB.HasFoodButtons() then
+        return TEXT_BLOCK_MACRO:format(CB.MacroInfo(entry).name)
+    end
+    local macro = (entry == CB.FOOD or entry == CB.DRINK) and FoodMacroOnBar()
+    if macro then return TEXT_BLOCK_BUTTONS:format(macro.name) end
 end
 
 function CB.SetFlag(entry, key, value)
@@ -208,6 +232,19 @@ function CB.SetMacro(key, on)
         return
     end
     CB.AddItems({ entry })
+end
+
+function CB.SetFoodButtons(on)
+    if not on then
+        CB.RemoveEntries({ CB.FOOD, CB.DRINK })
+        return
+    end
+    local why = CB.Blocked(CB.FOOD)
+    if why then
+        ns.Print(why)
+        return
+    end
+    CB.AddItems(ns.UsesMana() and { CB.FOOD, CB.DRINK } or { CB.FOOD })
 end
 
 function CB.RemoveItem(entry)

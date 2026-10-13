@@ -429,6 +429,25 @@ Check(tabs == 10, "every QoL category has a tab")
 Check(strip.buttons and strip:GetWidth() <= 1440 - 240 - 56, "the tabs are the boxed switch, inside the content width")
 Click(Button("Combat")); Flush()
 Check(Text("Quality of Life / Combat") ~= nil, "category navigation works")
+local heldCard = ns.Shared.Settings.CardOf("QoL/Combat:coTank")
+local wasOn, wasOpen = S.Get("coTank"), ns.Shared.Settings.IsOpen(heldCard)
+S.Set("coTank", true); ns.Shared.Settings.SetOpen(heldCard, true)
+heldCard.switchWhy = function() return "Held by another setting" end
+S.Set("coTankDebuffs", S.Get("coTankDebuffs")); Flush()
+Check(Setting("Width").label.alpha < 1 and Setting("Width").why.text == "Held by another setting",
+    "its settings are greyed too, saying why, though its own switch is on")
+local coTankHead = Head("Co-Tank Frame")
+Check(coTankHead.summary.text == "Held by another setting" and coTankHead.switch.mouse == false and coTankHead.switch.alpha < 1,
+    "a card switch held by another setting is greyed, saying why instead of Off")
+heldCard.switchWhy = nil
+S.Set("coTankDebuffs", S.Get("coTankDebuffs")); Flush()
+Check(Setting("Width").label.alpha == 1, "let go, its settings work again")
+S.Set("coTank", wasOn); ns.Shared.Settings.SetOpen(heldCard, wasOpen); Flush()
+coTankHead = Head("Co-Tank Frame")
+Check(coTankHead.switch.mouse ~= false and coTankHead.switch.alpha == 1, "let go, it is its own switch again")
+local heldOff, heldWhy = ns.Shared.Settings.Off({ card = {}, needs = function() return false end,
+    why = function() return "Held for this reason" end })
+Check(heldOff and heldWhy == "Held for this reason", "a row held for more than one reason says the one that applies")
 Click(Button("Swing Timer")); Flush()
 Check(Text("Swing Timer / Settings") and not Text("Interface"), "each module shows only its own page")
 Click(Button("Threat Meter")); Flush()

@@ -1,4 +1,4 @@
--- Bar.lua: the Consumable Bar on screen: one secure button per entry (an item or a Smart Macro), laid out, placed and shown or hidden out of combat.
+-- Bar.lua: the Consumable Bar on screen: one secure button per entry (an item, a Smart Macro or a Food & Drink button), laid out, placed and shown or hidden out of combat.
 local ns = _G.NaowhForever
 
 local InCombatLockdown = InCombatLockdown
@@ -94,6 +94,7 @@ function CB.BarFrame()
 end
 
 local function Layout()
+    CB.RefreshSmart()
     local items = CB.ShownItems()
     local size, gap, grow, perRow = CB.Grid()
     local inUse = {}
@@ -204,6 +205,31 @@ local function HasMacros()
     return Has(CB.MacroInfo)
 end
 
+local function HasSmart()
+    return Has(CB.Smart)
+end
+
+local function RestyleWhere(test)
+    local size = CB.Grid()
+    for _, button in ipairs(buttons) do
+        if test(button.entry) then
+            Point(button, button.entry)
+            CB.StyleCell(button, button.entry, size)
+        end
+    end
+end
+
+local function RefreshSmart()
+    if not HasSmart() then return end
+    if InCombatLockdown() then
+        pending = true
+        events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+    CB.RefreshSmart()
+    RestyleWhere(CB.Smart)
+end
+
 local function OutChanged()
     if not S.Get("consumableBarHideEmpty") then return false end
     for _, entry in ipairs(CB.Items()) do
@@ -274,6 +300,7 @@ local function OnEvent(_, event, unit, _, spellID)
     elseif event == "UPDATE_MACROS" then
         RefreshMacros()
     elseif event == "BAG_UPDATE_DELAYED" then
+        RefreshSmart()
         UpdateCounts()
         UpdateCooldowns()
         if OutChanged() then Apply() end
