@@ -14,6 +14,7 @@ local CLAMP = "CLAMPTOBLACKADDITIVE"
 local TEXT_SIZE, LABEL_GAP, BUFF_GAP = St.CAMP_TEXT_SIZE, St.CAMP_LABEL_GAP, St.CAMP_BUFF_GAP
 local TRACK_OUT, DRAIN_OUT, RING_OUT = St.CAMP_TRACK_OUT, St.CAMP_DRAIN_OUT, St.CAMP_RING_OUT
 local TIME_STEPS = St.CAMP_TIME_STEPS
+local LABEL_DROP = TRACK_OUT + LABEL_GAP
 local ROUND_ART = { "tex", "plate", "ring" }
 local ROUND_EXTRAS = { "timer", "drain", "track", "label", "buffs" }
 local JUSTIFY = { right = "LEFT", left = "RIGHT" }
@@ -79,7 +80,7 @@ function Look.New(icon)
     Look.Art(icon)
     NewTimers(icon)
     icon.label = Parts.HudText(ns.Font(icon, TEXT_SIZE, nil, T.accentSoft))
-    icon.label:SetPoint("TOP", icon, "BOTTOM", 0, -LABEL_GAP)
+    icon.label:SetPoint("TOP", icon, "BOTTOM", 0, -LABEL_DROP)
     icon.label:SetText(TEXT_REFRESH)
     icon.buffs = Parts.HudText(ns.Font(icon, TEXT_SIZE))
     icon.buffs:SetPoint("TOP", icon, "BOTTOM", 0, -LABEL_GAP)

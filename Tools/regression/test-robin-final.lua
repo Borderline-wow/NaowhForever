@@ -11,7 +11,7 @@ local function fixture(kind)
         local f = { scripts = {}, events = {}, shown = true, parent = parent, attributes = {},
             secure = template == 'SecureActionButtonTemplate' or name == 'NaowhForeverTrinkets' }
         local noop = function() end
-        setmetatable(f, { __index = function(_, key) return noop end })
+        setmetatable(f, { __index = function(_, key) if key ~= 'sit' then return noop end end })
         function f:SetScript(key, fn) self.scripts[key] = fn end
         function f:HookScript(key, fn)
             local old = self.scripts[key]
@@ -58,6 +58,7 @@ local function fixture(kind)
         ThemeTint = function(_, literal) return literal end,
         Shared = { Style = { TIME_OK_RGB = {}, TIME_LOW_RGB = {}, TIME_OUT_RGB = {} },
             Parts = { Smooth = function(t) return t end, HudText = function(t) return t end,
+                Pill = function() return frame() end, SetPill = function() return 0 end, ColorPill = function() end,
                 HudFont = function(fs, font, size, outline) fs:SetFont(font, size, outline) end } },
         Font = function() return frame() end, Tooltip = function() end,
         Button = function(parent, text, w, h, callback)
@@ -81,6 +82,7 @@ local function fixture(kind)
         GetInventoryItemTexture = function(_, slot) return slot + 1000 end,
         GetInventoryItemID = function(_, slot) return slot + 2000 end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
+        LibStub = function() return { PixelGlow_Start = function() end, PixelGlow_Stop = function() end } end,
         C_UnitAuras = { GetPlayerAuraBySpellID = function(id)
             assert(not state.combat and not state.secret, 'restricted aura read')
             return state.auras and state.auras[id]

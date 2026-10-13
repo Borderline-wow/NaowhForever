@@ -12,6 +12,8 @@ minimap and Top Bar button). Its on/off switches and their defaults come from
   Simple, a bar in the windows' backdrop with the campfire at its left, the camp's bonuses with
   their amounts, and the time left on the right over a line that runs down green, yellow, then
   red. Hovering it lists each bonus, the time left and when to refresh.
+  With no Camp Benefits it glows (LibCustomGlow) and carries a Sit button on its right, which
+  performs the /sit emote; Camp Nearby carries the same button.
 - **Camp Nearby:** the same bar drawn bare (no backdrop, edge or line), larger by its own scale,
   sized to what it says and stacked in the Alerts group (`ns.AlertStack`), with the camp's time
   left inline after a dot while it still runs.

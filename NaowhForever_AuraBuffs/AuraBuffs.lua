@@ -16,6 +16,7 @@ local S = ns.UI.ModuleSettings("auraBuffs", {
 
     campfire = F.campfire, campTimer = true, campBuffs = true,
     campSound = true, campSoundKey = "none", campIconSize = 110, campNearbyAlert = F.campNearbyAlert,
+    campSitButton = true, campGlow = true,
     campShowUnder = true, campShowUnderMinutes = 2, campNearbyMinutes = 2, campStyle = "round",
     campAlertScale = 1.4, campAlertFade = true,
     campAlertFont = "", campAlertOutline = "", campAlertBackground = "none",

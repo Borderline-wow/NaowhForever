@@ -15,6 +15,9 @@ local TIME_STEPS = St.CAMP_TIME_STEPS
 local REFRESH_NOW = TIME_STEPS[2][1]
 local SIT_PREFIX = St.CAMP_SIT_PREFIX
 local SECONDS = A.C.SECONDS
+local SIT_GAP, SIT_TEXT_SIZE = St.CAMP_SIT_GAP, St.CAMP_BAR.TEXT
+local GLOW_RGBA, GLOW_THICKNESS = St.CAMP_GLOW_RGBA, St.CAMP_GLOW_THICKNESS
+local GLOW_LIB = "LibCustomGlow-1.0"
 local TIMER_PAD = 0.1
 local UNLOCK_DURATION, UNLOCK_LEFT = 3600, 2400
 local DEFAULT_X, DEFAULT_Y = -260, 120
@@ -26,6 +29,7 @@ local DISMISS_TIP = ns.L("Right-click to dismiss until you leave the campfire.")
 local TEXT_MOVER = "Campfire"
 local TEXT_NEARBY = "Camp Nearby"
 local TEXT_TITLE = "Camp Benefits"
+local TEXT_SIT_BUTTON = "Sit"
 local TEXT_UPCOMING = ns.L("You'll get:")
 local TEXT_RESTING = ns.L("Resting at a campfire")
 local TEXT_LANDS_IN = ns.L("Camp Benefits in")
@@ -43,7 +47,7 @@ local Spot = { DEFAULT = { point = "CENTER", relPoint = "CENTER", x = DEFAULT_X,
 Spot.CORNERS = { TOPLEFT = { 1, -1 }, TOP = { 0, -1 }, TOPRIGHT = { -1, -1 }, RIGHT = { -1, 0 },
     BOTTOMLEFT = { 1, 1 }, BOTTOM = { 0, 1 }, BOTTOMRIGHT = { -1, 1 } }
 
-local icon, unlocked, simpleBar
+local icon, unlocked, simpleBar, glowing
 local hasCamp
 local shownExpiry
 local alert
@@ -160,6 +164,50 @@ local function SavePos(pos)
     S.Set("campPos", pos)
 end
 
+local function SetGlow(on)
+    on = on and S.Get("campGlow") and not unlocked and true or false
+    if on == glowing then return end
+    glowing = on
+    local LCG = LibStub(GLOW_LIB, true)
+    if not LCG then return end
+    if on then
+        LCG.PixelGlow_Start(icon, GLOW_RGBA, nil, nil, nil, GLOW_THICKNESS)
+    else
+        LCG.PixelGlow_Stop(icon)
+    end
+end
+
+local function OnSitEnter(self)
+    Parts.ColorPill(self.pill, T.fg)
+end
+
+local function OnSitLeave(self)
+    Parts.ColorPill(self.pill, T.accent)
+end
+
+local function OnSitClick()
+    C_ChatInfo.PerformEmote("SIT")
+end
+
+local function SitButton(host)
+    if host.sit then return host.sit end
+    local button = CreateFrame("Button", nil, host)
+    button.pill = Parts.Pill(button, SIT_TEXT_SIZE, T.accent)
+    button.pill:SetPoint("CENTER")
+    button:SetSize(Parts.SetPill(button.pill, TEXT_SIT_BUTTON), button.pill:GetHeight())
+    button:SetPoint("LEFT", host, "RIGHT", SIT_GAP, 0)
+    button:SetScript("OnClick", OnSitClick)
+    button:SetScript("OnEnter", OnSitEnter)
+    button:SetScript("OnLeave", OnSitLeave)
+    host.sit = button
+    return button
+end
+
+local function ShowSit(host, on)
+    on = on and S.Get("campSitButton") and not unlocked and true or false
+    if on or host.sit then SitButton(host):SetShown(on) end
+end
+
 local function Build()
     icon = CreateFrame("Frame", "NaowhForeverCampfire", UIParent)
     icon:SetMovable(true)
@@ -252,6 +300,8 @@ local function ShowUp(duration, expiry, text, labels, icons, n)
         Look.Up(icon, ns.CampBuffMode() ~= "off" and text or "")
         PaintBuffs()
     end
+    SetGlow(false)
+    ShowSit(icon, false)
     if timed then
         if shownExpiry ~= expiry then
             RunTimer(expiry - duration, duration)
@@ -275,6 +325,8 @@ local function ShowSitting(duration, expiry, upcoming)
     else
         Look.Sitting(icon)
     end
+    SetGlow(false)
+    ShowSit(icon, false)
     ringGen = ringGen + 1
     if timed and shownExpiry ~= expiry then
         RunTimer(expiry - duration, duration, SIT_PREFIX)
@@ -290,6 +342,8 @@ end
 local function ShowMissing(nearby)
     campState, campExpiry = "missing", nil
     if BarShown() then Bar.Missing(simpleBar, nearby) else Look.Missing(icon) end
+    SetGlow(true)
+    ShowSit(icon, true)
     ringGen = ringGen + 1
     shownExpiry = nil
     icon:SetShown(S.Get("campShowMissing") or unlocked == true)
@@ -371,6 +425,7 @@ local function SetAlert(show, start, duration)
         alert.passed = true
     end
     alert.click:EnableMouse(show and alert.passed and not unlocked or false)
+    ShowSit(alert, show)
 end
 
 local function DisarmAlert()
@@ -522,6 +577,7 @@ local function Apply()
         hasCamp = nil
         ringGen = ringGen + 1
         HideAlert()
+        if icon then SetGlow(false) end
         if icon and not unlocked then icon:Hide() end
         if not unlocked then return end
     end

@@ -94,7 +94,7 @@ end
 
 local function Fixture(settings)
     local state = { now = 1000, auras = {}, frames = {}, named = {}, timers = {}, bars = 0, tips = {},
-        tooltipReads = 0, secret = false, combat = false, cursorX = 0, cursorY = 0, shift = false, menus = 0,
+        emotes = {}, glows = {}, tooltipReads = 0, secret = false, combat = false, cursorX = 0, cursorY = 0, shift = false, menus = 0,
         groups = {},
         tooltip = { lines = { { leftText = "Camp Benefits" } } }, spellNames = {} }
     for id, name in pairs(NAMES) do state.spellNames[id] = name end
@@ -302,6 +302,11 @@ local function Fixture(settings)
         issecretvalue = function(v) return v == SECRET_TEXT or (state.secret and v == 2) end,
         C_Secrets = { ShouldAurasBeSecret = function() return false end },
         C_UnitAuras = { GetPlayerAuraBySpellID = function(id) return state.auras[id] end },
+        C_ChatInfo = { PerformEmote = function(token) state.emotes[#state.emotes + 1] = token end },
+        LibStub = function()
+            return { PixelGlow_Start = function(frame) state.glows[frame] = true end,
+                PixelGlow_Stop = function(frame) state.glows[frame] = nil end }
+        end,
         C_Spell = { GetSpellTexture = function(id) return id end,
             GetSpellName = function(id) return state.spellNames[id] end },
         C_TooltipInfo = { GetUnitBuffByAuraInstanceID = function()
@@ -1289,6 +1294,26 @@ do
     s.auras[NEARBY] = {}
     s.fire("UNIT_AURA")
     check("back in range after leaving: it shows again", alert.shown == true and click.mouse == true)
+end
+
+do
+    local s = Fixture()
+    s.fire("PLAYER_LOGIN")
+    local icon = s.named.NaowhForeverCampfire
+    check("no camp, none nearby: the reminder glows and offers Sit", s.glows[icon] and icon.sit and icon.sit.shown)
+    check("Sit sits on the right of the reminder", icon.sit.rel.LEFT == icon and icon.sit.pt.LEFT > 0)
+    icon.sit.scripts.OnClick(icon.sit)
+    check("clicking Sit performs the /sit emote", #s.emotes == 1 and s.emotes[1] == "SIT")
+    s.auras[CAMP] = { duration = 3600, expirationTime = s.now + 2400, auraInstanceID = 1 }
+    s.fire("UNIT_AURA")
+    check("camp up: no glow, no Sit", not s.glows[icon] and icon.sit.shown == false)
+    s.auras[CAMP] = nil
+    s.S.Set("campGlow", false)
+    s.S.Set("campSitButton", false)
+    check("the options turn the glow and the Sit button off", not s.glows[icon] and icon.sit.shown == false)
+    s.S.Set("campGlow", true)
+    s.S.Set("campSitButton", true)
+    check("and on again", s.glows[icon] and icon.sit.shown)
 end
 
 print(checks .. " campfire look checks passed")
