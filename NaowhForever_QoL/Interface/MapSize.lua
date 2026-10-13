@@ -27,7 +27,8 @@ local moveX, moveY, cursorX, cursorY
 local home
 
 local function On()
-    return S.Get("enabled")
+    local eui = _G.EllesmereUIDB
+    return S.Get("enabled") and not (eui and eui.shifterEnabled)
 end
 
 local function Wanted()
