@@ -70,8 +70,9 @@ Shared/
   UI/Tracker.lua   a tracker's small window (Parts.TrackerPanel), and a list row's bands
                    (Parts.RowBands: stripe, hover, the line under it)
   UI/ItemBar.lua   an item bar (Shared.ItemBar): secure item buttons in a grid, their count and key texts,
-                   the bar's mover, its place or anchor, and the count and keybind rows with their cogs:
-                   the Consumable Bar and QoL's Food & Drink Bar
+                   the bar's mover, its place or anchor, the count and keybind rows with their cogs, and the
+                   Growth Direction choice and placing (ItemBar.GrowChoice, Place): the Consumable Bar,
+                   QoL's Food & Drink Bar and Group Buttons, and the Gear Set, Trinket and Blessing bars
   UI/Anchor.lua    anchoring a bar to a frame (Shared.Anchor): its Anchor rows, the picker that lights the
                    frame under the cursor, and the editor beside the bar
   View/View.lua    the row engine: pooled rows, cards, the card grid, one redraw per burst

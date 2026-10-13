@@ -18,7 +18,6 @@ local TEXT_EMPTY = ns.L("No items yet. Open Edit Items to add some.")
 local TEXT_NONE, TEXT_ONE, TEXT_MANY = ns.L("No items on the bar yet"), ns.L("1 item on the bar"), ns.L("%d items on the bar")
 local TEXT_DETAIL = ns.L("Add consumables, put them in order, and set each one up.")
 local TEXT_OFF = ns.L("Off")
-local DIRECTION = { { RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" }, { "RIGHT", "LEFT", "UP", "DOWN" } }
 local SIZE_RANGE, SPACING_RANGE, PER_ROW_RANGE = { 20, 64, 1 }, { 0, 20, 1 }, { 1, 24, 1 }
 local BG_RANGE = { 0, 100, 5 }
 local PERCENT_SCALE = 0.01
@@ -111,7 +110,7 @@ local barRows = {
     Group("Layout"),
     { key = "consumableBarSize", label = "Icon Size", slider = SIZE_RANGE },
     { key = "consumableBarSpacing", label = "Spacing", slider = SPACING_RANGE },
-    { key = "consumableBarGrow", label = "Growth Direction", choice = DIRECTION },
+    { key = "consumableBarGrow", label = "Growth Direction", choice = ItemBar.GrowChoice() },
     { key = "consumableBarPerRow", label = "Icons Per Row", slider = PER_ROW_RANGE,
       help = "How many icons fit in a row before the next row starts." },
     { key = "consumableBarCooldown", label = "Show Cooldowns", toggle = true,

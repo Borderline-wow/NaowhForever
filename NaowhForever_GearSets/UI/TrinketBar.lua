@@ -189,7 +189,7 @@ local function ApplyTrinkets()
     end
     if not trinkets then BuildTrinkets() end
     Place()
-    Look.Trinkets(trinkets, trinkets.buttons, S.Get("trinketSize"), S.Get("trinketSpacing"))
+    Look.Trinkets(trinkets, trinkets.buttons, S.Get("trinketSize"), S.Get("trinketSpacing"), S.Get("trinketGrow"))
     for i, button in ipairs(trinkets.buttons) do
         button:SetAttribute("type1", GetInventoryItemID("player", TRINKET_SLOTS[i]) and "item" or nil)
     end

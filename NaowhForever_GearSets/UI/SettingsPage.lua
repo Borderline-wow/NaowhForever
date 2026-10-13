@@ -18,6 +18,7 @@ local OPACITY_RANGE, TO_FRACTION = ns.Shared.Style.OPACITY_RANGE, ns.Shared.Styl
 local ORDER_GEAR_BAR, ORDER_SWAPS, ORDER_TRINKETS, ORDER_WINDOW = 10, 20, 30, 40
 local SHOW = { { always = "Always", combat = "In Combat", nocombat = "Out of Combat" },
     { "always", "combat", "nocombat" } }
+local GROW = ns.Shared.ItemBar.GrowChoice()
 local PREVIEW_STATE = { { key = "bar", label = "Bar" } }
 
 local GEAR_OFF = ns.L("Turn on Gear & Trinkets")
@@ -54,15 +55,15 @@ local function NewBarPreview(stage)
 end
 
 local function PaintBarPreview(preview)
-    local size, gap = S.Get("gearBarSize"), S.Get("gearBarSpacing")
+    local size, gap, grow = S.Get("gearBarSize"), S.Get("gearBarSpacing"), S.Get("gearBarGrow")
     local sets = G.Sets()
     for i, set in ipairs(sets) do
         local btn = preview.buttons[i] or PreviewButton(preview.row)
         preview.buttons[i] = btn
-        Look.SetButton(btn, set, i, size, gap)
+        Look.SetButton(btn, set, i, size, gap, grow)
     end
     for i = #sets + 1, #preview.buttons do preview.buttons[i]:Hide() end
-    Look.Fit(preview.row, preview.add, #sets, size, gap)
+    Look.Fit(preview.row, preview.add, #sets, size, gap, grow)
     preview.note:SetShown(#sets == 0)
 end
 
@@ -77,7 +78,7 @@ local function NewTrinketPreview(stage)
 end
 
 local function PaintTrinketPreview(preview)
-    Look.Trinkets(preview.row, preview.slots, S.Get("trinketSize"), S.Get("trinketSpacing"))
+    Look.Trinkets(preview.row, preview.slots, S.Get("trinketSize"), S.Get("trinketSpacing"), S.Get("trinketGrow"))
 end
 
 local function SetChoices()
@@ -151,6 +152,8 @@ page:Card({
           why = GEAR_OFF, help = "How big each set's button is." },
         { key = "gearBarSpacing", label = "Spacing", slider = SPACING_RANGE, unit = " px", needs = GearOn,
           why = GEAR_OFF, help = "The gap between two buttons." },
+        { key = "gearBarGrow", label = "Growth Direction", choice = GROW, needs = GearOn, why = GEAR_OFF,
+          help = "Which way the bar grows from its first button." },
         Settings.Group("Visibility"),
         { key = "gearBarShow", label = "Show", choice = SHOW, needs = GearOn, why = GEAR_OFF,
           help = "Always, only in combat, or only out of combat." },
@@ -180,6 +183,8 @@ page:Card({
           why = GEAR_OFF, help = "How big each trinket is." },
         { key = "trinketSpacing", label = "Spacing", slider = SPACING_RANGE, unit = " px", needs = GearOn,
           why = GEAR_OFF, help = "The gap between the two." },
+        { key = "trinketGrow", label = "Growth Direction", choice = GROW, needs = GearOn, why = GEAR_OFF,
+          help = "Which way the second trinket sits from the first." },
     },
 })
 

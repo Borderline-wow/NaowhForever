@@ -66,9 +66,11 @@ local env = setmetatable({
     end,
 }, { __index = _G })
 env._G = env
-local chunk = assert(loadfile("NaowhForever_QoL/Questing/GroupButtons.lua"))
-setfenv(chunk, env)
-chunk()
+for _, path in ipairs({ "Shared/UI/ItemBar.lua", "NaowhForever_QoL/Questing/GroupButtons.lua" }) do
+    local chunk = assert(loadfile(path))
+    setfenv(chunk, env)
+    chunk()
+end
 local events, boot = frames[1], frames[2]
 
 local function Set(k, v)
@@ -106,6 +108,21 @@ Case("side by side", function()
     local bar = Bar()
     assert(bar.w == 184 and bar.h == 24, "row: " .. bar.w .. "x" .. bar.h)
     assert(bar.disband.point[3] == "TOPRIGHT", "Disband right of Invite")
+end)
+
+Case("growing left and up", function()
+    Set("groupButtonsLayout", "LEFT")
+    local bar = Bar()
+    assert(bar.w == 184 and bar.h == 24, "left: " .. bar.w .. "x" .. bar.h)
+    assert(bar.invite.point[1] == "TOPRIGHT" and #bar.invite.point == 1, "Invite at the right edge")
+    assert(bar.disband.point[1] == "TOPRIGHT" and bar.disband.point[3] == "TOPLEFT" and bar.disband.point[4] == -4,
+        "Disband left of Invite")
+    Set("groupButtonsLayout", "UP")
+    assert(bar.w == 90 and bar.h == 52, "up: " .. bar.w .. "x" .. bar.h)
+    assert(bar.invite.point[1] == "BOTTOMLEFT" and #bar.invite.point == 1, "Invite at the bottom")
+    assert(bar.disband.point[1] == "BOTTOMLEFT" and bar.disband.point[3] == "TOPLEFT" and bar.disband.point[5] == 4,
+        "Disband over Invite")
+    Set("groupButtonsLayout", "row")
 end)
 
 Case("today's look by default: 90x24, the panel card, the Addon Font at 12 with no outline", function()

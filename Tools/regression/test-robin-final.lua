@@ -112,6 +112,7 @@ local function fixture(kind)
     function state.load(path)
         local chunk = assert(loadfile(path)); setfenv(chunk, env); chunk()
     end
+    state.load('Shared/UI/ItemBar.lua')
     function state.loadModule(dir)
         for _, path in ipairs(TocFiles("^" .. dir .. "/.*%.lua$")) do state.load(path) end
     end

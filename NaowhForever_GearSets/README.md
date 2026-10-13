@@ -31,6 +31,8 @@ NaowhForever_GearSets/
 
 ## Why
 
+- Both bars' Growth Direction (`gearBarGrow`, `trinketGrow`) places buttons with `ItemBar.Place` in one
+  line (`ItemBar.ONE_LINE`); Right is the way they always grew.
 - Armor cannot change in combat, so a set asked for then waits for the fight to end
   (`G.EquipPending` on `PLAYER_REGEN_ENABLED`).
 - The set an automatic swap replaced is kept per character in the account settings

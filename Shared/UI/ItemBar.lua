@@ -28,11 +28,28 @@ local POINT_VALUES = { TOPLEFT = "Top Left", TOP = "Top", TOPRIGHT = "Top Right"
 local POINT_ORDER = { "TOPLEFT", "TOP", "TOPRIGHT", "LEFT", "CENTER", "RIGHT",
     "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT" }
 local POINT = { POINT_VALUES, POINT_ORDER }
+local GROW_OF = { horizontal = "RIGHT", row = "RIGHT", vertical = "DOWN", stacked = "DOWN" }
+local GROW_NAMES = { RIGHT = "Right", LEFT = "Left", UP = "Up", DOWN = "Down" }
 
 local ItemBar = {}
 Shared.ItemBar = ItemBar
 ItemBar.POINT_VALUES, ItemBar.POINT_ORDER = POINT_VALUES, POINT_ORDER
 ItemBar.TEXT_INSET = TEXT_INSET
+ItemBar.ONE_LINE = 1000
+
+function ItemBar.GrowOf(value)
+    return GROW_OF[value] or value
+end
+
+function ItemBar.Vertical(grow)
+    return grow == "UP" or grow == "DOWN"
+end
+
+function ItemBar.GrowChoice(right, down)
+    right, down = right or "RIGHT", down or "DOWN"
+    return { { [right] = GROW_NAMES.RIGHT, LEFT = GROW_NAMES.LEFT, UP = GROW_NAMES.UP, [down] = GROW_NAMES.DOWN },
+        { right, "LEFT", "UP", down } }
+end
 
 function ItemBar.CropIcon(texture, crop)
     crop = crop or ICON_CROP
@@ -103,7 +120,7 @@ function ItemBar.Size(count, size, gap, grow, perRow)
     count = math.max(count, 1)
     local long = math.min(count, perRow) * (size + gap) - gap
     local short = math.ceil(count / perRow) * (size + gap) - gap
-    if grow == "UP" or grow == "DOWN" then return short, long end
+    if ItemBar.Vertical(grow) then return short, long end
     return long, short
 end
 

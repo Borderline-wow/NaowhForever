@@ -40,6 +40,8 @@ NaowhForever_Blessings/
 
 ## Why
 
+- `blessLayout` is the bar's Growth Direction. It keeps its old saved values: `horizontal` grows Right and
+  `vertical` grows Down (`ItemBar.GrowOf`), beside the new `LEFT` and `UP`, so no saved profile changes.
 - The ranks are lowest first, from Forever's spell data (build 1.60.1.69913).
 - Forever names carry a surname: `UnitName` gives only the first name ("Glyadin"), while
   `UnitFullName` and addon message senders give the whole one ("Glyadin Skywolf"). Names are kept as

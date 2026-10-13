@@ -9,7 +9,7 @@ local PREFIX = "foodBar"
 local DEFAULT_Y = -210
 local BAR_BUTTONS = 2
 local GAP = 4
-local GROW, PER_ROW = "RIGHT", 2
+local PER_ROW = 2
 local MOVER_LABEL = ns.L("Food & Drink")
 local CONSUMABLE_PAGE, LOOT_PAGE = "Consumable Bar/Settings", "QoL/Loot & Items"
 local CARD_ID = "foodBar"
@@ -58,10 +58,11 @@ local Look = {}
 
 function Look.Layout(frame, size)
     local shown = Drinks() and BAR_BUTTONS or 1
-    frame:SetSize(ItemBar.Size(shown, size, GAP, GROW, PER_ROW))
+    local grow = S.Get("foodBarGrow")
+    frame:SetSize(ItemBar.Size(shown, size, GAP, grow, PER_ROW))
     for i, button in ipairs(frame.buttons) do
         button:SetSize(size, size)
-        ItemBar.Place(button, frame, i, size, GAP, GROW, PER_ROW)
+        ItemBar.Place(button, frame, i, size, GAP, grow, PER_ROW)
         ItemBar.StyleTexts(button, S, PREFIX)
         button:SetShown(i <= shown)
     end
@@ -230,6 +231,8 @@ local ANCHOR = { store = S, prefix = PREFIX, name = BAR_NAME, on = On, frame = f
 local rows = {
     { key = "foodBarSize", label = "Icon Size", slider = ICON_RANGE,
       help = "How big each button is." },
+    { key = "foodBarGrow", label = "Growth Direction", choice = ItemBar.GrowChoice(),
+      help = "Which way the second button sits from the first." },
 }
 for _, row in ipairs(ItemBar.TextRows(S, PREFIX)) do rows[#rows + 1] = row end
 rows[#rows + 1] = Group("Key Bindings")
