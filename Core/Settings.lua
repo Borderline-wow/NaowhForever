@@ -101,7 +101,7 @@ local S = UI.ModuleSettings("qol", {
     autoRepair = F.autoRepair, sellJunk = F.sellJunk,
     restock = F.restock, restockReagents = true, restockAmmo = true, restockAmmoTarget = 1000,
     restockFood = true, restockFoodBelow = 10, restockFoodMinLevel = 0, restockFoodMaxLevel = 60, restockVendor = true, restockBagsBelow = 4,
-    restockBuy = false,
+    restockBuy = false, restockHunterAmmo = F.restockHunterAmmo, restockHunterAmmoBelow = 500,
     restockFont = "", restockFontSize = 16, restockOutline = "OUTLINE", restockBackground = "none",
     foodBar = F.foodBar, foodBarSize = 36,
     foodBarShowCount = true, foodBarFont = "", foodBarFontSize = 12, foodBarTextColor = { r = 0.94, g = 0.95, b = 0.95 },

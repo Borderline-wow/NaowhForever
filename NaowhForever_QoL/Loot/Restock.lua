@@ -40,6 +40,7 @@ local TARGETS = {
 }
 
 local AMMO_SLOT = 0
+local PLAYER_CLASS = select(2, UnitClass("player"))
 local FOOD_CLASS, FOOD_SUBCLASS = 0, 5
 local DRINK_ITEM = 159
 local PLAIN_BAG = ns.QoLConstants.PLAIN_BAG
@@ -87,6 +88,10 @@ local events = CreateFrame("Frame")
 
 local function On()
     return S.Get("enabled") and S.Get("restock")
+end
+
+local function HunterAmmoOn()
+    return PLAYER_CLASS == "HUNTER" and S.Get("restockHunterAmmo")
 end
 
 local function ItemName(itemID)
@@ -185,11 +190,23 @@ end
 local function ReagentLines(lines)
     for itemID, target in pairs(Wanted()) do
         local have = C_Item.GetItemCount(itemID)
-        if have < target then
+        local hunterAmmo = HunterAmmoOn() and itemID == GetInventoryItemID("player", AMMO_SLOT)
+        if not hunterAmmo and have < target then
             lines[#lines + 1] = TEXT_SHORT:format(ItemName(itemID), have, target)
         end
     end
     table.sort(lines)
+end
+
+local function HunterAmmoLines(lines)
+    if not HunterAmmoOn() then return end
+    local ammo = GetInventoryItemID("player", AMMO_SLOT)
+    if not ammo or ammo <= 0 then return end
+    local have = C_Item.GetItemCount(ammo)
+    local below = S.Get("restockHunterAmmoBelow")
+    if have <= below then
+        lines[#lines + 1] = TEXT_SHORT:format(ItemName(ammo), have, below)
+    end
 end
 
 local function BagLines(lines)
@@ -212,6 +229,7 @@ end
 local function Lines()
     local lines = {}
     ReagentLines(lines)
+    HunterAmmoLines(lines)
     BagLines(lines)
     return lines
 end
@@ -372,7 +390,7 @@ local function OnEvent(_, event, itemID)
     elseif event == "PLAYER_REGEN_DISABLED" then
         HideAlert()
     elseif event == "BAG_UPDATE_DELAYED" or event == "PLAYER_REGEN_ENABLED"
-        or event == "GET_ITEM_INFO_RECEIVED" then
+        or event == "GET_ITEM_INFO_RECEIVED" or event == "UNIT_INVENTORY_CHANGED" then
         Check()
     else
         OnRestingChanged()
@@ -396,6 +414,7 @@ local function Apply()
     events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     events:RegisterEvent("MERCHANT_CLOSED")
     events:RegisterEvent("BAG_UPDATE_DELAYED")
+    if HunterAmmoOn() then events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player") end
     pendingItems[DRINK_ITEM] = true
     C_Item.RequestLoadItemDataByID(DRINK_ITEM)
     wasResting = IsResting()
@@ -458,6 +477,14 @@ local FIXED = {
       help = "Reminds you to vendor junk, and when your bags are nearly full." },
     { key = "restockBagsBelow", label = "Free Slots Below", slider = BAGS_BELOW_RANGE, needs = "restockVendor" },
 }
+local HUNTER = {
+    Group("Hunter Ammo"),
+    { key = "restockHunterAmmo", label = "Hunter Ammo Reminder", toggle = true,
+      help = "Reminds you about your equipped ammo at its own amount, not the carry target." },
+    { key = "restockHunterAmmoBelow", label = "Remind Me When Ammo Falls To", slider = AMMO_RANGE,
+      needs = "restockHunterAmmo",
+      help = "Reminds at or below this many equipped arrows or shot across all bag stacks." },
+}
 local CARRY_GROUP = Group("Reagents to Carry")
 local LOOK = ns.Shared.Settings.Look("restock", { text = true, size = TEXT_RANGE, background = "card" })
 
@@ -494,6 +521,9 @@ local function RestockRows()
     wipe(seenReagents)
     for i = 1, #FIXED do restockRows[i] = FIXED[i] end
     local class = select(2, UnitClass("player"))
+    if class == "HUNTER" then
+        for _, row in ipairs(HUNTER) do restockRows[#restockRows + 1] = row end
+    end
     local grouped = false
     for _, family in ipairs(FAMILIES) do
         if family.class == class then grouped = AddReagentRows(family, grouped) end
@@ -506,6 +536,10 @@ local function RestockSummary(store)
     local text
     for _, pair in ipairs(CHECKS) do
         if store.Get(pair[1]) then text = text and (text .. ", " .. pair[2]) or pair[2] end
+    end
+    if HunterAmmoOn() then
+        local hunter = ns.L("Hunter Ammo")
+        text = text and (text .. ", " .. hunter) or hunter
     end
     if not text then return TEXT_NOTHING end
     text = text:sub(1, 1):upper() .. text:sub(2)

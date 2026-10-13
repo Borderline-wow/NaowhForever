@@ -60,6 +60,7 @@ ns.FEATURES = {
         autoRepair = true,
         sellJunk = true,
         restock = true,
+        restockHunterAmmo = false,
         foodBar = false,
         consumableBar = false,
         bagSpace = false,

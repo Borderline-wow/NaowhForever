@@ -5903,3 +5903,9 @@ L["Your Row"] = true
 L["Your Row Edge"] = true
 L["Yourself"] = true
 L["Zeppelin"] = true
+
+L["Hunter Ammo"] = true
+L["Hunter Ammo Reminder"] = true
+L["Remind Me When Ammo Falls To"] = true
+L["Reminds you about your equipped ammo at its own amount, not the carry target."] = true
+L["Reminds at or below this many equipped arrows or shot across all bag stacks."] = true
