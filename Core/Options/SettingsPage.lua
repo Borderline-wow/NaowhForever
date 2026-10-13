@@ -77,13 +77,29 @@ local function ModuleRow(mod)
         setValue = function(v) SetModuleOn(mod, v) end }
 end
 
+local function SearchHit(title, rows)
+    local filter = UI.filter
+    if not filter then return false end
+    local Mark = UI.Search.Mark
+    local shown = ns.L(title)
+    if Mark(filter, shown) ~= shown then return true end
+    for _, row in ipairs(rows) do
+        if Mark(filter, row.text) ~= row.text then return true end
+    end
+    return false
+end
+
+local function FoldedRows(W, parent, y, title, rows)
+    local _, h = W:FoldHeader(parent, title, y, SearchHit(title, rows)); y = y - h
+    return Rows(W, parent, y, rows)
+end
+
 local function ModulesSection(W, parent, y)
-    local _, h = W:SectionHeader(parent, "MODULES", y); y = y - h
     local rows = {}
     for _, mod in ipairs(MODULES) do
         if mod.addon then rows[#rows + 1] = ModuleRow(mod) end
     end
-    return Rows(W, parent, y, rows)
+    return FoldedRows(W, parent, y, "MODULES", rows)
 end
 
 local function ShowIcon(name, shown)
@@ -124,9 +140,7 @@ local function GameMenuButtonOn()
 end
 
 local function MinimapSection(W, parent, y)
-    local _, h
-    _, h = W:SectionHeader(parent, "MINIMAP ICONS", y); y = y - h
-    _, h = W:DualRow(parent, y,
+    local rows = {
         { type = "toggle", text = "Minimap Button",
           tooltip = "The Naowh Forever button on the minimap. The addon compartment entry "
           .. "and /naowh open this window either way.",
@@ -136,13 +150,12 @@ local function MinimapSection(W, parent, y)
           tooltip = "Naowh Forever in the game menu (Esc), by the other addons' buttons. "
           .. "Saved for this computer. Not shown with a gamepad; use /nf.",
           getValue = GameMenuButtonOn,
-          setValue = function(v) ns.AccountSettings().gameMenuButton = v and true or false end }
-    ); y = y - h
-    local rows = {}
+          setValue = function(v) ns.AccountSettings().gameMenuButton = v and true or false end },
+    }
     for _, mod in ipairs(MODULES) do
         if mod.command and Loaded(mod) then rows[#rows + 1] = ModuleButtonRow(mod) end
     end
-    return Rows(W, parent, y, rows)
+    return FoldedRows(W, parent, y, "MINIMAP ICONS", rows)
 end
 
 local LANGUAGE_VALUES, LANGUAGE_ORDER = (function()
@@ -455,6 +468,8 @@ function Terms:SectionHeader(_, text)
     self.section = text
     return nil, 0
 end
+
+Terms.FoldHeader = Terms.SectionHeader
 
 function Terms:Take(row)
     if row.text == "" or row.type == "label" then return end

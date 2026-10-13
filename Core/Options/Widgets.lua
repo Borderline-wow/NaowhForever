@@ -947,6 +947,34 @@ function W:SectionHeader(parent, text, yOffset)
     return f, HEADER_H
 end
 
+local openFolds = {}
+
+local function OnFoldClick(hit)
+    openFolds[hit._id] = not openFolds[hit._id] or nil
+    UI:RefreshPage(true)
+end
+
+function W:FoldHeader(parent, text, yOffset, forceOpen)
+    local f, h = W:SectionHeader(parent, text, yOffset)
+    if not f.hit then
+        f.arrow = f:CreateTexture(nil, "ARTWORK")
+        f.arrow:SetTexture(CHEVRON)
+        f.arrow:SetSize(FEATURE.arrow, FEATURE.arrow)
+        f.arrow:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -FEATURE.arrowX, HEADER_TEXT_Y)
+        f.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
+        f.hit = CreateFrame("Button", nil, f)
+        f.hit:SetAllPoints()
+        f.hit:SetScript("OnClick", OnFoldClick)
+        f.hit:SetScript("OnEnter", function() f.arrow:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1) end)
+        f.hit:SetScript("OnLeave", function() f.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1) end)
+    end
+    f.hit._id = text
+    local open = forceOpen or openFolds[text]
+    f.arrow:SetRotation(open and CHEVRON_DOWN or 0)
+    parent._nsuiCollapsed = not open or nil
+    return f, h
+end
+
 local function OnFeatureClick(hit)
     openFeatures[hit._id] = not openFeatures[hit._id] or nil
     UI:RefreshPage(true)

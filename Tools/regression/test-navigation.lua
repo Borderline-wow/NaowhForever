@@ -732,13 +732,22 @@ Click(Button("Exit Config")); Flush()
 Check(not Text("Exit Config") and not ns.IsUnlockModeActive(), "and Exit Config closes it")
 
 ns.OpenOptionsWindow("Settings"); Flush()
-local groupInspectRows = 0
-for _, f in ipairs(frames) do
-    if f.text == "Group Inspect" and f:IsShown() and f.parent and f.parent:IsShown() then
-        groupInspectRows = groupInspectRows + 1
+local function GroupInspectRows()
+    local rows = 0
+    for _, f in ipairs(frames) do
+        if f.text == "Group Inspect" and f:IsShown() and f.parent and f.parent:IsShown() then rows = rows + 1 end
     end
+    return rows
 end
-Check(groupInspectRows >= 3, "Group Inspect: in the sidebar, under Settings > Modules and in Minimap Icons")
+Check(GroupInspectRows() == 1, "Settings: Modules and Minimap Icons start closed, only the sidebar lists Group Inspect")
+local searchInput = Text("Search settings").parent
+searchInput:SetText("group inspect"); Flush()
+Check(GroupInspectRows() >= 3, "a search that matches a row opens its section")
+searchInput:SetText(""); Flush()
+Check(GroupInspectRows() == 1, "and clearing the search folds them again")
+Click(Text("MODULES").parent.hit); Flush()
+Click(Text("MINIMAP ICONS").parent.hit); Flush()
+Check(GroupInspectRows() >= 3, "Group Inspect: in the sidebar, under Settings > Modules and in Minimap Icons once opened")
 ns.OpenOptionsWindow("Group Inspect/Settings"); Flush()
 Check(Text("Group Inspect / Settings") ~= nil, "Group Inspect has a settings page of its own")
 ns.OpenOptionsWindow("Blessings/Settings"); Flush()
