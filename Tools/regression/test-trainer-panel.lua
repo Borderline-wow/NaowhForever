@@ -1,5 +1,5 @@
 -- Run with Lua 5.1 from the repository root: the Train Now panel beside the class trainer. A spell
--- skipped in the Training Planner starts unticked, so Learn All leaves it out; ticking it puts it
+-- skipped in the Training Planner starts unticked, so Learn Selected leaves it out; ticking it puts it
 -- back for this visit, and the next visit starts it unticked again.
 local Load = dofile("Tools/regression/load_files.lua")
 
@@ -114,7 +114,7 @@ end
 
 local function Learn()
     for i = #bought, 1, -1 do bought[i] = nil end
-    local learn = assert(LearnButton(), "the Learn All button")
+    local learn = assert(LearnButton(), "the Learn Selected button")
     learn.onClick()
     table.sort(bought)
     return table.concat(bought, ", ")
@@ -125,11 +125,11 @@ local rows = Rows()
 check("a row per spell to train", #rows == 3)
 check("the spell skipped in the planner starts unticked, the rest ticked",
     rows[1].tick.shown and not rows[2].tick.shown and rows[3].tick.shown)
-check("Learn All leaves the skipped spell out", Learn() == "Arcane Intellect, Fireball")
+check("Learn Selected leaves the skipped spell out", Learn() == "Arcane Intellect, Fireball")
 
 rows[2].scripts.OnClick(rows[2])
 check("ticked by hand: ticked", rows[2].tick.shown)
-check("and Learn All buys it on this visit", Learn() == "Arcane Intellect, Fireball, Frost Armor")
+check("and Learn Selected buys it on this visit", Learn() == "Arcane Intellect, Fireball, Frost Armor")
 rows[1].scripts.OnClick(rows[1])
 check("a spell not skipped unticks as before", not rows[1].tick.shown and Learn() == "Arcane Intellect, Frost Armor")
 

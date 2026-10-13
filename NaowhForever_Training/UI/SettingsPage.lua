@@ -117,7 +117,7 @@ page:Card({
         { key = "trainerPanel", label = "Panel at the Trainer", toggle = true,
           needs = Training.On, why = TEXT_OFF,
           help = "Beside your class trainer, the spells you can learn now, ticked, with their total and Learn "
-              .. "All I Can Afford. Untick one to leave it.",
+              .. "Selected. Untick one to leave it.",
           search = "put the new ranks on my bars swap ranks /nf ranks nf ranks" },
     },
 })

@@ -1,4 +1,4 @@
--- TrainerPanel.lua: Panel at the Trainer: beside your class trainer, what you can learn now, ticked, and Learn All.
+-- TrainerPanel.lua: Panel at the Trainer: beside your class trainer, what you can learn now, ticked, and Learn Selected.
 local ns = _G.NaowhForever
 
 local T = ns.THEME
@@ -35,15 +35,15 @@ local TRAINER_ADDON = "Blizzard_TrainerUI"
 local PANEL_EVENTS = { "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED", "PLAYER_MONEY", "ADDON_LOADED" }
 local TEXT_TITLE = ns.L("Train Now")
 local TEXT_CLOSE = "x"
-local TEXT_LEARN_ALL = ns.L("Learn All")
+local TEXT_LEARN = ns.L("Learn Selected")
 local TEXT_BARS = ns.L("Put the New Ranks on My Bars")
 local TEXT_LEVEL = ns.L("Level ")
-local TEXT_LEAVE_OUT = ns.L("Click to leave it out of Learn All.")
+local TEXT_LEAVE_OUT = ns.L("Click to leave it out of Learn Selected.")
 local TEXT_PICKED = ns.L("%d of %d picked")
 local TEXT_PICKED_COST = ns.L("Picked  ")
 local TEXT_LEAVES = ns.L("Leaves ")
 local TEXT_SHORT = ns.L(" short")
-local TEXT_LEARN_AFFORD = ns.L("Learn All I Can Afford (%d)  %s")
+local TEXT_LEARN_AFFORD = ns.L("Learn Selected (%d)  %s")
 local TEXT_NOTHING_AFFORD = ns.L("Nothing You Can Afford")
 local TEXT_LEARNED_ONE = ns.L("Learned %d spell. Nothing else to train here for now.")
 local TEXT_LEARNED = ns.L("Learned %d spells. Nothing else to train here for now.")
@@ -217,7 +217,7 @@ local function BuildFooter()
     panel.total:SetPoint("TOPLEFT", PANEL_PAD, -TOTAL_DROP)
     panel.note = ns.Font(panel.footer, FONT, nil, T.muted)
     panel.note:SetPoint("TOPRIGHT", -PANEL_PAD, -TOTAL_DROP)
-    panel.learn = ns.AccentBorder(ns.Button(panel.footer, TEXT_LEARN_ALL, PANEL_W - 2 * PANEL_PAD, LEARN_H, LearnAll))
+    panel.learn = ns.AccentBorder(ns.Button(panel.footer, TEXT_LEARN, PANEL_W - 2 * PANEL_PAD, LEARN_H, LearnAll))
     panel.learn:SetPoint("BOTTOMLEFT", PANEL_PAD, PANEL_PAD)
     panel.bars = ns.Button(panel.footer, TEXT_BARS, PANEL_W - 2 * PANEL_PAD, BARS_BUTTON_H, RankCheck)
 end
