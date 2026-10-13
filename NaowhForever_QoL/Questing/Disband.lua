@@ -1,8 +1,6 @@
 -- Disband.lua: removing everyone from your group (ns.DisbandGroup), for the Disband button.
 local ns = _G.NaowhForever
 
-local S = ns.QoLSettings
-
 local TEXT_NO_GROUP = ns.L("You are not in a group.")
 local TEXT_NOT_LEADER = ns.L("Only the group leader can disband the group.")
 local TEXT_DISBAND = ns.L("Remove everyone from your group?")
@@ -69,14 +67,6 @@ local function CoverYes(yes)
     cover:Show()
 end
 
-local function Disband()
-    local prefix = IsInRaid() and "raid" or "party"
-    for i = GetNumGroupMembers(), 1, -1 do
-        local unit = prefix .. i
-        if UnitExists(unit) and not UnitIsUnit(unit, "player") then C_PartyInfo.UninviteUnit(GetUnitName(unit, true)) end
-    end
-end
-
 local function NotCovered()
     Disarm()
     ns.Print(TEXT_TRY_AGAIN)
@@ -86,7 +76,6 @@ function ns.DisbandGroup()
     if InCombatLockdown() then ns.Print(TEXT_IN_COMBAT); return end
     if not IsInGroup() then ns.Print(TEXT_NO_GROUP); return end
     if not UnitIsGroupLeader("player") then ns.Print(TEXT_NOT_LEADER); return end
-    if not S.Get("disbandConfirm") then Disband(); return end
     local yes, dimmer = ns.Confirm(TEXT_DISBAND, NotCovered, Disarm)
     if not yes then return end
     if not yes._disbandHooked then

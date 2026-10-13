@@ -1,6 +1,5 @@
--- Run with Lua 5.1 from the repository root: Disband removes everyone but you. With Confirm Before Disbanding
--- on, the dialog's Yes is covered by a secure button running /uninvite, because UninviteUnit is protected.
-local settings = { disbandConfirm = true }
+-- Run with Lua 5.1 from the repository root: Disband always asks, and the dialog's Yes is covered by a secure
+-- button running /uninvite for everyone else, because UninviteUnit is protected for addons.
 local asked, removed, printed = 0, {}, {}
 local NOTHING = function() end
 local function Frame()
@@ -19,7 +18,7 @@ yes.GetLeft, yes.GetBottom, yes.GetWidth, yes.GetHeight = function() return 100 
 yes.IsMouseOver = function() return false end
 yes.HookScript = function(_, script, fn) hooked = { script = script, fn = fn } end
 local cover
-local ns = { QoLSettings = { Get = function(k) return settings[k] end }, L = function(t) return t end,
+local ns = { L = function(t) return t end,
     Print = function(t) printed[#printed + 1] = t end,
     Confirm = function(_, accept, close)
         asked = asked + 1
@@ -53,7 +52,6 @@ assert(cover and cover.shown and cover.attrs.type == "macro", "a secure button o
 assert(cover.attrs.macrotext == "/uninvite party2\n/uninvite party1", "it uninvites every other member by name")
 onYes()
 assert(#removed == 0 and #printed == 1, "a Yes that was not covered says to try again and removes nobody")
-settings.disbandConfirm = false
 ns.DisbandGroup()
-assert(asked == 1 and #removed == 2, "with the switch off it removes them without asking")
+assert(asked == 2 and #removed == 0, "there is no way to disband without asking")
 print("test-disband: 6 checks passed")
