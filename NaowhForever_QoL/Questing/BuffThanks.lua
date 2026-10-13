@@ -257,7 +257,7 @@ rows[#rows + 1] = Group("Unknown Casters")
 rows[#rows + 1] = { key = "buffThanksEmote", label = "Thank With an Emote", toggle = true,
     help = "A /thank to everyone around you when the game cannot name the caster." }
 
-ns.Shared.Settings.Page("QoL/Questing & Group", S):Card({
+ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "buffThanks", name = "Buff Thank You Message", order = 40, switch = "buffThanks",
     help = "Whispers thanks when a player gives you a class buff in the open world; turn friendly "
         .. "nameplates on so the game can name them.",

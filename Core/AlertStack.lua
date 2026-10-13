@@ -9,8 +9,8 @@ local DEFAULT_Y = 150
 local OLD_POSITIONS = { "campAlertPos", "talentPointsPos", "durabilityPos", "restockPos", "petTrackerPos" }
 local CAMP_POSITION = "campAlertPos"
 local MOVER_LABEL = "Alerts"
-local SETTINGS_PAGE = "QoL/Loot & Items"
-local SETTINGS_CARD = "QoL/Loot & Items:durability"
+local SETTINGS_PAGE = "QoL/Combat"
+local SETTINGS_CARD = "QoL/Combat:durability"
 
 local members, choices = {}, {}
 local group, unlocked
