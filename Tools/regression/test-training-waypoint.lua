@@ -152,4 +152,49 @@ Case("no professions, or none trained in that town: the class trainer alone", fu
     assert(#route.stops == 1, #route.stops)
 end)
 
+
+NPCS[1453][#NPCS[1453] + 1] = { 60.0, 60.0, "profession", "Woo Ping", "Weapon Master", nil, "A" }
+
+local function Master(entry, faction, at, towns)
+    local placed
+    local env = { ns = { L = dofile("Tools/regression/locale_stub.lua").L, TownNPCs = towns or NPCS,
+            TownCapitals = { [1453] = true, [1454] = true, [2521] = true }, Print = function() end,
+            PlaceWaypointRoute = function(_, stops) placed = stops end },
+        Training = {},
+        UnitClass = function() return "", "WARRIOR" end,
+        UnitFactionGroup = function() return faction end,
+        CreateVector2D = Vector,
+        C_Spell = { GetSpellTexture = function() return 135 end },
+        C_Map = {
+            GetBestMapForUnit = function() return at[1] end,
+            GetPlayerMapPosition = function() return Vector(at[2], at[3]) end,
+            GetWorldPosFromMapPos = function(map, pos)
+                local m = MAPS[map]
+                local x, y = pos:GetXY()
+                return m.cont, Vector(m.x + x * m.size, m.y + y * m.size)
+            end,
+            GetMapInfo = function(map) return { name = "Map " .. map } end,
+        },
+    }
+    local Training = LoadRoute(env)
+    Training.WaypointToMaster(entry)
+    return Training.MasterPlace(entry), placed
+end
+
+Case("a weapon skill's waypoint goes to the nearest of its masters, in your faction", function()
+    local place, stops = Master({ 1, 202, 0, masters = { "Woo Ping", "Swords" } }, "Alliance", { 1429, 0.4, 0.6 })
+    assert(place == "Woo Ping, Map 1453", place)
+    assert(#stops == 1 and stops[1][1] == "Woo Ping" and stops[1][2] == 1453 and stops[1][5] == " (Weapon Master)"
+        and stops[1][6] == 135, stops[1][1])
+    place = Master({ 1, 202, 0, masters = { "Woo Ping", "Swords" } }, "Horde", { 1454, 0.5, 0.5 })
+    assert(place == "Swords, Map 1454", place)
+    place = Master({ 1, 202, 0, masters = { "Woo Ping" } }, "Horde", { 1454, 0.5, 0.5 })
+    assert(place == "", place)
+end)
+Case("a skill with no master goes to the class trainer", function()
+    local place, stops = Master({ 20, 674, 0 }, "Horde", { 1454, 0.5, 0.5 })
+    assert(place == "Grezz Ragefist, Map 1454", place)
+    assert(stops[1][1] == "Grezz Ragefist", stops[1][1])
+end)
+
 print(("%d cases passed"):format(count))

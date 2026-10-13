@@ -92,6 +92,15 @@ function Training.Plan(level)
     return plan
 end
 
+function Training.Weapons()
+    local _, _, classID = UnitClass("player")
+    local out = {}
+    for _, entry in ipairs(ns.TrainingWeapons[classID] or {}) do
+        if not C_SpellBook.IsSpellKnown(entry[SPELL]) then out[#out + 1] = entry end
+    end
+    return out
+end
+
 function Training.Total(entries)
     local total = 0
     for _, entry in ipairs(entries) do total = total + Price(entry) end

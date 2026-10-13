@@ -4,6 +4,7 @@
     <Script file="Constants.lua"/>
     <Script file="Data\TrainingData.lua"/>
     <Script file="Data\TrainingBuilds.lua"/>
+    <Script file="Data\TrainingWeapons.lua"/>
     <Script file="Plan.lua"/>
     <Script file="Upgrades.lua"/>
     <Script file="Coins.lua"/>

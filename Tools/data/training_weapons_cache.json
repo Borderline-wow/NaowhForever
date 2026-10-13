@@ -1,0 +1,242 @@
+{
+ "Ansekhwa": {
+  "npc": 11869,
+  "skills": [
+   {
+    "id": 198,
+    "name": "One-Handed Maces",
+    "reqclass": 1115
+   },
+   {
+    "id": 199,
+    "name": "Two-Handed Maces",
+    "reqclass": 1091
+   },
+   {
+    "id": 227,
+    "name": "Staves",
+    "reqclass": 1493
+   },
+   {
+    "id": 266,
+    "name": "Guns",
+    "reqclass": 13
+   }
+  ]
+ },
+ "Archibald": {
+  "npc": 11870,
+  "skills": [
+   {
+    "id": 200,
+    "name": "Polearms",
+    "reqclass": 1031
+   },
+   {
+    "id": 201,
+    "name": "One-Handed Swords",
+    "reqclass": 399
+   },
+   {
+    "id": 202,
+    "name": "Two-Handed Swords",
+    "reqclass": 7
+   },
+   {
+    "id": 1180,
+    "name": "Daggers",
+    "reqclass": 1501
+   },
+   {
+    "id": 5011,
+    "name": "Crossbows",
+    "reqclass": 13
+   }
+  ]
+ },
+ "Bixi Wobblebonk": {
+  "npc": 13084,
+  "skills": [
+   {
+    "id": 1180,
+    "name": "Daggers",
+    "reqclass": 1501
+   },
+   {
+    "id": 2567,
+    "name": "Thrown",
+    "reqclass": 13
+   },
+   {
+    "id": 5011,
+    "name": "Crossbows",
+    "reqclass": 13
+   }
+  ]
+ },
+ "Buliwyf Stonehand": {
+  "npc": 11865,
+  "skills": [
+   {
+    "id": 196,
+    "name": "One-Handed Axes",
+    "reqclass": 79
+   },
+   {
+    "id": 197,
+    "name": "Two-Handed Axes",
+    "reqclass": 71
+   },
+   {
+    "id": 198,
+    "name": "One-Handed Maces",
+    "reqclass": 1115
+   },
+   {
+    "id": 199,
+    "name": "Two-Handed Maces",
+    "reqclass": 1091
+   },
+   {
+    "id": 266,
+    "name": "Guns",
+    "reqclass": 13
+   },
+   {
+    "id": 15590,
+    "name": "Fist Weapons",
+    "reqclass": 1101
+   }
+  ]
+ },
+ "Hanashi": {
+  "npc": 2704,
+  "skills": [
+   {
+    "id": 196,
+    "name": "One-Handed Axes",
+    "reqclass": 79
+   },
+   {
+    "id": 197,
+    "name": "Two-Handed Axes",
+    "reqclass": 71
+   },
+   {
+    "id": 227,
+    "name": "Staves",
+    "reqclass": 1493
+   },
+   {
+    "id": 264,
+    "name": "Bows",
+    "reqclass": 13
+   },
+   {
+    "id": 2567,
+    "name": "Thrown",
+    "reqclass": 13
+   }
+  ]
+ },
+ "Ilyenia Moonfire": {
+  "npc": 11866,
+  "skills": [
+   {
+    "id": 227,
+    "name": "Staves",
+    "reqclass": 1493
+   },
+   {
+    "id": 264,
+    "name": "Bows",
+    "reqclass": 13
+   },
+   {
+    "id": 1180,
+    "name": "Daggers",
+    "reqclass": 1501
+   },
+   {
+    "id": 2567,
+    "name": "Thrown",
+    "reqclass": 13
+   },
+   {
+    "id": 15590,
+    "name": "Fist Weapons",
+    "reqclass": 1101
+   }
+  ]
+ },
+ "Sayoc": {
+  "npc": 11868,
+  "skills": [
+   {
+    "id": 196,
+    "name": "One-Handed Axes",
+    "reqclass": 79
+   },
+   {
+    "id": 197,
+    "name": "Two-Handed Axes",
+    "reqclass": 71
+   },
+   {
+    "id": 264,
+    "name": "Bows",
+    "reqclass": 13
+   },
+   {
+    "id": 1180,
+    "name": "Daggers",
+    "reqclass": 1501
+   },
+   {
+    "id": 2567,
+    "name": "Thrown",
+    "reqclass": 13
+   },
+   {
+    "id": 15590,
+    "name": "Fist Weapons",
+    "reqclass": 1101
+   }
+  ]
+ },
+ "Woo Ping": {
+  "npc": 11867,
+  "skills": [
+   {
+    "id": 200,
+    "name": "Polearms",
+    "reqclass": 1031
+   },
+   {
+    "id": 201,
+    "name": "One-Handed Swords",
+    "reqclass": 399
+   },
+   {
+    "id": 202,
+    "name": "Two-Handed Swords",
+    "reqclass": 7
+   },
+   {
+    "id": 227,
+    "name": "Staves",
+    "reqclass": 1493
+   },
+   {
+    "id": 1180,
+    "name": "Daggers",
+    "reqclass": 1501
+   },
+   {
+    "id": 5011,
+    "name": "Crossbows",
+    "reqclass": 13
+   }
+  ]
+ }
+}

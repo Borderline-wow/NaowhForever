@@ -11,9 +11,12 @@ local PROFESSION_TITLES = {
     [182] = { "Herbal" }, [165] = { "Leather" }, [186] = { "^Min" }, [393] = { "Skinn" },
     [197] = { "Tailor", "Clothier" }, [185] = { "Cooking" }, [129] = { "First Aid" }, [356] = { "Fishing" },
 }
+local MASTER_TITLE = "Weapon Master"
+local SPELL = 2
 local CLASS_ICON = "Interface\\Icons\\ClassIcon_"
 local ROUTE_TITLE = ns.L("Training run")
 local TEXT_NO_TRAINER = ns.L("No trainer for your class is known for your faction.")
+local TEXT_NO_MASTER = ns.L("No weapon master is known for your faction.")
 
 local function WorldPos(map, x, y)
     local ok, cont, pos = pcall(C_Map.GetWorldPosFromMapPos, map, CreateVector2D(x, y))
@@ -46,14 +49,13 @@ local function Better(npc, tier, dist, best, bestTier, bestDist)
     return tier == bestTier and (dist < bestDist or dist == bestDist and npc[NPC_NAME] < best[NPC_NAME])
 end
 
-function Training.NearestTrainer()
-    local _, class = UnitClass("player")
+local function Nearest(accepts)
     local side = Side()
     local cont, pos = Where()
     local best, bestMap, bestTier, bestDist
     for npcMap, npcs in pairs(ns.TownNPCs) do
         for _, npc in ipairs(npcs) do
-            if npc[NPC_KIND] == "class" and npc[NPC_CLASS] == class and npc[NPC_SIDE]:find(side, 1, true) then
+            if npc[NPC_SIDE]:find(side, 1, true) and accepts(npc) then
                 local tier, dist = Rank(npc, npcMap, side, cont, pos)
                 if Better(npc, tier, dist, best, bestTier, bestDist) then
                     best, bestMap, bestTier, bestDist = npc, npcMap, tier, dist
@@ -62,6 +64,18 @@ function Training.NearestTrainer()
         end
     end
     return best, bestMap
+end
+
+function Training.NearestTrainer()
+    local _, class = UnitClass("player")
+    return Nearest(function(npc) return npc[NPC_KIND] == "class" and npc[NPC_CLASS] == class end)
+end
+
+function Training.NearestMaster(entry)
+    if not entry.masters then return Training.NearestTrainer() end
+    local wanted = {}
+    for _, name in ipairs(entry.masters) do wanted[name] = true end
+    return Nearest(function(npc) return npc[NPC_TITLE] == MASTER_TITLE and wanted[npc[NPC_NAME]] end)
 end
 
 local function Titled(title, patterns)
@@ -105,6 +119,21 @@ local function ProfessionStops(map, from, side)
         table.remove(wanted, which)
     end
     return stops
+end
+
+function Training.MasterPlace(entry)
+    local npc, map = Training.NearestMaster(entry)
+    return npc and (npc[NPC_NAME] .. ", " .. C_Map.GetMapInfo(map).name) or ""
+end
+
+function Training.WaypointToMaster(entry)
+    local npc, map = Training.NearestMaster(entry)
+    if not npc then
+        ns.Print(entry.masters and TEXT_NO_MASTER or TEXT_NO_TRAINER)
+        return
+    end
+    ns.PlaceWaypointRoute(ROUTE_TITLE, { { npc[NPC_NAME], map, npc[NPC_X], npc[NPC_Y], " (" .. npc[NPC_TITLE] .. ")",
+        C_Spell.GetSpellTexture(entry[SPELL]) } })
 end
 
 function Training.WaypointToTrainer()
