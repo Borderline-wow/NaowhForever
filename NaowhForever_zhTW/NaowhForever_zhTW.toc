@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Traditional Chinese
 ## Notes: Naowh Forever in Traditional Chinese. Loads only when you are using it.
 ## Author: Naowh
-## Version: 1.1.10
+## Version: 1.1.11
 ## Dependencies: NaowhForever
 ## LoadOnDemand: 1
 ## Group: NaowhForever

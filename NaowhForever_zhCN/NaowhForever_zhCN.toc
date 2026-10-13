@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Simplified Chinese
 ## Notes: Naowh Forever in Simplified Chinese. Loads only when you are using it.
 ## Author: Naowh
-## Version: 1.1.10
+## Version: 1.1.11
 ## Dependencies: NaowhForever
 ## LoadOnDemand: 1
 ## Group: NaowhForever

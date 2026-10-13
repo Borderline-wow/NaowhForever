@@ -1,6 +1,43 @@
 # Changelog
 
-## Unreleased
+## 1.1.11
+
+### Added
+- Settings: a Language setting, with French, Portuguese (Brazil), Spanish (Spain and Latin America),
+  Italian, Korean and Chinese (Simplified and Traditional) joining German and Russian.
+- Buff Thank You Message: Whisper Named Players, turn it off to answer every buff with the /thank
+  emote instead of a whisper.
+- Journeys: a pin you put on the map yourself plans the way to it (Journeys to Map Pins in the
+  Journeys settings).
+- QoL > Combat > Default Damage Meter: a Reskin switch that draws the game's own damage meter in
+  your theme, with a bar texture, font, outline, colors, sizes, title bar fade, scroll bar, buttons,
+  border and spell panel to set.
+- Default Damage Meter: Move and Resize, to drag the game's damage meter and resize it by its corner
+  without opening Edit Mode.
+- Default Damage Meter: the game's own Edit Mode settings for its damage meter (Bar Style, Numbers,
+  Window Width and Height, Bar Height, Bar Spacing, Window and Background Opacity, Text Size,
+  Visibility, Spec Icon, Class Color) set from the card, with Restore Game Settings.
+
+### Fixed
+- Journeys: the journey carries on through the Deeprun Tram instead of ending with "No way found".
+- Journeys: arriving at the last stop clears the pin.
+- Journeys: the card, the world map route and the pin follow you as you move.
+- Journeys: reaching a pin partway along a journey no longer ends the whole journey.
+- Professions: the Total Craft Timer bar disappears when you stop crafting instead of running on.
+- Town Pins: Alchemy, Blacksmithing, Tailoring, Engineering, Enchanting and Leatherworking trainers
+  now show on the map in every capital and starting town, not just Herbalism, Mining and the other
+  gathering trainers.
+- opening the character panel with the BiS List's look no longer errors.
+- Personal Buff Reminders: Weapon Imbue now shows the enchant you last cast (Windfury, Flametongue,
+  Frostbrand or Rockbiter), not always the same one.
+- sharing a profile now also carries which modules are on or off, so importing it on another
+  character matches.
+- Top Bar: the clock returns to its chosen colour after you move the mouse off it.
+- Tooltip copy shortcut: using Shift or Alt as the modifier no longer types the key into the copy
+  card.
+- Unlock Mode: modules that are switched off no longer show up to be moved.
+- Map Window: when EllesmereUI's Shifter is on, Shifter moves and scales the world map and Naowh
+  Forever leaves it alone.
 
 ## 1.1.10
 

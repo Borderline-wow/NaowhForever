@@ -2,7 +2,7 @@
 ## Title: |cff0091edNaowh|r Forever: Portuguese (Brazil)
 ## Notes: Naowh Forever in Portuguese (Brazil). Loads only when you are using it.
 ## Author: Naowh
-## Version: 1.1.10
+## Version: 1.1.11
 ## Dependencies: NaowhForever
 ## LoadOnDemand: 1
 ## Group: NaowhForever
