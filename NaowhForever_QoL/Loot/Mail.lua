@@ -341,9 +341,7 @@ boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", OnLogin)
 
 ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
-    id = "mailAlts", name = "Mail & Alts", order = 40,
-    help = "Your characters on this realm and faction, remembered across your account: what they "
-        .. "hold on item tooltips, and help at the mailbox.",
+    id = "mailAlts", name = "Mail & Alts", order = 40, into = "lootTrade",
     rows = {
         { key = "altCounts", label = "Alt Item Counts", toggle = true,
           help = "Item tooltips show how many your characters on this realm and faction hold in "

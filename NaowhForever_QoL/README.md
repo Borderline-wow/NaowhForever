@@ -70,6 +70,7 @@ NaowhForever_QoL/
     XPTicker.lua        XP per Hour (ns.ResetXPTicker)
     XPBar.lua           the XP Bar (ns.XPBarColor, ns.ResetXPBarSession, ns.ResetXPBarLayout)
   Loot/
+    LootCard.lua        the one card on Loot & Items that Looting, Vendors, Auction Prices and Mail & Alts join
     DeleteConfirm.lua   Type DELETE For You, and the Looting card
     Durability.lua      the low durability warning
     LootConfirm.lua     the retired loot confirmation skip, inert

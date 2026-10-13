@@ -76,8 +76,8 @@ Case("the Looting card no longer offers it", function()
     assert(card and card.id == "looting", "Looting card not built")
     for _, row in ipairs(card.rows) do
         assert(row.key ~= "enchantReplace", "Auto-Replace Enchants is still offered")
+        assert(not (row.help or ""):lower():find("enchant", 1, true), "a row still promises enchants")
     end
-    assert(not card.help:lower():find("enchant", 1, true), "card help still promises enchants")
 end)
 
 print(("test-enchant-replace: %d cases passed"):format(count))

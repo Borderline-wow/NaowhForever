@@ -382,7 +382,7 @@ local function OpenFromCard()
 end
 
 Shared.Settings.Page(PAGE, ns.QoLSettings):Window({
-    order = 26,
+    order = 65,
     text = "Open Scrap List",
     open = OpenFromCard,
     headline = "Scrap List",

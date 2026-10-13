@@ -250,12 +250,9 @@ hooksecurefunc(S, "Set", OnSettingChanged)
 TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnItemTooltip)
 
 ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
-    id = "auctionPrices", name = "Auction Prices", order = 30,
-    help = "Prices from your own scans of the auction house, kept for each realm and faction. Item "
-        .. "tooltips, Bag Space and the Loot Feed can use them.",
-    summary = ScanLine,
+    id = "auctionPrices", name = "Auction Prices", order = 30, into = "lootTrade",
     rows = {
-        { key = "ahPrices", label = "Scan Prices Button", toggle = true,
+        { key = "ahPrices", label = "Scan Prices Button", toggle = true, note = ScanLine,
           help = "A Scan Prices button on the auction house. It reads every listing and keeps the "
               .. "lowest buyout for each item, for this realm and faction. Blizzard allows one full "
               .. "scan every 15 minutes." },

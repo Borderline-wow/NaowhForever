@@ -64,9 +64,7 @@ end
 hooksecurefunc("StaticPopup_Show", OnPopupShow)
 
 ns.Shared.Settings.Page("QoL/Loot & Items", S):Card({
-    id = "looting", name = "Looting", order = 10,
-    help = "Fewer clicks around loot and items: the delete confirmation filled in, and auto loot that "
-        .. "keeps the loot window.",
+    id = "looting", name = "Looting", order = 10, into = "lootTrade",
     rows = {
         { key = "deleteConfirm", label = "Type DELETE For You", toggle = true,
           help = "Types DELETE into the confirmation box for you, and names the item in the dialog as a "

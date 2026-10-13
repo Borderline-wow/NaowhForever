@@ -166,7 +166,7 @@ local function Fixture(saved)
     for _, path in ipairs({ "Core/Features.lua", "Core/Settings.lua", "Core/AlertStack.lua",
         "NaowhForever_QoL/Combat/CombatAlert.lua", "NaowhForever_QoL/Combat/CombatTimer.lua",
         "NaowhForever_QoL/Combat/StealthReminder.lua", "NaowhForever_QoL/Questing/TalentPoints.lua",
-        "NaowhForever_QoL/Loot/Durability.lua", "NaowhForever_QoL/Loot/Restock.lua",
+        "NaowhForever_QoL/Loot/LootCard.lua", "NaowhForever_QoL/Loot/Durability.lua", "NaowhForever_QoL/Loot/Restock.lua",
         "NaowhForever_QoL/Combat/PetTracker.lua" }) do
         files[#files + 1] = path
     end

@@ -25,6 +25,8 @@ local TEXT_NEEDS = ns.L("Needs %s")
 local ERROR_NO_KIND = "Settings: a row without a kind on "
 local ERROR_CARD = "Settings: a card needs an id and a name"
 local ERROR_TWO_CARDS = "Settings: two cards named "
+local ERROR_NO_JOIN = "Settings: no card to join named "
+local ERROR_JOIN_SWITCH = "Settings: a joined card cannot have its own switch: "
 local ERROR_INFO = "Settings: an info card needs an id and a name"
 
 local Settings = {}
@@ -245,9 +247,29 @@ local function IndexCard(item, add)
     end
 end
 
+local function JoinCard(page, spec)
+    local card = page.cards[spec.into]
+    assert(card, ERROR_NO_JOIN .. spec.into .. " on " .. page.key)
+    assert(not spec.switch, ERROR_JOIN_SWITCH .. spec.id)
+    card.parts = card.parts or {}
+    local part = { order = spec.order or DEFAULT_ORDER, seq = #card.parts + 1,
+        rows = Flatten(spec.rows or {}) }
+    table.insert(part.rows, 1, Settings.Group(spec.name))
+    for _, row in ipairs(part.rows) do Normalise(row, card) end
+    card.parts[part.seq] = part
+    table.sort(card.parts, Before)
+    card.rows = {}
+    for _, each in ipairs(card.parts) do
+        for _, row in ipairs(each.rows) do card.rows[#card.rows + 1] = row end
+    end
+    page.cards[spec.id] = card
+    return card
+end
+
 function Page:Card(spec)
     assert(spec.id and spec.name, ERROR_CARD)
     assert(not self.cards[spec.id], ERROR_TWO_CARDS .. spec.id .. " on " .. self.key)
+    if spec.into then return JoinCard(self, spec) end
     spec.page = self
     spec.uid = self.key .. ":" .. spec.id
     spec.store = spec.store or self.store

@@ -4,6 +4,7 @@
     <Script file="Combat\StealthReminder.lua"/>
     <Script file="Combat\CoTank.lua"/>
     <Script file="Combat\HealerMana.lua"/>
+    <Script file="Loot\LootCard.lua"/>
     <Script file="Loot\DeleteConfirm.lua"/>
     <Script file="Loot\Durability.lua"/>
     <Script file="Questing\TalentPoints.lua"/>

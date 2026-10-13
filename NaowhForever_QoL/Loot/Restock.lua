@@ -426,8 +426,7 @@ boot:SetScript("OnEvent", Apply)
 local loot = ns.Shared.Settings.Page(PAGE, S)
 
 loot:Card({
-    id = "vendors", name = "Vendors", order = 20,
-    help = "What happens when you open a vendor. Both work whether or not the Restock Reminder is on.",
+    id = "vendors", name = "Vendors", order = 20, into = "lootTrade",
     rows = {
         { key = "autoRepair", label = "Auto Repair", toggle = true,
           help = "Repairs all gear when you open a vendor who can." },
