@@ -93,6 +93,9 @@ the game's art comes back and ours hides.
   and the wheel zooms it.
 - The stats' rows are styled as the game's list makes them (its scroll box's initialized-frame
   callback), the same on every reuse.
+- `FitLabel` keeps only a stat label's anchor points: FontString has no `GetWordWrap` to read back
+  (only `SetWordWrap` and `CanWordWrap` exist), and the game never calls `SetWordWrap` on these
+  labels, so `Unfit` always restores wrap to `true`.
 - The BiS List's link sits in the left pane's top-right corner on your badge's middle, clear of the
   game's toggle for the stats there (`TOGGLE_W` 28px, `TOGGLE_EDGE` 6px in).
 - An empty slot is nil, and an empty ammo slot 0.

@@ -50,16 +50,16 @@ local function FitLabel(label, value)
     if not (label and value) or fitted[label] then return end
     local points = {}
     for i = 1, label:GetNumPoints() do points[i] = { label:GetPoint(i) } end
-    fitted[label] = { points = points, wrap = label:GetWordWrap() }
+    fitted[label] = points
     label:SetWordWrap(false)
     label:SetPoint("RIGHT", value, "LEFT", -LABEL_GAP, 0)
 end
 
 local function Unfit()
-    for label, saved in pairs(fitted) do
+    for label, points in pairs(fitted) do
         label:ClearAllPoints()
-        for _, point in ipairs(saved.points) do label:SetPoint(unpack(point)) end
-        label:SetWordWrap(saved.wrap)
+        for _, point in ipairs(points) do label:SetPoint(unpack(point)) end
+        label:SetWordWrap(true)
     end
     wipe(fitted)
 end

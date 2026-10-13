@@ -369,7 +369,6 @@ local statLabel = statRow.Label
 statLabel.anchors, statLabel.wrap = { { "LEFT", statRow, "LEFT", 11, 0 } }, true
 statLabel.GetNumPoints = function(self) return #self.anchors end
 statLabel.GetPoint = function(self, i) return unpack(self.anchors[i]) end
-statLabel.GetWordWrap = function(self) return self.wrap end
 statLabel.SetWordWrap = function(self, on) self.wrap = on end
 statLabel:SetPoint("LEFT", statRow)
 CP.StatsLook.Style(nil, statRow)
