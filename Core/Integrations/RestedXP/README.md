@@ -22,6 +22,9 @@ Core/Integrations/RestedXP/
 - The hooks need RestedXP's frames, so they wait for PLAYER_LOGIN. Each checks what it needs and
   does nothing without it.
 - RestedXP's theme reload scales its protected target frame, so in combat it waits for the end.
+- Naowh (current) is read from `ns.THEME`, the colors the addon itself is drawn in, not from the
+  theme picked: the Classic+ skin overrides that pick (`ThemeSource` in Core.lua). The fixed themes
+  come from `ns.ThemePalette`, which never carries the player's own colors.
 - The font and text color are part of the themes, which RestedXP reads as it starts: they take a
   reload. The font is `ns.AddonFontPath`, not `UIFontPath`, which remembers what it finds and this
   runs before every addon has loaded.

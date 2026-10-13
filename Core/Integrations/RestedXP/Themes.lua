@@ -228,8 +228,13 @@ local function Hex(c)
         math.floor(c.g * CHANNEL_MAX + ROUND), math.floor(c.b * CHANNEL_MAX + ROUND))
 end
 
-local function Theme(id, displayName, source)
-    local palette = ns.ThemePalette(source)
+local function LivePalette()
+    local palette = {}
+    for i, token in ipairs(ns.THEME_EDITABLE) do palette[i] = ns.THEME[token] end
+    return palette
+end
+
+local function Theme(id, displayName, palette)
     local c = {}
     for i, token in ipairs(ns.THEME_EDITABLE) do c[token] = palette[i] end
     return {
@@ -253,16 +258,18 @@ end
 
 local late
 
-local function Add(themes, id, displayName, source)
-    local theme = Theme(id, displayName, source)
+local function Add(themes, id, displayName, palette)
+    local theme = Theme(id, displayName, palette)
     themes[theme.name] = theme
 end
 
 local function Register()
     local themes = {}
-    Add(themes, DEFAULT_KEY, DEFAULT_NAME, "")
-    for _, key in ipairs(ns.THEME_PRESET_ORDER) do Add(themes, key, ns.THEME_PRESETS[key].name, key) end
-    Add(themes, CURRENT_KEY, CURRENT_NAME, ns.ThemePresetKey())
+    Add(themes, DEFAULT_KEY, DEFAULT_NAME, ns.ThemePalette(""))
+    for _, key in ipairs(ns.THEME_PRESET_ORDER) do
+        Add(themes, key, ns.THEME_PRESETS[key].name, ns.ThemePalette(key))
+    end
+    Add(themes, CURRENT_KEY, CURRENT_NAME, LivePalette())
     local rxp = _G.RXP
     if Has(rxp, "RegisterTheme") and type(rxp.activeTheme) == "table" then
         late = true

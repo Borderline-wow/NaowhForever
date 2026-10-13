@@ -238,6 +238,22 @@ do
     Check(Hex(list["NaowhForever:crimson"].mapPins) == "ef4b56" and Hex(list["NaowhForever:default"].mapPins) == "0091ed",
         "while the fixed themes are what they were")
 
+    for _, account in ipairs({
+        { rxpThemes = true, skin = "classic", themePreset = "crimson" },
+        { rxpThemes = true, skin = "classic" },
+        { rxpThemes = true, skin = "classic", themePreset = "custom", themeColors = { accent = { r = 0, g = 1, b = 0 } } } }) do
+        theme, list = Current(account)
+        Check(Hex(theme.background) == "17110b" and Hex(theme.bottomFrameBG) == "17110b" and Hex(theme.mapPins) == "ffd100"
+            and Hex(theme.dividerColor) == "5e4a1c" and Hex(theme.chromeColor) == "a89a7c" and Hex(theme.textColor) == "ece3cc",
+            "with the Classic+ skin on: Classic+'s colors, whatever theme was picked")
+        Check(theme.tooltip == "|cffffd100" and Same(theme.bottomFrameHighlight, { 1, 0xd1 / 255, 0, 0.5 }),
+            "and its Accent in the tooltip and the highlight")
+        Check(Hex(list["NaowhForever:crimson"].mapPins) == "ef4b56" and Hex(list["NaowhForever:default"].mapPins) == "0091ed",
+            "while the fixed themes are what they were")
+    end
+    theme = Current({ rxpThemes = true, skin = "", themePreset = "crimson" })
+    Check(Hex(theme.mapPins) == "ef4b56", "with another skin the picked theme is back")
+
     theme, list = Current({ rxpThemes = true, themePreset = "custom",
         themeColors = { bg = { r = 1, g = 0, b = 0 }, accent = { r = 0, g = 1, b = 0 }, fg = { r = 0, g = 0, b = 1 } } })
     Check(Hex(theme.background) == "1a1c1f" and Hex(theme.bottomFrameBG) == "1a1c1f", "with Custom colors: Panels as shipped, for both")
