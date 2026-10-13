@@ -1,6 +1,4 @@
 -- Disband.lua: removing everyone from your group (ns.DisbandGroup), for the Disband button.
--- UninviteUnit is protected for addons, so the dialog's Yes is covered by a secure button
--- that runs /uninvite for each member, the same way the Reload UI dialog runs /reload.
 local ns = _G.NaowhForever
 
 local TEXT_NO_GROUP = ns.L("You are not in a group.")
@@ -34,7 +32,6 @@ local function HideOnLeave(self)
     if not InCombatLockdown() then self:Hide() end
 end
 
--- The dialog closes on the release, after the macro ran on the press or the release.
 local function AfterKick(_, _, down)
     if down then return end
     local dimmer = armed
