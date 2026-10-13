@@ -35,7 +35,8 @@
     <Script file="UI\Book.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\Takeover.lua"/>
-    <Script file="UI\ShoppingSide.lua"/>
+    <Script file="UI\ShoppingAdd.lua"/>
+    <Script file="UI\ShoppingWindow.lua"/>
     <Script file="UI\ShoppingList.lua"/>
     <Script file="UI\TrainFavorites.lua"/>
     <Script file="UI\FavoritePatterns.lua"/>

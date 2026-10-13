@@ -31,6 +31,7 @@ local HELP_LINES = {
     ns.L("/nf trainer: a waypoint to your nearest class trainer"),
     "/nf profrank: your professions' next ranks",
     ns.L("/nf scrap: the Scrap List"),
+    ns.L("/nf shopping: the Professions Shopping List"),
     ns.L("/nf quiz: the WoW quiz"),
     "/nf setup: the onboarding",
     ns.L("/nfquests (or /nfcompleto): the Quest List, in Discovery"),
@@ -143,6 +144,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ToggleDisenchant()
     elseif cmd == "scrap" and ns.ToggleScrapList then
         ns.ToggleScrapList()
+    elseif cmd == "shopping" and ns.ToggleShoppingList then
+        ns.ToggleShoppingList()
     elseif (cmd == "setup" or cmd == "welcome") and ns.ShowSetup then
         ns.ShowSetup()
     else

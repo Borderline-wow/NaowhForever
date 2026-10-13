@@ -7,6 +7,7 @@ ns.Professions.C = {
     SEARCH_GAP = 0.3,
     OVERPRICED = 1.25,
     MAX_CRAFTS = 999,
+    MAX_ITEMS = 9999,
     COPPER_PER_GOLD = 10000,
     COPPER_PER_SILVER = 100,
     NPC_NAME = 2,

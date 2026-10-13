@@ -58,6 +58,10 @@ local function Makes()
     return Mine("profMakes")
 end
 
+local function Manual()
+    return Mine("profShopItems")
+end
+
 local function Keep()
     local account = ns.AccountSettings()
     if type(account.profShopKeep) ~= "table" then account.profShopKeep = {} end
@@ -77,6 +81,7 @@ local function Reach()
     for _, craft in pairs(List()) do
         for item, per in pairs(craft.need) do Use(item, per * craft.count, 0) end
     end
+    for item, qty in pairs(Manual()) do reach[item] = (reach[item] or 0) + qty end
     return reach
 end
 
@@ -203,6 +208,11 @@ local function Materials()
         for item, qty in pairs(demand) do PlanItem(item, qty, depth) end
         demand, nextDemand = nextDemand, demand
         if next(demand) == nil then break end
+    end
+    for item, qty in pairs(Manual()) do
+        local got = math.min(qty, had[item] or 0)
+        if got > 0 then had[item] = had[item] - got end
+        if qty > got then buy[item] = (buy[item] or 0) + qty - got end
     end
     local n = 0
     for item, qty in pairs(buy) do
@@ -343,8 +353,29 @@ local function Remove(recipeID)
     Redraw()
 end
 
+local function AddItem(item, qty)
+    local items = Manual()
+    items[item] = math.min(C.MAX_ITEMS, (items[item] or 0) + qty)
+    Redraw()
+end
+
+local function StepItem(item, by)
+    local items = Manual()
+    if not items[item] then return end
+    items[item] = math.max(1, math.min(C.MAX_ITEMS, items[item] + by))
+    Trim()
+    Redraw()
+end
+
+local function RemoveItem(item)
+    Manual()[item] = nil
+    Trim()
+    Redraw()
+end
+
 local function Clear()
     wipe(List())
+    wipe(Manual())
     Trim()
     Redraw()
 end
@@ -354,6 +385,10 @@ Shopping.List = List
 Shopping.Have = Have
 Shopping.Makes = Makes
 Shopping.Keep = Keep
+Shopping.Manual = Manual
+Shopping.AddItem = AddItem
+Shopping.StepItem = StepItem
+Shopping.RemoveItem = RemoveItem
 Shopping.Trim = Trim
 Shopping.BuyPrice = BuyPrice
 Shopping.Cheapest = Cheapest

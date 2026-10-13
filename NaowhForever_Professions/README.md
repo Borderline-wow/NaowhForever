@@ -34,7 +34,7 @@ NaowhForever_Professions/
   Orders.lua           craft orders: value, tip, messages, sending (P.Orders)
   AuctionHouse.lua     the auction house open, searching it, Shift-click (P.AH)
   BagRoom.lua          how many crafts the bags have room for (ns.CraftBagRoom)
-  ShoppingPlan.lua     the shopping list's store and make-or-buy plan (P.Shopping)
+  ShoppingPlan.lua     the shopping list's store (crafts and other items) and make-or-buy plan (P.Shopping)
   Patterns.lua         favourites at a trainer, and their patterns to buy (P.Patterns, ns.TrainerServiceInfo)
   Disenchant.lua       the bag items Disenchant can take, the ones you keep, the next one (P.Disenchant)
   View/
@@ -53,7 +53,8 @@ NaowhForever_Professions/
     Book.lua           the overview's profession cards (P.Book)
     Window.lua         the window: frame, title, skill bar, rank banner, search, Filter, drawing (P.Window)
     Takeover.lua       showing it over Blizzard's window, docking Blizzard's tabs and cards, dragging, events
-    ShoppingSide.lua   the shopping list's column in the window and Add to List
+    ShoppingAdd.lua    Add to List under a recipe, and the button that opens the shopping list
+    ShoppingWindow.lua the Shopping List window: crafts, other items, materials (ns.ToggleShoppingList)
     ShoppingList.lua   the shopping list beside the auction house: check and buy
     TrainFavorites.lua Train Favorites beside the trainer
     FavoritePatterns.lua Search Favorites AH beside the auction house
@@ -150,6 +151,11 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   2026-09-30), so the shopping list buys each material after the first on a click of Buy Next. A
   final price 10% over the check is warned about. A search sent while the auction house is busy is
   dropped, so the check waits for it to be ready.
+- The shopping list is a window of its own, not a column of the profession window, so it stays open when
+  that closes. Other items (`profShopItems`, item ID to amount, per character like the crafts) are always
+  bought as they are, never made from parts; what was bought counts against them. Shift-click, a drag
+  from the bags, an ID or an exact name adds one; the window is built on first open and listens to bag
+  changes only while it shows.
 - The shopping list makes a material from its parts, up to 4 levels down, only when whole crafts cost
   less than buying what is needed, and never from a recipe with a cooldown (it makes a few a day; a
   shared cooldown can read 0 on the spell). What was bought counts at every level, and a craft taken

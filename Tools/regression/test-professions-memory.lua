@@ -561,7 +561,7 @@ check("a reagent's name loading redraws the window once", calls.render == r5 + 1
 
 local LISTED = REAGENTS[3]      -- on the shopping list
 loaded[LISTED] = nil
-ns.ShoppingListRender(nil)
+ns.Professions.Shopping.Materials()
 local s5 = calls.shopping
 Advance(0.3)
 check("a listed material's name loading redraws the shopping list once", calls.shopping == s5 + 1)

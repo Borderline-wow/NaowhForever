@@ -251,7 +251,7 @@ local function Activate(mode)
     pf:SetAlpha(0)
     win:SetAlpha(1)
     local linked = mode == "linked"
-    local wide = linked or (mode == "craft" and ns.ShoppingListWide and ns.ShoppingListWide())
+    local wide = linked
     local width = wide and Style.WINDOW_W + Style.ORDER_W + Style.PAD or Style.WINDOW_W
     if not InCombatLockdown() then
         win:SetSize(math.max(width, pf:GetWidth()), math.max(Style.MIN_H, pf:GetHeight()))

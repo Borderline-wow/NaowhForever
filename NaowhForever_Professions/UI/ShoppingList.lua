@@ -470,7 +470,7 @@ local function ForWhat(made)
 end
 
 Render = function()
-    Shopping.RenderSide()
+    Shopping.RenderWindow()
     if not (On() and AuctionHouseOpen()) then return panel and panel:Hide() end
     local materials, made = Shopping.Materials()
     if #materials == 0 and not run then return panel and panel:Hide() end
@@ -542,6 +542,7 @@ local function OnPurchased(e)
     Shopping.Drop(e.item, e.buy)
     if #(Shopping.Materials()) == 0 then
         wipe(Shopping.List())
+        wipe(Shopping.Manual())
         Shopping.Trim()
     end
     NextBuy()

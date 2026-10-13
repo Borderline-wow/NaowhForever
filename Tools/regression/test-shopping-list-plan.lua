@@ -203,4 +203,32 @@ check("not when the open profession's id is not among yours (ids that do not mat
 check("a recipe recorded before professions were kept stays", SL.Makes()[ARCANITE + 101] ~= nil)
 openProf = ALCHEMY
 
+-- Other items: always bought as they are, merged with a craft's need, kept when bought.
+Reset(); Learned({ [BAR] = SMELT })
+SL.AddItem(BAR, 5)
+local buy2, made2 = Plan()
+check("an item with a recipe is bought, not made", Only(buy2, BAR, 5) and Empty(made2))
+SL.AddItem(BAR, 3)
+buy2 = Plan()
+check("adding it again adds to the amount", Only(buy2, BAR, 8))
+SL.StepItem(BAR, -1)
+buy2 = Plan()
+check("one fewer takes one off", Only(buy2, BAR, 7))
+SL.Drop(BAR, 7)
+buy2 = Plan()
+check("bought items are not asked for again", Empty(buy2))
+SL.Trim()
+check("and the purchase is kept", SL.Have()[BAR] == 7)
+SL.RemoveItem(BAR)
+check("removing an item drops its purchase", SL.Manual()[BAR] == nil and SL.Have()[BAR] == nil)
+Reset(); Learned({ [BAR] = SMELT }); Craft(10, { [BAR] = 20 })
+prices[BAR] = 15
+SL.AddItem(ORE, 4)
+buy2 = Plan()
+check("another item joins a craft's materials", buy2[ORE] == 4 and buy2[BAR] == 20)
+SL.Clear()
+check("Clear empties the items too", next(SL.Manual()) == nil and next(SL.List()) == nil)
+SL.AddItem(ORE, 100000)
+check("an amount is capped", SL.Manual()[ORE] == env.NaowhForever.Professions.C.MAX_ITEMS)
+
 print(("test-shopping-list-plan: %d checks passed"):format(checks))
