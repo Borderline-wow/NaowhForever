@@ -193,7 +193,9 @@ local function OnSucceeded()
 end
 
 local function OnEvent(_, event, _, _, spellID)
-    if not job or spellID ~= job.recipeID then return end
+    if not job then return end
+    if event == "UPDATE_TRADESKILL_CAST_STOPPED" then return Stop() end
+    if spellID ~= job.recipeID then return end
     if event == "UNIT_SPELLCAST_START" then return OnStart() end
     if event == "UNIT_SPELLCAST_SUCCEEDED" then return OnSucceeded() end
     if event == "UNIT_SPELLCAST_FAILED" and select(CASTING_SPELL, UnitCastingInfo("player")) == job.recipeID then
@@ -218,6 +220,7 @@ local function OnCraft(recipeID, count)
         cast = cast > 0 and cast or GUESS_CAST, gap = GAP, start = GetTime() }
     Resync(job.cast)
     for _, event in ipairs(CAST_EVENTS) do events:RegisterUnitEvent(event, "player") end
+    events:RegisterEvent("UPDATE_TRADESKILL_CAST_STOPPED")
     watch = C_Timer.NewTicker(WATCH_EVERY, Watch)
     Show()
 end
