@@ -87,6 +87,15 @@ function Training.ToggleSkip(build, group)
     Changed()
 end
 
+function Training.SkipAll(classID, build, on)
+    build.skip = on and {} or nil
+    for _, group in ipairs(Training.SkipGroups(classID)) do
+        for _, spell in ipairs(on and group.spells or {}) do build.skip[spell] = true end
+    end
+    if build.skip and next(build.skip) == nil then build.skip = nil end
+    Changed()
+end
+
 function Training.SkipCount(build)
     local n = 0
     for _ in pairs(build.skip or {}) do n = n + 1 end

@@ -3973,6 +3973,7 @@ L["Secondary Text"] = true
 L["Seconds before it fades."] = true
 L["Seconds left to the next swing."] = true
 L["See a preview on its settings page"] = true
+L["Select All"] = true
 L["Sell for:"] = true
 L["Sell your scrap for %s?"] = true
 L["Sell your scrap when you open a vendor, ask you first, or do nothing."] = true

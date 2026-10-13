@@ -30,7 +30,7 @@ NaowhForever_Training/
     Style.lua        the planner's own look, over Shared/Style.lua (Training.Style)
     Rows.lua         pooled cards, rows and section titles, a spell's tooltip and menu (Training.Rows)
     Spells.lua       the Spells tab: next visit, road to 60, spell lists (Training.Spells)
-    Builds.lua       the Builds tab: builds, steps, the talent tree editor (Training.BuildsView)
+    Builds.lua       the Builds tab: builds, steps, the editor (Talents and Spells tabs) (Training.BuildsView)
   UI/
     Place.lua        windows on whole pixels, kept account-wide
     Window.lua       the window (/nftraining, ns.OpenTrainingWindow, ns.ToggleTrainingWindow)

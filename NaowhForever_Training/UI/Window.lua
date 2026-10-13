@@ -256,7 +256,7 @@ local function NewBuild()
     ns.PromptText(TEXT_NAME_BUILD, "", Training.C.BUILD_NAME_MAX, function(name)
         local _, _, myClass = UnitClass("player")
         local classID = V.buildClass or myClass
-        V.buildClass, V.buildIndex, V.editing = classID, Training.NewBuild(classID, name), true
+        V.buildClass, V.buildIndex, V.editing, V.editTab = classID, Training.NewBuild(classID, name), true, "talents"
         Render()
     end)
 end

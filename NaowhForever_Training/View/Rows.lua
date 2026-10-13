@@ -48,7 +48,7 @@ local TEXT_STOP_SKIP, TEXT_STOP_SKIP_ALL = ns.L("Stop Skipping"), ns.L("Stop Ski
 local TEXT_SKIP_ALL = ns.L("Skip All Ranks")
 local TEXT_UPGRADE = "  %s+%d%%|r"
 
-local V = { tab = "spells", buildIndex = 1, paneX = 0, editing = false }
+local V = { tab = "spells", buildIndex = 1, paneX = 0, editing = false, editTab = "talents" }
 Training.View = V
 
 local pools = {}

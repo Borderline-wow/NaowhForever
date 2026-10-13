@@ -261,6 +261,16 @@ Case("a saved build skips a spell by every rank, learned or not, and quest spell
     assert(build.skip == nil and t.T.SkipCount(build) == 0, "an empty list is not kept")
 end)
 
+Case("Select All skips every rank of every spell, Clear empties the list", function()
+    local t = Fixture()
+    local index = t.T.NewBuild(8, "Skips")
+    local build = t.T.Builds(8)[index]
+    t.T.SkipAll(8, build, true)
+    assert(t.T.SkipCount(build) == 3 and build.skip[133] and build.skip[143] and build.skip[1953])
+    t.T.SkipAll(8, build, false)
+    assert(build.skip == nil and t.T.SkipCount(build) == 0)
+end)
+
 Case("the skip list goes with an export, an import and a copy, and only the class's spells are kept", function()
     local t = Fixture()
     local index = t.T.NewBuild(8, "Skips", TREE[8][1])

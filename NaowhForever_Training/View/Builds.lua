@@ -9,6 +9,7 @@ local Style = Training.Style
 local Rows = Training.Rows
 local V = Training.View
 local Header, Take, Paint, Text, Icon = Rows.Header, Rows.Take, Rows.Paint, Rows.Text, Rows.Icon
+local Parts = ns.Shared.Parts
 
 local CLASSES = { 1, 2, 3, 4, 5, 7, 8, 9, 11 }
 local CLASS_H, CLASS_GAP = 26, 6
@@ -18,6 +19,7 @@ local SELECTED_BAR, PICKED = 2, 0.10
 local NAME_X, NAME_DROP, SPEC_DROP, LINE_RIGHT = 12, 8, 4, 8
 local SHARE_W = 64
 local EDIT_W = 80
+local EDIT_TABS_W = 240
 local BUTTON_GAP = 6
 local LEARN_W, FOLLOW_W = 140, 140
 local STEP_LEVEL_X, STEP_LEVEL_W = 10, 90
@@ -41,6 +43,8 @@ local TEXT_NEXT_AT = ns.L("Next, at level ")
 local TEXT_NODE_RANK = ns.L("Rank %d of %d")
 local TEXT_NODE_HINT = ns.L("Click to take the next point here, right-click to give one back.")
 local TEXT_UNDO, TEXT_CLEAR, TEXT_DONE = "Undo", "Clear", "Done"
+local TEXT_SELECT_ALL = "Select All"
+local TEXT_TALENTS, TEXT_SPELLS = "Talents", "Spells"
 local TEXT_CLEAR_ASK = ns.L("Take every point out of %s?")
 local TEXT_EDITING = ns.L("EDITING ")
 local TEXT_EDIT_NOTE = ns.L("%d of %d points. Click talents in the order you take them")
@@ -267,19 +271,51 @@ local function NewEditButton()
     return ns.Button(V.body, "", EDIT_W, Style.SKIP_H + BUTTON_GAP)
 end
 
-local function EditButtons(tree, build, y)
-    local actions = {
+local function EditDone()
+    V.editing = false
+    Redraw()
+end
+
+local function EditActions(classID, tree, build)
+    if V.editTab == "spells" then
+        return {
+            { TEXT_SELECT_ALL, function() Training.SkipAll(classID, build, true) end },
+            { TEXT_CLEAR, function() Training.SkipAll(classID, build, false) end },
+            { TEXT_DONE, EditDone },
+        }
+    end
+    return {
         { TEXT_UNDO, function()
             if #build.points > 0 then Training.UndoPoint(tree, build) end
         end },
         { TEXT_CLEAR, function()
             ns.Confirm(TEXT_CLEAR_ASK:format(build.name), function() Training.ClearPoints(build) end)
         end },
-        { TEXT_DONE, function()
-            V.editing = false
-            Redraw()
-        end },
+        { TEXT_DONE, EditDone },
     }
+end
+
+local function PickEditTab(key)
+    V.editTab = key
+    Redraw()
+end
+
+local function NewEditTabs()
+    return Parts.Tabs(V.body, EDIT_TABS_W, {
+        { key = "talents", label = TEXT_TALENTS },
+        { key = "spells", label = TEXT_SPELLS },
+    }, PickEditTab)
+end
+
+local function EditTabs(y)
+    local bar = Take("editTabs", NewEditTabs)
+    bar:SetPoint("TOPLEFT", V.body, "TOPLEFT", V.paneX, y)
+    Parts.PaintTabs(bar, V.editTab)
+    return y - Style.TAB_H - BUTTON_GAP
+end
+
+local function EditButtons(classID, tree, build, y)
+    local actions = EditActions(classID, tree, build)
     for i, action in ipairs(actions) do
         local b = Take("edit", NewEditButton)
         b:SetPoint("TOPLEFT", V.body, "TOPLEFT", V.paneX + (i - 1) * (EDIT_W + BUTTON_GAP), y)
@@ -382,7 +418,9 @@ end
 local function DrawEditor(classID, tree, build, level, y)
     local points = build.points
     y = Header(y, TEXT_EDITING .. build.name:upper(), nil, TEXT_EDIT_NOTE:format(#points, C.MAX_POINTS))
-    y = EditButtons(tree, build, y)
+    y = EditTabs(y)
+    y = EditButtons(classID, tree, build, y)
+    if V.editTab == "spells" then return DrawSkips(classID, build, y) end
     local count, spent = Spent(tree, points)
     local colW = math.floor((V.body:GetWidth() - V.paneX) / #tree.specs)
     local gridW = TREE_SLOTS * NODE + (TREE_SLOTS - 1) * NODE_GAP
@@ -399,7 +437,6 @@ local function DrawEditor(classID, tree, build, level, y)
         DrawNode(tree, build, node, talent, count, Left(col) + (slot - 1) * (NODE + NODE_GAP), top - (row - 1) * NODE_ROW)
     end
     y = top - TREE_ROWS * NODE_ROW - Style.SECTION_GAP
-    y = DrawSkips(classID, build, y)
     y = Header(y, TEXT_BY_LEVEL, #points, TEXT_BY_LEVEL_NOTE)
     return Steps(build, tree.talents, nil, level, y)
 end
@@ -433,7 +470,7 @@ local function ShareActions(actions, classID, build)
     local saved = build.saved == true
     if saved then
         actions[#actions + 1] = { TEXT_EDIT, SHARE_W, function()
-            V.editing = true
+            V.editing, V.editTab = true, "talents"
             Redraw()
         end }
         actions[#actions + 1] = { TEXT_RENAME, SHARE_W, function()
@@ -443,7 +480,7 @@ local function ShareActions(actions, classID, build)
         end }
     else
         actions[#actions + 1] = { TEXT_COPY, SHARE_W, function()
-            V.buildIndex, V.editing = Training.NewBuild(classID, build.name .. TEXT_COPY_SUFFIX, build), true
+            V.buildIndex, V.editing, V.editTab = Training.NewBuild(classID, build.name .. TEXT_COPY_SUFFIX, build), true, "talents"
             Redraw()
         end }
     end
