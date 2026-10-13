@@ -47,7 +47,7 @@ local GLIDE_RATE = 14
 local GLIDE_DONE = 0.5
 local TIP = { w = 240, pad = 8, size = 10, spacing = 3, gap = 4, cursorX = 16, cursorY = -12, alpha = 0.98 }
 local TOGGLE = { w = 40, h = 20, knobShare = 0.7, insetShare = 0.15, minInset = 2 }
-local FEATURE = { textSize = 16, textX = 30, arrow = 14, arrowX = 4, hitRoom = 120, hitRaise = 3 }
+local FEATURE = { textSize = 16, textX = 30, arrow = 14, arrowX = 4, hitRoom = 120, hitRaise = 3, foldInset = 22 }
 local NOTE = { size = 12, inset = 20, top = 12, room = 24, fallbackW = 960 }
 local SCROLL = { slimW = 6, slimGap = 6, trackAlpha = 0.6, thumbAlpha = 0.8, minThumb = 24, sync = 0.5 }
 local SHARE_DEPTH = 4
@@ -917,7 +917,7 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     return Collapsed(parent, row, ROW_H)
 end
 
-function W:SectionHeader(parent, text, yOffset)
+function W:SectionHeader(parent, text, yOffset, inset)
     parent._nsuiRowCount = 0
     parent._nsuiCollapsed, parent._nsuiFeatureId = nil, nil
     local f = CachedRow(parent, "header:" .. text) or CreateFrame("Frame", nil, parent)
@@ -925,7 +925,8 @@ function W:SectionHeader(parent, text, yOffset)
     if f._headerBuilt then return f, HEADER_H end
     f._headerBuilt = true
     local lbl = ns.Font(f, LABEL_SIZE, nil, T.fg, true)
-    lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, HEADER_TEXT_Y)
+    inset = inset or 0
+    lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", inset, HEADER_TEXT_Y)
     lbl:SetText(ns.L(text))
     local sep = ns.Solid(f, "ARTWORK", T.line, 1)
     sep:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
@@ -938,7 +939,7 @@ function W:SectionHeader(parent, text, yOffset)
         gem:SetTexture(St.GEM, nil, nil, "TRILINEAR")
         gem:SetVertexColor(gold.r, gold.g, gold.b, 1)
         gem:SetSize(St.CLASSIC_SECTION_GEM, St.CLASSIC_SECTION_GEM)
-        lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", St.CLASSIC_SECTION_GEM + St.CLASSIC_SECTION_GEM_GAP, HEADER_TEXT_Y)
+        lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", inset + St.CLASSIC_SECTION_GEM + St.CLASSIC_SECTION_GEM_GAP, HEADER_TEXT_Y)
         gem:SetPoint("RIGHT", lbl, "LEFT", -St.CLASSIC_SECTION_GEM_GAP, 0)
         lbl:SetTextColor(T.accent.r, T.accent.g, T.accent.b, 1)
         sep:SetColorTexture(1, 1, 1, 1)
@@ -955,12 +956,12 @@ local function OnFoldClick(hit)
 end
 
 function W:FoldHeader(parent, text, yOffset, forceOpen)
-    local f, h = W:SectionHeader(parent, text, yOffset)
+    local f, h = W:SectionHeader(parent, text, yOffset, FEATURE.foldInset)
     if not f.hit then
         f.arrow = f:CreateTexture(nil, "ARTWORK")
         f.arrow:SetTexture(CHEVRON)
         f.arrow:SetSize(FEATURE.arrow, FEATURE.arrow)
-        f.arrow:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -FEATURE.arrowX, HEADER_TEXT_Y)
+        f.arrow:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, HEADER_TEXT_Y)
         f.arrow:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
         f.hit = CreateFrame("Button", nil, f)
         f.hit:SetAllPoints()
