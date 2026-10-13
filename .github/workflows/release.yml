@@ -207,3 +207,16 @@ jobs:
             first=
             printf '%s' "$payload" | curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
           done < discord.jsonl
+
+      - name: Update the website
+        if: env.TAG != '' && !contains(env.TAG, '-beta.')
+        # Without the token, or if it fails, the site picks the notes up on its next scheduled rebuild.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.NAOWH_SITE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "NAOWH_SITE_TOKEN is not set: the website updates on its next scheduled rebuild."
+            exit 0
+          fi
+          gh api repos/naowh-gaming/naowh.gg/dispatches -f event_type=addon-release -f "client_payload[tag]=$TAG"
