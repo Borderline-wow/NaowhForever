@@ -97,6 +97,18 @@ local function Wake(seconds)
     if not wakeAt or seconds < wakeAt then wakeAt = seconds end
 end
 
+local function FoodItemIcon(spellID)
+    for bag = 0, NUM_BAG_SLOTS do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) do
+            local id = C_Container.GetContainerItemID(bag, slot)
+            if id then
+                local _, spell = C_Item.GetItemSpell(id)
+                if spell == spellID then return C_Item.GetItemIconByID(id) end
+            end
+        end
+    end
+end
+
 local function Consumable(list, buffs, group, item, icon)
     local aura = Find(buffs, group.auras) or group.wellFed and WellFed(buffs)
     local left = aura and Left(aura)
@@ -138,8 +150,11 @@ local function Consumables(list, buffs)
         end
         if group then
             local before = #list
-            Consumable(list, buffs, group, FirstCarried(group.items),
-                C_Item.GetItemIconByID(group.items[1]))
+            local icon = group.items[1] and C_Item.GetItemIconByID(group.items[1])
+            if category == "food" then
+                icon = ns.AccountSettings().lastFoodIcon or icon or C_Spell.GetSpellTexture(D.WELL_FED[1])
+            end
+            Consumable(list, buffs, group, FirstCarried(group.items), icon)
             if #list > before then list[#list].items = group.items end
         end
     end
@@ -355,11 +370,24 @@ function Reminders.NoteImbueCast(spellID)
     for _, family in ipairs(D.PERSONAL) do
         if family.key == "imbue" then
             for _, id in ipairs(family.spells) do
-                if id == spellID then lastImbue = spellID end
+                if id == spellID then
+                    lastImbue = spellID
+                    return true
+                end
             end
-            return
+            return false
         end
     end
+    return false
+end
+
+function Reminders.NoteFoodCast(spellID)
+    if not D.FOOD_SPELLS[spellID] then return false end
+    local icon = FoodItemIcon(spellID) or C_Spell.GetSpellTexture(spellID)
+    local account = ns.AccountSettings()
+    if not icon or account.lastFoodIcon == icon then return false end
+    account.lastFoodIcon = icon
+    return true
 end
 
 function Reminders.Requested(itemID)

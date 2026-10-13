@@ -241,7 +241,7 @@ do
             { category = "flask", itemID = 13510, auras = { 17626 } },
         } }
     local bags = { [13931] = 2, [13510] = 1 }
-    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"), AuraBuffSettings = Settings(values), THEME = THEME, Apply = function() end,
+    local ns = { AccountSettings = function() return {} end, L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"), AuraBuffSettings = Settings(values), THEME = THEME, Apply = function() end,
         ShowUnlockMode = function() end, HideUnlockMode = function() end,
         Border = function() end, Solid = function(parent) return New("Texture", nil, parent) end,
         Font = function(parent) return New("FontString", nil, parent) end,

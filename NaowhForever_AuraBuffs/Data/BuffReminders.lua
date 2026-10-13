@@ -41,7 +41,7 @@ D.SCROLLS = {
     { stat = "Strength", items = { 954, 2289, 4426, 10310 }, auras = { 8118, 8119, 8120, 12179 } },
 }
 
-D.DEFAULT_GROUPS = { flask = { items = D.FLASKS.items, auras = D.FLASKS.auras },
+D.DEFAULT_GROUPS = { food = { items = {}, auras = {}, wellFed = true }, flask = { items = D.FLASKS.items, auras = D.FLASKS.auras },
     battle = { items = {}, auras = {} } }
 for _, elixir in ipairs(D.ELIXIRS) do
     for _, id in ipairs(elixir.items) do table.insert(D.DEFAULT_GROUPS.battle.items, id) end

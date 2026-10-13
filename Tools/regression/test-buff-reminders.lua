@@ -100,7 +100,8 @@ local function Fixture(opts)
     function S.Raw(k) return settings[k] end
     function S.Default(k) return defaults[k] end
 
-    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"),
+    local account = {}
+    local ns = { AccountSettings = function() return account end, L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"),
         AuraBuffSettings = S,
         Apply = function() end,
         ShowUnlockMode = function() end,
@@ -742,7 +743,30 @@ do
     t.state.auras.player = {}
     t.Fire("UNIT_AURA", "player")
     t.Advance(0.5)
-    Check("guardian listed, no generic elixir", t.Shown(), "item:13510 item:13445")
+    Check("guardian listed, no generic elixir", t.Shown(), "spell:1248406 item:13510 item:13445")
+end
+
+-- Only If I Carry One off: food shows with nothing listed, with the Well Fed icon until a food is eaten.
+do
+    local t = Fixture({ instance = "raid", bags = { 13931 }, settings = { consumableEntries = {}, onlyIfCarried = false } })
+    t.Login()
+    Check("nothing listed", t.Shown(), "spell:1248406 item:13510 item:13452")
+    t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast1", 5)
+    t.Advance(0.5)
+    Check("other spell ignored", t.Shown(), "spell:1248406 item:13510 item:13452")
+    t.state.bags = {}
+    t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast2", 1249513)
+    t.Advance(0.5)
+    Check("food eaten, item already gone", t.Shown(), "spell:1249513 item:13510 item:13452")
+    t.state.bags = { 13931 }
+    t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast3", 1249513)
+    t.Advance(0.5)
+    t.state.bags = {}
+    t.Fire("BAG_UPDATE_DELAYED")
+    t.Advance(0.5)
+    Check("last food eaten icon", t.Shown(), "item:13931 item:13510 item:13452")
+    t.Set("onlyIfCarried", true)
+    Check("only carried, nothing carried", t.Shown(), "")
 end
 
 -- With nothing listed, nothing shows until Only If I Carry One goes off.
