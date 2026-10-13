@@ -1069,7 +1069,7 @@ function ns.Confirm(text, onYes, onNo, yesText, noText)
     panel:SetHeight(math.max(CONFIRM_H, head:GetStringHeight() + CONFIRM_ROOM))
     local w = (yesText or noText) and CONFIRM_WIDE or CONFIRM_W
     local shift = w / 2 + CONFIRM_BUTTON_GAP
-    DialogButton(UI, panel, "yes", yesText or "Yes", w, function()
+    local yes = DialogButton(UI, panel, "yes", yesText or "Yes", w, function()
         dimmer.onClose = nil
         dimmer:Hide()
         onYes()
@@ -1077,6 +1077,7 @@ function ns.Confirm(text, onYes, onNo, yesText, noText)
     DialogButton(UI, panel, "no", noText or "No", w, function() dimmer:Hide() end, shift)
     dimmer.onClose = onNo
     dimmer:Show()
+    return yes, dimmer
 end
 
 local activeRoot, provisional

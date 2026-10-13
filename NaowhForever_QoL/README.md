@@ -207,8 +207,13 @@ NaowhForever_QoL/
   skipped in combat.
 - On-Screen Buttons: Invite is a secure button running the game's own `/invite`, which invites
   your target; run from it, the game's code reads the target's name, so it works in combat.
-  Disband removes everyone through addon code (`ns.DisbandGroup`), which the game allows only out
-  of combat.
+  Disband can't remove anyone from addon code: `UninviteUnit` is protected for addons, even out
+  of combat. So the Disband dialog's Yes is covered, while the mouse is over it, by a secure
+  button that runs `/uninvite <name>` for each member, the same way the Reload UI dialog runs
+  `/reload`. The macro is built from the group as it is when the mouse reaches Yes. Names go in
+  whole from `GetUnitName(unit, true)`: Forever names have two parts ("Lilith Gremory"), and
+  `/uninvite` needs both. The dialog closes on the release, after the macro ran on the press or
+  the release, and a click on Yes that the cover missed says to try again.
 - Because Invite is secure, the bar is built, shown, hidden and laid out only out of combat; a
   change in combat waits for `PLAYER_REGEN_ENABLED`.
 - Combat Timer's Card background is the panel the old Show Background toggle drew (black, or

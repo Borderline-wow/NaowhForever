@@ -3731,6 +3731,7 @@ L["Reminds you to vendor junk, and when your bags are nearly full."] = true
 L["Remove %s from your Library? Macros already made from it stay."] = true
 L["Remove every item from the Consumable Bar?"] = true
 L["Remove everyone from your group?"] = true
+L["The group was not disbanded. Open Disband and click Yes again."] = true
 L["Remove From Bar"] = true
 L["Remove from BiS List"] = true
 L["Remove macros outside combat."] = true
