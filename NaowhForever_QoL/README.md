@@ -49,6 +49,8 @@ NaowhForever_QoL/
     CursorCooldown.lua  Cooldown at Cursor
     GcdTracker.lua      GCD Tracker (ns.GCDSpell)
     FocusCastBar.lua    the Focus Cast Bar
+    DamageMeterLayout.lua the game's damage meter Bar Height, saved in the active Edit Mode layout
+    DamageMeterSkin.lua the card Default Damage Meter: the game's meter in the theme, and its place
     StealthReminder.lua the Stealth Reminder
     PetTracker.lua      the Pet Tracker
   Questing/
@@ -101,6 +103,45 @@ NaowhForever_QoL/
 
 ## Why
 
+- The Damage Meter Skin never hides or re-lays out the game's meter: it recolors its textures and
+  fonts after the game sets them (hooksecurefunc on each entry, a scroll box callback for new
+  ones), and remembers the art, the font with its flags and shadow, and the bar's atlas to give
+  them back when the switch goes off. It reads no damage numbers, which are secret in combat.
+  Bar Texture swaps the file on the bar's own texture, which the game only ever colors. Font and
+  Outline are written once per change of a setting, since the game never sets them again; the
+  colors are the theme's tokens until one is picked, as in the Damage Meter module.
+  The title bar fade, the scroll bar and the opacities are `SetAlpha` and `SetVertexColor` calls on the
+  game's own parts, never a Hide. A tick of ours (a frame made only while one of them is on) moves the
+  title parts toward the mouse state and puts the scroll bar's alpha back, since the game's own
+  emphasis animation sets it again. The tick sleeps: an `OnEnter` hook on the window and its
+  children (the entries as they are acquired) wakes it, and it stops one second after the mouse has
+  left and the fade is done, so an idle meter runs nothing. The window border is a frame of ours
+  round the window. The title bar's buttons are greyed with `SetDesaturated` and tinted with
+  `SetVertexColor`, their first look remembered to give back; sizes are one setting each for the
+  names, the amounts and the title, 0 keeping the game's own, which Edit Mode's Text Size still
+  scales.
+- The card is in sections (Window, Bars, Text, Title Bar, Spell Panel, Reset) that mix the reskin's rows, which wait
+  for the Reskin switch, with the game's own settings, which do not.
+- The game's own settings in it (`DamageMeterLayout.lua`) are the game's list for its damage
+  meter, written through `C_EditMode`: it copies the manager's layout info (never writes into it),
+  changes the values in the copy and saves that, so the game applies it with its own code and
+  nothing of its is tainted. Each value is stored as Edit Mode stores it: the setting less the
+  slider's minimum (Bar Height, Window Width and Height), less the minimum over the step (Bar
+  Spacing, Text Size, Window and Background Opacity), or the enum itself (Bar Style, Numbers,
+  Visibility).
+  Before the first change since login it keeps every value and a backup string of the layout,
+  which Restore Game Settings puts back. It refuses in combat, with Edit Mode open and on the game's
+  built-in layouts, says why in a note under the row, shows the value on its way until the save
+  is done, and waits half a second after a slider stops, since every save re-lays out the game's
+  systems. Window Width and Height wait for Move and Resize to be off, since that anchors the
+  window on its own.
+- Move and Resize re-anchors the primary session window to the screen and sizes it, since the game
+  leaves that window to Edit Mode (`CanMoveOrResizeSessionWindow` is false for it). Only the session
+  window moves: the Edit Mode frame it hangs from is never touched, and the game's own window setup is
+  followed by ours (hooksecurefunc on `SetupSessionWindow`). The drag and the grip are `HookScript`s
+  beside the game's own, which return early for this window, and the game's per-window lock is
+  respected. Switching it off anchors the window to its parent again exactly as the game did. Windows
+  2 and 3 are the game's own to move.
 - QoL is optional: the base and every other module read what they need from it behind a nil
   guard, never at load, and the data they share with it lives in the core (`Core/Settings.lua`,
   the Alerts group in `Core/AlertStack.lua`, Naowh's setups in `Core/Profiles/Setups.lua`) or in

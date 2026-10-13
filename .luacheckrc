@@ -56,7 +56,7 @@ read_globals = {
     "ChatEdit_InsertLink", "ChatFrame1EditBox", "ChatFrameUtil", "ChatFrame_AddMessageEventFilter", "ChatFrame_RemoveMessageEventFilter", "CinematicFrame_CancelCinematic",
     "ClearCursor", "CloseQuest", "ColorPickerFrame", "CombatTextFont",
     "CombatTextFontOutline", "CompleteQuest", "ConfirmAcceptQuest",
-    "Constants", "COPPER_AMOUNT", "CopyTable", "CreateAndInitFromMixin", "CreateAtlasMarkup", "CreateColor",
+    "Constants", "COPPER_AMOUNT", "CopyTable", "C_EditMode", "CreateAndInitFromMixin", "CreateAtlasMarkup", "CreateColor",
     "CreateFrame", "CreateFromMixins", "CreateMacro", "CreateVector2D", "CUSTOM_CLASS_COLORS",
     "C_AddOns", "C_AuctionHouse", "C_BattleNet",
     "C_ChatInfo", "C_ClassColor", "C_ClassTalents", "C_Container",

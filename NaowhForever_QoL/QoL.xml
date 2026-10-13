@@ -31,6 +31,8 @@
     <Script file="Interface\ChatZones.lua"/>
     <Script file="Combat\GcdTracker.lua"/>
     <Script file="Combat\FocusCastBar.lua"/>
+    <Script file="Combat\DamageMeterLayout.lua"/>
+    <Script file="Combat\DamageMeterSkin.lua"/>
     <Script file="System\Performance.lua"/>
     <Script file="Loot\LootFeed.lua"/>
     <Script file="Loot\AuctionPrices.lua"/>
