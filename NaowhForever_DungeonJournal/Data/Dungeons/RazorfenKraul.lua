@@ -14,7 +14,7 @@ ns.Journal.AddDungeon("RazorfenKraul", {
             { npc = 4421, name = "Charlga Razorflank", model = 4642, encounters = { 2778 }, loot = { 6693, 6694, 6692 }, chance = { 35, 34, 18 } },
             { npc = 4425, name = "Blind Hunter", model = 4735, rare = true, loot = { 6697, 6696, 6695 }, chance = { 34, 32, 27 } },
             { npc = 4842, name = "Earthcaller Halmgar", model = 6102, rare = true, loot = { 6689, 6688 }, chance = { 48, 46 } },
-            { npc = 4438, name = "Razorfen Spearhide", model = 6078, rare = true, loot = { 6679 }, chance = { 61 } },
+            { npc = 4438, name = "Razorfen Spearhide", model = 6078, rare = true, loot = { 6679 }, chance = { 62 } },
             { npc = 6168, name = "Roogug", model = 6110, optional = true, encounters = { 2773 }, loot = { 274149, 274152, 274155 } },
             { npc = nil, name = "Trash", trash = true, loot = { 6679, 3569, 776, 1488, 1727, 1975, 1976, 1978, 2039, 2264, 2549, 4438 }, chance = { 61, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         } },

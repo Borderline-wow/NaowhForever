@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+- Dungeon Journal: its data is updated to WoW Forever build 1.60.1.70374.
+- Dungeon Journal: drop chances updated from Wowhead's latest kill counts.
+
 ## 1.1.11
 
 ### Added
