@@ -52,7 +52,7 @@ local MODULES = {
           { name = "Map", reuse = true },
       } },
     -- This hour and the visit history are a window of their own (open); only the settings live here.
-    { name = "Instance Tracker", group = "ADVENTURE", navIcon = "person", settings = "InstanceTrackerSettings",
+    { name = "Instance Tracker", group = "UTILITIES", navIcon = "person", settings = "InstanceTrackerSettings",
       addon = "NaowhForever_InstanceTracker",
       open = "ToggleInstanceTrackerWindow",
       command = "instance", short = "Instance", icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
@@ -77,7 +77,7 @@ local MODULES = {
       tabs = {
           { name = "Settings", reuse = true },
       } },
-    { name = "Journeys", group = "ADVENTURE", navIcon = "compass", settings = "JourneysSettings",
+    { name = "Journeys", group = "UTILITIES", navIcon = "compass", settings = "JourneysSettings",
       addon = "NaowhForever_Journeys",
       subtitle = "The fastest way anywhere: walking, flights, boats, zeppelins, the tram, portals and your Hearthstone.",
       tabs = {
