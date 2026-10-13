@@ -274,3 +274,8 @@ ns.Shared.Settings.Page("QoL/Travel", S):Card({
           help = "Puts the quiz back where it first opened." },
     },
 })
+
+ns.RegisterMinimapFeature({
+    id = "Quiz", name = "Quiz", icon = "Interface\\Icons\\INV_Misc_QuestionMark",
+    open = ns.ToggleQuiz, tooltip = "Click to open or close the Quiz.",
+})

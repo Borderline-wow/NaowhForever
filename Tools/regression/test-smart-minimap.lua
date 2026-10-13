@@ -46,4 +46,45 @@ for _, saved in ipairs({{}, {minimap={minimapPos=47,hide=true}}}) do
     assert(saved.moduleButtons["Dungeon Quests"]==modules.NaowhForeverDQ.db)
     modules.NaowhForeverGear.data.OnClick(); assert(opened==gear)
 end
-print("PASS: login registration, fresh/saved position, click and tooltip, module launchers")
+-- Feature launchers: nothing is built while a feature's button is off.
+for _, saved in ipairs({{}, {featureButtons={Scrap={minimapPos=10,hide=false}}}}) do
+    local event, objects, registered, shown, hidden, opened = nil, {}, {}, {}, {}, 0
+    local ns = { MEDIA = dofile("Tools/regression/core_media.lua"), AccountSettings=function() return saved end, L=function(t) return t end,
+        ToggleOptionsWindow=function() end, SaveModuleDefaults=function() end,
+        ThemeTint=function(_,literal) return literal end }
+    local frame = { SetScript=function(_,_,fn) event=fn end, RegisterEvent=function() end, UnregisterEvent=function() end }
+    local libs = {
+        ["LibDataBroker-1.1"]={NewDataObject=function(_,name,data) objects[name]=data; return data end},
+        ["LibDBIcon-1.0"]={Register=function(_,name,data,db) registered[name]=db end,
+            Show=function(_,name) shown[name]=true end, Hide=function(_,name) hidden[name]=true end},
+    }
+    local env = setmetatable({ns=ns,CreateFrame=function() return frame end,
+        LibStub=function(name) return assert(libs[name]) end, hooksecurefunc=function() end,
+        MODULES={}, MinimapButtonOn=function() return false end,
+        OpenModule=function() end, Loaded=function() return true end}, {__index=_G})
+    local launcher = assert(loadstring(chunk, "launcher")); setfenv(launcher, env); launcher()
+    local scrap = { id="Scrap", name="Scrap List", icon="scrap", tooltip="Click to open the Scrap List.",
+        open=function() opened=opened+1 end }
+    ns.RegisterMinimapFeature(scrap)
+    assert(#ns.MinimapFeatures==1)
+    event(frame)
+    if saved.featureButtons then
+        assert(registered.NaowhForeverScrap==saved.featureButtons.Scrap and ns.MinimapFeatureOn(scrap), "a saved on button is built at login")
+    else
+        assert(not registered.NaowhForeverScrap and not ns.MinimapFeatureOn(scrap) and saved.featureButtons==nil, "off by default, nothing built")
+        ns.SetMinimapFeature(scrap, false)
+        assert(not registered.NaowhForeverScrap and not hidden.NaowhForeverScrap, "off stays free")
+        ns.SetMinimapFeature(scrap, true)
+        assert(registered.NaowhForeverScrap and registered.NaowhForeverScrap.hide==false and registered.NaowhForeverScrap.minimapPos==220
+            and shown.NaowhForeverScrap and ns.MinimapFeatureOn(scrap), "turning it on builds the button")
+    end
+    local object = objects.NaowhForeverScrap
+    assert(object.type=="launcher" and object.icon=="scrap" and object.label=="Scrap List")
+    object.OnClick(); assert(opened==1)
+    local lines=0
+    object.OnTooltipShow({AddLine=function() lines=lines+1 end})
+    assert(lines==2)
+    ns.SetMinimapFeature(scrap, false)
+    assert(hidden.NaowhForeverScrap and not ns.MinimapFeatureOn(scrap) and saved.featureButtons.Scrap.hide==true, "turning it off hides it")
+end
+print("PASS: login registration, fresh/saved position, click and tooltip, module and feature launchers")

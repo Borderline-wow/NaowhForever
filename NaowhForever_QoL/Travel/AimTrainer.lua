@@ -1033,3 +1033,8 @@ Settings.Page("QoL/Travel", S):Card({
           help = "Clears your own best scores on every character." },
     },
 })
+
+ns.RegisterMinimapFeature({
+    id = "AimTrainer", name = "Aim Trainer", icon = "Interface\\Icons\\Ability_Marksmanship",
+    open = ns.ToggleAimTrainer, tooltip = "Click to open or close the Aim Trainer.",
+})

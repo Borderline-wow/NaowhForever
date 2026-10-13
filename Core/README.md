@@ -41,7 +41,7 @@ Core/
   Options/Window.lua   the options window, a module's own window, ns.OpenOptionsWindow
   Options/SettingsPage.lua the Settings page: modules, minimap icons, scale, fonts, colors, RestedXP
   Commands.lua         /nf and the module commands, binding names, the compartment entry
-  Options/Launchers.lua the broker launchers and minimap icons
+  Options/Launchers.lua the broker launchers and minimap icons; a feature with its own window adds a button with ns.RegisterMinimapFeature
   Options/GameMenu.lua the Naowh Forever button in the game menu
   Options/Search.lua   the sidebar's settings search
 

@@ -38,6 +38,7 @@ local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_CLASSIC] = TEXT_CLASSIC_PLUS }
 local SKIN_ORDER = { "", SKIN_CLASSIC }
 local TEXT_MINIMAP_TIP = ns.L("A minimap button that opens %s. /nf%s does the same, "
     .. "and the Top Bar can carry it too. Saved for this computer.")
+local TEXT_FEATURE_TIP = ns.L("A minimap button that opens %s. Saved for this computer.")
 local TEXT_TURNED_OFF = ns.L("%s is turned off, so its settings are hidden. Turn it on under Modules below.")
 local NONE = {}
 local TEXT_ON_ITS_OWN, TEXT_ITS_SETTINGS = ns.L("%s on its own"), ns.L("%s's settings")
@@ -123,6 +124,13 @@ local function ModuleButtonRow(mod)
         setValue = function(v) SetModuleButton(mod, v) end }
 end
 
+local function FeatureButtonRow(feature)
+    return { type = "toggle", text = feature.name,
+        tooltip = TEXT_FEATURE_TIP:format(ns.L(feature.name)),
+        getValue = function() return ns.MinimapFeatureOn(feature) end,
+        setValue = function(v) ns.SetMinimapFeature(feature, v) end }
+end
+
 local function MinimapShown()
     local mm = ns.AccountSettings().minimap
     return not (type(mm) == "table" and mm.hide)
@@ -155,6 +163,7 @@ local function MinimapSection(W, parent, y)
     for _, mod in ipairs(MODULES) do
         if mod.command and Loaded(mod) then rows[#rows + 1] = ModuleButtonRow(mod) end
     end
+    for _, feature in ipairs(ns.MinimapFeatures) do rows[#rows + 1] = FeatureButtonRow(feature) end
     return FoldedRows(W, parent, y, "MINIMAP ICONS", rows)
 end
 

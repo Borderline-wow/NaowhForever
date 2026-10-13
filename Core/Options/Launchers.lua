@@ -1,4 +1,4 @@
--- Launchers.lua: the Naowh Forever launcher and one per module, for the minimap, the Top Bar and broker displays.
+-- Launchers.lua: the Naowh Forever launcher, one per module and one per registered feature, for the minimap, the Top Bar and broker displays.
 local ns = _G.NaowhForever
 local O = ns.Options
 
@@ -60,6 +60,49 @@ local function ModuleLauncher(account, mod)
     LibStub("LibDBIcon-1.0"):Register(LAUNCHER_NAME .. mod.short, obj, db)
 end
 
+local features, made = {}, {}
+ns.MinimapFeatures = features
+
+function ns.RegisterMinimapFeature(feature)
+    features[#features + 1] = feature
+end
+
+local function FeatureLauncher(feature, db)
+    local name = LAUNCHER_NAME .. feature.id
+    local obj = LibStub("LibDataBroker-1.1"):NewDataObject(name, {
+        type = "launcher",
+        label = ns.L(feature.name),
+        icon = feature.icon,
+        OnClick = feature.open,
+        OnTooltipShow = function(tooltip)
+            TipTitle(tooltip, ns.L(feature.name))
+            TipLine(tooltip, ns.L(feature.tooltip))
+        end,
+    })
+    LibStub("LibDBIcon-1.0"):Register(name, obj, db)
+    made[feature.id] = true
+end
+
+function ns.MinimapFeatureOn(feature)
+    local buttons = ns.AccountSettings().featureButtons
+    return buttons ~= nil and buttons[feature.id] ~= nil and buttons[feature.id].hide == false
+end
+
+function ns.SetMinimapFeature(feature, on)
+    local account = ns.AccountSettings()
+    account.featureButtons = account.featureButtons or {}
+    local db = account.featureButtons[feature.id] or { minimapPos = MINIMAP_POS }
+    account.featureButtons[feature.id] = db
+    db.hide = not on
+    local icon = LibStub("LibDBIcon-1.0")
+    if on then
+        if not made[feature.id] then FeatureLauncher(feature, db) end
+        icon:Show(LAUNCHER_NAME .. feature.id)
+    elseif made[feature.id] then
+        icon:Hide(LAUNCHER_NAME .. feature.id)
+    end
+end
+
 local function OnLogin(self)
     self:UnregisterEvent("PLAYER_LOGIN")
     ns.SaveModuleDefaults()
@@ -68,6 +111,9 @@ local function OnLogin(self)
     account.moduleButtons = account.moduleButtons or {}
     for _, mod in ipairs(MODULES) do
         if mod.command and Loaded(mod) then ModuleLauncher(account, mod) end
+    end
+    for _, feature in ipairs(features) do
+        if ns.MinimapFeatureOn(feature) then FeatureLauncher(feature, account.featureButtons[feature.id]) end
     end
 end
 
