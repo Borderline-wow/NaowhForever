@@ -7,7 +7,7 @@ local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
 local World = dofile("Tools/regression/setup_world.lua")
 local MINIMALIST_ON = { qol = true, journal = true, bis = true, training = true, blessings = true, professions = true,
-    macros = true, actionBars = true, auraBuffs = true, threatMeter = true, pvp = true, topBar = true }
+    macros = true, actionBars = true, auraBuffs = true, threatMeter = true, pvp = true }
 local MINIMALIST_OFF = "NaowhForever_Discovery,NaowhForever_GroupInspect,NaowhForever_GearSets,"
     .. "NaowhForever_SwingTimer,NaowhForever_ConsumableBar,NaowhForever_InstanceTracker,NaowhForever_Journeys"
 
@@ -36,7 +36,8 @@ end
 
 do
     local w = Game()
-    local Setup, MODULES = w.ns.Setup, w.MODULES
+    local Setup, MODULES = w.ns.Setup, {}
+    for _, mod in ipairs(w.MODULES) do if not mod.inQoL then MODULES[#MODULES + 1] = mod end end
     local byAddon, seen = {}, {}
     for id, item in pairs(Setup.ITEMS) do
         byAddon[item.addon] = id
@@ -84,7 +85,7 @@ do
     local on = {}
     for id, value in pairs(minimal) do if value then on[#on + 1] = id end end
     table.sort(on)
-    check("Minimalist pre-selects all but its seven: " .. Names(on), Names(on) == "actionBars,auraBuffs,bis,blessings,journal,macros,professions,pvp,qol,threatMeter,topBar,training")
+    check("Minimalist pre-selects all but its seven: " .. Names(on), Names(on) == "actionBars,auraBuffs,bis,blessings,journal,macros,professions,pvp,qol,threatMeter,training")
     check("the list is the preset's own", Names(w.ns.PRESETS.minimalist.modulesOff) == MINIMALIST_OFF)
     local starter = Game({ root = w.env.CopyTable(w.ns.STARTER.profile) })
     for id in pairs(Setup.ITEMS) do
@@ -100,7 +101,7 @@ do
         check(id .. ": Recommended pre-selects what its switches say", recommended[id] == (v == true))
     end
     check("Recommended keeps its modules: the Threat Meter and Discovery on", recommended.threatMeter
-        and recommended.discovery and recommended.topBar and recommended.qol)
+        and recommended.discovery and recommended.qol)
 end
 
 do
@@ -111,7 +112,6 @@ do
     check("keep mine: a module whose addon is off is off", mine.pvp == false)
     check("one switched on in the profile is on, one switched off is off", mine.discovery and mine.journal == false)
     check("one left alone follows its default", mine.threatMeter == true and mine.groupInspect == false)
-    check("the Top Bar without Quality of Life cannot run: off", mine.topBar == false and mine.qol == false)
 end
 
 do
@@ -119,10 +119,6 @@ do
     local Setup = w.ns.Setup
     local picks = Setup.Fresh()
     Setup.PickProfile(picks, "minimalist")
-    Setup.Toggle(picks, "topBar", true)
-    check("turning the Top Bar on turns Quality of Life on", picks.modules.topBar and picks.modules.qol)
-    Setup.Toggle(picks, "qol", false)
-    check("turning Quality of Life off turns the Top Bar off", not picks.modules.topBar and not picks.modules.qol)
     Setup.Toggle(picks, "professions", false)
     check("Professions off leaves the Training Planner on", picks.modules.training)
     Setup.Toggle(picks, "training", true)
@@ -314,7 +310,7 @@ do
     for id, value in pairs(w.ns.Setup.ModuleDefaults(w.ns.Setup.KEEP)) do if value then on[#on + 1] = id end end
     table.sort(on)
     check("Minimalist from the Profiles page's Setups card: the same modules on, the rest off: " .. Names(on),
-        Names(on) == "actionBars,auraBuffs,bis,blessings,journal,macros,professions,pvp,qol,threatMeter,topBar,training")
+        Names(on) == "actionBars,auraBuffs,bis,blessings,journal,macros,professions,pvp,qol,threatMeter,training")
     local tip = w.ns.PresetChanges("recommended")
     check("and its hover names what Recommended turns back on", tip:find("Group Inspect", 1, true) ~= nil)
     w = Game({ account = { welcomeSeen = true }, root = { discovery = { enabled = true } } })

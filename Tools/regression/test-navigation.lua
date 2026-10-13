@@ -733,6 +733,7 @@ Click(Button("Exit Config")); Flush()
 Check(not Text("Exit Config") and not ns.IsUnlockModeActive(), "and Exit Config closes it")
 
 ns.OpenOptionsWindow("Settings"); Flush()
+Check(not Text("Top Bar"), "the Top Bar is a card under Quality of Life, not a row under Settings > Modules")
 local function GroupInspectRows()
     local rows = 0
     for _, f in ipairs(frames) do
@@ -749,6 +750,21 @@ Check(GroupInspectRows() == 1, "and clearing the search folds them again")
 Click(Text("MODULES").parent.hit); Flush()
 Click(Text("MINIMAP ICONS").parent.hit); Flush()
 Check(GroupInspectRows() >= 3, "Group Inspect: in the sidebar, under Settings > Modules and in Minimap Icons once opened")
+local function TextCount(text)
+    local n = 0
+    for _, f in ipairs(frames) do
+        if f.text == text and f:IsShown() and f.parent and f.parent:IsShown() then n = n + 1 end
+    end
+    return n
+end
+ns.OpenOptionsWindow("Settings"); Flush()
+Click(Text("MODULES").parent.hit); Flush()
+local topBarRows = TextCount("Top Bar")
+missingAddOns.NaowhForever_TopBar = true
+ns.OpenOptionsWindow("Settings"); Flush()
+Click(Text("MODULES").parent.hit); Flush()
+Check(TextCount("Top Bar") == topBarRows + 1, "a Top Bar that is off keeps a row under Settings > Modules to turn it back on")
+missingAddOns.NaowhForever_TopBar = nil
 ns.OpenOptionsWindow("Group Inspect/Settings"); Flush()
 Check(Text("Group Inspect / Settings") ~= nil, "Group Inspect has a settings page of its own")
 ns.OpenOptionsWindow("Blessings/Settings"); Flush()

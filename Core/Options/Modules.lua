@@ -170,6 +170,7 @@ local MODULES = {
           { name = "Flag", reuse = true },
       } },
     { name = "Top Bar", navIcon = "window", settings = "TopBarSettings", addon = "NaowhForever_TopBar", needs = { "NaowhForever_QoL" },
+      inQoL = true,
       subtitle = "Your buttons on either side of an optional clock, with FPS and latency underneath.",
       tabs = {} },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",

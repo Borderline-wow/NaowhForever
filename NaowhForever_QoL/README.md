@@ -148,7 +148,8 @@ NaowhForever_QoL/
   `Shared/` (the copy cards, the town NPCs, the food and potion lists).
   `Tools/regression/test-module-boundaries.lua` checks it.
 - The Top Bar's card sits on QoL > Interface, so the Top Bar depends on QoL: switching QoL off takes
-  it along; turning the Top Bar on in the onboarding turns QoL on.
+  it along. It has no item in the onboarding and its own switch is on its card. Settings > Modules
+  lists it only while its addon is not loaded, so a player who switched it off can turn it back on.
 - The Trainer Popup card is declared here, on QoL > XP with Talent Points, so it goes when QoL is
   off. The Bag Space and Food & Drink key binding names live in `Core/Commands.lua`, so the key
   bindings read right with QoL off, where the Bag Space key says so.

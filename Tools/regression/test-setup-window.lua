@@ -355,27 +355,29 @@ Find("Next").Click()
 check("step 3: the modules", window.subtitle.text == "Step 3 of 4" and Said("Which modules do you want?") ~= nil
     and Said("Click a module to turn it on or off.") ~= nil)
 local tiles = Tiles()
-check("one tile per module, in the options' order", #tiles == #w.MODULES and tiles[1].name.text == "Quality of Life"
+local LISTED = {}
+for _, mod in ipairs(w.MODULES) do if not mod.inQoL then LISTED[#LISTED + 1] = mod end end
+check("one tile per module, in the options' order", #tiles == #LISTED and tiles[1].name.text == "Quality of Life"
     and tiles[2].name.text == "Dungeon Journal")
-for i, mod in ipairs(w.MODULES) do
+for i, mod in ipairs(LISTED) do
     local tile = tiles[i]
     check(mod.addon .. ": its icon and its line", tile.icon.tex.texture == ns.MEDIA .. "Navigation\\" .. mod.navIcon .. ".tga"
         and tile.blurb.text == w.ns.Setup.ITEMS[tile.key].blurb)
 end
 local MINIMALIST = "Quality of Life,Dungeon Journal,BiS List,Training Planner,Blessings,Professions,Macros,Action Bars,"
-    .. "AuraBuffs,Threat Meter,PvP,Top Bar"
-local MINIMALIST_ON = #w.MODULES - #w.ns.PRESETS.minimalist.modulesOff
+    .. "AuraBuffs,Threat Meter,PvP"
+local MINIMALIST_ON = #LISTED - #w.ns.PRESETS.minimalist.modulesOff
 check("Minimalist: all but its seven", Picked() == MINIMALIST
-    and Said(MINIMALIST_ON .. " of " .. #w.MODULES .. " on") ~= nil)
+    and Said(MINIMALIST_ON .. " of " .. #LISTED .. " on") ~= nil)
 check("three to a row", tiles[1].point[5] == tiles[3].point[5] and tiles[4].point[5] ~= tiles[1].point[5])
-local completo, topBar, qol = Tile("Discovery"), Tile("Top Bar"), Tile("Quality of Life")
+local completo, qol = Tile("Discovery"), Tile("Quality of Life")
 Clicked(completo)
 check("a click flips it, glowing", completo.on and completo.glow.plays == 1
-    and Said(MINIMALIST_ON + 1 .. " of " .. #w.MODULES .. " on") ~= nil)
+    and Said(MINIMALIST_ON + 1 .. " of " .. #LISTED .. " on") ~= nil)
 Clicked(qol)
-check("Quality of Life off takes the Top Bar with it", not qol.on and not topBar.on)
-Clicked(topBar)
-check("the Top Bar on brings Quality of Life", qol.on and topBar.on)
+check("Quality of Life off", not qol.on)
+Clicked(qol)
+check("and on again", qol.on)
 Clicked(Tile("Professions"))
 check("Professions off leaves the Training Planner on", Tile("Training Planner").on)
 Clicked(Tile("Professions"))

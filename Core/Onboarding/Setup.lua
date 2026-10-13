@@ -55,8 +55,6 @@ Setup.ITEMS = {
         blurb = ns.L("Your group's gear, talents and Naowh Score.") },
     pvp = { addon = "NaowhForever_PvP", db = "pvp", key = "enabled",
         blurb = ns.L("Your target's short buffs and crowd control.") },
-    topBar = { addon = "NaowhForever_TopBar", db = "topBar", key = "enabled",
-        blurb = ns.L("Your buttons and a clock along the top.") },
     swingTimer = { addon = "NaowhForever_SwingTimer", db = "swingTimer", key = "enabled",
         blurb = ns.L("Your swings, with marks to time around them.") },
 }

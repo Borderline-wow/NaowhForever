@@ -97,7 +97,7 @@ end
 local function ModulesSection(W, parent, y)
     local rows = {}
     for _, mod in ipairs(MODULES) do
-        if mod.addon then rows[#rows + 1] = ModuleRow(mod) end
+        if mod.addon and (not mod.inQoL or not Loaded(mod)) then rows[#rows + 1] = ModuleRow(mod) end
     end
     return FoldedRows(W, parent, y, "MODULES", rows)
 end
