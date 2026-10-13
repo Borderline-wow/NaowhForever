@@ -1,4 +1,5 @@
 -- esMX.lua: the Spanish (Latin America) strings.
+if NaowhForever.LOCALE ~= "esMX" then return end
 local L = {}
 NaowhForeverTranslation = L
 

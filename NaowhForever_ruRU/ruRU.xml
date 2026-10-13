@@ -1,4 +1,0 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- ruRU.xml: the Russian strings. -->
-    <Script file="ruRU.lua"/>
-</Ui>

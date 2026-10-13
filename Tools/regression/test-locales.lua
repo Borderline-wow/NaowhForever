@@ -1,5 +1,5 @@
 -- Offline checks for the language Naowh Forever runs in: the client's or the one picked in Settings
--- (NaowhForever_Language), the per-language translation addon Core.lua loads, and the fonts for
+-- (NaowhForever_Language), the translation addon Core.lua loads, and the fonts for
 -- CJK and Cyrillic text. Run from the repo root: lua Tools/regression/test-locales.lua
 
 local FONT_CLASSIC = "Friz Quadrata TT"
@@ -20,8 +20,8 @@ local function Exists(path)
     return f ~= nil
 end
 
--- Each language is its own load-on-demand addon, NaowhForever_<code>, holding <code>.xml and
--- <code>.lua. The addon name tells the TOC code; the XML holds only that one file.
+-- The translations are one load-on-demand addon, NaowhForever_Locales, whose TOC lists every
+-- <code>.lua. Loading it runs every file; each one returns at once unless it is the active language.
 local function Load(client, picked)
     local loaded, filesRead = {}, {}
     local env = setmetatable({
@@ -35,8 +35,7 @@ local function Load(client, picked)
     env._G = env
     env.C_AddOns = { LoadAddOn = function(name)
         loaded[#loaded + 1] = name
-        local code = name:match("^NaowhForever_(%a%a%a%a)$")
-        for path in Read(name .. "/" .. code .. ".xml"):gmatch('file="([^"]+)"') do
+        for path in Read(name .. "/" .. name .. ".toc"):gmatch("([%w]+%.lua)") do
             local full = name .. "/" .. path
             filesRead[#filesRead + 1] = full
             local chunk = assert(loadstring(Read(full), full))
@@ -61,9 +60,9 @@ ns, loaded = Load("enGB")
 check("a British client is English", ns.LOCALE == "enUS" and #loaded == 0)
 
 ns, loaded, read = Load("deDE")
-check("a German client loads exactly one addon, German", ns.LOCALE == "deDE" and #loaded == 1
-    and loaded[1] == "NaowhForever_deDE")
-check("and reads exactly one file, not every language's", #read == 1 and read[1] == "NaowhForever_deDE/deDE.lua")
+check("a German client loads exactly one addon, once", ns.LOCALE == "deDE" and #loaded == 1
+    and loaded[1] == "NaowhForever_Locales")
+check("the addon lists all ten language files", #read == 10)
 check("and shows German", ns.L("Language") == "Sprache")
 check("a key with context shows its translation", ns.L("Back (slot)") ~= "Back (slot)")
 check("an untranslated key falls back to English", ns.L("No such string %d", 3) == "No such string 3")
@@ -76,6 +75,8 @@ ns = Load("deDE", "auto")
 check("Game Language follows the client", ns.LOCALE == "deDE")
 ns = Load("frFR", "xxXX")
 check("an unknown pick follows the client", ns.LOCALE == "frFR")
+
+check("only the picked language's strings are active", Load("enUS", "frFR").L("Language") ~= Load("enUS", "deDE").L("Language"))
 
 ns = Load("enUS", "koKR")
 check("Korean uses the game's Korean font everywhere", ns.LocaleFont("Naowh", "Interface\\naowh.ttf") == "Fonts\\2002.TTF"
@@ -92,11 +93,9 @@ check("a different font name does not swap, even at the same path",
 for _, code in ipairs(ns.LANGUAGES) do
     check(code .. " has a name in the picker", type(ns.LANGUAGE_NAMES[code]) == "string")
     if code ~= "enUS" then
-        local folder = "NaowhForever_" .. code
-        check(folder .. " has its own TOC and XML", Exists(folder .. "/" .. folder .. ".toc")
-            and Exists(folder .. "/" .. code .. ".xml"))
-        check(folder .. "'s XML lists only its own file", Read(folder .. "/" .. code .. ".xml")
-            :find(code .. ".lua", 1, true) ~= nil and not Read(folder .. "/" .. code .. ".xml"):find("Script.*Script"))
+        check(code .. " has its file, listed in the TOC", Exists("NaowhForever_Locales/" .. code .. ".lua")
+            and Read("NaowhForever_Locales/NaowhForever_Locales.toc"):find(code .. ".lua", 1, true) ~= nil)
+        check(code .. " can be picked", Load("enUS", code).LOCALE == code)
     end
 end
 

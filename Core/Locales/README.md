@@ -2,8 +2,8 @@
 
 The player-facing strings, by language. `enUS.lua` is the source catalog: its keys are the
 English strings the addon uses, and `true` means the English key is also the displayed value.
-Each other language is its own load-on-demand addon, `NaowhForever_<code>`, and only the one in
-use loads.
+The other languages live in one load-on-demand addon, `NaowhForever_Locales`, which loads only
+when the language in use is not English.
 
 ## Layout
 
@@ -13,23 +13,19 @@ Core/Locales/
 NaowhForever_Language/      always loaded, listed first in NaowhForever.toc's own Dependencies
   Language.xml
   Language.lua   nothing to run: the addon holds NaowhForeverLanguageDB, the language picked in Settings
-NaowhForever_deDE/           load on demand, one such addon per language
-  NaowhForever_deDE.toc
-  deDE.xml
+NaowhForever_Locales/        load on demand, one addon for every language
+  NaowhForever_Locales.toc   lists every <code>.lua
   deDE.lua    the strings
-NaowhForever_esES/  NaowhForever_esMX/  NaowhForever_frFR/  NaowhForever_itIT/  NaowhForever_koKR/
-NaowhForever_ptBR/  NaowhForever_ruRU/  NaowhForever_zhCN/  NaowhForever_zhTW/
-  (the same layout, one per language)
+  esES.lua  esMX.lua  frFR.lua  itIT.lua  koKR.lua  ptBR.lua  ruRU.lua  zhCN.lua  zhTW.lua
 ```
 
 ## Adding a language
 
-1. Copy `NaowhForever_deDE/` to `NaowhForever_<code>/`, and inside it rename every `deDE` to
-   `<code>` (the folder's own files, the `.toc`'s `## Title`/`## Notes`, the `.xml`'s file name
-   and its `<Script file>` line).
-2. Translate the values on the right in `<code>.lua` and keep every key exactly.
-3. Add the code and its name to `LANGUAGES` and `LANGUAGE_NAMES` in `Core/Core.lua`, and the
-   `move-folders` line for the new addon to `.pkgmeta`.
+1. Copy `NaowhForever_Locales/deDE.lua` to `<code>.lua` and change `deDE` to `<code>` in its
+   header comment and in the `NaowhForever.LOCALE` check on its second line.
+2. Translate the values on the right and keep every key exactly.
+3. List `<code>.lua` in `NaowhForever_Locales.toc`, and add the code and its name to `LANGUAGES`
+   and `LANGUAGE_NAMES` in `Core/Core.lua`.
 
 ## Why
 
@@ -41,11 +37,13 @@ NaowhForever_ptBR/  NaowhForever_ruRU/  NaowhForever_zhCN/  NaowhForever_zhTW/
   every release the same as any other part of the addon, so this is a real requirement, not an
   OptionalDep: if it is ever missing the whole addon stays off instead of silently losing a saved
   language. A new pick needs a /reload.
-- Each language is its own load-on-demand addon, loaded by Core.lua only for that one language, so
-  an English client parses none of them and a German client parses only German. They used to share
-  one addon with every language's file in its XML; that loaded (and so parsed) all ten files for
-  any non-English player, each file skipping its own table-building with a locale-code guard but
-  still paying to compile. One addon per language means the client loads only the file it needs.
+- The languages are one load-on-demand addon whose TOC lists every language file; Core.lua loads it
+  with a single `LoadAddOn`, and only when the language is not English, so an English client parses
+  none of it (EllesmereUI's locales addon works the same way). Every file in the TOC runs, but each
+  starts with a `NaowhForever.LOCALE` check and returns at once unless it is the language in use, so
+  only that catalog is built. Each file is about 430 KB of source, and ten of them are compiled
+  whenever the player is not on English; that cost is accepted, as EllesmereUI accepts it. They used
+  to be one addon per language, which put ten entries in the AddOn list.
 - Korean and Chinese text needs the game's own fonts (`ns.LocaleFont`): no font the addon ships
   or offers has those characters, so every font path turns into the language's. Naowh covers
   Cyrillic; only Friz Quadrata (the Classic+ skin) swaps to its Cyrillic cut for Russian.

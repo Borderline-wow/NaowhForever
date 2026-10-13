@@ -1,4 +1,5 @@
 -- koKR.lua: the Korean strings.
+if NaowhForever.LOCALE ~= "koKR" then return end
 local L = {}
 NaowhForeverTranslation = L
 

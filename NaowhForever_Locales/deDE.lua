@@ -1,4 +1,5 @@
 -- deDE.lua: the German strings.
+if NaowhForever.LOCALE ~= "deDE" then return end
 local L = {}
 NaowhForeverTranslation = L
 

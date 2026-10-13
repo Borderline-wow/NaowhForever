@@ -1,4 +1,5 @@
 -- zhCN.lua: the Simplified Chinese strings.
+if NaowhForever.LOCALE ~= "zhCN" then return end
 local L = {}
 NaowhForeverTranslation = L
 

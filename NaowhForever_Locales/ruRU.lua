@@ -1,4 +1,5 @@
 -- ruRU.lua: the Russian strings.
+if NaowhForever.LOCALE ~= "ruRU" then return end
 local L = {}
 NaowhForeverTranslation = L
 

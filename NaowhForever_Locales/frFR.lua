@@ -1,4 +1,5 @@
 -- frFR.lua: the French strings.
+if NaowhForever.LOCALE ~= "frFR" then return end
 local L = {}
 NaowhForeverTranslation = L
 

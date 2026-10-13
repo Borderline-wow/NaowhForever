@@ -1,0 +1,20 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: Locales
+## Notes: Naowh Forever in German, Spanish, French, Italian, Korean, Portuguese, Russian and Chinese. Loads only when you are using one.
+## Author: Naowh
+## Version: 1.1.11
+## Dependencies: NaowhForever
+## LoadOnDemand: 1
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+
+deDE.lua
+esES.lua
+esMX.lua
+frFR.lua
+itIT.lua
+koKR.lua
+ptBR.lua
+ruRU.lua
+zhCN.lua
+zhTW.lua

@@ -1,4 +1,0 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <!-- esMX.xml: the Spanish (Latin America) strings. -->
-    <Script file="esMX.lua"/>
-</Ui>

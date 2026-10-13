@@ -4,16 +4,7 @@ package-as: NaowhForever
 # follows the modules it needs; the tests load them in this order.
 move-folders:
   NaowhForever/NaowhForever_Language: NaowhForever_Language
-  NaowhForever/NaowhForever_deDE: NaowhForever_deDE
-  NaowhForever/NaowhForever_esES: NaowhForever_esES
-  NaowhForever/NaowhForever_esMX: NaowhForever_esMX
-  NaowhForever/NaowhForever_frFR: NaowhForever_frFR
-  NaowhForever/NaowhForever_itIT: NaowhForever_itIT
-  NaowhForever/NaowhForever_koKR: NaowhForever_koKR
-  NaowhForever/NaowhForever_ptBR: NaowhForever_ptBR
-  NaowhForever/NaowhForever_ruRU: NaowhForever_ruRU
-  NaowhForever/NaowhForever_zhCN: NaowhForever_zhCN
-  NaowhForever/NaowhForever_zhTW: NaowhForever_zhTW
+  NaowhForever/NaowhForever_Locales: NaowhForever_Locales
   NaowhForever/NaowhForever_Professions: NaowhForever_Professions
   NaowhForever/NaowhForever_Training: NaowhForever_Training
   NaowhForever/NaowhForever_BiS: NaowhForever_BiS
