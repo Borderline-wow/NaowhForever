@@ -121,7 +121,7 @@ local function Queue()
     C_Timer.After(QUEUE_DELAY, Refresh)
 end
 
-local function OnEvent(_, event, unit)
+local function OnEvent(_, event, unit, _, spellID)
     if event == "UNIT_AURA" and (InCombatLockdown() or Secret(unit)
         or not (GROUP_UNIT[unit] or unit == "target" and R.WatchesTarget())) then return end
     if event == "PLAYER_REGEN_DISABLED" then
@@ -129,6 +129,7 @@ local function OnEvent(_, event, unit)
         return
     end
     if event == "ITEM_DATA_LOAD_RESULT" and not R.Requested(unit) then return end
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then R.NoteImbueCast(spellID) end
     Queue()
 end
 
@@ -164,6 +165,7 @@ local function Listen()
     end
     if R.WatchesTarget() then events:RegisterEvent("PLAYER_TARGET_CHANGED") end
     if S.Get("personalBuffs") then events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player") end
+    if R.WatchesImbue() then events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player") end
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("PLAYER_UPDATE_RESTING")

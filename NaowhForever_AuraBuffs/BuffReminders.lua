@@ -27,6 +27,7 @@ local buffPool, members, memberCount, classes = {}, {}, 0, {}
 local itemBuffs, requested = {}, {}
 local wellFedName
 local wakeAt
+local lastImbue
 
 local function Secret(v)
     return issecretvalue and issecretvalue(v)
@@ -257,6 +258,9 @@ local function PersonalBuffs(list, buffs)
     for _, family in ipairs(D.PERSONAL) do
         local spell = family.class == class and PersonalPicked(family) and Knows(family.spells)
         if spell then
+            if family.key == "imbue" and lastImbue and C_SpellBook.IsSpellKnown(lastImbue) then
+                spell = lastImbue
+            end
             local has, aura = Has(family, buffs, warn)
             if not has then list[#list + 1] = { icon = C_Spell.GetSpellTexture(spell), aura = aura } end
         end
@@ -292,6 +296,28 @@ function Reminders.WatchesTarget()
         if family.target and family.class == class and PersonalPicked(family) then return true end
     end
     return false
+end
+
+function Reminders.WatchesImbue()
+    if not S.Get("personalBuffs") then return false end
+    local _, class = UnitClass("player")
+    for _, family in ipairs(D.PERSONAL) do
+        if family.key == "imbue" and family.class == class and PersonalPicked(family) then
+            return Knows(family.spells) ~= nil
+        end
+    end
+    return false
+end
+
+function Reminders.NoteImbueCast(spellID)
+    for _, family in ipairs(D.PERSONAL) do
+        if family.key == "imbue" then
+            for _, id in ipairs(family.spells) do
+                if id == spellID then lastImbue = spellID end
+            end
+            return
+        end
+    end
 end
 
 function Reminders.Requested(itemID)

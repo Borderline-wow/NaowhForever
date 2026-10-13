@@ -101,6 +101,11 @@ NaowhForever_AuraBuffs/
   a sharpening stone too. Nothing reliable fires when one runs out (Blizzard's own display polls),
   so its expiry is timed. Poisons check every equipped weapon, imbues the main hand. An enchant
   reported with no time left counts as up and times nothing.
+- Weapon Imbue's family lists four different enchants (Windfury, Flametongue, Frostbrand,
+  Rockbiter), not ranks of one, so "the first known spell" picked the wrong icon once a shaman
+  trained more than one. `UNIT_SPELLCAST_SUCCEEDED` remembers the last one actually cast
+  (`lastImbue`) and the icon follows that instead, falling back to the first known spell until a
+  cast is seen.
 - Warn With Minutes Left covers personal buffs too, except a buff no longer than the warning
   (Battle Shout's 2 minutes), which would otherwise show the moment it is cast. Poisons last 30
   minutes and Forever's imbues 60, past the slider's 10.
