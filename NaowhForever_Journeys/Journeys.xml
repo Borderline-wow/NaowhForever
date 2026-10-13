@@ -11,6 +11,7 @@
     <Script file="Guide.lua"/>
     <Script file="Lifts.lua"/>
     <Script file="Quests.lua"/>
+    <Script file="Pins.lua"/>
     <Script file="UI\Card.lua"/>
     <Include file="UI\MapRoute.xml"/>
     <Script file="UI\MinimapRoute.lua"/>

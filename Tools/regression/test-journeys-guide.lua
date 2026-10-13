@@ -20,11 +20,11 @@ local MAPS = {
     [DARNASSUS] = { c = 1, x = 9945.0, y = 2490.0 },
 }
 
-local frames, timers, printed = {}, {}, {}
+local frames, timers, printed, tickers = {}, {}, {}, {}
 local tracking, handedBack = 0, nil
 local QUESTS = { [101] = { 1457, 0.5, 0.5 }, [102] = { 1455, 0.5, 0.5 } }
 local here = { x = -4821.8, y = -1155.4, c = 0 }
-local current
+local current, placedAtSet
 local combat = false
 local account = {}
 local store = {}
@@ -84,12 +84,21 @@ local env = setmetatable({
         local old = t[k]
         t[k] = function(...) local r = old(...); fn(...); return r end
     end,
-    C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
+    C_Timer = {
+        After = function(_, fn) timers[#timers + 1] = fn end,
+        NewTicker = function(_, fn)
+            local t = { fn = fn }
+            function t:Cancel() self.cancelled = true end
+            tickers[#tickers + 1] = t
+            return t
+        end,
+    },
     UnitPosition = function()
         if not here then return nil end
         return here.x, here.y, 0, here.c
     end,
     UnitName = function() return "Glyadin" end,
+    UnitOnTaxi = function() return false end,
     GetRealmName = function() return "Forever" end,
     UnitFactionGroup = function() return "Alliance" end,
     GetServerTime = function() return 0 end,
@@ -111,6 +120,7 @@ local env = setmetatable({
         end,
         CanSetUserWaypointOnMap = function() return true end,
         SetUserWaypoint = function(point)
+            placedAtSet = ns.placedWaypoint
             current = { uiMapID = point.map, position = { x = point.x, y = point.y } }
             Fire("USER_WAYPOINT_UPDATED")
         end,
@@ -162,12 +172,17 @@ env.WorldMapFrame = nil
 for _, path in ipairs({ "Core/Waypoint.lua", "NaowhForever_Journeys/Journeys.lua", "NaowhForever_Journeys/Constants.lua",
         "NaowhForever_Journeys/Data/Network.lua", "NaowhForever_Journeys/Data/Teleports.lua",
         "NaowhForever_Journeys/Planner.lua", "NaowhForever_Journeys/World.lua", "NaowhForever_Journeys/Walk.lua",
-        "NaowhForever_Journeys/Guide.lua", "NaowhForever_Journeys/Quests.lua" }) do
+        "NaowhForever_Journeys/Guide.lua", "NaowhForever_Journeys/Quests.lua", "NaowhForever_Journeys/Pins.lua" }) do
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()
 end
 local Jy = ns.Journeys
+local function Tick()
+    for _, t in ipairs(tickers) do
+        if not t.cancelled then t.fn() end
+    end
+end
 local DESTINATION = { "Mathrengyl Bearwalker", DARNASSUS, 50, 50, " (Druid Trainer)" }
 
 local function Title()
@@ -187,6 +202,7 @@ here = { x = -4821.8, y = -1155.4, c = 0 }
 Check(ns.PlaceWaypoint(unpack(DESTINATION)), "placed with Journeys on")
 local journey = Jy.Guide.Current()
 Check(journey and journey.title == "Mathrengyl Bearwalker", "a journey to the trainer")
+Check(placedAtSet and placedAtSet.title == Title(), "the pin is known as ours before the game hears of it")
 Check(Title() == "Deeprun Tram to Stormwind", "the waypoint names the first thing to do: " .. tostring(Title()))
 local route, at, n, nextTitle = ns.WaypointRoute()
 Check(route == "Mathrengyl Bearwalker" and at == 1 and n > 3 and nextTitle, "the pin hears it is on a route")
@@ -273,6 +289,61 @@ Fire("SUPER_TRACKING_CHANGED")
 local done = Jy.Guide.Current()
 Check(done and done.quest == 105 and done.stops[1][2] == DARNASSUS, "a finished quest goes to its turn-in")
 Jy.Guide.Cancel()
+
+-- A pin you put on the map yourself becomes a journey; our own pins do not start another.
+Jy.Guide.Cancel()
+here = { x = -4821.8, y = -1155.4, c = 0 }
+env.C_Map.SetUserWaypoint({ map = DARNASSUS, x = 0.5, y = 0.5 })
+RunTimers()
+Check(Jy.Guide.Current() and Jy.Guide.Current().title == "Map Pin", "a pin set on the map starts a journey to it")
+local pinJourney = Jy.Guide.Current()
+RunTimers()
+Check(Jy.Guide.Current() == pinJourney, "and the pin the journey puts up does not start another")
+Jy.Settings.Set("mapPins", false)
+Jy.Guide.Cancel()
+env.C_Map.SetUserWaypoint({ map = DARNASSUS, x = 0.5, y = 0.5 })
+RunTimers()
+Check(not Jy.Guide.Current(), "with Journeys to Map Pins off, a pin is left alone")
+Jy.Settings.Set("mapPins", true)
+env.C_Map.ClearUserWaypoint()
+
+-- Inside the tram (an instance, outside the continents) the journey holds, and picks up on the way out.
+Check(ns.PlaceWaypoint(unpack(DESTINATION)) and Jy.Guide.Current(), "a journey for the tram test")
+local legs = #Jy.Guide.Current().plan.legs
+here = { x = 20, y = 30, c = 369 }
+Fire("PLAYER_ENTERING_WORLD")
+RunTimers()
+Check(Jy.Guide.Current() and #Jy.Guide.Current().plan.legs == legs and Jy.Guide.Current().waiting,
+    "in an instance the journey is kept, not given up")
+Tick()
+Check(Jy.Guide.Current() and Jy.Guide.Current().waiting, "and the ticker leaves it alone")
+here = { x = -8346.5, y = 514.0, c = 0 }
+Fire("PLAYER_ENTERING_WORLD")
+RunTimers()
+Check(Jy.Guide.Current() and not Jy.Guide.Current().waiting, "out of the instance it plans again")
+
+-- The ticker plans again as you move, and a plain waypoint is cleared on arrival.
+local planned = Jy.Guide.Current().plan
+for _ = 1, 3 do Tick() end
+Check(Jy.Guide.Current().plan == planned, "standing still, it is not planned again")
+here = { x = here.x + 20, y = here.y, c = here.c }
+for _ = 1, 3 do Tick() end
+Check(Jy.Guide.Current().plan ~= planned, "every few seconds on the move it is planned again from where you stand")
+local kept = Jy.Guide.Current().plan
+local realPlan = Jy.Planner.Plan
+Jy.Planner.Plan = function() return nil end
+here = { x = here.x + 20, y = here.y, c = here.c }
+for _ = 1, 3 do Tick() end
+Jy.Planner.Plan = realPlan
+Check(Jy.Guide.Current() and Jy.Guide.Current().plan == kept, "a plan that finds no way keeps the journey and its last plan")
+Jy.Guide.Cancel()
+here = { x = -4821.8, y = -1155.4, c = 0 }
+Check(ns.PlaceWaypoint(unpack(DESTINATION)) and Jy.Guide.Current() and current, "a journey with its pin up")
+here = { x = 9945.0, y = 2490.0, c = 1 }
+Tick()
+Check(not Jy.Guide.Current() and current == nil, "arriving, found by the ticker, ends it and clears the pin")
+here = { x = -4821.8, y = -1155.4, c = 0 }
+Tick()
 
 Jy.Settings.Set("quests", false)
 here = { x = -4821.8, y = -1155.4, c = 0 }

@@ -63,12 +63,13 @@ function ns.WaypointLink(map, x, y)
 end
 
 local function SetNow(title, map, x, y, note, icon)
+    ns.placedWaypoint = { title = title, note = note, icon = icon, map = map, x = x, y = y }
     C_Map.SetUserWaypoint(MapPoint(map, x, y))
     if C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
-    ns.placedWaypoint = { title = title, note = note, icon = icon, map = map, x = x, y = y }
 end
 
 local function ClearNow()
+    ns.placedWaypoint = nil
     C_Map.ClearUserWaypoint()
     if C_SuperTrack then C_SuperTrack.ClearAllSuperTracked() end
 end

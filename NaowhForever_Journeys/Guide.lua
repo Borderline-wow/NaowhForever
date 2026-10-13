@@ -29,6 +29,7 @@ Jy.Guide = Guide
 
 local journey, events, step, working, driver, dismissed
 local replanQueued = false
+local ticker, ticks
 local listeners = {}
 
 local function Changed()
@@ -86,16 +87,26 @@ local function StopStep()
     return ns.ShowJourneyStep(step.title, step.map, step.x, step.y, step.note, step.icon)
 end
 
+local function OnStep(point)
+    return point ~= nil and step ~= nil and point.uiMapID == step.map
+        and math.abs(point.position.x * PERCENT - step.x) < SAME_SPOT
+        and math.abs(point.position.y * PERCENT - step.y) < SAME_SPOT
+end
+
 local function ShowStep()
     local stop = Stop()
     local action, spot = Action(journey.plan.legs)
-    step = { title = stop[1], map = stop[2], x = stop[3], y = stop[4], note = stop[5], icon = stop[6] }
-    if action and action.mode ~= "walk" then step.title, step.note = Guide.LegText(action), nil end
+    local new = { title = stop[1], map = stop[2], x = stop[3], y = stop[4], note = stop[5], icon = stop[6] }
+    if action and action.mode ~= "walk" then new.title, new.note = Guide.LegText(action), nil end
     spot = Corner() or spot
     if spot then
         local map, x, y = World.ToMap(spot)
-        if map then step.map, step.x, step.y = map, x, y end
+        if map then new.map, new.x, new.y = map, x, y end
     end
+    local same = step and OnStep(C_Map.GetUserWaypoint()) and step.title == new.title and step.map == new.map
+        and step.x == new.x and step.y == new.y
+    step = new
+    if same then return Changed() end
     if not ns.ShowJourneyStep(step.title, step.map, step.x, step.y, step.note, step.icon) and not StopStep() then
         ns.Print(TEXT_NO_PLACE)
         return Guide.Cancel()
@@ -123,7 +134,10 @@ end
 
 local function Planned(plan)
     if not journey then return end
-    if not plan then return PlainWaypoint(Stop()) end
+    if not plan then
+        if journey.plan and journey.planAt == journey.at then return end
+        return PlainWaypoint(Stop())
+    end
     local before = journey.plan
     if before then
         local finished = journey.planAt == journey.at and math.max(0, #before.legs - #plan.legs) or #before.legs
@@ -188,19 +202,23 @@ local function Replan()
     journey.waiting = false
     local here = World.Player()
     if not here then return end
+    if not C.CONTINENTS[here.c] then
+        journey.waiting = true
+        if not journey.plan and not step then StopStep() end
+        return
+    end
     while Close(here, Stop().spot) do
         if journey.at == #journey.stops then
             local quest = journey.quest
             journey = nil
             if events then events:UnregisterAllEvents() end
             Changed()
-            if quest then
-                ns.TrackQuest(quest)
-            end
+            if quest then ns.TrackQuest(quest) else ns.ClearWaypoint() end
             return
         end
         journey.at = journey.at + 1
     end
+    journey.from = here
     local stop = Stop()
     local to = { c = stop.spot.c, x = stop.spot.x, y = stop.spot.y, name = stop[1] }
     working = coroutine.create(Work)
@@ -227,10 +245,22 @@ local function QueueReplan()
     C_Timer.After(REPLAN_DELAY, QueuedReplan)
 end
 
-local function OnStep(point)
-    return point ~= nil and step ~= nil and point.uiMapID == step.map
-        and math.abs(point.position.x * PERCENT - step.x) < SAME_SPOT
-        and math.abs(point.position.y * PERCENT - step.y) < SAME_SPOT
+local function Tick()
+    if not journey then
+        ticker:Cancel()
+        ticker = nil
+        return
+    end
+    if working or replanQueued or InCombatLockdown() or UnitOnTaxi("player") then return end
+    ticks = ticks + 1
+    local here = World.Player()
+    if not here then return end
+    local from = journey.from
+    local moved = not from or from.c ~= here.c or (from.x - here.x) ^ 2 + (from.y - here.y) ^ 2 > C.REPLAN_MOVED ^ 2
+    if Close(here, Stop().spot) or ticks >= C.REPLAN_TICKS and moved then
+        ticks = 0
+        Replan()
+    end
 end
 
 local function OnEvent(_, event, isWaypoint)
@@ -259,12 +289,14 @@ function Guide.Start(title, stops, quest)
         if not spot then return false end
         own[i] = { stop[1], stop[2], stop[3], stop[4], stop[5], stop[6], spot = spot }
     end
-    journey = { title = title, stops = own, at = 1, done = 0, quest = quest }
+    journey, step = { title = title, stops = own, at = 1, done = 0, quest = quest }, nil
     if not events then
         events = CreateFrame("Frame")
         events:SetScript("OnEvent", OnEvent)
     end
     for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
+    ticks = 0
+    ticker = ticker or C_Timer.NewTicker(C.TICK, Tick)
     Replan()
     return true
 end

@@ -70,6 +70,8 @@ page:Card({
           help = "Start with a mage or druid teleport you know." },
         { key = "quests", label = "Journeys to Tracked Quests", toggle = true, needs = Jy.On, why = TEXT_OFF,
           help = "Track a quest that is far away and Journeys plans the way there." },
+        { key = "mapPins", label = "Journeys to Map Pins", toggle = true, needs = Jy.On, why = TEXT_OFF,
+          help = "Put a pin on the map yourself and Journeys plans the way there." },
         { key = "learnLifts", label = "Learn Lifts as You Ride", toggle = true, needs = Jy.On, why = TEXT_OFF,
           help = "Notes the lifts you ride so they can be added to Journeys; /nf lifts lists them." },
         { key = "minimapRoute", label = "Route on the Minimap", toggle = true, needs = Jy.On, why = TEXT_OFF,

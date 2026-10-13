@@ -30,6 +30,10 @@ ns.Journeys.C = {
     LIFT_MERGE = 8,
     LIFT_KEEP = 40,
     ARRIVED = 15,
+    TICK = 1,
+    REPLAN_TICKS = 3,
+    REPLAN_MOVED = 5,
+    CONTINENTS = { [0] = true, [1] = true, [2991] = true },
     HEARTHSTONE = 6948,
     HEARTH_SPELL = 8690,
 }
