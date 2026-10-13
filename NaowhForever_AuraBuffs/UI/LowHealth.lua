@@ -133,7 +133,7 @@ local function OnSet(key)
 end
 
 local function OnUnlock()
-    unlocked = S.Get("enabled") == true
+    unlocked = Low.On() == true
     Apply()
 end
 

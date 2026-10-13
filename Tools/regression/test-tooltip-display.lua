@@ -52,6 +52,7 @@ local env={_G={NaowhForever=ns},GameTooltip=tooltip,ItemRefTooltip=Frame(),Shopp
     InCombatLockdown=function() return combat end,GetCurrentKeyBoardFocus=function() return focus end,
     IsControlKeyDown=function() return ctrl end,IsShiftKeyDown=function() return shift end,IsAltKeyDown=function() return alt end,
     hooksecurefunc=function(t,k,fn) local old=t[k];t[k]=function(...) old(...);fn(...) end end,
+    C_Timer={After=function(_,fn) fn() end},
     strsplit=function(delim,s) local a={};for part in s:gmatch('[^'..delim..']+') do a[#a+1]=part end;return unpack(a) end,
 }
 -- A tooltip's line font strings by name, as the game has them: GameTooltipTextLeft2 and so on.

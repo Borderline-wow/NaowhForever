@@ -237,7 +237,9 @@ local function OnKeyDown(self, key)
     local title = titleLine and titleLine:GetText()
     if not Accessible(title) or type(title) ~= "string" then title = info.label end
     self:SetPropagateKeyboardInput(false)
-    if modern then ns.ShowCopyCard(info.kind, info.label, id, title, nil, Apply) else ShowCopyBox(title, tostring(id)) end
+    C_Timer.After(0, function()
+        if modern then ns.ShowCopyCard(info.kind, info.label, id, title, nil, Apply) else ShowCopyBox(title, tostring(id)) end
+    end)
     self:EnableKeyboard(false)
 end
 

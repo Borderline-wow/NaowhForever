@@ -474,7 +474,7 @@ end
 hooksecurefunc(S, "Set", OnSettingChanged)
 hooksecurefunc(ns, "Apply", function() Refresh() end)
 hooksecurefunc(ns, "ShowUnlockMode", function()
-    unlocked = S.Get("enabled") == true
+    unlocked = On() == true
     Refresh()
 end)
 hooksecurefunc(ns, "HideUnlockMode", function()

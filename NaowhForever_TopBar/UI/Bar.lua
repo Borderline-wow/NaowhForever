@@ -13,7 +13,7 @@ local Buttons = TB.Buttons
 local Widgets = TB.Widgets
 
 local On = TB.On
-local PERCENT, WHITE = C.PERCENT, St.WHITE
+local PERCENT = C.PERCENT
 local CLOCK_START_SIZE, CLOCK_BTN_W = 20, 80
 local REST_X, REST_Y, REST_MIN, REST_SCALE = 5, 2, 12, 0.55
 local REST_FRAMES, REST_COLS, REST_V, REST_FRAME_TIME = 8, 16, 0.5, 0.25
@@ -106,7 +106,8 @@ local function ClockEnter(self)
 end
 
 local function ClockLeave()
-    clockText:SetTextColor(Look.Tone("fg", WHITE))
+    local c = S.Get("clockColor")
+    clockText:SetTextColor(c.r, c.g, c.b)
     GameTooltip:Hide()
     UpdateHover()
 end

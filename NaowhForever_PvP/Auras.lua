@@ -99,7 +99,7 @@ local function OnSettingChanged(key)
 end
 
 local function OnUnlock()
-    unlocked = S.Get("enabled") == true
+    unlocked = On() == true
     Apply()
 end
 
