@@ -74,7 +74,6 @@ NaowhForever_QoL/
     DeleteConfirm.lua   Type DELETE For You, and the Looting card
     Durability.lua      the low durability warning
     LootConfirm.lua     the retired loot confirmation skip, inert
-    EquipmentReminder.lua  Equipment Reminder (ns.ShowEquipmentReminder, ns.CaptureEnchants)
     AuctionPrices.lua   Auction Prices (ns.AuctionPrice, ns.AuctionAge, ns.AuctionScanSummary)
     FoodBar.lua         the Food & Drink Bar (its food and potion lists are Shared/Game/Consumables.lua)
     BagSpace.lua        Bag Space (ns.BagSpaceRescan; ns.BagSpace for its ignore list)

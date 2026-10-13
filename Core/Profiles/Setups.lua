@@ -10,7 +10,7 @@ local DONE = ns.L("Every setting now follows %s. Reload now to finish?")
 local ON, OFF, SAME = ns.L("%s turns on: %s"), ns.L("%s turns off: %s"), ns.L("%s is what you have now.")
 local RIVALS = { "characterPanel", "inspectPanel" }
 local KEEP = {
-    qol = { "questRewards", "bagSpaceIgnore", "slashList", "equipEnchantRules" },
+    qol = { "questRewards", "bagSpaceIgnore", "slashList" },
     auraBuffs = { "campHiddenBonuses" },
     unlockMode = { "layouts" },
 }

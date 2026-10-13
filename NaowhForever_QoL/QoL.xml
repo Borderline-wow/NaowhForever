@@ -28,7 +28,6 @@
     <Script file="Cursor\Crosshair.lua"/>
     <Script file="Cursor\MouseRing.lua"/>
     <Script file="Combat\PetTracker.lua"/>
-    <Script file="Loot\EquipmentReminder.lua"/>
     <Script file="Interface\ChatZones.lua"/>
     <Script file="Combat\GcdTracker.lua"/>
     <Script file="Combat\FocusCastBar.lua"/>

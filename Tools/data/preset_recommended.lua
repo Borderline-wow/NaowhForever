@@ -200,7 +200,6 @@ return {
 ["naowhScore"] = true,
 ["questAccept"] = false,
 ["restockBagsBelow"] = 10,
-["equipReminder"] = false,
 ["combatAlert"] = true,
 ["foodBar"] = false,
 ["mapUnexplored"] = true,

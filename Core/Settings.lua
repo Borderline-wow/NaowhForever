@@ -206,8 +206,6 @@ local S = UI.ModuleSettings("qol", {
     petColor = { r = 1, g = 0, b = 0 }, petClassColor = false, petFont = "", petFontSize = 20,
     petOutline = "OUTLINE", petBackground = "none",
     petMissingText = ns.L("Pet Missing"), petPassiveText = ns.L("Pet Passive"), petLowHealthText = ns.L("Pet Low HP"),
-    equipReminder = F.equipReminder, equipOnInstance = true, equipOnReadyCheck = true, equipAutoHide = 10,
-    equipIconSize = 40, equipEnchants = true, equipEnchantRules = {},
     chatZones = F.chatZones, chatZonesLevel = true, chatZonesClassColour = true, chatZonesFinder = true, chatZonesWhere = true, chatZonesMaxAge = 15, chatZonesAsk = true, chatZonesShare = false,
 
     mouseRing = F.mouseRing, mouseShape = "ring.tga", mouseSize = 48,

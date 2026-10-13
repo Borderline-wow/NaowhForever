@@ -158,7 +158,6 @@ return {
 ["bagSpaceBackground"] = "none",
 ["questAccept"] = false,
 ["restockBagsBelow"] = 10,
-["equipReminder"] = false,
 ["combatAlert"] = false,
 ["foodBar"] = false,
 ["tooltipCopy"] = false,

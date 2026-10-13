@@ -112,7 +112,6 @@ check("hovering lists what each preset turns on and off against yours now, modul
     and not tip:find("Not A Switch", 1, true))
 local rewards, ignore = { [123] = 456 }, { [6948] = true }
 root.qol.questRewards, root.qol.bagSpaceIgnore, root.qol.slashList = rewards, ignore, { { name = "rl" } }
-root.qol.equipEnchantRules = { [16] = 1900 }
 root.auraBuffs = root.auraBuffs or {}
 root.auraBuffs.campHiddenBonuses = { [1] = true }
 root.unlockMode = { layouts = { Raid = {} }, hidden = { Loot = true } }
@@ -121,8 +120,7 @@ check("picking one asks first, naming it", asked and asked:find("Minimalist", 1,
     and asked:find("Cannot be undone", 1, true) and asked:find("saved picks stay", 1, true))
 check("saved quest rewards, the Bag Space ignore list and slash commands stay", root.qol.questRewards == rewards
     and root.qol.bagSpaceIgnore == ignore and root.qol.slashList[1].name == "rl")
-check("enchant rules, hidden campfire bonuses and HUD layouts stay", root.qol.equipEnchantRules[16] == 1900
-    and root.auraBuffs.campHiddenBonuses[1] == true and root.unlockMode.layouts.Raid ~= nil)
+check("hidden campfire bonuses and HUD layouts stay", root.auraBuffs.campHiddenBonuses[1] == true and root.unlockMode.layouts.Raid ~= nil)
 check("the rest of the HUD Editor's state follows the preset", root.unlockMode.hidden == nil)
 check("every module to the preset", root.qol.fastLoot == nil and root.topBar.use24h == true
     and root.topBar.extra == nil and root.auraBuffs.iconSize == 48 and root.oldModule == nil)
