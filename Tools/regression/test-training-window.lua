@@ -267,6 +267,16 @@ for _, f in ipairs(Clickables()) do
     if rawget(f, "spell") then Click(f) end
 end
 check("clicking talents takes points", #account.trainingBuilds[8][1].points > 0)
+local skips = 0
+for _, f in ipairs(Clickables()) do
+    if rawget(f, "group") then
+        Click(f)
+        skips = skips + 1
+        break
+    end
+end
+check("the editor lists the class's spells to skip, and a click skips one", skips == 1
+    and ns.Training.SkipCount(account.trainingBuilds[8][1]) > 0)
 Click(window.save)
 Click(window.import)
 for _ = 1, 2 do

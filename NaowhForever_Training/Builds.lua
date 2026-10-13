@@ -9,6 +9,8 @@ local Changed = Training.Changed
 
 local BUILD_PREFIX = "!NFB1!"
 local MAX_POINTS = C.MAX_POINTS
+local LEVEL, SPELL = C.ENTRY_LEVEL, C.ENTRY_SPELL
+local MAX_SKIPS = 1000
 local ROW_POINTS = 5
 local NODE_SPELL, NODE_RANKS, NODE_ROW, NODE_COLUMN, NODE_NEEDS = C.NODE_SPELL, C.NODE_RANKS, C.NODE_ROW, C.NODE_COLUMN, 6
 local DECODE_LIMITS = { maxChars = 100000, maxBytes = 1048576, maxDepth = 8, maxValues = 20000 }
@@ -56,6 +58,60 @@ function Training.Ranks(talents)
     return ranks
 end
 
+function Training.SkipGroups(classID)
+    local groups, byName = {}, {}
+    for _, entry in ipairs(ns.TrainingData[classID] or {}) do
+        local name = not entry.quest and C_Spell.GetSpellName(entry[SPELL])
+        if name then
+            local group = byName[name]
+            if not group then
+                group = { name = name, level = entry[LEVEL], spell = entry[SPELL], spells = {} }
+                byName[name] = group
+                groups[#groups + 1] = group
+            end
+            group.spells[#group.spells + 1] = entry[SPELL]
+        end
+    end
+    return groups
+end
+
+function Training.IsSkipping(build, group)
+    return build.skip ~= nil and build.skip[group.spell] == true
+end
+
+function Training.ToggleSkip(build, group)
+    local on = not Training.IsSkipping(build, group)
+    build.skip = build.skip or {}
+    for _, spell in ipairs(group.spells) do build.skip[spell] = on or nil end
+    if next(build.skip) == nil then build.skip = nil end
+    Changed()
+end
+
+function Training.SkipCount(build)
+    local n = 0
+    for _ in pairs(build.skip or {}) do n = n + 1 end
+    return n
+end
+
+function Training.SkipList(build)
+    local list = {}
+    for spell in pairs(build.skip or {}) do list[#list + 1] = spell end
+    table.sort(list)
+    return #list > 0 and list or nil
+end
+
+function Training.CleanSkips(classID, list)
+    if type(list) ~= "table" then return nil end
+    local known = {}
+    for _, entry in ipairs(ns.TrainingData[classID] or {}) do known[entry[SPELL]] = true end
+    local skip = {}
+    for i, spell in ipairs(list) do
+        if i > MAX_SKIPS then break end
+        if known[spell] then skip[spell] = true end
+    end
+    return next(skip) and skip or nil
+end
+
 function Training.CheckBuild(tree, points)
     local count, spent = {}, {}
     for i, node in ipairs(points) do
@@ -100,6 +156,7 @@ function Training.ExportBuild(classID, build)
     local LS, LD = Codec()
     return BUILD_PREFIX .. LD:EncodeForPrint(LD:CompressDeflate(LS:Serialize({
         v = BUILD_VERSION, class = classID, name = build.name, spec = build.spec, points = build.points,
+        skip = Training.SkipList(build),
     })))
 end
 
@@ -116,7 +173,8 @@ local function DecodeBuild(text)
     end
     if #points == 0 or Training.CheckBuild(tree, points) then return end
     return data.class, { name = BuildName(data.name, TEXT_IMPORTED_BUILD),
-        spec = BuildName(data.spec, TEXT_IMPORTED_SPEC), points = points, saved = true }
+        spec = BuildName(data.spec, TEXT_IMPORTED_SPEC), points = points, saved = true,
+        skip = Training.CleanSkips(data.class, data.skip) }
 end
 
 function Training.ImportBuild(text, onAdded)
@@ -169,8 +227,13 @@ function Training.NewBuild(classID, name, from)
     local points = {}
     for i, node in ipairs(from and from.points or {}) do points[i] = node end
     local saved = Saved(classID)
+    local skip
+    for spell in pairs(from and from.skip or {}) do
+        skip = skip or {}
+        skip[spell] = true
+    end
     saved[#saved + 1] = { name = BuildName(name, TEXT_NEW_BUILD), spec = from and from.spec or TEXT_NO_POINTS_YET,
-        points = points, saved = true }
+        points = points, saved = true, skip = skip }
     Changed()
     return #(ns.TrainingBuilds[classID]) + #saved
 end

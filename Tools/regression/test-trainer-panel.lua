@@ -42,7 +42,7 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.up
         Style = setmetatable({}, { __index = function() return 1 end }),
         Rows = { Crop = function(texture) return texture end },
         On = function() return true end,
-        Ignored = function() return ignored end,
+        Skipped = function(spell) return ignored[spell] end,
         SpellsByService = function() return {} end,
         ServiceSpell = function(_, i) return SERVICES[i].spell end,
         Coins = function(copper) return tostring(copper) end,

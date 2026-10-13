@@ -17,11 +17,16 @@ local DATA = { [8] = {
 -- `known`, has `ignored` ignored, standing at a trainer offering `services` ({ name, level, cost }).
 -- The module's own files are loaded; the scan runs as the trainer window's event starts it.
 local function Fixture(o)
-    local refreshes, account = 0, { trainingIgnored = { ["Me-Realm"] = o.ignored or {} } }
+    local name = o.name or "Me"
+    local refreshes, account = 0, o.account or { trainingIgnored = { [name .. "-Realm"] = o.ignored or {} } }
+    if o.skip then
+        account.trainingBuilds = { [8] = { { name = "Leveling", spec = "Arcane", points = {}, saved = true, id = 1, skip = o.skip } } }
+    end
+    if o.follow then account.trainingFollow = { [name .. "-Realm"] = { class = 8, key = 1 } } end
     local known = o.known or {}
     local frames = {}
     local S = { Get = function() return true end, OnChange = function() end }
-    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, TrainingData = DATA, AccountSettings = function() return account end,
+    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, TrainingData = DATA, TrainingBuilds = { [8] = {} }, AccountSettings = function() return account end,
         UI = { ModuleSettings = function() return S end, RefreshPage = function() refreshes = refreshes + 1 end } }
     local env = {
         NaowhForever = ns,
@@ -41,10 +46,12 @@ local function Fixture(o)
         UnitClass = function() return "Mage", "MAGE", 8 end,
         UnitRace = function() return "Human", "Human", o.race or 1 end,
         UnitLevel = function() return o.level or 1 end,
-        UnitName = function() return "Me" end,
+        UnitName = function() return name end,
         GetRealmName = function() return "Realm" end,
         C_SpellBook = { IsSpellKnown = function(id) return known[id] == true end },
         C_Spell = { GetSpellName = function(id) return NAMES[id] end },
+        C_ClassTalents = { GetActiveConfigID = function() end },
+        InCombatLockdown = function() return false end,
         IsTradeskillTrainer = function() return o.tradeskill == true end,
         GetNumTrainerServices = function() return #(o.services or {}) end,
         GetTrainerServiceInfo = function(i)
@@ -74,6 +81,7 @@ local function Fixture(o)
             end
             return table.concat(out, "; ")
         end,
+        Skipped = function(id) return Training.Skipped(id) end,
         Scan = function() scan() end,
         Fire = function(event) trainerEvents.scripts.OnEvent(trainerEvents, event) end,
         Prices = function() return account.trainingPrices or {} end,
@@ -120,6 +128,19 @@ end)
 Case("ignored spells leave the other lists", function()
     local t = Fixture({ level = 20, known = { [145] = true, [5144] = true }, ignored = { [1953] = true } })
     assert(t.Plan() == "now: 3561; later: 10151 25306; talent: 12505; ignored: 1953", t.Plan())
+end)
+Case("the followed build's skipped spells leave the lists, for any character that follows it", function()
+    local account = { trainingIgnored = {} }
+    local known = { [145] = true, [5144] = true }
+    local t = Fixture({ level = 20, known = known, account = account, skip = { [1953] = true }, follow = true })
+    local want = "now: 3561; later: 10151 25306; talent: 12505; ignored: 1953"
+    assert(t.Plan() == want, t.Plan())
+    assert(t.Skipped(1953) and not t.Skipped(3561))
+    local alt = Fixture({ level = 20, known = known, account = account, name = "Alt", follow = true })
+    assert(alt.Plan() == want, alt.Plan())
+    local other = Fixture({ level = 20, known = known, account = account, name = "Other" })
+    assert(other.Plan() == "now: 1953 3561; later: 10151 25306; talent: 12505", other.Plan())
+    assert(not other.Skipped(1953))
 end)
 Case("trainer prices are matched by name and level; a header matches nothing", function()
     local t = Fixture({ services = {

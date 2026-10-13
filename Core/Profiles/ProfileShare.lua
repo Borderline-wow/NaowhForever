@@ -262,7 +262,11 @@ local function CollectBuilds(account, budget)
     for classID, list in pairs(account.trainingBuilds) do
         local out = {}
         for i, b in ipairs(list) do
-            out[i] = { name = b.name, spec = b.spec, points = Plain(b.points, 1, budget) }
+            local skip = {}
+            for spell in pairs(type(b.skip) == "table" and b.skip or {}) do skip[#skip + 1] = spell end
+            table.sort(skip)
+            out[i] = { name = b.name, spec = b.spec, points = Plain(b.points, 1, budget),
+                skip = #skip > 0 and Plain(skip, 1, budget) or nil }
         end
         if #out > 0 then builds[classID] = out end
     end
@@ -586,12 +590,13 @@ local function BuildPoints(b)
     return points
 end
 
-local function NewBuild(tree, b)
+local function NewBuild(classID, tree, b)
     local Training = ns.Training
     local points = BuildPoints(b)
     if #points == 0 or Training.CheckBuild(tree, points) then return nil end
     return { name = Training.BuildName(b.name, IMPORTED_BUILD),
-        spec = Training.BuildName(b.spec, IMPORTED_SPEC), points = points, saved = true }
+        spec = Training.BuildName(b.spec, IMPORTED_SPEC), points = points, saved = true,
+        skip = Training.CleanSkips(classID, b.skip) }
 end
 
 local function HasBuild(saved, build)
@@ -609,7 +614,7 @@ local function AddBuilds(incoming)
         if tree and type(list) == "table" then
             local saved = account.trainingBuilds[classID] or {}
             for _, b in ipairs(list) do
-                local build = NewBuild(tree, b)
+                local build = NewBuild(classID, tree, b)
                 if build and not HasBuild(saved, build) then
                     saved[#saved + 1] = build
                     account.trainingBuilds[classID] = saved

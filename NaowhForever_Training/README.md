@@ -73,6 +73,11 @@ view files and the window share.
 - A build is kept by a number of its own, given the first time it is asked for, or a built-in one by
   its place in the data: names repeat, so they cannot be keys. Committing talents fires the talent
   events that start a followed build's learning again, so learning is guarded while it runs.
+- A saved build can carry spells to skip (`skip`, spell IDs by rank, set in the editor, any spell of the
+  class whether learned or not). The build you follow decides what Learn All at the trainer leaves out
+  and what the Spells tab calls skipped, next to the character's own right-click skips. Those own skips
+  are kept per character, so they never reach a new one; the build's are account-wide, travel in a
+  build's export string and the Profiles share, and a new character gets them by following the build.
 - Coins are written as text, each coin's letter in its colour: the game's coin icons blur when drawn
   large.
 - The window and the mini bar sit on whole screen pixels, and are sized in whole pixels, or every

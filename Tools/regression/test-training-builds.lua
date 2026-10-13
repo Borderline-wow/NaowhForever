@@ -14,6 +14,10 @@ local TREE = { [8] = {
 -- A warrior tree, so a mage node in a warrior build can be caught.
 TREE[1] = { specs = { "Arms", "Fury", "Protection" }, talents = { [21] = { 2001, 5, 1, 1, 1 } } }
 
+-- The mage's trainer spells: two ranks of Fireball, Blink, and a quest spell that no trainer sells.
+local SPELLS = { [8] = { { 1, 133, 0 }, { 6, 143, 100 }, { 20, 1953, 2000 }, { 30, 777, 0, quest = true } } }
+local SPELL_NAMES = { [133] = "Fireball", [143] = "Fireball", [1953] = "Blink", [777] = "Quest Spell" }
+
 local function Fixture(o)
     o = o or {}
     local account, printed, changes = {}, {}, 0
@@ -22,12 +26,12 @@ local function Fixture(o)
     local vault = {}
     local env = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
         ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
-            TrainingBuilds = TREE,
+            TrainingBuilds = TREE, TrainingData = SPELLS,
             Print = function(m) printed[#printed + 1] = m end,
             Confirm = function(_, yes) yes() end,
         },
         UnitClass = function() return "Mage", "MAGE", 8 end,
-        C_Spell = { GetSpellName = function(id) return "Talent " .. id end },
+        C_Spell = { GetSpellName = function(id) return SPELL_NAMES[id] or ("Talent " .. id) end },
         wipe = function(t) for k in pairs(t) do t[k] = nil end end,
         GetClassInfo = function(id) return ({ [1] = "Warrior", [8] = "Mage" })[id] end,
         C_ClassTalents = { GetActiveConfigID = function() return o.config end },
@@ -241,6 +245,38 @@ Case("a copy of a built-in build is a saved build of its own", function()
     assert(index == 2 and copy.saved and copy.points ~= TREE[8][1].points, "own table")
     t.T.UndoPoint(TREE[8], copy)
     assert(#TREE[8][1].points == 6, "the built-in one is untouched")
+end)
+
+Case("a saved build skips a spell by every rank, learned or not, and quest spells are not offered", function()
+    local t = Fixture()
+    local index = t.T.NewBuild(8, "Skips")
+    local build = t.T.Builds(8)[index]
+    local groups = t.T.SkipGroups(8)
+    assert(#groups == 2 and groups[1].name == "Fireball" and #groups[1].spells == 2 and groups[2].name == "Blink",
+        "one row per spell, ranks together, no quest spell")
+    assert(t.T.SkipCount(build) == 0 and not t.T.IsSkipping(build, groups[1]))
+    t.T.ToggleSkip(build, groups[1])
+    assert(build.skip[133] and build.skip[143] and t.T.IsSkipping(build, groups[1]) and t.T.SkipCount(build) == 2)
+    t.T.ToggleSkip(build, groups[1])
+    assert(build.skip == nil and t.T.SkipCount(build) == 0, "an empty list is not kept")
+end)
+
+Case("the skip list goes with an export, an import and a copy, and only the class's spells are kept", function()
+    local t = Fixture()
+    local index = t.T.NewBuild(8, "Skips", TREE[8][1])
+    local build = t.T.Builds(8)[index]
+    t.T.ToggleSkip(build, t.T.SkipGroups(8)[2])
+    local got = Import(t, t.T.ExportBuild(8, build))
+    local imported = t.T.Builds(8)[got[2]]
+    assert(imported.skip[1953] and t.T.SkipCount(imported) == 1, "imported")
+    got = Import(t, t.Pack({ v = 1, class = 8, name = "Odd", spec = "x", points = TREE[8][1].points,
+        skip = { 1953, 143, 999, "Blink" } }))
+    imported = t.T.Builds(8)[got[2]]
+    assert(imported.skip[1953] and imported.skip[143] and not imported.skip[999] and t.T.SkipCount(imported) == 2,
+        "unknown ids and non-numbers dropped")
+    local at = t.T.NewBuild(8, "Copy", build)
+    local copy = t.T.Builds(8)[at]
+    assert(copy.skip[1953] and copy.skip ~= build.skip, "a copy has its own list")
 end)
 
 Case("every class has its tree, and any build that ships passes the rules", function()

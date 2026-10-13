@@ -42,7 +42,8 @@ local function World()
             barSets = { PALADIN = { Raid = {} } },
             libraryMacros = { PALADIN = { { name = "Seal", body = "/cast Seal", icon = 135 },
                 { name = "Packed", body = "/cast Pack", pack = true } } },
-            trainingBuilds = { [2] = { { name = "Ret", spec = "Retribution", points = { 11, 12 }, saved = true } } },
+            trainingBuilds = { [2] = { { name = "Ret", spec = "Retribution", points = { 11, 12 }, saved = true,
+                skip = { [20] = true, [10] = true } } } },
         },
     }
     w.active = "Default"
@@ -54,6 +55,11 @@ local function World()
         -- Points that cannot be taken start with 0 here; the real rules are Training's own test.
         Training = {
             CheckBuild = function(_, points) return points[1] == 0 and "Already at full rank." or nil end,
+            CleanSkips = function(_, list)
+                local skip = {}
+                for _, spell in ipairs(list or {}) do skip[spell] = true end
+                return next(skip) and skip or nil
+            end,
             BuildName = function(text, default) return type(text) == "string" and text ~= "" and text or default end,
             Changed = function() w.buildsChanged = w.buildsChanged + 1 end,
         },
@@ -349,7 +355,8 @@ Case("talent builds join yours when they can be taken; a class with no tree stay
     local w = World()
     local payload = assert(w.ns.DecodeProfile((w.ns.ExportProfile())))
     local list = payload.parts.builds[2]
-    list[2] = { name = "Ret", spec = "Retribution", points = { 11, 13 } }
+    assert(table.concat(list[1].skip, " ") == "10 20", "the skip list travels as a sorted list")
+    list[2] = { name = "Ret", spec = "Retribution", points = { 11, 13 }, skip = { 30 } }
     list[3] = { name = "", points = { 14 } }
     list[4] = { name = "Broken", points = { 0, 1 } }
     list[5] = { name = "Nothing", points = {} }
@@ -357,7 +364,7 @@ Case("talent builds join yours when they can be taken; a class with no tree stay
     local _, added = w.ns.ImportProfile(payload, { builds = true }, "T")
     local saved = w.db.account.trainingBuilds
     assert(added.builds == 2 and #saved[2] == 3, added.builds)
-    assert(saved[2][2].points[2] == 13 and saved[2][2].saved == true)
+    assert(saved[2][2].points[2] == 13 and saved[2][2].saved == true and saved[2][2].skip[30] == true)
     assert(saved[2][3].name == "Imported Build" and saved[2][3].spec == "Imported")
     assert(saved[99] == nil and w.buildsChanged == 1)
 end)

@@ -34,6 +34,8 @@ local TEXT_AT_TRAINER = ns.L("At the trainer")
 local TEXT_RANK_FIRST = ns.L("Learn %s (%s) first.")
 local TEXT_NEEDS_TALENT = ns.L("Needs the talent %s.")
 local TEXT_TRAINABLE = ns.L("Trainable at level %d.")
+local TEXT_BY_BUILD = ns.L("Skipped by the build you follow.")
+local TEXT_YOUR_BUILD = ns.L("Your build")
 local TEXT_BY_QUEST = ns.L("Taught by a quest, not a trainer.")
 local TEXT_OVER = ns.L("Over %s: %s %s to %s, +%d%%")
 local TEXT_RANK_BEFORE = ns.L("the rank before")
@@ -106,8 +108,14 @@ end
 
 local Text, Paint, Take, Icon = Rows.Text, Rows.Paint, Rows.Take, Rows.Icon
 
+local function FromBuild(spell)
+    return Training.BuildSkipped(spell) and not Training.Ignored()[spell]
+end
+
 local function Reason(entry, state)
-    if state == "rank" then
+    if state == "ignored" and FromBuild(entry[SPELL]) then
+        return TEXT_BY_BUILD
+    elseif state == "rank" then
         return TEXT_RANK_FIRST:format(C_Spell.GetSpellName(entry.needs) or "", C_Spell.GetSpellSubtext(entry.needs) or "")
     elseif state == "talent" then
         return TEXT_NEEDS_TALENT:format(C_Spell.GetSpellName(entry.talent) or "")
@@ -176,6 +184,7 @@ end
 local function SpellClick(self, button)
     local spell = self.entry[SPELL]
     if button == "RightButton" then
+        if self.state == "ignored" and FromBuild(spell) then return end
         MenuUtil.CreateContextMenu(self, SkipMenu(spell, self.state == "ignored"))
     elseif IsModifiedClick("CHATLINK") then
         ChatFrameUtil.InsertLink(C_Spell.GetSpellLink(spell))
@@ -281,10 +290,11 @@ function Rows.Row(entry, state, y, why)
     r.name:SetText(C_Spell.GetSpellName(entry[SPELL]) or "")
     r.rank:SetText((C_Spell.GetSpellSubtext(entry[SPELL]) or "") .. (state == "learned" and "" or Rows.UpgradeTag(entry)))
     r.price:SetText(PriceText(entry))
-    r.why:SetText(why or "")
+    local fromBuild = state == "ignored" and FromBuild(entry[SPELL])
+    r.why:SetText(fromBuild and TEXT_YOUR_BUILD or why or "")
     Paint(r.why, (state == "rank" or state == "talent") and Style.WARN_RGB or T.muted)
-    r.why:SetShown(state ~= "ignored")
-    r.restore:SetShown(state == "ignored")
+    r.why:SetShown(state ~= "ignored" or fromBuild)
+    r.restore:SetShown(state == "ignored" and not fromBuild)
     r.restore._onClick = function() Training.SetIgnored(entry[SPELL], false, false) end
     Rows.Stripe(r)
     return y - Style.ROW_H

@@ -67,7 +67,7 @@ end
 
 local function Picked(offer)
     local left = unpicked[Key(offer)]
-    if left == nil then return not (offer.spell and Training.Ignored()[offer.spell]) end
+    if left == nil then return not (offer.spell and Training.Skipped(offer.spell)) end
     return not left
 end
 

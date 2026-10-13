@@ -50,9 +50,26 @@ local function StateOf(entry, level, known, ignored)
     return "now"
 end
 
+function Training.BuildSkipped(spell)
+    local build = Training.Followed()
+    return build ~= nil and build.skip ~= nil and build.skip[spell] == true
+end
+
+function Training.Skipped(spell)
+    return Ignored()[spell] == true or Training.BuildSkipped(spell)
+end
+
+local function Skips()
+    local skips = {}
+    for spell in pairs(Ignored()) do skips[spell] = true end
+    local build = Training.Followed()
+    for spell in pairs(build and build.skip or {}) do skips[spell] = true end
+    return skips
+end
+
 function Training.Plan(level)
     local _, _, race = UnitRace("player")
-    local ignored = Ignored()
+    local ignored = Skips()
     level = level or UnitLevel("player")
     local mine, after = MySpells(race)
     local known = Known(mine, after)
