@@ -1,6 +1,8 @@
 -- Disband.lua: removing everyone from your group (ns.DisbandGroup), for the Disband button.
 local ns = _G.NaowhForever
 
+local S = ns.QoLSettings
+
 local TEXT_NO_GROUP = ns.L("You are not in a group.")
 local TEXT_NOT_LEADER = ns.L("Only the group leader can disband the group.")
 local TEXT_DISBAND = ns.L("Remove everyone from your group?")
@@ -21,5 +23,5 @@ end
 function ns.DisbandGroup()
     if not IsInGroup() then ns.Print(TEXT_NO_GROUP); return end
     if not UnitIsGroupLeader("player") then ns.Print(TEXT_NOT_LEADER); return end
-    ns.Confirm(TEXT_DISBAND, Disband)
+    if S.Get("disbandConfirm") then ns.Confirm(TEXT_DISBAND, Disband) else Disband() end
 end

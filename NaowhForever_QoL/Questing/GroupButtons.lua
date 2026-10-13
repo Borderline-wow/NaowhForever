@@ -223,6 +223,8 @@ Settings.Page("QoL/Questing & Group", S):Card({
           help = "A button that invites your target." },
         { key = "groupButtonsInviteAll", label = "Invite All Button", toggle = true,
           help = "A button that invites everyone on your invite buttons." },
+        { key = "disbandConfirm", label = "Confirm Before Disbanding", toggle = true,
+          help = "Asks before the Disband button or Disband Group removes everyone." },
         { label = "Disband Group", button = Disband, buttonText = "Disband", always = true,
           help = "Removes everyone from your group. Group leader only." },
         Settings.Group("Size"),
