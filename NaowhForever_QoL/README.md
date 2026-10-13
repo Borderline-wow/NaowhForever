@@ -686,6 +686,7 @@ NaowhForever_QoL/
 - TradeSkillMaster is optional, and its price call errors on a source it cannot resolve: that is the one reason it runs under pcall.
 - CHAT_MSG_LOOT can arrive before the item is in the bags, which showed the count from before the loot, so item lines read their count again once the bags settle.
 - Coin loot adds to the coin line still on screen and holds it another display time, rather than stacking a line per corpse; its fade-in is skipped so the update does not blink.
+- Looting an item that already has a line on screen adds to that line's count and value and holds it another display time, the same as coins. Items match by link, so two variants of one item stay apart.
 - CHAT_MSG_MONEY carries your own looted coins and a group share, and only those, so vendor sales and mail never reach the feed.
 - A quest turn-in also sends its experience as a combat XP message with no source named. The quest line already shows it, so that one is skipped while quest lines are on. A kill's message names the kill, and its first number is the total gained, rested bonus included.
 - Chat payloads can be secret; nothing in one is worth recovering, so a secret one is dropped.

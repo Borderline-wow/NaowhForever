@@ -341,12 +341,30 @@ local function OnItem(link, count)
         if not quality or quality < S.Get("lootFeedQuality") then return end
         local worth = UnitPrice(link, sellPrice) * count
         AddSessionValue(worth)
-        local _, _, _, hex = C_Item.GetItemQualityColor(quality)
-        local name = TEXT_ITEM:format(hex, item:GetItemName(), count)
-        local pick = ns.IsBisItem and ns.IsBisItem(item:GetItemID())
-        if pick then name = name .. "  " .. ns.Color("accent", "BiS" .. (pick > 1 and " #" .. pick or "")) end
         local bags = C_Item.GetItemCount(link, S.Get("lootFeedBank"))
-        Push(texture, name, nil, bags > 0 and bags or nil, link, S.Get("lootFeedValue") and worth or nil)
+        bags = bags > 0 and bags or nil
+        local _, _, _, hex = C_Item.GetItemQualityColor(quality)
+        local function Named(total)
+            local name = TEXT_ITEM:format(hex, item:GetItemName(), total)
+            local pick = ns.IsBisItem and ns.IsBisItem(item:GetItemID())
+            if pick then name = name .. "  " .. ns.Color("accent", "BiS" .. (pick > 1 and " #" .. pick or "")) end
+            return name
+        end
+        for _, row in ipairs(rows) do
+            if row.link == link then
+                row.count, row.worth = row.count + count, row.worth + worth
+                Look.Fill(row, texture, Named(row.count), nil, bags,
+                    S.Get("lootFeedValue") and row.worth or nil)
+                row.appear:SetFromAlpha(1)
+                row.fade:SetStartDelay(S.Get("lootFeedFade"))
+                row.anim:Restart()
+                Layout()
+                return
+            end
+        end
+        local row = Push(texture, Named(count), nil, bags, link,
+            S.Get("lootFeedValue") and worth or nil)
+        row.count, row.worth = count, worth
     end)
 end
 
