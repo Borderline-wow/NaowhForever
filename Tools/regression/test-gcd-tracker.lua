@@ -38,7 +38,7 @@ local values = {
     enabled = true, gcdTracker = true, gcdDuration = 5, gcdIconSize = 32, gcdSpacing = 4, gcdDirection = "RIGHT",
     gcdFadeStart = 0.5, gcdStack = true, gcdCombatOnly = false, gcdWorld = true, gcdDungeon = true,
     gcdRaid = true, gcdPvP = true, gcdBlocklist = "6603, 75", gcdTimelineColor = { r = 0, g = 0.5, b = 1 },
-    gcdTimelineHeight = 4, gcdDowntime = false, gcdTexture = "",
+    gcdShowIcons = true, gcdShowBar = true, gcdTimelineHeight = 4, gcdDowntime = false, gcdTexture = "",
 }
 local S = { Get = function(k) return values[k] end, Set = function(k, v) values[k] = v end }
 
@@ -128,6 +128,20 @@ check("the busy bar is flat by default, in its color", seg.tex.texture == "Inter
 S.Set("gcdTexture", "Smooth")
 Step(0.03)
 check("Bar Texture applies to the busy bar", seg.tex.texture == "lsm:Smooth" and seg.tex.b == 1)
+local icon
+for _, w in ipairs(frames) do
+    if w.glow and w.parent == tracker then icon = w end
+end
+S.Set("gcdShowBar", false)
+Step(0.03)
+check("Show Activity Bar off hides the busy bar only", not seg.shown and icon.shown)
+S.Set("gcdShowBar", true)
+S.Set("gcdShowIcons", false)
+Step(0.03)
+check("Show Icons off hides the icons only", not icon.shown and seg.shown)
+S.Set("gcdShowIcons", true)
+Step(0.03)
+check("both come back when turned on again", icon.shown and seg.shown)
 for _ = 1, 20 do Step(0.1) end
 check("still updating while the cast scrolls by", tracker.scripts.OnUpdate ~= nil)
 for _ = 1, 80 do Step(0.1) end

@@ -233,7 +233,7 @@ local S = UI.ModuleSettings("qol", {
     gcdFadeStart = 0.5, gcdStack = true, gcdCombatOnly = false,
     gcdWorld = true, gcdDungeon = true, gcdRaid = true, gcdPvP = true,
     gcdBlocklist = "6603, 75", gcdTimelineColor = { r = 0.01, g = 0.56, b = 0.91 },
-    gcdTimelineHeight = 4, gcdDowntime = false, gcdTexture = "",
+    gcdShowIcons = true, gcdShowBar = true, gcdTimelineHeight = 4, gcdDowntime = false, gcdTexture = "",
     focusCastBar = F.focusCastBar, focusWidth = 250, focusHeight = 24,
     focusBgColor = { r = 0.12, g = 0.12, b = 0.12 }, focusBgAlpha = 0.8,
     focusReadyColor = { r = 0.01, g = 0.56, b = 0.91 }, focusReadyClassColor = false,

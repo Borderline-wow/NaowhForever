@@ -233,12 +233,27 @@ local function Layout()
     local speed = (size + spacing) * SPEED_PER_ICON
     local gcdActive = GCDActive()
     ExpireHistory(now, duration)
+    local showIcons = S.Get("gcdShowIcons")
     for _, entry in ipairs(history) do
-        DrawIcon(entry, now, duration, size, spacing, speed, dir, gcdActive)
+        if showIcons then
+            DrawIcon(entry, now, duration, size, spacing, speed, dir, gcdActive)
+        elseif entry.frame then
+            Release(iconPool, entry.frame)
+            entry.frame = nil
+        end
     end
     TrackActivity(now, gcdActive)
     ExpireSegments(now, duration)
-    DrawSegments(now, duration, size, speed, dir)
+    if S.Get("gcdShowBar") then
+        DrawSegments(now, duration, size, speed, dir)
+    else
+        for _, seg in ipairs(segments) do
+            if seg.frame then
+                Release(segPool, seg.frame)
+                seg.frame = nil
+            end
+        end
+    end
 end
 
 local function Tick(_, elapsed)
@@ -477,6 +492,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "gcdRaid", label = "Show in Raids", toggle = true },
         { key = "gcdPvP", label = "Show in Battlegrounds", toggle = true },
         Group("Icons"),
+        { key = "gcdShowIcons", label = "Show Icons", toggle = true },
         { key = "gcdDirection", label = "Direction", choice = DIRECTION },
         { key = "gcdDuration", label = "Time Shown", slider = DURATION_RANGE, unit = "s" },
         { key = "gcdFadeStart", label = "Fade From", slider = FADE_FROM_RANGE, unit = "%", scale = PERCENT_SCALE,
@@ -486,6 +502,7 @@ ns.Shared.Settings.Page("QoL/Combat", S):Card({
         { key = "gcdBlocklist", label = "Hidden Spells", text = true, wide = true,
           help = "Spell IDs never shown, separated by commas. 6603 is Auto Attack, 75 is Auto Shot." },
         Group("Activity Bar"),
+        { key = "gcdShowBar", label = "Show Activity Bar", toggle = true },
         { key = "gcdDowntime", label = "Downtime Summary", toggle = true,
           help = "After each fight longer than 15 seconds, how long you spent neither casting nor on "
               .. "the global cooldown, in chat." },
