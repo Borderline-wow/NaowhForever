@@ -246,7 +246,6 @@ end
 
 do
     local enabled = All(true)
-    enabled.NaowhForever_TopBar, enabled.NaowhForever_QoL = false, false
     local w = Game({ enabled = enabled, loaded = enabled, account = { welcomeSeen = true },
         root = { pvp = { enabled = false }, qol = { characterPanel = true, inspectPanel = false, groupInspect = true } } })
     local Setup = w.ns.Setup
@@ -260,12 +259,15 @@ do
     check("the character panel on: picked, so it takes over without asking; the inspect panel off: not",
         w.root.qol.characterPanelPicked == true and w.root.qol.inspectPanelPicked == nil)
     Setup.Restore()
-    picks = Setup.Fresh()
-    Setup.Toggle(picks, "topBar", true)
-    plan = Applied(w, picks)
+    local off = All(true)
+    off.NaowhForever_GroupInspect, off.NaowhForever_BiS = false, false
+    local w2 = Game({ enabled = off, loaded = off, account = { welcomeSeen = true }, root = { qol = {} } })
+    local picks2 = w2.ns.Setup.Fresh()
+    w2.ns.Setup.Toggle(picks2, "groupInspect", true)
+    plan = Applied(w2, picks2)
     check("a module whose addon is off: it and what it needs enabled, with a reload", plan.reload
-        and Names(plan.on) == "Quality of Life,Top Bar" and w.enabled.NaowhForever_TopBar
-        and w.enabled.NaowhForever_QoL and w.Switch("topBar"))
+        and Names(plan.on) == "BiS List,Group Inspect" and w2.enabled.NaowhForever_GroupInspect
+        and w2.enabled.NaowhForever_BiS and w2.Switch("groupInspect"))
     Setup.Restore()
     picks = Setup.Fresh()
     Setup.Toggle(picks, "bis", false)
