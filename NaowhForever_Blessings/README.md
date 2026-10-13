@@ -114,7 +114,9 @@ NaowhForever_Blessings/
   unit test. Range and time left change with nothing to announce them, so the bar rescans every
   `TICK` seconds out of combat.
 - Auto-Assign: each class's blessings, most wanted first. In a raid Salvation moves up for classes
-  that do not tank; warriors, druids and paladins never get it, so a tank is never handed it. Whoever
+  that do not tank; warriors and druids never get it, so a tank is never handed it. Paladins get it
+  only when the group holds two or more of them and none has the Tank role (the class blessing cannot
+  tell a Retribution paladin from a Protection one, so the role is the check). Whoever
   knows least picks first, so a paladin with few blessings is not left with none, and each wanted
   blessing goes to the first paladin still free who knows it; one aura each. Another paladin's plan
   is kept here until their broadcast confirms it, and sent to them; planning everyone's needs the

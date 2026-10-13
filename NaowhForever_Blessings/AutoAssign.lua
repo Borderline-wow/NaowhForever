@@ -5,6 +5,7 @@ local B = ns.Blessings
 local CLASSES, BLESSINGS, AURAS = B.CLASSES, B.BLESSINGS, B.AURAS
 local others = B.others
 local IsPaladin, Learned, MyName, Store, CanAssign = B.IsPaladin, B.Learned, B.MyName, B.Store, B.CanAssign
+local Secret = B.Secret
 
 local WANTED = {
     WARRIOR = { "might", "kings", "light" },
@@ -25,6 +26,7 @@ local WANTED_RAID = {
     WARLOCK = { "salvation", "wisdom", "kings", "light" },
     SHAMAN = { "salvation", "wisdom", "kings", "might", "light" },
 }
+local PALADIN_SALVATION = { "salvation", "wisdom", "kings", "might", "light" }
 local AURA_ORDER = { "devotion", "retribution", "concentration", "fire", "frost", "shadow", "sanctity" }
 
 local function FewestFirst(a, b)
@@ -49,6 +51,18 @@ local function Paladins()
     return list
 end
 
+local function SalvationForPaladins()
+    local count = 0
+    for _, member in ipairs(B.Roster()) do
+        if member.class == "PALADIN" then
+            local role = UnitGroupRolesAssigned(member.unit)
+            if not Secret(role) and role == "TANK" then return false end
+            count = count + 1
+        end
+    end
+    return count >= 2
+end
+
 local function Pick(paladins, wanted, give)
     local free = {}
     for _, p in ipairs(paladins) do free[#free + 1] = p end
@@ -67,9 +81,11 @@ local function AutoPlans(raid)
     local paladins = Paladins()
     local plans = {}
     for _, p in ipairs(paladins) do plans[p.who] = { classes = {} } end
+    local salvation = SalvationForPaladins()
     for _, class in ipairs(CLASSES) do
-        Pick(paladins, raid and WANTED_RAID[class] or WANTED[class],
-            function(p, key) plans[p.who].classes[class] = key end)
+        local wanted = raid and WANTED_RAID[class] or WANTED[class]
+        if class == "PALADIN" and salvation then wanted = PALADIN_SALVATION end
+        Pick(paladins, wanted, function(p, key) plans[p.who].classes[class] = key end)
     end
     Pick(paladins, AURA_ORDER, function(p, key) plans[p.who].aura = key end)
     return plans
