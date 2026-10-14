@@ -256,6 +256,9 @@ local S = UI.ModuleSettings("qol", {
     trainerPos = { point = "TOP", relPoint = "TOP", x = -274, y = -77 },
 
     flightTimer = F.flightTimer, flightTimerScale = 1, flightTimerAlpha = 1, flightEarlyLanding = true, flightTimerMapTime = false,
+    flightPoint = F.flightPoint, flightPointFont = "",
+    flightPointFontSize = 12, flightPointOutline = "OUTLINE", flightPointBackground = "none",
+    flightPointCustom = false, flightPointColor = { r = ns.THEME.accent.r, g = ns.THEME.accent.g, b = ns.THEME.accent.b },
     flightGame = "aim", quizCamp = F.quizCamp,
     quizPos = { point = "TOP", relPoint = "TOP", x = 0, y = -127 },
     flightTimerFont = "", flightTimerOutline = "NONE", flightTimerTexture = "",

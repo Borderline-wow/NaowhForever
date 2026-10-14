@@ -68,6 +68,7 @@
     <Script file="Questing\Trainer.lua"/>
     <Script file="Travel\FlightData.lua"/>
     <Script file="Travel\Flight.lua"/>
+    <Script file="Travel\FlightPoint.lua"/>
     <Script file="Interface\Waypoints.lua"/>
     <Script file="Travel\QuizData.lua"/>
     <Script file="Travel\Quiz.lua"/>

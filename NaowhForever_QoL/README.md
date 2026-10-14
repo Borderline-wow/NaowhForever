@@ -111,6 +111,7 @@ NaowhForever_QoL/
   Travel/
     FlightData.lua      each flight route's flown length (ns.FLIGHT_ROUTES), generated
     Flight.lua          the Flight Timer, Flight Games and flight times on the flight map
+    FlightPoint.lua     the reminder to learn a town's flight point
     AimTrainer.lua      the Aim Trainer (/nfaim, ns.AimRules, ns.AimPlay, ns.AimOffer)
     AimBoard.lua        the Aim Trainer's leaderboard (ns.AimBoard)
     QuizData.lua        the quiz questions (ns.QUIZ_QUESTIONS)
@@ -474,6 +475,28 @@ NaowhForever_QoL/
   layout, so it is faded (SetAlpha) rather than hidden, and only outside combat.
 - The Flight Timer's mover reports offsets in the timer's own scaled units; they are saved in
   screen units so the Scale slider resizes it in place.
+- Flight Point reads `C_TaxiMap.GetTaxiNodesForMap` for the zone, and the parent maps up through
+  the continent when that list is empty. `isUndiscovered` is not set for a classic flight path you
+  have not spoken to. Until this character opens a flight master's map on that continent
+  (`GetAllTaxiNodes` only lists the open map's continent), a friendly point in range
+  asks you to open one to save the points you know, and only a node the map marks undiscovered is
+  named. Talking to a flight master (a gossip option with the taxi icon) records that town's node
+  as known, so the reminder hides without opening the flight map, and does not mark the snapshot
+  complete. The snapshot is this character's GUID in `flightPoints` (`TAXIMAP_OPENED`), and opening
+  the map still replaces every node from `GetAllTaxiNodes`. A name cannot tell two characters apart.
+- A node is reminded only when it is unlearned and its faction is neutral or the player's.
+  An Alliance character in Undercity sees nothing, because that flight point is Horde.
+- A capital (`ns.TownCapitals`) reminds you only of that city's own flight point, and only while
+  it is still unlearned, anywhere in the city. The place name is the city's when the two are equal,
+  or one contains the other as a whole word: Stormwind matches Stormwind City, and Darkshire does
+  not. Once that point is known, another town does not take its place. Anywhere else the player has to
+  be within 400 yards, or standing in the subzone of that flight point, which is how the Auberdine
+  inn counts. The Crossroads and Ratchet are about 1,200 yards apart, so one town does not
+  light the next. An empty subzone matches nothing.
+- It checks on a zone change, when you stop, when you talk to a flight master, when the flight map
+  opens or closes, when a flight takes or returns control, and when combat starts or ends. While the
+  switch is off, none of those events are registered and the frame is not built.
+- A stop reuses the zone's flight points until the zone changes or the flight map opens or closes.
 - The Aim Trainer's leaderboard sends your best in each mode to your group and guild while Share
   My Scores is on, once you have one (nothing is registered before your first best), and keeps
   the bests others send account-wide in `aimBoard[mode][GUID]` (Forever names are not unique) for
