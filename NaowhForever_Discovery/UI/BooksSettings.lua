@@ -14,7 +14,7 @@ local PIN_SIZE = St.PIN_SIZE_RANGE
 local RANGE = { 10, 100, 5 }
 local OPACITY_RANGE = St.OPACITY_RANGE
 local PERCENT_SCALE = St.PERCENT_SCALE
-local ORDER_TRACKER, ORDER_NEARBY, ORDER_WAYPOINTS, ORDER_WINDOW = 10, 30, 35, 90
+local ORDER_TRACKER, ORDER_NEARBY, ORDER_WAYPOINTS, ORDER_KEYS, ORDER_WINDOW = 10, 30, 35, 80, 90
 local TEXT_SECTION = ns.L("Library Books")
 local TEXT_OFF = ns.L("Turn on Discovery")
 local TEXT_PINS_OFF = ns.L("Turn on Library Books pins")
@@ -120,6 +120,15 @@ page:Card({
     rows = {
         { key = "openMap", label = "Open the Map", toggle = true,
           help = "Also opens the world map on the waypoint, so you see where it is. Out of combat only." },
+    },
+})
+
+page:Card({
+    id = "keys", name = "Key Binding", order = ORDER_KEYS,
+    help = "The key that opens Discovery's window.",
+    rows = {
+        { label = "Open Discovery", binding = "NAOWHFOREVER_DISCOVERY",
+          help = "Press this key to open Discovery's window, and again to close it." },
     },
 })
 

@@ -8,7 +8,7 @@ local Settings = ns.Shared.Settings
 
 local PERCENT, ROUND = Training.C.PERCENT, Training.C.ROUND
 local OPACITY_RANGE, PERCENT_SCALE = Style.OPACITY_RANGE, Style.PERCENT_SCALE
-local ORDER_ON_THE_WAY, ORDER_WINDOW, ORDER_BUILDS = 10, 20, 30
+local ORDER_ON_THE_WAY, ORDER_KEYS, ORDER_WINDOW, ORDER_BUILDS = 10, 15, 20, 30
 local BUILDS_TAB = "builds"
 local TEXT_OFF = ns.L("Turn on the Training Planner")
 local TEXT_BUILDS_SEARCH = ns.L("talents talent points follow import export share auto spend")
@@ -119,6 +119,15 @@ page:Card({
           help = "Beside your class trainer, the spells you can learn now, ticked, with their total and Learn "
               .. "Selected. Untick one to leave it.",
           search = "put the new ranks on my bars swap ranks /nf ranks nf ranks" },
+    },
+})
+
+page:Card({
+    id = "keys", name = "Key Binding", order = ORDER_KEYS,
+    help = "The key that opens the Training Planner.",
+    rows = {
+        { label = TEXT_OPEN, binding = "NAOWHFOREVER_TRAINING",
+          help = "Press this key to open the Training Planner, and again to close it." },
     },
 })
 
