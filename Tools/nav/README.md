@@ -53,8 +53,13 @@ left off. Run one bake at a time: the download library keeps a cache of its own 
   lava and slime block. Only ground deeper than 1.5 yards under the surface is marked.
 - About 44% of the polygons are small pieces cut off from everything around them: roofs, ledges, and
   tower tops whose stairs did not bake (the Orgrimmar flight tower's ramp comes out in a dozen pieces).
-  They are dropped. A place or a player on one is walked from the nearest large piece within 80 yards,
+  They are dropped. A place or a player on one is walked from the nearest large piece within 200 yards,
   with the height between added to the cost; in game they find the stairs themselves.
+- Piers bake as small pieces too, cut off from the shore by a step that does not join, and a boat dock's
+  spot is the ship's, out in the water. The nearest land is often another stretch of shore (Auberdine's
+  piers found opposite banks, a 2,400 yard walk apart), so `pack.mjs` finds the pier under each boat dock
+  before the small pieces go, and attaches the dock where that pier comes closest to the land, the yards
+  along the pier added. A dock that has none attaches to the nearest ground that is not the sea.
 - A flight point's position in the game's table is where the flight starts, a few yards from the
   master, so `Tools/build/journeys.py` moves it onto the flight master from `Shared/Game/Towns.lua`.
   The table's height is kept: it tells a tower's top from the ground under it.

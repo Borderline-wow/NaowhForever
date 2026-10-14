@@ -21,6 +21,7 @@ const ROOT = join(HERE, '..', '..');
 const NETWORK = join(ROOT, 'NaowhForever_Journeys', 'Data', 'Network.lua');
 const Q = 1;
 const ATTACH_REACH = 200;
+const PIER_REACH = 60;
 const NO_WAY = -1;
 const MAIN_SIZE = 300;
 const MAX_POLY_VERTS = 8;   // Walk.lua keys a polygon's edges as polygon * 8 + edge
@@ -28,7 +29,7 @@ const DATA = join(ROOT, 'NaowhForever_JourneysData', 'Data');
 const FILE_BYTES = 3500000;
 const CRLF = String.fromCharCode(13, 10);
 
-// The network's places on a map: [{ key, x, y, z }], keyed as the addon names them.
+// The network's places on a map: [{ key, x, y, z, boat }], keyed as the addon names them.
 export async function places(map) {
   const lua = await readFile(NETWORK, 'utf8');
   const out = [];
@@ -39,7 +40,7 @@ export async function places(map) {
   const ships = lua.slice(lua.indexOf('ships = {'), lua.indexOf('links = {')).split('\n').filter(l => l.includes('{ "'));
   ships.forEach((line, s) => {
     [...line.matchAll(/\{ (\d+), (-?[\d.]+), (-?[\d.]+), \d+, "/g)].forEach((m, d) => {
-      if (Number(m[1]) === map) out.push({ key: `s${s + 1}.${d + 1}`, x: Number(m[2]), y: Number(m[3]), z: null });
+      if (Number(m[1]) === map) out.push({ key: `s${s + 1}.${d + 1}`, x: Number(m[2]), y: Number(m[3]), z: null, boat: line.includes('{ "Boat"') });
     });
   });
   const links = lua.slice(lua.indexOf('links = {')).split('\n').filter(l => l.includes('{ "'));
@@ -67,6 +68,8 @@ function Inside(tile, poly, x, y) {
 
 // The polygon a place stands on, or the nearest within reach: [poly, extra yards] or null. With keep,
 // only polygons it accepts are looked at. The extra yards count the height between too, when known.
+// A dock keeps off the sea, looking into the next tiles if it must: a ship's spot is in the water, and the
+// walk to it ends on the pier or shore.
 export function standOn(tile, x, y, z, keep = () => true) {
   let best = null, bestScore = Infinity;
   tile.polys.forEach((poly, p) => {
@@ -82,8 +85,8 @@ export function standOn(tile, x, y, z, keep = () => true) {
 }
 
 // Which polygons lie in small pieces cut off from everything around them (a tower top whose stairs
-// did not bake, a ledge): a Set of "x,y:poly". Places and players on one are walked from the nearest
-// ground of a large piece instead, as the game's own pathing gets them down.
+// did not bake, a ledge, a pier): a Set of "x,y:poly", and the piece of every polygon. Places and players
+// on one are walked from the nearest ground of a large piece instead, as the game's own pathing gets them down.
 export function smallPieces(tiles) {
   const id = new Map();
   const size = [];
@@ -107,7 +110,41 @@ export function smallPieces(tiles) {
   }
   const small = new Set();
   for (const [poly, c] of id) if (size[c] < MAIN_SIZE) small.add(poly);
-  return small;
+  return { small, id };
+}
+
+function* Around(tiles, x, y) {
+  const [tx, ty] = TileOf(x, y);
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    const key = `${tx + dx},${ty + dy}`, tile = tiles.get(key);
+    if (tile) yield [key, tile];
+  }
+}
+
+// Where a dock's pier meets the land: [x, y, z, yards along the pier] or null. A pier bakes as a piece of its
+// own, cut off from the shore by a step the bake does not join, and goes with the small pieces; the land
+// nearest a dock is often another stretch of shore, a long walk round from the pier's own.
+function pierRoot(tiles, small, id, s) {
+  let pier = null, best = PIER_REACH;
+  for (const [key, tile] of Around(tiles, s.x, s.y)) tile.polys.forEach((poly, p) => {
+    if (poly.area === AREA_OCEAN || !small.has(`${key}:${p}`)) return;
+    const c = centroid(tile, poly), d = Math.hypot(c[0] - s.x, c[1] - s.y);
+    if (d < best) { pier = id.get(`${key}:${p}`); best = d; }
+  });
+  if (pier === null) return null;
+  const deck = [], land = [];
+  for (const [key, tile] of Around(tiles, s.x, s.y)) tile.polys.forEach((poly, p) => {
+    if (poly.area === AREA_OCEAN) return;
+    if (id.get(`${key}:${p}`) === pier) deck.push(centroid(tile, poly));
+    else if (!small.has(`${key}:${p}`)) land.push(centroid(tile, poly));
+  });
+  let root = null;
+  for (const a of deck) for (const b of land) {
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (d < ATTACH_REACH && (!root || d < root.d)) root = { d, a, b };
+  }
+  if (!root) return null;
+  return [root.b[0], root.b[1], root.b[2], Math.hypot(root.a[0] - s.x, root.a[1] - s.y) + root.d];
 }
 
 // Drops the small pieces from every tile, renumbering the polygons that stay and their neighbours and
@@ -150,7 +187,14 @@ export async function pack(map) {
     if (tile && tile.polys.length) tiles.set(`${t.x},${t.y}`, tile);
   }
   const joined = linkAll(tiles);
-  prune(tiles, smallPieces(tiles));
+  const { small, id } = smallPieces(tiles);
+  const spots = await places(map);
+  const piers = new Map();
+  for (const s of spots) {
+    const root = s.boat && pierRoot(tiles, small, id, s);
+    if (root) piers.set(s.key, root);
+  }
+  prune(tiles, small);
   const cross = crossings(tiles);
   const { edges, byTile } = tileCosts(tiles, cross);
 
@@ -162,13 +206,22 @@ export async function pack(map) {
     adj.get(b).push([a, c]);
   }
 
-  const spots = await places(map);
   const attach = [];
   for (const s of spots) {
-    const [tx, ty] = TileOf(s.x, s.y);
-    const key = `${tx},${ty}`;
-    const tile = tiles.get(key);
-    const stand = tile && standOn(tile, s.x, s.y, s.z);
+    const root = piers.get(s.key);
+    const at = root ? { x: root[0], y: root[1], z: root[2] } : s;
+    const [tx, ty] = TileOf(at.x, at.y);
+    let key = `${tx},${ty}`, tile = tiles.get(key);
+    let stand = tile && standOn(tile, at.x, at.y, at.z, s.key.startsWith('s') ? p => tile.polys[p].area !== AREA_OCEAN : undefined);
+    if (stand && root) stand = [stand[0], stand[1] + root[3]];
+    if (!stand && s.key.startsWith('s')) {
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        const k = `${tx + dx},${ty + dy}`, t = tiles.get(k);
+        const there = t && k !== key && standOn(t, s.x, s.y, s.z, p => t.polys[p].area !== AREA_OCEAN);
+        if (there && (!stand || there[1] < stand[1])) { stand = there; key = k; tile = t; }
+      }
+      if (!stand) key = `${tx},${ty}`, tile = tiles.get(key);
+    }
     if (!stand) { attach.push(null); console.log(`  ${s.key} has no ground under it`); continue; }
     const cost = spread(adjacency(tile), [[stand[0], stand[1]]]);
     const mids = tile.polys.map(p => centroid(tile, p));

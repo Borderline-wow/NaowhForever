@@ -3,6 +3,7 @@ local ns = _G.NaowhForever
 
 local Jy = ns.Journeys
 local C = Jy.C
+local S = Jy.Settings
 local World = Jy.World
 local Planner = Jy.Planner
 local Walk = Jy.Walk
@@ -75,6 +76,12 @@ local function Action(legs)
     return first, first, 2
 end
 
+local function Boarding(legs)
+    local first, second = legs[1], legs[2]
+    if first and first.mode == "ship" then return true end
+    return second ~= nil and second.mode == "ship" and first.seconds * C.RUN_SPEED <= C.ARRIVED
+end
+
 local function Corner()
     local corners, at = journey.corners, journey.corner
     if not corners or at * 2 > #corners then return nil end
@@ -98,7 +105,7 @@ local function ShowStep()
     local action, spot = Action(journey.plan.legs)
     local new = { title = stop[1], map = stop[2], x = stop[3], y = stop[4], note = stop[5], icon = stop[6] }
     if action and action.mode ~= "walk" then new.title, new.note = Guide.LegText(action), nil end
-    spot = Corner() or spot
+    spot = not S.Get("stepEnds") and Corner() or spot
     if spot then
         local map, x, y = World.ToMap(spot)
         if map then new.map, new.x, new.y = map, x, y end
@@ -116,6 +123,7 @@ end
 
 local function WalkCost(a, b)
     local ea, eb = a.walkKey or a.reach, b.walkKey or b.reach
+    if ea == false or eb == false then return false end
     if not ea or not eb then return nil end
     return Walk.Cost(a.c, ea, eb)
 end
@@ -144,6 +152,7 @@ local function Planned(plan)
         journey.done = journey.done + finished
     end
     journey.plan, journey.planAt = plan, journey.at
+    journey.ride = Boarding(plan.legs)
     journey.corners, journey.corner = plan.corners, FIRST_CORNER
     ShowStep()
 end
@@ -163,6 +172,7 @@ end
 local function Work(here, to)
     local ctx = Context(Reach(here), Reach(to))
     for _, jump in ipairs(ctx.jumps) do Reach(jump) end
+    if journey.plan and journey.planAt == journey.at then ctx.keep = journey.plan end
     local plan = Planner.Plan(ctx)
     local first = plan and plan.legs[1]
     if first and first.mode == "walk" and here.reach then
@@ -207,6 +217,7 @@ local function Replan()
         if not journey.plan and not step then StopStep() end
         return
     end
+    if journey.ride and not Walk.Ashore(here) then return end
     while Close(here, Stop().spot) do
         if journey.at == #journey.stops then
             local quest = journey.quest
@@ -270,10 +281,11 @@ local function OnEvent(_, event, isWaypoint)
         if not point then QueueReplan() end
     elseif event == "NAVIGATION_DESTINATION_REACHED" then
         if isWaypoint then return end
-        if journey.corners and (journey.corner + 1) * 2 <= #journey.corners then
+        if not S.Get("stepEnds") and journey.corners and (journey.corner + 1) * 2 <= #journey.corners then
             journey.corner = journey.corner + 1
             ShowStep()
         else
+            journey.ride = false
             QueueReplan()
         end
     elseif event ~= "PLAYER_REGEN_ENABLED" or journey.waiting then

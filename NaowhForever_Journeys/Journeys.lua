@@ -16,6 +16,7 @@ local S = ns.UI.ModuleSettings("journeys", {
     learnLifts = F.learnLifts,
     quests = true,
     mapPins = true,
+    stepEnds = true,
 })
 ns.JourneysSettings = S
 

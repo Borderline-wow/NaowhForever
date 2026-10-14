@@ -30,8 +30,9 @@ end
 
 local function Nodes(ctx, net)
     local nodes = {}
-    AddNode(nodes, { kind = "start", c = ctx.from.c, x = ctx.from.x, y = ctx.from.y, reach = ctx.from.reach })
-    AddNode(nodes, { kind = "goal", c = ctx.to.c, x = ctx.to.x, y = ctx.to.y, name = ctx.to.name, reach = ctx.to.reach })
+    AddNode(nodes, { kind = "start", key = "start", c = ctx.from.c, x = ctx.from.x, y = ctx.from.y, reach = ctx.from.reach })
+    AddNode(nodes, { kind = "goal", key = "goal", c = ctx.to.c, x = ctx.to.x, y = ctx.to.y, name = ctx.to.name,
+        reach = ctx.to.reach })
     local flights, docks = {}, {}
     for id, f in pairs(net.flights) do
         if Has(f[6], ctx.faction) and ctx.known[id] then
@@ -60,8 +61,8 @@ local function Nodes(ctx, net)
         end
     end
     for _, jump in ipairs(ctx.jumps or {}) do
-        AddNode(nodes, { kind = "jump", mode = jump.mode, name = jump.name, cast = jump.cast, bias = jump.bias, spell = jump.spell,
-            item = jump.item, c = jump.c, x = jump.x, y = jump.y, reach = jump.reach })
+        AddNode(nodes, { kind = "jump", key = "j" .. (jump.spell or jump.item), mode = jump.mode, name = jump.name, cast = jump.cast,
+            bias = jump.bias, spell = jump.spell, item = jump.item, c = jump.c, x = jump.x, y = jump.y, reach = jump.reach })
     end
     return nodes, flights, docks
 end
@@ -198,18 +199,45 @@ local function RelaxJumps(state, nodes)
     end
 end
 
-local function Legs(state, nodes)
+local function Legs(state, nodes, v)
     local legs = {}
-    local v = GOAL
     while state.prev[v] do
         local leg = state.leg[v]
         local node = nodes[v]
-        leg.name, leg.kind, leg.c, leg.x, leg.y = node.name, node.kind, node.c, node.x, node.y
+        leg.name, leg.kind, leg.key, leg.c, leg.x, leg.y = node.name, node.kind, node.walkKey or node.key, node.c, node.x, node.y
         leg.shipKind = node.shipKind
         if leg.mode ~= "walk" or leg.seconds >= C.MIN_WALK then table.insert(legs, 1, leg) end
         v = state.prev[v]
     end
     return legs
+end
+
+local function Same(a, b)
+    if #a.legs ~= #b.legs then return false end
+    for i, leg in ipairs(a.legs) do
+        if leg.key ~= b.legs[i].key or leg.mode ~= b.legs[i].mode then return false end
+    end
+    return true
+end
+
+local function Kept(old, state, nodes)
+    local first = old.legs[1]
+    if not first then return nil end
+    for v = GOAL, #nodes do
+        if (nodes[v].walkKey or nodes[v].key) == first.key and state.time[v] < huge then
+            local legs, seconds = Legs(state, nodes, v), state.time[v]
+            for i = 2, #old.legs do
+                legs[#legs + 1] = old.legs[i]
+                seconds = seconds + old.legs[i].seconds
+            end
+            return { seconds = seconds, legs = legs }
+        end
+    end
+end
+
+local function Better(best, kept)
+    if Same(best, kept) then return true end
+    return best.seconds <= kept.seconds - C.SWITCH_GAIN and best.seconds <= kept.seconds * (1 - C.SWITCH_SHARE)
 end
 
 function Planner.Plan(ctx)
@@ -232,10 +260,15 @@ function Planner.Plan(ctx)
         if kind == "dock" then RelaxShip(ctx, state, nodes, u, net) end
         if kind == "link" then RelaxLink(state, nodes, u, net) end
     end
-    if state.time[GOAL] == huge then return nil end
-    local legs, seconds = Legs(state, nodes), 0
-    for _, leg in ipairs(legs) do seconds = seconds + leg.seconds end
-    return { seconds = seconds, legs = legs }
+    local best
+    if state.time[GOAL] < huge then
+        local legs, seconds = Legs(state, nodes, GOAL), 0
+        for _, leg in ipairs(legs) do seconds = seconds + leg.seconds end
+        best = { seconds = seconds, legs = legs }
+    end
+    local kept = ctx.keep and Kept(ctx.keep, state, nodes)
+    if kept and not (best and Better(best, kept)) then return kept end
+    return best
 end
 
 Planner.Period = Period

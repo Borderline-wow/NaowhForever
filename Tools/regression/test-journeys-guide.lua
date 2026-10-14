@@ -420,6 +420,7 @@ MAPS[IRONFORGE] = { c = 0, x = WALK_END_X, y = WALK_END_Y }
 here = { x = WALK_START_X, y = WALK_START_Y, c = 0 }
 Check(ns.PlaceWaypoint("Nearby Spot", IRONFORGE, 50, 50), "a short walk-only journey")
 Check(Jy.Guide.Current() ~= nil, "it starts a journey")
+Check(current and math.abs(current.position.x - WALK_END_X / SCALE) < 1e-6, "the waypoint goes where the walk ends, not on its bends")
 here = { x = WALK_MID_X, y = WALK_MID_Y, c = 0 }
 Fire("NAVIGATION_DESTINATION_REACHED", false)
 RunTimers()
@@ -429,9 +430,35 @@ Fire("NAVIGATION_DESTINATION_REACHED", false)
 RunTimers()
 Check(not Jy.Guide.Current(), "arriving at the walk's last corner ends the journey")
 Check(current == nil, "and clears the game's waypoint, instead of leaving the pin where you now stand")
+Jy.Settings.Set("stepEnds", false)
+here = { x = WALK_START_X, y = WALK_START_Y, c = 0 }
+Check(ns.PlaceWaypoint("Nearby Spot", IRONFORGE, 50, 50) and current and math.abs(current.position.x - WALK_MID_X / SCALE) < 1e-6,
+    "with Waypoint Only Where Steps End off, it goes on each bend")
+Jy.Guide.Cancel()
+Jy.Settings.Set("stepEnds", true)
 Jy.Walk.Path, Jy.Walk.Cost = realPath, realCost
 
 Check(Jy.Guide.LegText({ mode = "lift", name = "The Rise" }) == "Lift to The Rise", "a lift step reads as one")
+
+-- On the boat the plan holds: out on the water it is not made again, and reaching the far dock makes it again.
+Jy.Walk.From = realFrom
+here = { x = -8654.5, y = 1344.4, c = 0 }
+Check(ns.PlaceWaypoint(unpack(DESTINATION)) and Title() == "Boat to Auberdine" and Jy.Guide.Current().ride,
+    "at the Stormwind dock the boat is the next thing to do: " .. tostring(Title()))
+local aboard = Jy.Guide.Current().plan
+local realAshore = Jy.Walk.Ashore
+Jy.Walk.Ashore = function() return false end
+here = { x = -8700.0, y = 1700.0, c = 0 }
+for _ = 1, 3 do Tick() end
+Fire("PLAYER_ENTERING_WORLD")
+RunTimers()
+Check(Jy.Guide.Current().plan == aboard and Title() == "Boat to Auberdine", "out on the water the boat stays the plan")
+here = { x = 6548.3, y = 942.2, c = 1 }
+Fire("NAVIGATION_DESTINATION_REACHED", false)
+RunTimers()
+Check(Jy.Guide.Current().plan ~= aboard and not Jy.Guide.Current().ride, "reaching the far dock plans again: " .. tostring(Title()))
+Jy.Walk.Ashore = realAshore
+Jy.Guide.Cancel()
 
 Jy.Settings.Set("enabled", false)
 Check(not Jy.Guide.Current(), "turning Journeys off ends the journey")

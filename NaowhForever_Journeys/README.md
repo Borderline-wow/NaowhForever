@@ -41,22 +41,34 @@ NaowhForever_Journeys/
   stop of a journey with no quest to hand back to clears the waypoint on arrival; otherwise it would
   sit on the map pointing at where you already are.
 - The plan is made again from where you stand on each arrival, landing, loading screen and the end of
-  combat, never on a timer. In combat it waits: cooldowns and spell reads may be secret then.
+  combat, and every few seconds on the move. In combat it waits: cooldowns and spell reads may be secret
+  then. A new route replaces the one you follow only when it is `SWITCH_GAIN` seconds and `SWITCH_SHARE`
+  of the time quicker; the one you follow is timed from where you stand (the quickest way to its next
+  place, then the rest as it was), so near ties do not flip the journey back and forth.
 - Positions are world yards on a continent, as `UnitPosition`, `C_Map.GetWorldPosFromMapPos` and the
   game's tables give them, x north and y west.
 - Walking costs and paths come from the walking maps `Tools/nav` bakes from the client's terrain, in
   `NaowhForever_JourneysData`, a load-on-demand addon loaded on the first journey out of combat. Each
   tile is CBOR, deflated and in Base64, decoded by `C_EncodingUtil` when a walk first touches it; at
   most `WALK_TILES` stay decoded. Where there is no walking data (an instance, the tram's tunnel) the
-  walk is the straight line times `WALK_DETOUR`.
+  walk is the straight line times `WALK_DETOUR`. Where there is, a spot walks from the ground under it, or
+  the nearest within `WALK_REACH` yards that is not the sea; further out (on the sea, past a pier) it has
+  no walk at all: a straight line there crossed the sea and the hills, and the plan you follow is kept.
+- Piers are not in the walking maps, and a boat dock's spot is the ship's, in the water. The bake keeps
+  where each boat dock's pier meets the land (`Tools/nav/pack.mjs`), and a dock, or a player standing
+  between a dock and that root, walks from there. The drawn path runs out along the pier to the dock.
 - A walk between two spots is two searches over the crossings between tiles, from each end, run a few
   milliseconds a frame (`WALK_BUDGET`) in a coroutine: the guide's plan waits for them. Between two of
   the network's places the bake has the answer already.
 - A walk's path is the crossings it passes, then each tile's polygons between them, pulled tight by
-  the funnel algorithm. The guide puts the waypoint on each corner in turn, at least `CORNER_GAP`
-  yards apart, and plans again at the last.
-- The minimap route is lines on a frame over the minimap, each segment clipped to the minimap's circle in
-  code (a line frame cannot be masked), placed from your position with `C_Minimap.GetViewRadius` and turned by
+  the funnel algorithm. The game's waypoint goes where the walk ends (the dock, the flight master, the goal)
+  with Waypoint Only Where Steps End on, the default; off, the guide puts it on each corner in turn, at
+  least `CORNER_GAP` yards apart, and plans again at the last.
+- Once the next thing to do is a boat, the plan holds while you stand on the sea (`Walk.Ashore`): aboard,
+  the planner cannot tell you are already on it and would weigh a fresh wait against swimming off. The game
+  reaching the far dock's waypoint, or stepping onto land, plans again.
+- The minimap route is dots on a frame over the minimap, those past the minimap's circle left out in
+  code, placed from your position with `C_Minimap.GetViewRadius` and turned by
   `GetPlayerFacing` when `rotateMinimap` is on. It redraws every `UPDATE_EVERY` seconds, only while a
   journey is on, so a moving player keeps it in place; with none it has no update at all.
 - Lifts are spawned by the server: neither the client's tables nor Wowhead have where they stand. With Learn
@@ -79,8 +91,9 @@ NaowhForever_Journeys/
   footer take a third of the height a three-step journey needs, and it is shared by other modules. A line
   a step (icon, name, time), the total time, the cog and the close button in one header, and one thin
   segment a step in place of a bar. The close button clears the waypoint, which ends the journey.
-- The route on the world map is one pin the size of the canvas with lines in it, so the lines move and
-  zoom with the map; it ignores the global pin scale and thins its lines as the map zooms in.
+- The route on the world map is one pin the size of the canvas with dots in it, so the dots move and
+  zoom with the map; it ignores the global pin scale and keeps its dots the same size on screen as the map
+  zooms in. On both maps the dots are spaced from the first corner ahead, so they hold still as you walk.
 - `FLIGHT_SPEED` is the flight timer's own figure (`NaowhForever_QoL/Travel/Flight.lua`).
 - `SHIP_SPEED` and the tram's 150 seconds are estimates until they are timed in game. A ship's
   expected wait is half its period until its departures are known.

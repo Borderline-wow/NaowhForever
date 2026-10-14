@@ -1,5 +1,7 @@
--- MapRoute.lua: the journey drawn on the world map: the walk you are on along its path, then each leg after it.
+-- MapRoute.lua: the journey drawn on the world map as dots: the walk you are on along its path, then each leg after it.
 local ns = _G.NaowhForever
+
+local sqrt, fmod = math.sqrt, math.fmod
 
 local T = ns.THEME
 local Jy = ns.Journeys
@@ -7,7 +9,10 @@ local S = Jy.Settings
 local Guide = Jy.Guide
 
 local TEMPLATE = "NaowhForeverJourneyRoutePinTemplate"
-local WALK_WIDTH, LEG_WIDTH = 4, 2
+local DOT = ns.Shared.Style.ROUND
+local FILTER = "TRILINEAR"
+local WALK_SIZE, LEG_SIZE = 7, 5
+local WALK_GAP, LEG_GAP = 13, 11
 local WALK_ALPHA, LEG_ALPHA = 0.9, 0.55
 local CENTER = 0.5
 
@@ -35,21 +40,40 @@ local function Collect()
     for _, p in ipairs(ahead) do points[#points + 1] = p end
 end
 
+function Jy.RouteDots(ax, ay, bx, by, gap, carry, place)
+    local dx, dy = bx - ax, by - ay
+    local length = sqrt(dx * dx + dy * dy)
+    local at = carry or fmod(length, gap)
+    while at <= length do
+        local t = length > 0 and at / length or 0
+        place(ax + dx * t, ay + dy * t)
+        at = at + gap
+    end
+    return at - length
+end
+
 function NaowhForeverJourneyRoutePinMixin:OnLoad()
     self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI")
     self:SetIgnoreGlobalPinScale(true)
-    self.lines = {}
+    self.dots = {}
+    self.place = function(x, y) self:Place(x, y) end
 end
 
 function NaowhForeverJourneyRoutePinMixin:CheckMouseButtonPassthrough() end
 
-function NaowhForeverJourneyRoutePinMixin:Line(i)
-    local line = self.lines[i]
-    if not line then
-        line = self:CreateLine(nil, "OVERLAY")
-        self.lines[i] = line
+function NaowhForeverJourneyRoutePinMixin:Place(x, y)
+    self.count = self.count + 1
+    local dot = self.dots[self.count]
+    if not dot then
+        dot = self:CreateTexture(nil, "OVERLAY")
+        dot:SetTexture(DOT, nil, nil, FILTER)
+        self.dots[self.count] = dot
     end
-    return line
+    dot:ClearAllPoints()
+    dot:SetPoint("CENTER", self, "TOPLEFT", x, -y)
+    dot:SetSize(self.size, self.size)
+    dot:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, self.alpha)
+    dot:Show()
 end
 
 function NaowhForeverJourneyRoutePinMixin:Draw()
@@ -61,7 +85,8 @@ function NaowhForeverJourneyRoutePinMixin:Draw()
     self:SetPosition(CENTER, CENTER)
     local continent = Continent(mapID)
     local scale = 1 / map:GetCanvasScale()
-    local n, last = 0, nil
+    local last, carry = nil, nil
+    self.count = 0
     for _, p in ipairs(points) do
         local u, v
         if p.c == continent then
@@ -69,17 +94,16 @@ function NaowhForeverJourneyRoutePinMixin:Draw()
             if pos then u, v = pos.x, pos.y end
         end
         if u and last then
-            n = n + 1
-            local line = self:Line(n)
-            line:SetStartPoint("TOPLEFT", self, last[1] * w, -last[2] * h)
-            line:SetEndPoint("TOPLEFT", self, u * w, -v * h)
-            line:SetThickness((p.walk and WALK_WIDTH or LEG_WIDTH) * scale)
-            line:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, p.walk and WALK_ALPHA or LEG_ALPHA)
-            line:Show()
+            self.size = (p.walk and WALK_SIZE or LEG_SIZE) * scale
+            self.alpha = p.walk and WALK_ALPHA or LEG_ALPHA
+            carry = Jy.RouteDots(last[1] * w, last[2] * h, u * w, v * h, (p.walk and WALK_GAP or LEG_GAP) * scale, carry,
+                self.place)
+        else
+            carry = nil
         end
         last = u and { u, v } or nil
     end
-    for i = n + 1, #self.lines do self.lines[i]:Hide() end
+    for i = self.count + 1, #self.dots do self.dots[i]:Hide() end
 end
 
 function NaowhForeverJourneyRoutePinMixin:OnAcquired()

@@ -1,6 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the Journeys planner. A short trip is a walk, a long
 -- one takes known flights and your faction's ships, an unknown flight point or the other faction's
--- boat is never used, the Hearthstone is taken only when it wins, and a ship's wait counts.
+-- boat is never used, the Hearthstone is taken only when it wins, a ship's wait counts, and the route
+-- being followed is kept unless another is clearly quicker.
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local s = f:read("*a"):gsub("\r\n", "\n"); f:close()
@@ -85,6 +86,20 @@ Check(measured and Modes(measured) == "walk" and math.abs(measured.seconds - 700
     "a measured walk costs its yards at running speed")
 local unknown2 = Plan({ to = { c = 0, x = -4900, y = -1100, name = "Bank" }, walk = function() return nil end })
 Check(math.abs(unknown2.seconds - short.seconds) < 0.01, "no answer falls back to the straight line")
+
+local BANK = { c = 0, x = -4900, y = -1100, name = "Bank" }
+local function Following(rest)
+    return { seconds = 0, legs = { { mode = "walk", key = "f6", seconds = 1 }, { mode = "fly", key = "goal", seconds = rest } } }
+end
+local tie = Plan({ to = BANK, keep = Following(short.seconds + 20) })
+Check(tie and tie.legs[#tie.legs].mode == "fly", "a route only a little quicker does not replace the one followed")
+Check(math.abs(tie.seconds - (short.seconds + 20)) < 1, "which is timed from here: " .. tie.seconds)
+local gain = Plan({ to = BANK, keep = Following(short.seconds + 200) })
+Check(gain and Modes(gain) == "walk" and #gain.legs == 1, "a clearly quicker one does")
+local again = Plan({ to = BANK, keep = short })
+Check(again and #again.legs == 1 and again.legs[1].seconds == short.seconds, "the same route comes back with fresh times")
+local stranded = Plan({ to = BANK, walk = function(a) if a.kind == "start" then return false end end })
+Check(stranded == nil, "a start the walking maps cannot place walks nowhere, not in a straight line")
 
 local links = ns.JourneyNetwork.links
 links[#links + 1] = { "Lift", "AH", 30, { 0, -3000, 0, "Base", 0 }, { 0, 3000, 0, "Top", 100 } }

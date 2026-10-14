@@ -82,6 +82,7 @@ env.GetTime = function() return 0 end
 env.debugprofilestop = function() return 0 end
 
 Load("NaowhForever_Journeys/Constants.lua")
+Load("NaowhForever_Journeys/Data/Network.lua")
 Load("NaowhForever_JourneysData/Data.lua")
 for line in Read("NaowhForever_JourneysData/JourneysData.xml"):gmatch('file="Data\\(Map2991[^"]*)"') do
     Load("NaowhForever_JourneysData/Data/" .. line)
@@ -128,5 +129,25 @@ local placeCost = Walk.Cost(ZEPHRAS, a, "s8.2")
 Check(placeCost ~= nil, "a spot walks to a network place: " .. tostring(placeCost))
 Check(Walk.Cost(ZEPHRAS, "s8.2", "s8.2") == 0, "a place is no walk from itself")
 Check(Walk.Cost(ZEPHRAS, a, "nowhere") == nil, "an unknown place: no answer, not a wall")
+
+-- The Eastern Kingdoms: Stormwind Harbor's dock is the ship's spot in the water at the end of a long pier
+-- the walking maps do not have. Its walk ends where the pier meets the land, never across the harbour,
+-- and the open sea is no walk at all.
+for line in Read("NaowhForever_JourneysData/JourneysData.xml"):gmatch('file="Data\\(Map0[^"]*)"') do
+    Load("NaowhForever_JourneysData/Data/" .. line)
+end
+local EK = 0
+local CITY = { c = EK, x = -8830, y = 650 }
+local DOCK = { c = EK, x = -8654.5, y = 1344.4 }
+local city, dock = Walk.From(CITY), Walk.From(DOCK)
+Check(city and dock and dock.off, "the dock walks from the land its pier joins")
+local harbour = Walk.Path(city, dock)
+Check(harbour and harbour[#harbour - 1] == DOCK.x and harbour[#harbour] == DOCK.y, "the walk there is drawn, out to the dock")
+local measured, baked = Walk.Cost(EK, city, dock), Walk.Cost(EK, city, "s5.2")
+Check(measured and baked and math.abs(measured - baked) < 50, ("and costs what the baked table says: %s and %s"):format(
+    tostring(measured), tostring(baked)))
+local onPier = Walk.From({ c = EK, x = (DOCK.x + dock.x) / 2, y = (DOCK.y + dock.y) / 2 })
+Check(onPier and onPier.poly == dock.poly and onPier.tx == dock.tx, "halfway along the pier walks from its root too")
+Check(Walk.From({ c = EK, x = -10500, y = 2600 }) == false, "the open sea is off the walking maps: no walk, not a straight line")
 
 print(("journeys walk: %d checks passed"):format(checks))
