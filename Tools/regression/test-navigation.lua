@@ -144,6 +144,7 @@ env.InCombatLockdown = function() return false end
 env.LibStub = function() return nil end
 env.strtrim = function(s) return s:match("^%s*(.-)%s*$") end
 env.UnitName = function() return "Preview" end
+env.UnitGUID = function() return "Player-1-00000001" end
 env.UnitClass = function() return "Warrior", "WARRIOR", 1 end
 env.GetRealmName = function() return "Preview" end
 env.GetTime = function() return 0 end
@@ -172,6 +173,8 @@ LoadWindow()
 Load("Core/Options/Search.lua")
 for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^Shared/.*%.lua$")) do Load(path) end
 Load("Core/Settings.lua")
+Load("Core/Onboarding/Setup.lua")
+Load("Core/Onboarding/ModuleState.lua")
 Load("NaowhForever_QoL/Constants.lua")
 env.GameTooltip = New("Frame")
 env.GameTooltip.GetOwner = function() return nil end
@@ -719,7 +722,7 @@ Check(next(disabled) == nil, "nothing is disabled before the player confirms")
 confirmYes()
 Check(disabled.NaowhForever_DungeonJournal and not disabled.NaowhForever_BiS, "confirming disables the journal alone")
 Check(reloadText and reloadText:find("reload", 1, true), "then offers the reload")
-Check(ns.JournalSettings.Get("enabled") == true, "the module's own switch is kept for when it comes back")
+Check(ns.JournalSettings.Get("enabled") == false, "the profile's switch goes off with the addon, so another character follows it")
 Check(switch._get() == false, "the switch reads off while the disable waits for its reload")
 switch.scripts.OnClick(); Flush()
 Check(not disabled.NaowhForever_DungeonJournal and switch._get() == true,

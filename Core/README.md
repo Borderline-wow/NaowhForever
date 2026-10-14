@@ -63,6 +63,8 @@ Core/
   Pages/Credits.lua    Credits
   Onboarding/Setup.lua the onboarding's engine: each module's item, the picks (a profile, a skin, the modules)
                                     and their defaults, the summary's plan, Apply and Restore, a new character's profile
+  Onboarding/ModuleState.lua keeps this character's AddOn list the same as the profile's module switches
+                                    (ns.ReconcileModules, ns.SetModuleState)
   Onboarding/SetupWindow.lua the onboarding window: its welcome, a new character's page, then Profile, Skin
                                     (with a live preview of each), Modules and the summary with Apply
   Onboarding/FirstLogin.lua when the onboarding opens: an account's first login, a new character's page until it is answered
@@ -293,9 +295,10 @@ Profile strings
   reads are copied in.
 - What one player answered about EllesmereUI's windows, and their invite buttons' friends (`ns.PROFILE_OWN`),
   are never shared.
-- A module's on/off switch lives in the WoW AddOn list, not SavedVariables, so the Settings part
-  also carries each module's addon name and state (`__modules`) and import applies it with
-  `EnableAddOn`/`DisableAddOn` rather than merging it into the module's own settings table.
+- A module's on/off is its switch in the profile (`enabled`, or the QoL key the module reads) and, for
+  this character, its addon in the WoW AddOn list. The Settings part also carries each module's addon
+  name and state (`__modules`, read from this character's list); import writes it as the new profile's
+  switches, and the AddOn list follows when that profile is switched to (see Module state).
 - The skin travels in a profile string's Look part, with the theme, font and window scale. A
   consumable needs only its item ID; its buff IDs may be left out.
 - A multiline edit box is as tall as its text, so an empty one is given a height or it takes no
@@ -354,13 +357,14 @@ Onboarding
   into Presets.lua and as the switches in the preset's profile, so a new install starting from it
   agrees; `ns.ApplyPreset` writes it as the modules' switches (`Setup.PresetSwitches`), so applying
   Minimalist from the Setups card and from the onboarding agree. A module listed nowhere is on.
-- The Setups card also enables the addon of every module the preset turns on (a module turned off
-  keeps its addon, switched off), and its hover counts a module whose addon is not loaded.
+- The Setups card also enables the addon of every module the preset turns on and, through
+  `ns.ReconcileModules`, disables the addon of every module it turns off; its hover counts a module
+  whose addon is not loaded.
 - Apply backs up first (`setupBefore`: the profile, each module addon's state, whose it was and the
   skin), applies the profile as the Setups card does (`ns.ApplyPreset`, without its confirms), sets the
   skin, then each module: on enables its addon and switches it on (through its store when loaded, so
   it starts at once); off disables its addon if it is on, or, after a preset, if it is enabled at all,
-  so Minimalist leaves exactly its list. Keep mine leaves an enabled module that is switched off as
+  and writes its switch off, so Minimalist leaves exactly its list. Keep mine leaves an enabled module that is switched off as
   it is.
 - A reload is asked only when something needs one: a profile or a skin applied, a module turned on
   whose addon is not loaded, or a loaded one turned off; else the done line is printed. The summary
@@ -406,6 +410,33 @@ Onboarding
 - `ns.ModuleAddons(who)` reads the all-characters state, or with a GUID that character's, so in one
   character's mode a module enabled only on other characters reads as off, and every C_AddOns call
   names it.
+
+Module state
+- Every module is its own addon, so the AddOn list decides what loads, per character, and a disabled
+  addon cannot report anything. The core keeps the answer in the profile: each module's switch
+  (`Setup.ITEMS` names it: `db` and `key`), written explicitly when a module is turned on or off from
+  Settings, a module's window, the onboarding or an import. `ns.SetModuleState(addon, on)` writes the
+  switch and this character's list (`UnitGUID("player")`, never every character) together.
+- `ns.ReconcileModules` makes the list match the profile. It runs 8 seconds after login, when a profile
+  is switched to (`ns.SwitchProfile`, so a spec swap to a profile with other switches too,
+  `ns.SetAccountProfile`) and after a Setups card apply, and costs
+  one pass over the modules; no events or timers are kept. It does nothing before `onboardingSeen`, so
+  a first install follows the onboarding.
+- Each character keeps what its list was at the last pass (`account.moduleList`, by GUID). A list
+  changed since (the game's AddOn list) is adopted into the profile; otherwise an explicit switch in
+  the profile is applied to the list (another character's change, an import, a new character on the
+  account's profile); a module with no switch follows the list. With nothing kept yet (a character
+  that predates this, or a new one) off wins: a module off in either place ends off in both, so an
+  addon turned off in the old way is not turned back on, and a new character does not bring back
+  what was turned off. A module whose switch is only its default is not written to.
+- A module on without what it needs is turned off (`Setup.Settle`), and turning a module on or off
+  from Settings brings or takes the linked ones (`ns.LinkedAddons`), as before.
+- The Top Bar is part of QoL and has no item, so it has no switch here: `ns.SetModuleState` changes only
+  its list entry (turning it on switches its own store on, when loaded), and `ns.ReconcileModules`
+  leaves it alone.
+- A change to the list takes a reload: one prompt (`ns.ConfirmReload`) after a pass that changed
+  something, held until combat ends. Settings > Modules and the module windows read this character's
+  list together with the switch, so they agree with the game's AddOn list.
 
 Credits
 - Every Credits card keeps an emblem-wide slot for its art, a badge emblem or a smaller icon, so

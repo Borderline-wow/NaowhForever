@@ -158,6 +158,18 @@ Case("a deliberate switch afterwards still moves that one character and its spec
     assert(sv.defaultProfile == "Naowh New", "the account default is not dragged along")
 end)
 
+Case("a profile switch checks the modules against this character's AddOn list", function()
+    local e = Fixture("Main-Ravencrest")
+    e.ns.SettingsRoot()
+    local sv = e.db()
+    sv.profiles.Naowh, sv.profiles["Naowh New"] = {}, {}
+    local checked = 0
+    e.ns.ReconcileModules = function() checked = checked + 1 end
+    e.ns.SwitchProfile("Naowh")
+    e.ns.SetAccountProfile("Naowh New")
+    assert(checked == 2)
+end)
+
 Case("switching already off is reported as such rather than as a change", function()
     local e = Fixture("Main-Ravencrest")
     e.ns.SettingsRoot()

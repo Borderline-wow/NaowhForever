@@ -210,7 +210,7 @@ local MODULE_STATE_KEY = "__modules"
 local function CollectModuleState()
     if type(ns.ModuleAddons) ~= "function" then return nil end
     local out
-    for _, m in ipairs(ns.ModuleAddons()) do
+    for _, m in ipairs(ns.ModuleAddons(UnitGUID("player"))) do
         if type(m.addon) == "string" then
             out = out or {}
             out[m.addon] = m.on == true
@@ -627,19 +627,13 @@ local function AddBuilds(incoming)
     return added
 end
 
-local function ApplyModuleState(state)
-    if type(state) ~= "table" or type(ns.ModuleAddons) ~= "function" or type(ns.LinkedAddons) ~= "function" then
-        return
-    end
-    for _, m in ipairs(ns.ModuleAddons()) do
-        local want = state[m.addon]
-        if want ~= nil and want ~= m.on then
-            if want then
-                for _, addon in ipairs(ns.LinkedAddons(m.addon, true)) do C_AddOns.EnableAddOn(addon) end
-                if m.store then m.store.Set(m.key, true) end
-            else
-                C_AddOns.DisableAddOn(m.addon)
-            end
+local function ApplyModuleState(root, state)
+    if type(state) ~= "table" then return end
+    for _, item in pairs(ns.Setup.ITEMS) do
+        local want = state[item.addon]
+        if type(want) == "boolean" then
+            if type(root[item.db]) ~= "table" then root[item.db] = {} end
+            root[item.db][item.key] = want
         end
     end
 end
@@ -651,7 +645,7 @@ local function ImportSettings(root, settings, wanted)
             root[key] = DropOwn(key, Checked(values, defaults))
         end
     end
-    ApplyModuleState(settings[MODULE_STATE_KEY])
+    ApplyModuleState(root, settings[MODULE_STATE_KEY])
     if wanted.acting then return end
     for _, item in ipairs(ACTING) do
         local values = root[item.module]

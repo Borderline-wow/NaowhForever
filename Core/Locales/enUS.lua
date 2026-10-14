@@ -5280,6 +5280,7 @@ L["Your macros are never changed or copied twice."] = true
 L["Your macros, checked and kept current."] = true
 L["Your Materials"] = true
 L["Your materials"] = true
+L["Your modules were changed to match your profile. Reload now?"] = true
 L["Your Naowh Score, big under your level: hover it for your score with your BiS and the best in the game, click it for the BiS List."] = true
 L["Your note on %s"] = true
 L["Your Own"] = true

@@ -70,6 +70,7 @@ function ns.UsePreset(key, ask)
             for _, m in ipairs(ns.Setup.Modules()) do
                 if want[m.id] then C_AddOns.EnableAddOn(m.addon) end
             end
+            ns.ReconcileModules(true)
         end
         ns.ConfirmReload(DONE:format(name))
     end

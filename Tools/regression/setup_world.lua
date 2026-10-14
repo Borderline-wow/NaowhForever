@@ -1,5 +1,5 @@
 -- A stub game for the onboarding tests: the real Features.lua, Options/Modules.lua, Presets.lua,
--- Setups.lua and Onboarding/Setup.lua, on stub settings stores, one profile, account settings and a
+-- Setups.lua, Onboarding/Setup.lua and Onboarding/ModuleState.lua, on stub settings stores, one profile, account settings and a
 -- C_AddOns that remembers every call. A module's settings store exists only while its addon is
 -- loaded, as in the game (the QoL store is the core's, so always). Not a test itself (run-all.sh
 -- runs only test*.lua). Run from the repo root:
@@ -76,7 +76,7 @@ end
 return function(opts)
     opts = opts or {}
     local w = { root = opts.root or {}, account = opts.account or {}, enabled = {}, others = {}, loaded = {},
-        calls = {}, changed = {}, profile = "Default", character = opts.character == true, GUID = GUID,
+        calls = {}, changed = {}, reloads = {}, timers = {}, frames = {}, combat = false, profile = "Default", character = opts.character == true, GUID = GUID,
         MODULES = MODULES, OWNED = OWNED }
     for _, mod in ipairs(MODULES) do
         local addon = mod.addon
@@ -118,9 +118,20 @@ return function(opts)
             return (w.enabled[addon] or w.others[addon]) and 1 or 0
         end,
         IsAddOnLoaded = function(addon) return w.loaded[addon] == true end,
+        DoesAddOnExist = function() return true end,
     }
     local env = setmetatable({ C_AddOns = C_AddOns, CopyTable = CopyTable, unpack = unpack,
-        UnitGUID = function(unit) return unit == "player" and GUID or nil end }, { __index = _G })
+        UnitGUID = function(unit) return unit == "player" and GUID or nil end,
+        InCombatLockdown = function() return w.combat end,
+        C_Timer = { After = function(_, fn) w.timers[#w.timers + 1] = fn end },
+        CreateFrame = function()
+            local frame = { events = {} }
+            function frame:RegisterEvent(event) self.events[event] = true end
+            function frame:UnregisterEvent(event) self.events[event] = nil end
+            function frame:SetScript(_, fn) self.onEvent = fn end
+            w.frames[#w.frames + 1] = frame
+            return frame
+        end }, { __index = _G })
     env._G = { NaowhForever = ns }
     w.env = env
     Load("Core/Features.lua", env)
@@ -129,6 +140,8 @@ return function(opts)
     Load("Core/Options/Modules.lua", env)
     Load("Core/Profiles/Setups.lua", env)
     Load("Core/Onboarding/Setup.lua", env)
+    ns.ConfirmReload = ns.ConfirmReload or function(text) w.reloads[#w.reloads + 1] = text end
+    Load("Core/Onboarding/ModuleState.lua", env)
     local dbOf = {}
     for _, item in pairs(ns.Setup.ITEMS) do
         for _, mod in ipairs(MODULES) do
