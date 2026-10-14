@@ -174,6 +174,12 @@ local MODULES = {
       inQoL = true,
       subtitle = "Your buttons on either side of an optional clock, with FPS and latency underneath.",
       tabs = {} },
+    { name = "Glimmer", group = "ADVENTURE", navIcon = "spark", settings = "GlimmerSettings",
+      addon = "NaowhForever_Glimmer",
+      subtitle = "Herbs, ore, chests and quest objects light up as you walk up to them.",
+      tabs = {
+          { name = "Settings", reuse = true },
+      } },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
       addon = "NaowhForever_SwingTimer",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",

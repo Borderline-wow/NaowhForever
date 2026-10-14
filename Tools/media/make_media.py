@@ -911,3 +911,49 @@ write_tga(os.path.join(AURABUFFS_OUT, "Sit.tga"), 128, line_icon(
     path([(0.2, 0.3), (0.2, 0.9)]),
     path([(0.2, 0.62), (0.3, 0.62)]),
     width=0.07))
+
+GLIMMER_OUT = os.path.join(paths.ROOT, "NaowhForever_Glimmer", "Media")
+
+
+def glimmer_glow(x, y, size):
+    d = math.hypot(x - size / 2.0, y - size / 2.0) / (size / 2.0)
+    a = max(0.0, 1.0 - d) ** 2
+    return (255, 255, 255, int(round(255 * a)))
+
+
+def glimmer_flare(x, y, size):
+    u, v = (x - size / 2.0) / (size / 2.0), (y - size / 2.0) / (size / 2.0)
+    arms = max(math.exp(-(v / 0.06) ** 2) * max(0.0, 1.0 - abs(u)) ** 1.5,
+               math.exp(-(u / 0.06) ** 2) * max(0.0, 1.0 - abs(v)) ** 1.5)
+    core = max(0.0, 1.0 - math.hypot(u, v) / 0.35) ** 2
+    return (255, 255, 255, int(round(255 * min(1.0, arms + core))))
+
+
+def glimmer_ring(x, y, size):
+    d = math.hypot(x - size / 2.0, y - size / 2.0) / (size / 2.0)
+    line = math.exp(-((d - 0.86) / 0.035) ** 2)
+    halo = 0.35 * math.exp(-((d - 0.86) / 0.12) ** 2)
+    return (255, 255, 255, int(round(255 * min(1.0, line + halo))))
+
+
+def glimmer_beam(x, y, size):
+    u = (x - size / 2.0) / (size / 2.0)
+    rise = y / size
+    a = math.exp(-(u / 0.32) ** 2) * rise ** 1.6
+    return (255, 255, 255, int(round(255 * a)))
+
+
+def glimmer_bracket(x, y, size):
+    w, length = size * 0.09, size * 0.62
+    top = smooth(w, y) if x < length else 0.0
+    left = smooth(w, x) if y < length else 0.0
+    return (255, 255, 255, int(round(255 * max(top, left))))
+
+
+GLIMMER_TEXTURES = {
+    "glow": glimmer_glow, "flare": glimmer_flare, "ring": glimmer_ring,
+    "beam": glimmer_beam, "bracket": glimmer_bracket,
+}
+os.makedirs(GLIMMER_OUT, exist_ok=True)
+for name, pixel in GLIMMER_TEXTURES.items():
+    write_tga(os.path.join(GLIMMER_OUT, name + ".tga"), 128, pixel)

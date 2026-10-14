@@ -1,0 +1,207 @@
+-- SettingsPage.lua: Glimmer's settings page, declared as cards, with its live previews.
+local ns = _G.NaowhForever
+
+local T = ns.THEME
+local G = ns.Glimmer
+local S = G.Settings
+local C, St = G.C, G.Style
+local Effects, CVars = G.Effects, G.CVars
+
+local Settings = ns.Shared and ns.Shared.Settings
+if not Settings then return end
+local Group = Settings.Group
+
+local OFF = ns.L("Turn on Glimmer")
+local TEXT_RESTART = ns.L("Restart the game to take the sparkle off. A reload is not enough.")
+local TEXT_RESTORE_ASK = ns.L("Put back the game settings Glimmer changed and turn Glimmer off?")
+local TEXT_NOTHING = ns.L("Nothing to put back.")
+local STAGE_H = 150
+local NOTE_Y, NOTE_SIZE = St.STAGE_NOTE_Y, St.STAGE_NOTE_SIZE
+local SAMPLE_Y = 8
+local SIZE_RANGE, BRIGHT_RANGE = { 60, 160, 5 }, { 30, 150, 5 }
+local RANGE_RANGE = { 5, 15, 1 }
+local TO_FRACTION = St.PERCENT_SCALE
+local ORDER_WINDOW, ORDER_LOOK, ORDER_OBJECTS, ORDER_HIDE = 5, 10, 20, 30
+local ORDER_DETECT, ORDER_SPARKLE, ORDER_RESTORE = 40, 50, 60
+local INTERACT_BINDING = "INTERACTTARGET"
+
+local STYLE_NAMES = {
+    glow = "Glow", sparkles = "Sparkles", ring = "Ring", beam = "Beam", brackets = "Brackets",
+}
+local STYLE_ORDER = { "glow", "sparkles", "ring", "beam", "brackets" }
+local STYLES = { STYLE_NAMES, STYLE_ORDER }
+local OWN_NAMES = { same = "Same as All" }
+for key, name in pairs(STYLE_NAMES) do OWN_NAMES[key] = name end
+local OWN_STYLES = { OWN_NAMES, { "same", "glow", "sparkles", "ring", "beam", "brackets" } }
+local ARCS = { { [0] = "Straight Ahead", [1] = "In Front", [2] = "All Around" }, { 0, 1, 2 } }
+
+local CATEGORY_NAMES = {
+    ore = "Ore", herb = "Herbs", quest = "Quest Objects", chest = "Chests", bobber = "Fishing Bobber",
+}
+local CATEGORY_HELP = {
+    ore = "Mining veins and deposits.",
+    herb = "Plants you can gather.",
+    quest = "Objects one of your quests needs.",
+    chest = "Chests, strongboxes and footlockers out in the world.",
+    bobber = "Your fishing bobber.",
+}
+
+local SAMPLES = {
+    far = { ready = false, line = "Skill-up every gather", tier = "orange" },
+    ready = { ready = true, line = "Skill-up every gather", tier = "orange" },
+    locked = { ready = true, locked = true, line = "Requires Mining 65", tier = "red" },
+}
+
+local function Enabled() return G.On() end
+
+local function NewPreview(stage)
+    local preview = CreateFrame("Frame", nil, stage)
+    preview:SetAllPoints()
+    preview.fx = Effects.New(preview)
+    preview.fx:SetPoint("CENTER", preview, "CENTER", 0, SAMPLE_Y)
+    preview.line = ns.Font(preview, St.LINE_SIZE)
+    preview.line:SetPoint("TOP", preview.fx, "CENTER", 0, -St.BASE)
+    preview.note = ns.Font(preview, NOTE_SIZE, nil, T.muted)
+    preview.note:SetPoint("BOTTOM", 0, NOTE_Y)
+    return preview
+end
+
+local function PaintPreview(preview, state)
+    local sample = SAMPLES[state]
+    local color = S.Get("skillColors") and St.TIER_RGB[sample.tier] or S.Get("oreColor")
+    local fx = preview.fx
+    Effects.Set(fx, S.Get("style"), color, S.Get("brightness"), S.Get("size"), sample.ready, sample.locked)
+    if preview.state ~= state then
+        preview.state = state
+        Effects.Start(fx)
+    end
+    preview.line:SetText(S.Get("showLine") and ns.L(sample.line) or "")
+    local tint = St.TIER_RGB[sample.tier]
+    preview.line:SetTextColor(tint.r, tint.g, tint.b)
+    preview.note:SetText(G.On() and "" or OFF)
+end
+
+local LOOK_STATES = {
+    { key = "far", label = "Out of Reach", tip = "Dim while the object is too far to use." },
+    { key = "ready", label = "In Reach", tip = "Bright once you can gather, loot or use it." },
+    { key = "locked", label = "Too Low", tip = "Grey when your skill is too low for it.", needs = function()
+        return not S.Get("hideLocked") end },
+}
+
+local function Shown()
+    local names = {}
+    for _, key in ipairs(G.CATEGORIES) do
+        if S.Get(key) then names[#names + 1] = ns.L(CATEGORY_NAMES[key]) end
+    end
+    return names
+end
+
+local function Headline()
+    if not G.On() then return ns.L("Glimmer is off") end
+    local names = Shown()
+    if #names == 0 then return ns.L("Nothing picked to light up") end
+    return ns.L("Lights up %s"):format(table.concat(names, ", "))
+end
+
+local function Detail()
+    local style = ns.L(STYLE_NAMES[S.Get("style")])
+    local text = ns.L("%s, within %d yards."):format(style, S.Get("range"))
+    if not S.Get("questSparkle") then return text end
+    return text .. " " .. ns.L("Quest items keep their sparkle.")
+end
+
+local function SparkleNote()
+    if CVars.sparkleShown and not (G.On() and S.Get("questSparkle")) then return TEXT_RESTART end
+end
+
+local function Restore()
+    if not CVars.Saved() then
+        ns.Print(TEXT_NOTHING)
+        return
+    end
+    ns.Confirm(TEXT_RESTORE_ASK, CVars.RestoreAll)
+end
+
+local function ObjectRows()
+    local rows = {}
+    for _, key in ipairs(G.CATEGORIES) do
+        rows[#rows + 1] = Group(CATEGORY_NAMES[key])
+        rows[#rows + 1] = { key = key, label = "Light Up " .. CATEGORY_NAMES[key], toggle = true,
+            needs = Enabled, why = OFF, help = CATEGORY_HELP[key] }
+        rows[#rows + 1] = { key = key .. "Style", label = "Effect", choice = OWN_STYLES,
+            needs = Enabled, why = OFF }
+        rows[#rows + 1] = { key = key .. "Color", label = "Color", colour = true, needs = Enabled, why = OFF }
+    end
+    return rows
+end
+
+local page = Settings.Page(C.PAGE, S)
+
+page:Window({
+    order = ORDER_WINDOW,
+    headline = Headline,
+    detail = Detail,
+})
+
+page:Card({
+    id = "look", name = "Look", order = ORDER_LOOK,
+    help = "How the object you are walking up to lights up.",
+    studio = { height = STAGE_H, states = LOOK_STATES, new = NewPreview, paint = PaintPreview },
+    rows = {
+        { key = "style", label = "Effect", choice = STYLES, needs = Enabled, why = OFF },
+        { key = "size", label = "Size", slider = SIZE_RANGE, unit = "%", scale = TO_FRACTION,
+          needs = Enabled, why = OFF },
+        { key = "brightness", label = "Brightness", slider = BRIGHT_RANGE, unit = "%", scale = TO_FRACTION,
+          needs = Enabled, why = OFF },
+        { key = "skillColors", label = "Skill-Up Colors", toggle = true, needs = Enabled, why = OFF,
+          help = "Color herbs and ore by your chance of a skill-up, red when your skill is too low." },
+        { key = "showLine", label = "Show Skill and Quest Line", toggle = true, needs = Enabled, why = OFF,
+          help = "A line under the name: the skill-up chance, or what the quest still needs." },
+    },
+})
+
+page:Card({
+    id = "objects", name = "Objects", order = ORDER_OBJECTS,
+    help = "What lights up, each with its own effect and color if you like.",
+    rows = ObjectRows(),
+})
+
+page:Card({
+    id = "hide", name = "When to Hide", order = ORDER_HIDE,
+    help = "Glimmer always rests in combat, since the game locks these settings there.",
+    rows = {
+        { key = "hideInstance", label = "In Dungeons and Raids", toggle = true, needs = Enabled, why = OFF },
+        { key = "hideLocked", label = "On Nodes Your Skill Is Too Low For", toggle = true, needs = Enabled,
+          why = OFF, help = "Leave them dark instead of grey." },
+    },
+})
+
+page:Card({
+    id = "detect", name = "Detection", order = ORDER_DETECT,
+    help = "The one object the game would interact with is the one that lights up.",
+    rows = {
+        { key = "range", label = "Range", slider = RANGE_RANGE, unit = " yd", needs = Enabled, why = OFF,
+          help = "How far away the game may pick an object to light up." },
+        { key = "arc", label = "Look For Objects", choice = ARCS, needs = Enabled, why = OFF },
+        { key = "onlyHighlighted", label = "Only Name What Glimmer Lights", toggle = true, needs = Enabled,
+          why = OFF, help = "No soft target name on NPCs, mailboxes and doors." },
+        { label = "Interact Key", binding = INTERACT_BINDING,
+          help = "Gathers, loots or uses the lit object once it is in reach." },
+    },
+})
+
+page:Card({
+    id = "questSparkle", name = "Quest Item Sparkle", order = ORDER_SPARKLE, switch = "questSparkle",
+    help = "Keep the game's loot sparkle on quest items, even after a graphics preset turns it off.",
+    note = SparkleNote,
+    rows = {},
+})
+
+page:Card({
+    id = "restore", name = "Game Settings", order = ORDER_RESTORE,
+    help = "Glimmer saves the game settings it changes and puts them back when it is turned off.",
+    rows = {
+        { label = "Put My Game Settings Back", button = Restore, buttonText = "Restore",
+          help = "Writes the saved settings back and turns Glimmer off." },
+    },
+})

@@ -132,6 +132,9 @@ Namespace and builds
 - The Damage Meter module is no longer shipped (its folder stays in git). It turned the game's meter
   (`damageMeterEnabled`) off and kept what it was on the account, so the core puts that back at login
   when the addon is not loaded.
+- Glimmer changes soft target and outline settings and keeps what they were on the account; the core
+  puts those back at login too when NaowhForever_Glimmer is not loaded, so turning the addon off in the
+  AddOns list, or applying a preset that turns it off, never leaves them changed.
 
 Theme
 - Naowh's scheme is dark grey with his blue (#0091ed) as the single accent. Each preset keeps text

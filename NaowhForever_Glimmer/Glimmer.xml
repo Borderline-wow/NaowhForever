@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Glimmer.xml: Glimmer's files, in load order. -->
+    <Script file="Glimmer.lua"/>
+    <Script file="Constants.lua"/>
+    <Script file="Data\Nodes.lua"/>
+    <Script file="CVars.lua"/>
+    <Script file="Target.lua"/>
+    <Script file="View\Style.lua"/>
+    <Script file="View\Effects.lua"/>
+    <Script file="UI\Conflict.lua"/>
+    <Script file="UI\Highlight.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

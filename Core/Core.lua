@@ -55,6 +55,7 @@ local SCALE_DEFAULT, SCALE_MIN, SCALE_MAX, PERCENT = 100, 50, 200, 100
 local LOGIN_APPLY_DELAY = 1
 local DAMAGE_METER_ADDON, GAME_METER_CVAR, GAME_METER_SAVED = "NaowhForever_DamageMeter", "damageMeterEnabled",
     "damageMeterGameWas"
+local GLIMMER_ADDON, GLIMMER_SAVED = "NaowhForever_Glimmer", { "glimmerSoftCVars", "glimmerSparkleCVars" }
 local ERR_NO_PROFILE = "no such profile"
 local TEXT_SECRET = "(withheld: this line contained a secret value)"
 local TEXT_LIBRARIES_MISSING = "Libraries missing (%s), so parts of the addon will not work. Download Naowh "
@@ -396,9 +397,21 @@ local function RestoreGameMeter()
     account[GAME_METER_SAVED] = nil
 end
 
+local function RestoreGlimmerSettings()
+    if C_AddOns.IsAddOnLoaded(GLIMMER_ADDON) or InCombatLockdown() then return end
+    local account = ns.AccountSettings()
+    for _, slot in ipairs(GLIMMER_SAVED) do
+        for name, value in pairs(account[slot] or {}) do C_CVar.SetCVar(name, value) end
+        account[slot] = nil
+    end
+end
+
 local meterCheck = CreateFrame("Frame")
 meterCheck:RegisterEvent("PLAYER_LOGIN")
-meterCheck:SetScript("OnEvent", RestoreGameMeter)
+meterCheck:SetScript("OnEvent", function()
+    RestoreGameMeter()
+    RestoreGlimmerSettings()
+end)
 
 local reloader
 

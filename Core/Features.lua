@@ -203,6 +203,10 @@ ns.FEATURES = {
     instanceTracker = {
         enabled = false,
     },
+    glimmer = {
+        enabled = false,
+        questSparkle = false,
+    },
     swingTimer = {
         enabled = true,
         queueHighlight = true,

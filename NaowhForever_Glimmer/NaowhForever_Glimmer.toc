@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: Glimmer
+## Notes: Herbs, ore, chests and quest objects light up as you walk up to them.
+## Author: Naowh
+## Version: 1.1.11
+## Dependencies: NaowhForever
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+
+Glimmer.xml
