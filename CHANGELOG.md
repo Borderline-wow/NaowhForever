@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 1.1.16
+
+### Added
+- XP Bar: Keep Blizzard XP Bar setting, so Blizzard's experience bar can stay between your action
+  bars alongside ours.
+
+### Changed
+- Glimmer: herbs and ore light up grey with the skill they need on a character without Herbalism or
+  Mining, instead of staying unlit.
+
+### Fixed
+- Journeys: following a journey no longer builds up memory and lag while you fight and move around,
+  as when farming.
 
 ## 1.1.15
 
