@@ -385,6 +385,8 @@ Settings.Page("QoL/Interface", S):Card({
           needs = "spellEfficiency", help = "The color of the line on the tooltip." },
         { key = "spellEfficiencyBonus", label = "Include My Spell Power", toggle = true, always = true,
           needs = "spellEfficiency", help = "Adds your bonus healing or spell damage; off shows the spell's base numbers." },
+        { key = "spellEfficiencyTalents", label = "Include My Talents", toggle = true, always = true,
+          needs = "spellEfficiency", help = "Counts the talents that raise a spell's healing or damage or give mana back, at the ranks you have." },
         { key = "spellEfficiencyShow", label = "Show On", choice = EFFICIENCY_SHOW, always = true,
           needs = "spellEfficiency", help = "Which mana spells get the line." },
         { label = "Preview Tooltip", button = ns.PreviewSpellEfficiency, buttonText = "Preview", always = true,

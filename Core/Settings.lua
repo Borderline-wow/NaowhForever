@@ -56,7 +56,7 @@ local S = UI.ModuleSettings("qol", {
     tooltipCopyFormat = "url", tooltipCopyHint = false,
     spellEfficiency = F.spellEfficiency, spellEfficiencyPerMana = true, spellEfficiencyPerSecond = true,
     spellEfficiencyPerManaSecond = false, spellEfficiencyStyle = "long", spellEfficiencyDecimals = 2,
-    spellEfficiencyColor = { r = 0x4d / 255, g = 0xb5 / 255, b = 0xf5 / 255 }, spellEfficiencyBonus = true,
+    spellEfficiencyColor = { r = 0x4d / 255, g = 0xb5 / 255, b = 0xf5 / 255 }, spellEfficiencyBonus = true, spellEfficiencyTalents = true,
     spellEfficiencyShow = "all",
     slashCommands = F.slashCommands,
     lootFeed = F.lootFeed, lootFeedMoney = true, lootFeedXP = false, lootFeedQuality = 1,

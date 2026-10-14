@@ -42,6 +42,25 @@ is how the client's own tooltip finds it (Spell.Description_lang: "$1279976s1 Fr
   Shock: damage to an enemy, healing to an ally; Fire Nova), one direct part for each. It is an
   area spell when the named spell's targets are.
 
+The player's talents, from the same tables: a class talent whose aura adds a percent to damage
+and healing (spell mod 0) or to damage and healing over time (22) of the spells in its class mask
+(the aura's own, or else the talent spell's) and is passive (Arcane Power and Presence of Mind,
+which are spells to cast, are not), for the spells above (Healing Light, Spiritual
+Healing, Improved Renew, Fire Power), written as the talent's node in Forever's tree
+(NaowhForever_Training/Data/TrainingBuilds.lua), the mod and its percent for one rank. Mana cost
+mods are left to the game: the cost read at hover time already has them. Two talents that spare
+mana are not in the tables (the server's own code decides them) and are written from what the
+game's description says: Illumination (a crit heal gives back half the base cost, at the chance the
+tables give the rank) and Elemental Focus (a 10% chance after a fire, frost or nature spell that
+the next damage spell is free).
+
+A talent with several ranks does not have a spell per rank in Forever: the value of each of its
+effects at each rank is a curve (TraitDefinitionEffectPoints -> CurvePoint), 4, 8, 12 for Healing
+Light. A mod is written with its value at every rank. An effect with no curve of its own grows
+like the talent's effect that has one (Piercing Ice's periodic percent), scaled to its own base.
+A talent whose direct percent names a spell with ticks, and no periodic percent of it does,
+counts on the ticks too (Gift of Nature on Tranquility, which has no direct part).
+
 Writes NaowhForever_QoL/Interface/SpellEfficiencyData.lua.
 
 Usage: python Tools/build/spell_efficiency.py [--build 1.60.1.70205]
@@ -57,6 +76,7 @@ import wago  # noqa: E402
 from journal import header, write  # noqa: E402
 
 ROOT = paths.ROOT
+BUILDS = ROOT / "NaowhForever_Training" / "Data" / "TrainingBuilds.lua"
 OUT = ROOT / "NaowhForever_QoL" / "Interface" / "SpellEfficiencyData.lua"
 
 CLASS_CATEGORY = "7"             # SkillLine.CategoryID of the class skill lines
@@ -86,6 +106,22 @@ COUNT_AFTER = re.compile(r"\$\d+m\d\*(\d+)\}")
 PLACEHOLDER = 1                  # a direct base of 1 with no bonus stands in for a scripted amount (Swiftmend)
 MS = 1000
 DECIMALS = 4
+# SpellEffect.EffectMiscValue_0 of a percent spell mod aura (108) that changes damage and healing,
+# or damage and healing over time, and the op each is written with.
+MOD_AURA_PERCENT = 108
+PASSIVE = 0x40                   # SpellMisc.Attributes_0: a talent that is not a spell to cast (Arcane Power is)
+OP_DIRECT, OP_PERIODIC, OP_CRIT_REFUND, OP_FREE_CAST = 0, 1, 2, 3
+MOD_OPS = {0: OP_DIRECT, 22: OP_PERIODIC}
+# Talents the tables do not decide (see the top), by their first rank. Illumination: gives back
+# 50% of the cost of a crit heal, for the heals named, with the chance its first effect has at
+# each rank. Elemental Focus: a 10% chance to make the next damage spell free, for fire, frost and
+# nature damage.
+ILLUMINATION = 20210
+ILLUMINATION_REFUND = 0.5
+ILLUMINATION_SPELLS = {"Flash of Light", "Holy Light", "Light's Vigil", "Holy Shock"}
+ELEMENTAL_FOCUS = 16164
+ELEMENTAL_FOCUS_CHANCE = 0.1
+FOCUS_SCHOOLS = {3, 4, 5}        # an entry's school: fire, nature, frost
 SEPARATOR = ","                  # between an entry's numbers in its string
 COLUMNS = {
     "SkillLine": ("ID", "CategoryID"),
@@ -93,10 +129,20 @@ COLUMNS = {
     "SpellPower": ("SpellID", "PowerType", "ManaCost", "PowerCostPct"),
     "SpellEffect": ("SpellID", "EffectIndex", "Effect", "EffectAura", "EffectBasePointsF",
                     "EffectRealPointsPerLevel", "EffectBonusCoefficient", "EffectAuraPeriod",
-                    "EffectTriggerSpell", "ImplicitTarget_0", "ImplicitTarget_1"),
+                    "EffectTriggerSpell", "ImplicitTarget_0", "ImplicitTarget_1", "EffectMiscValue_0",
+                    "EffectSpellClassMask_0", "EffectSpellClassMask_1", "EffectSpellClassMask_2",
+                    "EffectSpellClassMask_3"),
     "SpellLevels": ("SpellID", "SpellLevel", "MaxLevel"),
-    "SpellMisc": ("SpellID", "DurationIndex", "SchoolMask"),
+    "SpellMisc": ("SpellID", "DurationIndex", "SchoolMask", "Attributes_0"),
     "SpellDuration": ("ID", "Duration"),
+    "SpellClassOptions": ("SpellID", "SpellClassSet", "SpellClassMask_0", "SpellClassMask_1",
+                          "SpellClassMask_2", "SpellClassMask_3"),
+    "SpellName": ("ID", "Name_lang"),
+    "Talent": ("TabID", "SpellRank_0", "SpellRank_1"),
+    "TalentTab": ("ID", "ClassMask"),
+    "TraitDefinition": ("ID", "SpellID"),
+    "TraitDefinitionEffectPoints": ("TraitDefinitionID", "EffectIndex", "CurveID"),
+    "CurvePoint": ("CurveID", "Pos_0", "Pos_1"),
     "Spell": ("ID", "Description_lang"),
 }
 # An entry's fields, in order, then one or two parts of PART_FIELDS each (a damage part and a
@@ -375,6 +421,90 @@ def entries(tables):
     return out
 
 
+def mask_words(row, prefix):
+    return [int(row.get(f"{prefix}{i}") or 0) & 0xFFFFFFFF for i in range(4)]
+
+
+def talent_nodes(text):
+    """First-rank spell -> node, from the tree file, whose talent lines are [node] = { spell, ranks, row, column ... }."""
+    return {int(spell): int(node)
+            for node, spell in re.findall(r"^\s*\[(\d{6,})\] = \{ (\d+), \d+, \d+, \d+", text, re.M)}
+
+
+def class_talent_spells(tables):
+    """The first rank's spell of every class talent."""
+    classes = {row["ID"] for row in tables["TalentTab"] if int(row["ClassMask"] or 0)}
+    return [int(row["SpellRank_0"]) for row in tables["Talent"]
+            if row["TabID"] in classes and row["SpellRank_0"] not in ("", "0")]
+
+
+def rank_values(tables):
+    """{(talent spell, effect index): [the effect's value at rank 1, 2, ...]} for the talents whose
+    effects grow with the rank."""
+    definitions = {r["ID"]: int(r["SpellID"]) for r in tables["TraitDefinition"]}
+    points = {}
+    for row in tables["CurvePoint"]:
+        points.setdefault(row["CurveID"], {})[int(float(row["Pos_0"]))] = number(row["Pos_1"])
+    out = {}
+    for row in tables["TraitDefinitionEffectPoints"]:
+        curve = points.get(row["CurveID"])
+        if curve and row["TraitDefinitionID"] in definitions:
+            out[(definitions[row["TraitDefinitionID"]], int(row["EffectIndex"]))] = [curve[r] for r in sorted(curve)]
+    return out
+
+
+def talent_mods(tables, found, nodes):
+    """{spell: [(node, op, [value at rank 1, 2, ...]), ...]} for the entries in found."""
+    ranks = rank_values(tables)
+    effects = by_spell(tables["SpellEffect"])
+    options = {int(r["SpellID"]): r for r in tables["SpellClassOptions"]}
+    names = {int(r["ID"]): r["Name_lang"] for r in tables["SpellName"]}
+    passive = {int(r["SpellID"]) for r in tables["SpellMisc"] if int(r["Attributes_0"] or 0) & PASSIVE}
+    mods = {}
+
+    def family(spell):
+        return options.get(spell, {}).get("SpellClassSet")
+
+    for talent in class_talent_spells(tables):
+        node = nodes.get(talent)
+        if node is None or talent not in options or talent not in passive:
+            continue
+        for effect in effects.get(talent, []):
+            op = MOD_OPS.get(int(effect["EffectMiscValue_0"] or 0))
+            base = number(effect["EffectBasePointsF"])
+            curve = ranks.get((talent, int(effect["EffectIndex"])))
+            if curve is None:
+                other = next((values for (spell, _), values in sorted(ranks.items()) if spell == talent), None)
+                curve = [v * base / other[0] for v in other] if other and other[0] else [base]
+            amounts = [v / 100 for v in curve]
+            if int(effect["EffectAura"] or 0) != MOD_AURA_PERCENT or op is None or amounts[0] <= 0:
+                continue
+            mask = mask_words(effect, "EffectSpellClassMask_")
+            if not any(mask):
+                mask = mask_words(options[talent], "SpellClassMask_")
+            for spell in found:
+                if (family(spell) == family(talent)
+                        and any(a & b for a, b in zip(mask_words(options[spell], "SpellClassMask_"), mask))):
+                    mods.setdefault(spell, []).append((node, op, amounts))
+    for spell, found_mods in mods.items():
+        if any(part["ticks"] for part in found[spell]["parts"]):
+            over_time = {node for node, op, _ in found_mods if op == OP_PERIODIC}
+            found_mods += [(node, OP_PERIODIC, amounts) for node, op, amounts in list(found_mods)
+                           if op == OP_DIRECT and node not in over_time]
+    for spell, entry_ in found.items():
+        heals = any(part["heal"] == HEAL for part in entry_["parts"])
+        if ILLUMINATION in nodes and heals and names.get(spell) in ILLUMINATION_SPELLS \
+                and family(spell) == family(ILLUMINATION):
+            chances = ranks.get((ILLUMINATION, 0))
+            if chances:
+                mods.setdefault(spell, []).append(
+                    (nodes[ILLUMINATION], OP_CRIT_REFUND, [c / 100 * ILLUMINATION_REFUND for c in chances]))
+        if ELEMENTAL_FOCUS in nodes and not heals and entry_["school"] in FOCUS_SCHOOLS \
+                and family(spell) == family(ELEMENTAL_FOCUS):
+            mods.setdefault(spell, []).append((nodes[ELEMENTAL_FOCUS], OP_FREE_CAST, [ELEMENTAL_FOCUS_CHANCE]))
+    return mods
+
+
 def lua_number(value):
     text = f"{value:.{DECIMALS}f}".rstrip("0").rstrip(".")
     return text if text not in ("", "-0") else "0"
@@ -390,12 +520,19 @@ def lua_entry(found):
     return '"' + SEPARATOR.join(lua_number(value) for value in values) + '"'
 
 
-def lua(found, build):
+def lua(found, build, mods):
     lines = header(OUT.name, "each mana spell rank's healing or damage by spell ID, generated by "
                              f"Tools/build/spell_efficiency.py from build {build}")
     lines.append("ns.SpellEfficiencyData = {")
     for spell in sorted(found):
         lines.append(f"    [{spell}] = {lua_entry(found[spell])},")
+    lines.append("}")
+    lines.append("")
+    lines.append("ns.SpellEfficiencyTalents = {")
+    for spell in sorted(mods):
+        text = ";".join(SEPARATOR.join([str(node), str(op)] + [lua_number(v) for v in values])
+                        for node, op, values in sorted(mods[spell]))
+        lines.append(f'    [{spell}] = "{text}",')
     lines.append("}")
     return lines
 
@@ -410,11 +547,12 @@ def main():
         if not rows or any(column not in rows[0] for column in columns):
             sys.exit(f"wago.tools cannot read {name} for {build} yet")
     found = entries(tables)
-    write(OUT, lua(found, build))
+    mods = talent_mods(tables, found, talent_nodes(BUILDS.read_text(encoding="utf-8")))
+    write(OUT, lua(found, build, mods))
     heals = sum(1 for e in found.values() if any(p["heal"] == HEAL for p in e["parts"]))
     both = sum(1 for e in found.values() if len(e["parts"]) > 1)
     print(f"wrote {OUT.relative_to(ROOT)}: {len(found)} spells ({heals} heal, {both} heal and deal damage), "
-          f"{OUT.stat().st_size} bytes")
+          f"{len(mods)} with talents, {OUT.stat().st_size} bytes")
 
 
 if __name__ == "__main__":

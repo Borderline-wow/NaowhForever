@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: Mana Efficiency (QoL > Interface > Tooltips) on stubs.
 -- The generated data's shape (one string per spell), the line's math (direct, periodic, hybrid, both
 -- on one target, spell power and its sub-20 penalty, cast against instant), mana-only gating, secrets
--- area spells saying per target, and malformed entries failing to no line, no garbage per hover once a spell is decoded, off meaning
+-- area spells saying per target, talents (percent mods by rank, crit refunds, free casts) and malformed entries failing to no line, no garbage per hover once a spell is decoded, off meaning
 -- no hook, every option's effect on the line, a bad imported color falling back to the default, the
 -- card's preview and Preview Tooltip, and the card's rows, defaults and search.
 local checks = 0
@@ -20,12 +20,27 @@ local FIELDS, PART = 4, 9
 local source = Read(DATA)
 check("the data's header names its builder", source:match("^%-%- SpellEfficiencyData%.lua: .-Tools/build/spell_efficiency%.py"))
 local seen, count = {}, 0
-for id in source:gmatch("\n    %[(%d+)%] = ") do
+local spells = source:match("ns%.SpellEfficiencyData = {\n(.-)\n}")
+for id in spells:gmatch("\n?    %[(%d+)%] = ") do
     check("spell " .. id .. " is listed once", not seen[id])
     seen[id] = true
     count = count + 1
 end
 check("the data lists a few hundred spells", count > 200)
+
+local talents = source:match("ns%.SpellEfficiencyTalents = {\n(.-)\n}")
+check("the data lists the spells' talents", talents ~= nil)
+local modSpells = 0
+for id, text in talents:gmatch("%[(%d+)%] = \"([^\"]*)\"") do
+    check("spell " .. id .. " with talents is a spell with data", seen[id])
+    for mod in (text .. ";"):gmatch("([^;]*);") do
+        local node = mod:match("^(%d+),[0-3],%-?%d[%d%.]*")
+        check("spell " .. id .. "'s mod '" .. mod .. "' is node, op, then a value for each rank", node and #node >= 5)
+        for field in mod:gmatch("[^,]+") do check("'" .. field .. "' is a number", tonumber(field)) end
+    end
+    modSpells = modSpells + 1
+end
+check("a few hundred spells have talents", modSpells > 200)
 
 local secret = setmetatable({}, {
     __tostring = function() error("formatted a secret") end,
@@ -35,7 +50,8 @@ local secretTable = {}
 local settings = {
     enabled = true, spellEfficiency = false, spellEfficiencyPerMana = true, spellEfficiencyPerSecond = true,
     spellEfficiencyPerManaSecond = false, spellEfficiencyStyle = "long", spellEfficiencyDecimals = 2,
-    spellEfficiencyColor = { r = 0.3, g = 0.71, b = 0.96 }, spellEfficiencyBonus = true, spellEfficiencyShow = "all",
+    spellEfficiencyColor = { r = 0.3, g = 0.71, b = 0.96 }, spellEfficiencyBonus = true, spellEfficiencyTalents = true,
+    spellEfficiencyShow = "all",
 }
 local defaults = {}
 for key, value in pairs(settings) do defaults[key] = value end
@@ -67,6 +83,7 @@ local costs, casts, infos = {}, {}, {}
 local spellInfo
 local power = { heal = 0 }
 local level, statsSecret = 60, false
+local nodeRanks, crit, configID = {}, 10, 1
 local tooltip, refTip, shopTip = Frame(), Frame(), Frame()
 tooltip.name, refTip.name, shopTip.name = "GameTooltip", "ItemRefTooltip", "ShoppingTooltip1"
 
@@ -107,6 +124,11 @@ local env = {
         end,
     },
     C_Secrets = { ShouldUnitStatsBeSecret = function() return statsSecret end },
+    C_ClassTalents = { GetActiveConfigID = function() return configID end },
+    C_Traits = { GetNodeInfo = function(config, node)
+        if config == configID and nodeRanks[node] then return { activeRank = nodeRanks[node] } end
+    end },
+    GetSpellCritChance = function() return crit end,
     GetSpellBonusHealing = function() return power.heal end,
     GetSpellBonusDamage = function(school) damageReads[#damageReads + 1] = school; return power[school] or 0 end,
     UnitLevel = function() return level end,
@@ -260,6 +282,60 @@ lines = Show(900002)
 check("both on one target: a damage line and a heal line", #lines == 2
     and lines[1][1] == "4.00 damage per mana  ||  40 per second" and lines[2][1] == "2.00 healing per mana  ||  20 per second")
 
+Data[920010] = "3,60,0,0,0,100,0,0,0,0,0,0,0"
+costs[920010], casts[920010] = { { type = 0, cost = 50 } }, 0
+local mods = ns.SpellEfficiencyTalents
+mods[920010] = "1001,0,0.04,0.08,0.12;1002,2,0.1,0.2,0.3;1003,3,0.1"
+check("a talent you have no rank in changes nothing", Show(920010)[1][1] == "2.00 damage per mana")
+nodeRanks[1001] = 2
+check("a percent talent counts its value at your rank", Show(920010)[1][1] == "2.16 damage per mana")
+nodeRanks[1001] = 5
+check("a rank past the last value uses the last", Show(920010)[1][1] == "2.24 damage per mana")
+nodeRanks[1001] = nil
+nodeRanks[1002], crit = 2, 50
+check("a crit refund takes its value at your rank times your crit chance off the cost",
+    Show(920010)[1][1] == "2.22 damage per mana")
+statsSecret = true
+check("with stats secret the crit refund is skipped and the line is left off", #Show(920010) == 0)
+statsSecret = false
+nodeRanks[1002] = nil
+nodeRanks[1003] = 1
+check("a free cast chance takes its share off the cost", Show(920010)[1][1] == "2.22 damage per mana")
+nodeRanks[1001], nodeRanks[1003] = 1, nil
+S.Set("spellEfficiencyTalents", false)
+check("with Include My Talents off the talents do not count", Show(920010)[1][1] == "2.00 damage per mana")
+S.Set("spellEfficiencyTalents", true)
+check("with it on again they do", Show(920010)[1][1] == "2.08 damage per mana")
+configID = nil
+check("with no talent config nothing counts", Show(920010)[1][1] == "2.00 damage per mana")
+configID = 1
+nodeRanks[1001] = nil
+mods[920011], Data[920011] = "1001,0,oops", Data[920010]
+costs[920011], casts[920011] = costs[920010], 0
+check("a malformed talent entry counts as no talents", Show(920011)[1][1] == "2.00 damage per mana")
+Data[920012], mods[920012] = "2,60,0,0,0,0,0,0,10,0,0.5,4,4", "1001,1,0.5;1001,0,0.5"
+costs[920012], casts[920012] = { { type = 0, cost = 10 } }, 0
+nodeRanks[1001] = 1
+check("a periodic talent counts on the ticks only", Show(920012)[1][1] == "6.00 damage per mana  ||  15 per second")
+nodeRanks[1001] = nil
+check("and the same spell without it", Show(920012)[1][1] == "4.00 damage per mana  ||  10 per second")
+costs[635], casts[635] = { { type = 0, cost = 35 } }, 2500
+local holyLight = Show(635)[1][1]
+nodeRanks[105333] = 3
+check("Healing Light (the node in the tree data) raises Holy Light's line", Show(635)[1][1] ~= holyLight)
+nodeRanks[105333] = nil
+costs[740], casts[740] = { { type = 0, cost = 375 } }, 0
+nodeRanks[104916] = 5
+check("Gift of Nature 5/5 raises Tranquility, which only ticks, by 10%", Show(740)[1][1]
+    == "1.33 healing per mana / target  ||  50 per second / target")
+nodeRanks[104916] = nil
+costs[401502], casts[401502] = { { type = 0, cost = 100 } }, 3000
+check("Frostfire Bolt 1 with no talents", Show(401502)[1][1] == "1.37 damage per mana  ||  46 per second")
+nodeRanks[105773] = 3
+check("Piercing Ice 3/3 adds 6% to Frostfire Bolt's ticks too", Show(401502)[1][1] == "1.46 damage per mana  ||  49 per second")
+nodeRanks[105773], nodeRanks[105799] = nil, 3
+check("Arcane Instability 3/3 adds 3% to Frostfire Bolt's ticks too", Show(401502)[1][1] == "1.42 damage per mana  ||  47 per second")
+nodeRanks[105799] = nil
 local frostPower = power[5]
 power[5] = 0
 costs[10], casts[10] = { { type = 0, cost = 320 } }, 0
