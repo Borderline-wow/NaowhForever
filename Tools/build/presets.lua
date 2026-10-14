@@ -13,11 +13,14 @@
 -- other module on (Core/Onboarding/Setup.lua, Setup.PresetSwitches), and the build writes the same switches
 -- into its profile, so a new install starting from it agrees. Without it the preset's switches decide.
 local INFO = {
-    minimalist = { order = 1, name = "Minimalist", about = "Perfect for Classic players who do not want a lot of addons. For players who prefer opting in to features over opting out.",
-        modulesOff = { "NaowhForever_Discovery", "NaowhForever_GroupInspect",
-            "NaowhForever_GearSets", "NaowhForever_SwingTimer", "NaowhForever_ConsumableBar", "NaowhForever_InstanceTracker",
-            "NaowhForever_Journeys" } },
-    recommended = { order = 2, name = "Recommended", about = "Naowh's recommended setup, with the modules he uses on." },
+    minimalist = { order = 1, name = "Minimalist",
+        about = "Perfect if you're a Classic player and don't want to use a lot of addons. This option is for you if you prefer opting in instead of opting out.",
+        modulesOff = { "NaowhForever_InstanceTracker", "NaowhForever_Training", "NaowhForever_Journeys",
+            "NaowhForever_Discovery", "NaowhForever_GearSets", "NaowhForever_Blessings", "NaowhForever_Professions",
+            "NaowhForever_Macros", "NaowhForever_ConsumableBar", "NaowhForever_ActionBars", "NaowhForever_AuraBuffs",
+            "NaowhForever_ThreatMeter", "NaowhForever_GroupInspect", "NaowhForever_PvP", "NaowhForever_SwingTimer" } },
+    recommended = { order = 2, name = "Everything Enabled",
+        about = "Loads every module and gives you the full Naowh Forever experience.", modulesOff = {} },
 }
 local NEW_INSTALL = "minimalist"
 local OUT = "Core/Profiles/Presets.lua"
@@ -170,7 +173,7 @@ for _, key in ipairs(keys) do
     if INFO[key].modulesOff then
         local names = {}
         for i, addon in ipairs(INFO[key].modulesOff) do names[i] = Value(addon) end
-        lines[#lines + 1] = "        modulesOff = { " .. table.concat(names, ", ") .. " },"
+        lines[#lines + 1] = "        modulesOff = " .. (#names > 0 and "{ " .. table.concat(names, ", ") .. " }" or "{}") .. ","
     end
     lines[#lines + 1] = "        profile = {"
     Emit(presets[key].profile, "            ")

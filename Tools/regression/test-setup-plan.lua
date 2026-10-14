@@ -6,10 +6,7 @@ local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
 local World = dofile("Tools/regression/setup_world.lua")
-local MINIMALIST_ON = { qol = true, journal = true, bis = true, training = true, blessings = true, professions = true,
-    macros = true, actionBars = true, auraBuffs = true, threatMeter = true, pvp = true }
-local MINIMALIST_OFF = "NaowhForever_Discovery,NaowhForever_GroupInspect,NaowhForever_GearSets,"
-    .. "NaowhForever_SwingTimer,NaowhForever_ConsumableBar,NaowhForever_InstanceTracker,NaowhForever_Journeys"
+local MINIMALIST_ON = { qol = true, journal = true, bis = true }
 
 local function All(value)
     local out = {}
@@ -66,7 +63,7 @@ end
 do
     local w = Game()
     local Setup = w.ns.Setup
-    check("an account never set up starts on Recommended", Setup.DefaultProfile() == "recommended")
+    check("an account never set up starts on Minimalist", Setup.DefaultProfile() == "minimalist")
     w.account.welcomeSeen = true
     check("one that has seen the onboarding (or the old welcome) keeps its own", Setup.DefaultProfile() == Setup.KEEP)
     w.account.welcomeSeen, w.account.setupBefore = nil, {}
@@ -86,8 +83,13 @@ do
     local on = {}
     for id, value in pairs(minimal) do if value then on[#on + 1] = id end end
     table.sort(on)
-    check("Minimalist pre-selects all but its seven: " .. Names(on), Names(on) == "actionBars,auraBuffs,bis,blessings,journal,macros,professions,pvp,qol,threatMeter,training")
-    check("the list is the preset's own", Names(w.ns.PRESETS.minimalist.modulesOff) == MINIMALIST_OFF)
+    check("Minimalist pre-selects Quality of Life, the Dungeon Journal and the BiS List: " .. Names(on),
+        Names(on) == "bis,journal,qol")
+    for id, item in pairs(Setup.ITEMS) do
+        local listed = false
+        for _, addon in ipairs(w.ns.PRESETS.minimalist.modulesOff) do listed = listed or addon == item.addon end
+        check("the list is the preset's own: " .. id, listed == not MINIMALIST_ON[id])
+    end
     local starter = Game({ root = w.env.CopyTable(w.ns.STARTER.profile) })
     for id in pairs(Setup.ITEMS) do
         check("a new install's switches agree with Minimalist: " .. id, starter.Switch(id) == (MINIMALIST_ON[id] == true))
@@ -101,8 +103,9 @@ do
         for k, it in pairs(Setup.ITEMS) do if it == item then id = k end end
         check(id .. ": Recommended pre-selects what its switches say", recommended[id] == (v == true))
     end
-    check("Recommended keeps its modules: the Threat Meter and Discovery on", recommended.threatMeter
-        and recommended.discovery and recommended.qol)
+    for id in pairs(Setup.ITEMS) do
+        check("Everything Enabled pre-selects every module: " .. id, recommended[id] == true)
+    end
 end
 
 do
@@ -119,7 +122,7 @@ do
     local w = Game()
     local Setup = w.ns.Setup
     local picks = Setup.Fresh()
-    Setup.PickProfile(picks, "minimalist")
+    Setup.PickProfile(picks, "recommended")
     Setup.Toggle(picks, "professions", false)
     check("Professions off leaves the Training Planner on", picks.modules.training)
     Setup.Toggle(picks, "training", true)
@@ -130,10 +133,11 @@ do
     Setup.Toggle(picks, "nothing", true)
     check("an unknown module changes nothing", picks.modules.nothing == nil)
     local edited = picks.modules
-    Setup.PickProfile(picks, "minimalist")
-    check("picking the same profile keeps the edits", picks.modules == edited)
     Setup.PickProfile(picks, "recommended")
-    check("another profile starts its modules again", picks.modules ~= edited and picks.modules.threatMeter)
+    check("picking the same profile keeps the edits", picks.modules == edited)
+    Setup.PickProfile(picks, "minimalist")
+    check("another profile starts its modules again", picks.modules ~= edited and picks.modules.bis
+        and not picks.modules.professions)
 end
 
 do
@@ -161,7 +165,7 @@ do
     picks.skin = ""
     Setup.PickProfile(picks, "recommended")
     plan = Setup.Plan(picks)
-    check("a profile: named, with a reload", plan.profile == "Recommended" and plan.reload)
+    check("a profile: named, with a reload", plan.profile == "Everything Enabled" and plan.reload)
 end
 
 local function Applied(w, picks)
@@ -202,7 +206,7 @@ do
         and w.root.qol.questRewards[1] == 2 and w.root == before)
     check("its switches say the same: off for the rest", w.root.completo.enabled == false
         and w.root.discovery.enabled == false and w.root.qol.groupInspect == false and w.root.qol.bis == true
-        and w.root.threatMeter.enabled == true)
+        and w.root.threatMeter.enabled == false and w.root.journal.enabled == true)
     check("a backup of what was there", w.account.setupBefore and w.account.setupBefore.root.qol.xpBar == false
         and w.account.setupBefore.addons.NaowhForever_PvP == true and w.account.setupBefore.skin == "")
     check("Minimalist has both panels off: neither is picked", w.root.qol.characterPanelPicked == nil
@@ -301,7 +305,7 @@ do
     local picks = Setup.Fresh()
     Setup.PickProfile(picks, "recommended")
     Applied(w, picks)
-    check("Recommended with no flips: its own name stays", w.root.qol.preset == "recommended")
+    check("Everything Enabled with no flips: its own name stays", w.root.qol.preset == "recommended")
     check("the character and inspect panels on in it, with the BiS List: both picked",
         w.root.qol.characterPanelPicked == true and w.root.qol.inspectPanelPicked == true)
 end
@@ -313,22 +317,22 @@ do
     for id, value in pairs(w.ns.Setup.ModuleDefaults(w.ns.Setup.KEEP)) do if value then on[#on + 1] = id end end
     table.sort(on)
     check("Minimalist from the Profiles page's Setups card: the same modules on, the rest off: " .. Names(on),
-        Names(on) == "actionBars,auraBuffs,bis,blessings,journal,macros,professions,pvp,qol,threatMeter,training")
+        Names(on) == "bis,journal,qol")
     local tip = w.ns.PresetChanges("recommended")
-    check("and its hover names what Recommended turns back on", tip:find("Group Inspect", 1, true) ~= nil)
+    check("and its hover names what Everything Enabled turns back on", tip:find("Group Inspect", 1, true) ~= nil)
     w = Game({ account = { welcomeSeen = true }, root = { discovery = { enabled = true } } })
     check("the hover for Minimalist names the modules it turns off", w.ns.PresetChanges("minimalist")
         :find("Minimalist turns off: ", 1, true) ~= nil and w.ns.PresetChanges("minimalist"):find("Discovery", 1, true))
     local enabled, loaded = All(true), All(true)
-    enabled.NaowhForever_ThreatMeter, loaded.NaowhForever_ThreatMeter = false, false
+    enabled.NaowhForever_DungeonJournal, loaded.NaowhForever_DungeonJournal = false, false
     enabled.NaowhForever_Discovery, loaded.NaowhForever_Discovery = false, false
     w = Game({ account = { welcomeSeen = true }, enabled = enabled, loaded = loaded })
     w.ns.ConfirmReload = function() end
     check("the hover counts a module whose addon is not loaded", w.ns.PresetChanges("minimalist")
-        :find("Threat Meter", 1, true) ~= nil and not w.ns.PresetChanges("minimalist"):find("Discovery", 1, true))
+        :find("Dungeon Journal", 1, true) ~= nil and not w.ns.PresetChanges("minimalist"):find("Discovery", 1, true))
     w.ns.UsePreset("minimalist", false)
-    check("the Setups card enables the addons it turns on, and only those", w.enabled.NaowhForever_ThreatMeter
-        and not w.enabled.NaowhForever_Discovery and w.root.threatMeter.enabled == true)
+    check("the Setups card enables the addons it turns on, and only those", w.enabled.NaowhForever_DungeonJournal
+        and not w.enabled.NaowhForever_Discovery and w.root.journal.enabled == true)
 end
 
 print("PASS setup plan: " .. checks .. " checks")

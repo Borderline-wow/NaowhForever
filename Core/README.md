@@ -362,15 +362,15 @@ Onboarding
 - Closing it also sets `welcomeSeen`, which the Character Panel reads to tell a player new to the
   addon from anyone else; players who saw the old welcome window already have it, so they are not
   treated as new.
-- The onboarding asks three things, a step each: a profile (Naowh's Minimalist or Recommended, or Keep
-  mine), a skin, and the modules; then a summary of what changes, and Apply. Players new to addons
+- The onboarding asks three things, a step each: a profile (Naowh's Minimalist or Everything Enabled, or
+  Keep mine), a skin, and the modules; then a summary of what changes, and Apply. Players new to addons
   do not want many choices, so it no longer asks about how they play.
-- The profile step starts on Recommended only for an account never set up: no `welcomeSeen` (the
-  onboarding or the old welcome never closed) and no `setupBefore` (no Apply yet). Anyone else starts
-  on Keep mine, so opening it again changes nothing unless they pick something.
+- The profile step starts on Minimalist, the preset a new install starts from (`newInstall`), only for
+  an account never set up: no `welcomeSeen` (the onboarding or the old welcome never closed) and no
+  `setupBefore` (no Apply yet). Anyone else starts on Keep mine, so opening it again changes nothing unless they pick something.
 - The modules step starts from the picked profile: when a preset has a `modulesOff` list, every
-  module but those (Minimalist leaves off Discovery, with its Quest List, and Group Inspect, which spoil what
-  there is to find, and Gear & Trinkets and Swing Timer, which show nothing until set up), else its
+  module but those (Minimalist keeps only Quality of Life, the Dungeon Journal and the BiS List, for
+  players who would rather opt in; Everything Enabled's list is empty, so every module is on), else its
   switches, with the feature's default for a switch it leaves out; Keep mine starts from what is on
   now (its addon enabled, for this character in its own mode, and its switch on). A module on without
   what it needs (`needs` in `Options/Modules.lua`) cannot run, so it starts off. Picking another

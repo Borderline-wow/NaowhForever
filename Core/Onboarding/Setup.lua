@@ -4,7 +4,6 @@ local Setup = {}
 ns.Setup = Setup
 
 local KEEP = "keep"
-local RECOMMENDED = "recommended"
 local CUSTOM = "custom"
 local PRESET_KEY = "preset"
 local SKIN_NAOWH, SKIN_FOREVER = "", "forever"
@@ -173,8 +172,9 @@ end
 
 function Setup.DefaultProfile()
     local account = ns.AccountSettings()
-    if account.welcomeSeen or account.setupBefore or not Preset(RECOMMENDED) then return KEEP end
-    return RECOMMENDED
+    local start = ns.PRESETS.newInstall
+    if account.welcomeSeen or account.setupBefore or not Preset(start) then return KEEP end
+    return start
 end
 
 function Setup.CurrentSkin()

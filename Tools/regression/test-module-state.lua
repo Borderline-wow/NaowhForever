@@ -157,7 +157,7 @@ do
     w.ns.ConfirmReload = function(text) w.reloads[#w.reloads + 1] = text end
     w.ns.UsePreset("minimalist", false)
     check("Minimalist from the Setups card also takes its modules out of the AddOn list", not w.enabled[DISC]
-        and not w.enabled["NaowhForever_GroupInspect"] and w.enabled[MACROS])
+        and not w.enabled["NaowhForever_GroupInspect"] and not w.enabled[MACROS] and w.enabled["NaowhForever_BiS"])
     check("with the one reload prompt", #w.reloads == 1)
 end
 
