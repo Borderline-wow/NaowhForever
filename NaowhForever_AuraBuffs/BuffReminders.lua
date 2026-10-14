@@ -13,6 +13,7 @@ local CATEGORY_ORDER = A.CATEGORY_ORDER
 local WEAPON_SLOTS = { 16, 17 }
 local CLASS_INDEX = 6
 local REQUIRED_LEVEL = 5
+local INSTANCE_ID = 8
 local ELITE = { elite = true, rareelite = true, worldboss = true }
 
 local GROUP_UNIT = { player = true }
@@ -383,6 +384,15 @@ local function PersonalBuffs(list, buffs)
     end
 end
 
+local function Worn(list)
+    local here = select(INSTANCE_ID, GetInstanceInfo())
+    for _, worn in ipairs(D.WORN) do
+        if worn.instance == here and GetInventoryItemID("player", worn.slot) == worn.item then
+            list[#list + 1] = { icon = C_Item.GetItemIconByID(worn.item), slot = worn.slot }
+        end
+    end
+end
+
 local Reminders = {}
 A.Buffs = Reminders
 
@@ -493,5 +503,6 @@ function Reminders.Collect()
     end
     if S.Get("personalBuffs") then PersonalBuffs(list, buffs) end
     if S.Get("raidBuffs") then RaidBuffs(list, buffs) end
+    if S.Get("wornReminders") then Worn(list) end
     return list
 end

@@ -24,8 +24,11 @@ local SETTINGS = Read("Shared/Settings/Settings.lua")
 local ITEM_SPELLS = { [13931] = 1249513, [2679] = 433, [21023] = 25660 }
 local SPELL_NAMES = { [1248406] = "Well Fed", [1249520] = "Well Fed", [1243969] = "Well Fed XP Boost" }
 
+-- Methods (capitalised) are no-ops; an unset field reads nil, as on a real frame.
 local function Recorder(props)
-    return setmetatable(props or {}, { __index = function() return function() end end })
+    return setmetatable(props or {}, { __index = function(_, key)
+        if key:find("^%u") then return function() end end
+    end })
 end
 
 local function Fixture(opts)
@@ -48,6 +51,8 @@ local function Fixture(opts)
         known = opts.known or {},
         shields = opts.shields or {},               -- slot -> true for a shield in that slot
         weapons = opts.weapons or {},               -- slot -> enchant seconds left, false for none
+        worn = opts.worn or {},                     -- slot -> item ID worn there, other than weapons
+        instanceID = opts.instanceID,               -- GetInstanceInfo's instance ID
         target = opts.target,                       -- nil, or the target's classification
         itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
         levels = opts.levels or {},                 -- itemID -> required level
@@ -94,7 +99,7 @@ local function Fixture(opts)
         raidBuffs = false, raidBuffsOwn = true, iconSize = 36, buffIconMode = "default",
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
-        personalBuffs = true, personalBuffPicks = {}, weaponEnhancements = false,
+        personalBuffs = true, personalBuffPicks = {}, weaponEnhancements = false, wornReminders = false,
         buffGlow = false, buffGlowType = "standard", buffGlowColor = { r = 1, g = 0.82, b = 0.2 },
         buffGlowLines = 8, buffGlowThickness = 2, buffGlowSpeed = 5,
     }
@@ -168,7 +173,11 @@ local function Fixture(opts)
         UnitExists = function(unit) return unit ~= "target" or state.target ~= nil end,
         UnitCanAttack = function() return true end,
         UnitClassification = function() return state.target end,
-        GetInventoryItemID = function(_, slot) return state.weapons[slot] ~= nil and 1000 + slot or nil end,
+        GetInventoryItemID = function(_, slot)
+            if state.worn[slot] then return state.worn[slot] end
+            return state.weapons[slot] ~= nil and 1000 + slot or nil
+        end,
+        GetInstanceInfo = function() return "x", state.instance, nil, nil, nil, nil, nil, state.instanceID end,
         C_Secrets = { ShouldAurasBeSecret = function() return state.secret end },
         issecretvalue = function(v) return v == SECRET end,
         C_UnitAuras = {
@@ -971,6 +980,36 @@ do
     Check("a weapon oil used", t.Shown(), "spell:1248406 item:13511 item:13452 item:20749")
     t.Set("buffIconMode", "default")
     Check("Default again", t.Shown(), "spell:1248406 item:13510 item:13452 item:12404")
+end
+
+-- Worn Gear Reminder: Cloak of Hermitic Bliss worn in Wailing Caverns, off by default.
+do
+    local t = Fixture({ instance = "party", instanceID = 43, units = { player = "MAGE" }, worn = { [15] = 273084 },
+        settings = { consumableEntries = {} } })
+    t.Login()
+    Check("worn: off by default", t.Shown(), "")
+    Check("worn: no gear events while off", t.Listening("PLAYER_EQUIPMENT_CHANGED"), false)
+    t.Set("wornReminders", true)
+    Check("cloak worn in Wailing Caverns", t.Shown(), "item:273084")
+    t.state.worn[15] = nil
+    t.Fire("PLAYER_EQUIPMENT_CHANGED", 15, false)
+    t.Advance(0.5)
+    Check("cloak taken off", t.Shown(), "")
+    t.state.worn[15] = 273084
+    t.state.instanceID = 36
+    t.Fire("PLAYER_EQUIPMENT_CHANGED", 15, true)
+    t.Advance(0.5)
+    Check("cloak worn in another dungeon", t.Shown(), "")
+    t.state.instance, t.state.instanceID = "none", nil
+    t.Fire("ZONE_CHANGED_NEW_AREA")
+    t.Advance(0.5)
+    Check("cloak worn outside", t.Shown(), "")
+    t.state.instance, t.state.instanceID = "party", 43
+    t.Fire("PLAYER_ENTERING_WORLD")
+    t.Advance(0.5)
+    Check("back in Wailing Caverns", t.Shown(), "item:273084")
+    t.Set("wornReminders", false)
+    Check("switched off", t.Shown(), "")
 end
 
 -- A class with its own poison reminder does not get the generic one.

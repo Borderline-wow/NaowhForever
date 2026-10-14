@@ -33,6 +33,10 @@ D.WEAPON_ITEMS = {
 }
 D.WEAPON_ICON_ITEM = 12404
 
+D.WORN = {
+    { item = 273084, slot = 15, instance = 43 },
+}
+
 D.SCROLLS = {
     { stat = "Agility", items = { 3012, 1477, 4425, 10309 }, auras = { 8115, 8116, 8117, 12174 } },
     { stat = "Intellect", items = { 955, 2290, 4419, 10308 }, auras = { 8096, 8097, 8098, 12176 }, raid = "intellect" },

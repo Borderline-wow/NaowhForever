@@ -200,6 +200,9 @@ rows[#rows + 1] = Group("Personal Buffs")
 rows[#rows + 1] = { key = "personalBuffs", label = "Personal Buff Reminders", toggle = true, needs = Enabled,
     why = OFF, help = "Your class buffs when they are missing or about to run out." }
 for _, family in ipairs(ALL_PERSONAL) do rows[#rows + 1] = PersonalRow(family) end
+rows[#rows + 1] = Group("Gear")
+rows[#rows + 1] = { key = "wornReminders", label = "Worn Gear Reminder", toggle = true, needs = Enabled, why = OFF,
+    help = "An icon while you wear Cloak of Hermitic Bliss in Wailing Caverns, so you remember to swap it." }
 rows[#rows + 1] = Group("Glow")
 rows[#rows + 1] = { key = "buffGlow", label = "Glow", toggle = true, needs = Enabled, why = OFF,
     help = "A glow around each reminder icon, since each is a buff that is missing or running out." }

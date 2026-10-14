@@ -2,6 +2,9 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["Worn Gear Reminder"] = true
+L["An icon while you wear Cloak of Hermitic Bliss in Wailing Caverns, so you remember to swap it."] = true
+L["You are wearing this."] = true
 L["Group Finder Roles"] = true
 L["Groups need:"] = true
 L["Players:"] = true
