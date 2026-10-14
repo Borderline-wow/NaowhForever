@@ -587,8 +587,14 @@ local function IconButtonControl(rgn, cfg)
     return button
 end
 
+local function Dropped(cfg)
+    return cfg.onDrop and GetCursorInfo() and cfg.onDrop()
+end
+
 local function ButtonControl(rgn, cfg)
-    local button = ns.Button(rgn, cfg.buttonText or TEXT_EDIT, ROW_BUTTON_W, ROW_BUTTON_H, function() cfg.onClick() end)
+    local button = ns.Button(rgn, cfg.buttonText or TEXT_EDIT, ROW_BUTTON_W, ROW_BUTTON_H, function()
+        if not Dropped(cfg) then cfg.onClick() end
+    end)
     return AtRowEnd(button, rgn)
 end
 
@@ -768,6 +774,14 @@ local function RegionTooltip(rgn, lbl, cfg)
     hit:SetScript("OnLeave", function() UI.HideWidgetTooltip() end)
 end
 
+local function DropTarget(rgn, control, cfg)
+    local function Drop() Dropped(cfg) end
+    rgn:EnableMouse(true)
+    rgn:SetScript("OnReceiveDrag", Drop)
+    rgn:SetScript("OnMouseUp", Drop)
+    if control then control:SetScript("OnReceiveDrag", Drop) end
+end
+
 local function BuildRegion(row, cfg, left, width)
     local rgn = CreateFrame("Frame", nil, row)
     rgn:SetPoint("TOPLEFT", row, "TOPLEFT", left, 0)
@@ -791,6 +805,7 @@ local function BuildRegion(row, cfg, left, width)
 
     local tip = disabled and cfg.disabledTooltip or cfg.tooltip
     if tip then RegionTooltip(rgn, lbl, cfg) end
+    if cfg.onDrop then DropTarget(rgn, control, cfg) end
     return rgn
 end
 
@@ -804,6 +819,7 @@ local function RegionKey(cfg)
     elseif cfg.preview then
         key = key .. ":preview"
     end
+    if cfg.onDrop then key = key .. ":drop" end
     return key
 end
 

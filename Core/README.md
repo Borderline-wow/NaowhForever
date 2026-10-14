@@ -245,6 +245,9 @@ Widgets
   Config tables stay attached to their controls and are updated in place, so never share one config
   table between two rows.
 - The color picker saves nothing until the color moves off the one it opened with.
+- A row region's `onDrop` takes whatever the cursor holds: a drag let go anywhere on the region,
+  its button included, or a click while the cursor holds something. It returns true when it took
+  it; a button whose `onDrop` did not then runs its own click.
 - `ns.NewEditBox(parent, opts)` is every input box. `opts` is optional: `inset` (the text inset),
   `border` (its edge color, black by default), `hover = false` (no accent edge under the mouse) and
   `sunken = false` (no Forever rim). A settings row's text box is one with no hover.

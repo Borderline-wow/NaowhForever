@@ -24,15 +24,22 @@ function Cell.New(parent)
     return cell
 end
 
+function Cell.Snap(region, value)
+    local pixel = ns.OnePixel(region)
+    return math.floor(value / pixel + 0.5) * pixel
+end
+
 function Cell.Place(cell, parent, i, size, icon, count)
+    size = Cell.Snap(parent, size)
     cell:SetSize(size, size)
     cell:ClearAllPoints()
-    cell:SetPoint("LEFT", parent, "LEFT", (i - 1) * (size + GAP), 0)
+    cell:SetPoint("LEFT", parent, "LEFT", (i - 1) * Cell.Snap(parent, size + GAP), 0)
     cell.icon:SetTexture(icon)
     Parts.HudFont(cell.count, S.Get("buffsFont"), S.Get("buffsFontSize"), S.Get("buffsOutline"))
     cell.count:SetText(count or "")
 end
 
 function Cell.Fit(parent, n, size)
-    parent:SetSize(math.max(n, 1) * (size + GAP) - GAP, size)
+    size = Cell.Snap(parent, size)
+    parent:SetSize((math.max(n, 1) - 1) * Cell.Snap(parent, size + GAP) + size, size)
 end

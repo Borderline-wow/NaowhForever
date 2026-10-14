@@ -59,7 +59,8 @@ NaowhForever_AuraBuffs/
     BuffMenu.lua               the carried items a buff reminder offers, as secure buttons
     BuffReminders.lua          the buff reminder row on screen
     BuffsCard.lua              the Buffs & Consumables card
-    WindowPages.lua            the window's page: consumables, with list import and export
+    WindowPages.lua            the window's page: consumables, with list import and export, and
+                               items dragged onto a section
     Window.lua                 the AuraBuffs window
   Media/CampfireHD.tga         the campfire icon's art (View/CampIcon.lua)
   README.md                    this file
@@ -83,6 +84,18 @@ NaowhForever_AuraBuffs/
   (`C_Item.GetItemSpell`), which needs the item cached. An uncached item is asked for once, and only
   its own `ITEM_DATA_LOAD_RESULT` refreshes: an ID with no use spell would otherwise load, refresh
   and ask again forever.
+- An added item's icon, in the row, its menu and the window, is the cached item's own
+  (`GetItemInfo`, `R.ItemIcon`); uncached, it is the one the game has for the ID, the item is asked
+  for once like a use spell, and its `ITEM_DATA_LOAD_RESULT` draws the row again.
+- The window's rows show each item's icon and name. A name needs the item cached, and an item added
+  by ID usually is not, so the row read "Item <id>" until something else loaded it. An uncached
+  row asks for its item once (`ContinueOnItemLoad`, never for an ID the game does not have) and
+  draws the page again when it lands. The icon is cropped by `ICON_CROP` of `ICON_SIDE`, as the
+  reminders crop theirs, and dropped `ICON_DROP` to the letters of the Naowh font.
+- An item dragged onto a section's rows, or clicked onto them, is added there with its own buff:
+  the cursor is cleared, and one already in that section, one with no use effect (once cached) or a
+  full list is said in chat instead. The rows are plain frames, not secure ones, so a drop in combat
+  is no different from typing an ID in combat.
 - The consumables list string is one line, since the paste box is one line:
   `NFCONSUMABLES1:food=13931,2680;battle=13454/17539`. Import also takes a profile string and keeps
   only its consumables, through the same checks as the profile import; it adds what is not listed
@@ -165,6 +178,11 @@ NaowhForever_AuraBuffs/
   target's debuffs; like every reminder it holds what it showed once combat starts.
 - The buff menu holds secure buttons, so it can only be hidden outside combat. It uses
   `IsMouseOver` on the frame: the old `MouseIsOver` global is gone from the game.
+- The buff menu's icons are the row's Icon Size, centred under the icon you hover and spreading both
+  ways, each line of them centred too. With no room under the icon it opens above it; the screen
+  clamp keeps it in at the sides. The icon size and every gap, in the row and the menu, are rounded
+  to whole pixels (`Cell.Snap`): at a UI scale where a unit is not a whole pixel, a menu icon a
+  fraction of a pixel off the row was resampled and looked rougher than the icon above it.
 - Camp Benefits (1229741, probed 2026-09-19), Campfire Nearby (1283391, the area aura in range of
   a campfire, 2026-09-24) and Welcoming Campfire (1229739 and the crafting 1289723, the 60 second
   aura while sitting, before Camp Benefits lands, 2026-09-25) were probed on the client.

@@ -56,6 +56,7 @@ local function Fixture(opts)
         target = opts.target,                       -- nil, or the target's classification
         itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
         levels = opts.levels or {},                 -- itemID -> required level
+        icons = opts.icons or {},                   -- itemID -> its icon, once the item is cached
         level = 60,
         slotReads = 0,
         requested = {},
@@ -78,8 +79,13 @@ local function Fixture(opts)
         function f:RegisterEvent(e) f.events[e] = true end
         function f:RegisterUnitEvent(e) f.events[e] = true end
         function f:UnregisterAllEvents() f.events = {} end
-        function f:SetPoint(_, relativeTo) f.anchor = relativeTo end
+        function f:SetPoint(point, relativeTo, relativePoint, x, y)
+            f.anchor, f.point, f.relativePoint, f.x, f.y = relativeTo, point, relativePoint, x, y
+        end
         function f:ClearAllPoints() f.anchor = nil end
+        function f:SetSize(w, h) f.width, f.height = w, h end
+        function f:GetBottom() return rawget(f, "bottom") or 500 end
+        function f:GetEffectiveScale() return 1 end
         function f:CreateTexture()
             local t = Recorder()
             function t:SetTexture(tex) t.texture = tex end
@@ -115,6 +121,7 @@ local function Fixture(opts)
     local account = {}
     local ns = { AccountSettings = function() return account end, L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"),
         AuraBuffSettings = S,
+        OnePixel = function() return opts.pixel or 1 end,
         Apply = function() end,
         ShowUnlockMode = function() end,
         HideUnlockMode = function() end,
@@ -205,7 +212,9 @@ local function Fixture(opts)
                 if spell then return "spell", spell end
             end,
             RequestLoadItemDataByID = function(id) state.requested[id] = true end,
-            GetItemInfo = function(id) return "item", nil, nil, nil, state.levels[id] end,
+            GetItemInfo = function(id)
+                return "item", nil, nil, nil, state.levels[id], nil, nil, nil, nil, state.icons[id]
+            end,
             GetWeaponEnchantInfo = function(weaponSlot)
                 local left = state.weapons[weaponSlot == 0 and 16 or 17]
                 return { { hasEnchant = false, timeLeft = 0 },
@@ -399,6 +408,25 @@ do
     } }, bags = { 13452, 13454 }, auras = { player = { { 17539, 3000, 3600 } } } })
     t.Login()
     Check("guardian missing, battle up", t.Shown(), "item:13452")
+end
+
+-- An added item shows its own icon once cached, and its load draws the row and the menu again.
+do
+    local t = Fixture({ instance = "raid", bags = { 13454 },
+        settings = { consumableEntries = { { category = "battle", itemID = 13454, auras = { 17539 } } } } })
+    t.Login()
+    Check("uncached: the icon the game has for its ID", t.Shown(), "item:13454")
+    Check("and the item asked for", t.state.requested[13454], true)
+    t.state.icons[13454] = "own:13454"
+    t.Fire("ITEM_DATA_LOAD_RESULT", 13454)
+    t.Advance(0.5)
+    Check("loaded: its own icon", t.Shown(), "own:13454")
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") then cell = f end end
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    Check("the menu shows the same icon", popup.buttons[1].icon.texture, "own:13454")
 end
 
 -- Item IDs alone: food counts any Well Fed, other items their use spell once the item is cached.
@@ -694,12 +722,69 @@ do
     Check("using an item closes the menu", popup.shown, false)
     cell.scripts.OnEnter(cell)
     Check("open menu hangs under its cell", popup.anchor, cell)
+    Check("menu sits centred under its cell", popup.point .. ">" .. popup.relativePoint, "TOP>BOTTOM")
+    Check("menu icons are the row's size", popup.buttons[1].width .. "x" .. popup.buttons[1].height, "36x36")
+    Check("one item sits in the middle", popup.buttons[1].point .. " " .. popup.buttons[1].x, "TOP 0")
+    Check("menu fits one icon", popup.width .. "x" .. popup.height, "44x44")
+    t.Set("iconSize", 96)
+    cell.scripts.OnEnter(cell)
+    Check("menu icons grow with Icon Size", popup.buttons[1].width, 96)
+    Check("menu grows with them", popup.width .. "x" .. popup.height, "104x104")
+    cell.bottom = 50
+    cell.scripts.OnEnter(cell)
+    Check("no room under the cell: menu opens above it", popup.point .. ">" .. popup.relativePoint, "BOTTOM>TOP")
+    cell.bottom = nil
+    t.Set("iconSize", 36)
     t.Fire("PLAYER_REGEN_DISABLED")
     Check("combat entry closes hover menu", popup.shown, false)
     Check("closed menu lets go of its cell, so the cell stays movable in combat", rawget(popup, "anchor"), nil)
     t.state.combat = true
     cell.scripts.OnEnter(cell)
     Check("no menu in combat", popup.shown, false)
+end
+
+-- A full menu spreads out from the middle, each line centred under the hovered icon.
+do
+    local entries, bags = {}, {}
+    for i = 1, 9 do
+        entries[i] = { category = "food", itemID = 100 + i, auras = { 10 + i } }
+        bags[i] = 100 + i
+    end
+    local t = Fixture({ instance = "raid", bags = bags, settings = { consumableEntries = entries } })
+    t.Login()
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") then cell = f end end
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    local xs = {}
+    for i = 1, 9 do xs[i] = popup.buttons[i].x .. "," .. popup.buttons[i].y end
+    Check("full line centred, the ninth alone under it", table.concat(xs, " "),
+        "-140,-4 -100,-4 -60,-4 -20,-4 20,-4 60,-4 100,-4 140,-4 0,-44")
+    Check("menu fits eight across, two lines", popup.width .. "x" .. popup.height, "324x84")
+end
+
+-- At a UI scale where a pixel is not a whole unit, the menu's icons are the row's whole-pixel size,
+-- a whole number of pixels from the hovered icon, so they draw exactly as the row's do.
+do
+    local entries, bags = {}, {}
+    for i = 1, 2 do
+        entries[i] = { category = "food", itemID = 100 + i, auras = { 10 + i } }
+        bags[i] = 100 + i
+    end
+    local t = Fixture({ instance = "raid", bags = bags, pixel = 0.75, settings = { consumableEntries = entries, iconSize = 37 } })
+    t.Login()
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") then cell = f end end
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    local function Whole(v) return math.abs(v / 0.75 - math.floor(v / 0.75 + 0.5)) < 1e-9 end
+    Check("the row icon is whole pixels", cell.width == 36.75 and Whole(cell.width), true)
+    Check("the menu icons are the same size", popup.buttons[1].width .. "x" .. popup.buttons[2].height, "36.75x36.75")
+    local a, b = popup.buttons[1], popup.buttons[2]
+    Check("each a whole number of pixels from the middle", Whole(a.x) and Whole(b.x) and Whole(a.y), true)
+    Check("and from the icon", Whole(popup.y), true)
 end
 
 -- Personal buffs: the best armor you know shows until any armor is up; resting and a pick hide it.
@@ -1018,6 +1103,171 @@ do
         bags = { 20750 }, weapons = { [16] = false }, settings = { weaponEnhancements = true } })
     t.Login()
     Check("rogue keeps poisons only", t.Shown(), "spell:2842")
+end
+
+-- The AuraBuffs window's consumables page, on the real Widgets: each row shows its item's icon and
+-- name, an uncached item is asked for once and the page drawn again when it lands, and an item
+-- dragged or clicked onto a section is added there.
+do
+    local function New(kind, parent)
+        local o = { kind = kind, parent = parent, scripts = {}, events = {}, shown = true, w = 0, h = 0 }
+        return setmetatable(o, { __index = function(_, k)
+            if not k:match("^%u") then return nil end
+            return function(self, ...)
+                local args = { ... }
+                if k == "SetScript" or k == "HookScript" then self.scripts[args[1]] = args[2]
+                elseif k == "RegisterEvent" then self.events[args[1]] = true
+                elseif k == "EnableMouse" then self.mouse = args[1]
+                elseif k == "Show" then self.shown = true
+                elseif k == "Hide" then self.shown = false
+                elseif k == "IsShown" then return self.shown
+                elseif k == "SetSize" then self.w, self.h = args[1], args[2]
+                elseif k == "SetWidth" then self.w = args[1]
+                elseif k == "GetWidth" then return self.w
+                elseif k == "GetHeight" then return self.h
+                elseif k == "GetText" then return self.text or ""
+                elseif k == "SetText" then self.text = args[1]
+                elseif k == "GetFrameLevel" then return 1
+                elseif k == "GetStringWidth" then return 20
+                elseif k == "GetStringHeight" then return 12
+                elseif k == "GetEffectiveScale" then return 1
+                elseif k == "GetObjectType" then return self.kind
+                elseif k == "CreateTexture" then return New("Texture", self)
+                elseif k == "CreateFontString" then return New("FontString", self)
+                end
+            end
+        end })
+    end
+    local names = { [13454] = "Greater Arcane Elixir", [2589] = "Linen Cloth" }
+    local spells = { [13454] = 17539, [13452] = 17538 }
+    local cursor, printed, loads, refreshes = nil, {}, {}, 0
+    local frames = {}
+    local env = setmetatable({
+        NaowhForeverDB = { account = {}, profiles = {}, charActive = {} },
+        CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end,
+        PixelUtil = { GetPixelToUIUnitFactor = function() return 1 end },
+        UnitName = function() return "Tester" end, GetRealmName = function() return "Realm" end,
+        GetCursorInfo = function() if cursor then return cursor[1], cursor[2], cursor[3] end end,
+        ClearCursor = function() cursor = nil end,
+        C_Item = {
+            GetItemNameByID = function(id) return names[id] end,
+            GetItemInfo = function(id) if names[id] then return names[id], nil, nil, nil, nil, nil, nil, nil, nil, 2000 + id end end,
+            RequestLoadItemDataByID = function() end,
+            GetItemIconByID = function(id) return id < 100000 and 1000 + id or nil end,
+            GetItemSpell = function(id) if spells[id] then return "use", spells[id] end end,
+        },
+        Item = { CreateFromItemID = function(_, id)
+            return { IsItemEmpty = function() return id >= 100000 end,
+                ContinueOnItemLoad = function(_, fn) loads[#loads + 1] = { id = id, fn = fn } end }
+        end },
+    }, { __index = _G })
+    env._G = env
+    env.UIParent = New("Frame")
+    env.CreateFrame = function(kind, _, parent)
+        local f = New(kind, parent)
+        frames[#frames + 1] = f
+        return f
+    end
+    env.hooksecurefunc = function(tbl, key, fn)
+        local orig = tbl[key]
+        tbl[key] = function(...) orig(...); fn(...) end
+    end
+    for _, path in ipairs({ "Core/Core.lua", "Shared/Shared.lua", "Shared/Style.lua", "Core/Options/Widgets.lua",
+        "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua", "NaowhForever_AuraBuffs/Constants.lua",
+        "Shared/Game/Consumables.lua", "NaowhForever_AuraBuffs/Data/BuffReminders.lua",
+        "NaowhForever_AuraBuffs/BuffReminders.lua", "NaowhForever_AuraBuffs/UI/WindowPages.lua" }) do
+        local chunk = assert(loadstring(Read(path), path))
+        setfenv(chunk, env)
+        chunk("NaowhForever", env.NaowhForever)
+    end
+    for _, f in ipairs(frames) do
+        if f.events.ADDON_LOADED and f.scripts.OnEvent then f.scripts.OnEvent(f, "ADDON_LOADED", "NaowhForever") end
+    end
+    local ns = env.NaowhForever
+    local S = ns.AuraBuffs.Settings
+    function ns.UI:RefreshPage() refreshes = refreshes + 1 end
+    function ns.Print(msg) printed[#printed + 1] = msg end
+    local prompted
+    function ns.PromptText(title) prompted = title end
+    S.Set("consumableEntries", { { category = "battle", itemID = 13454 }, { category = "battle", itemID = 13452 },
+        { category = "guardian", itemID = 123456 } })
+
+    local page = New("Frame")
+    page:SetWidth(600)
+    local function Draw()
+        ns.UI.BeginReusableRows(page)
+        ns.BuildAuraBuffConsumables(page, 0)
+    end
+    -- The left regions of the rows on the page now, by their label.
+    local function Regions()
+        local out = {}
+        for _, rows in pairs(page._rowCache) do
+            for _, row in ipairs(rows) do
+                local rgn = row.shown and rawget(row, "_leftRegion")
+                if rgn then out[rgn._label.text] = rgn end
+            end
+        end
+        return out
+    end
+    local function Labelled(text)
+        for label, rgn in pairs(Regions()) do
+            if label:find(text, 1, true) then return label, rgn end
+        end
+    end
+    local function Entries()
+        local out = {}
+        for _, entry in ipairs(S.Get("consumableEntries")) do out[#out + 1] = entry.category .. ":" .. entry.itemID end
+        return table.concat(out, " ")
+    end
+
+    Draw()
+    local cached = Labelled("Greater Arcane Elixir")
+    Check("a cached item: its own icon, then its name", cached, "|T15454:0:0:0:-1:64:64:5:59:5:59|t Greater Arcane Elixir")
+    Check("an uncached item: its icon and its ID", (Labelled("Item 13452")), "|T14452:0:0:0:-1:64:64:5:59:5:59|t Item 13452")
+    Check("an ID the game does not have: the unknown icon", (Labelled("Item 123456")),
+        "|T134400:0:0:0:-1:64:64:5:59:5:59|t Item 123456")
+    Check("only the real uncached item is asked for", #loads == 1 and loads[1].id, 13452)
+    Draw()
+    Check("and only once, however often the page is drawn", #loads, 1)
+    names[13452] = "Greater Agility Elixir"
+    loads[1].fn()
+    Check("its load draws the page again", refreshes, 1)
+    Draw()
+    Check("now with its own icon and name", (Labelled("Greater Agility Elixir")),
+        "|T15452:0:0:0:-1:64:64:5:59:5:59|t Greater Agility Elixir")
+
+    local _, add = Labelled("Add Flask")
+    Check("an Add row takes drops", add.mouse == true and add.scripts.OnReceiveDrag ~= nil, true)
+    names[13510], spells[13510] = "Flask of the Titans", 17626
+    cursor = { "item", 13510, "[Flask of the Titans]" }
+    add.scripts.OnReceiveDrag(add)
+    Check("a dragged item is added to that section", Entries(), "battle:13454 battle:13452 guardian:123456 flask:13510")
+    Check("the cursor is cleared", cursor, nil)
+    Check("adding says nothing", #printed, 0)
+    Draw()
+    _, add = Labelled("Add Flask")
+    cursor = { "item", 13510, "[Flask of the Titans]" }
+    add._control.scripts.OnClick(add._control)
+    Check("clicking Add with it again does not list it twice", Entries(), "battle:13454 battle:13452 guardian:123456 flask:13510")
+    Check("and says it is already there", printed[1], "[Flask of the Titans] is already in Flask.")
+    Check("the cursor is cleared for that too", cursor, nil)
+    cursor = { "item", 2589, "[Linen Cloth]" }
+    add.scripts.OnMouseUp(add)
+    Check("an item with no use effect is not added", Entries(), "battle:13454 battle:13452 guardian:123456 flask:13510")
+    Check("and says why", printed[2], "[Linen Cloth] has no buff of its own: add it by ID with its buff spell IDs.")
+    cursor = { "spell", 133 }
+    add.scripts.OnReceiveDrag(add)
+    Check("a spell is left alone", cursor ~= nil and #printed == 2 and Entries(), "battle:13454 battle:13452 guardian:123456 flask:13510")
+    cursor = nil
+    add._control.scripts.OnClick(add._control)
+    Check("Add with nothing held still asks for an ID", prompted, "Item ID, then buff spell ID(s) if not the item's own")
+    Check("and a drop never asked", #printed, 2)
+    local _, row = Labelled("Greater Arcane Elixir")
+    names[13461], spells[13461] = "Elixir of the Sages", 17535
+    cursor = { "item", 13461, "[Elixir of the Sages]" }
+    row.scripts.OnReceiveDrag(row)
+    Check("a drop on an item's row adds to that item's section",
+        Entries(), "battle:13454 battle:13452 guardian:123456 flask:13510 battle:13461")
 end
 
 if failures > 0 then

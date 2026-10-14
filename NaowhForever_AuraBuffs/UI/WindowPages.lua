@@ -8,15 +8,19 @@ local CATEGORY_NAMES, CATEGORY_ORDER, MAX_ENTRIES = A.CATEGORY_NAMES, A.CATEGORY
 
 local PROMPT_WIDTH = 240
 local PASTE_LIMIT = 0
+local ICON_TEXT = "|T%s:0:0:0:%d:%d:%d:%d:%d:%d:%d|t %s"
+local ICON_DROP = 1
+local ICON_SIDE, ICON_CROP = 64, 5
+local UNKNOWN_ICON = 134400
 
 local TEXT_PROMPT = ns.L("Item ID, then buff spell ID(s) if not the item's own")
 local TEXT_INVALID = ns.L("Enter an item ID, then any buff spell IDs, separated by commas.")
-local TEXT_CONSUMABLES = ns.L("Add an item ID, or import a list. Food counts any Well Fed "
-    .. "buff and other items their own buff; add buff spell IDs only for an item that gives another. "
+local TEXT_CONSUMABLES = ns.L("Add an item ID, drag an item onto its section, or import a list. Food "
+    .. "counts any Well Fed buff and other items their own buff; add buff spell IDs only for an item that gives another. "
     .. "Nothing is added automatically. Hover a reminder to choose a configured item from your bags. "
     .. "Reminders pause in combat; item menus work outside combat. When and where they show is on "
     .. "AuraBuffs > Settings.")
-local TEXT_IDS = "Item ID, buff spell IDs optional"
+local TEXT_IDS = "Drag an item here, or add it by ID"
 local TEXT_IMPORT = "Import a list or a profile's consumables"
 local TEXT_IMPORT_PROMPT = ns.L("Paste a consumables list or a profile string")
 local TEXT_NO_LIST = ns.L("That string holds no consumables list.")
@@ -27,6 +31,12 @@ local TEXT_NOTHING_TO_EXPORT = ns.L("There are no consumables to export yet.")
 local TEXT_BUFFS = "Buffs: "
 local TEXT_WELL_FED = ns.L("Buff: any Well Fed")
 local TEXT_OWN_BUFF = ns.L("Buff: the item's own")
+local TEXT_ITEM = ns.L("Item %d")
+local TEXT_LISTED = ns.L("%s is already in %s.")
+local TEXT_NO_BUFF = ns.L("%s has no buff of its own: add it by ID with its buff spell IDs.")
+local TEXT_FULL = ns.L("The list is full at %d consumables.")
+
+local asked, drops = {}, {}
 
 local function Entries()
     return S.Get("consumableEntries") or {}
@@ -94,6 +104,54 @@ local function ExportList()
     ns.ShowCopyBox(TEXT_EXPORT_TITLE, ns.ConsumableListString(entries))
 end
 
+local function OnItemLoaded()
+    UI:RefreshPage(true)
+end
+
+local function ItemName(itemID)
+    local name = C_Item.GetItemNameByID(itemID)
+    if name then return name end
+    if not asked[itemID] then
+        asked[itemID] = true
+        local item = Item:CreateFromItemID(itemID)
+        if not item:IsItemEmpty() then item:ContinueOnItemLoad(OnItemLoaded) end
+    end
+    return TEXT_ITEM:format(itemID)
+end
+
+local function ItemLabel(itemID)
+    local icon = A.Buffs.ItemIcon(itemID) or UNKNOWN_ICON
+    local far = ICON_SIDE - ICON_CROP
+    return ICON_TEXT:format(icon, -ICON_DROP, ICON_SIDE, ICON_SIDE, ICON_CROP, far, ICON_CROP, far, ItemName(itemID))
+end
+
+local function DropItem(category)
+    local kind, itemID, link = GetCursorInfo()
+    if kind ~= "item" or not itemID then return false end
+    ClearCursor()
+    local name, where = link or ItemName(itemID), CATEGORY_NAMES[category]
+    local entries = Entries()
+    for _, entry in ipairs(entries) do
+        if entry.category == category and entry.itemID == itemID then
+            ns.Print(TEXT_LISTED:format(name, where))
+            return true
+        end
+    end
+    if #entries >= MAX_ENTRIES then
+        ns.Print(TEXT_FULL:format(MAX_ENTRIES))
+    elseif C_Item.GetItemNameByID(itemID) and not C_Item.GetItemSpell(itemID) then
+        ns.Print(TEXT_NO_BUFF:format(name))
+    else
+        SaveEntry(category, nil, tostring(itemID))
+    end
+    return true
+end
+
+local function Dropper(category)
+    drops[category] = drops[category] or function() return DropItem(category) end
+    return drops[category]
+end
+
 local function BuffsText(category, entry)
     if entry.auras then return TEXT_BUFFS .. table.concat(entry.auras, ", ") end
     return category == "food" and TEXT_WELL_FED or TEXT_OWN_BUFF
@@ -101,12 +159,12 @@ end
 
 local function EntryRow(parent, y, category, index, entry)
     local W = UI.Widgets
-    local name = C_Item.GetItemNameByID(entry.itemID) or ("Item " .. entry.itemID)
+    local drop = Dropper(category)
     local _, h = W:DualRow(parent, y,
-        { type = "button", text = name, buttonText = "Edit",
-            onClick = function() EditEntry(category, index) end },
+        { type = "button", text = ItemLabel(entry.itemID), buttonText = "Edit",
+            onClick = function() EditEntry(category, index) end, onDrop = drop },
         { type = "button", text = BuffsText(category, entry), buttonText = "Remove",
-            onClick = function() RemoveEntry(index) end })
+            onClick = function() RemoveEntry(index) end, onDrop = drop })
     return y - h
 end
 
@@ -114,10 +172,11 @@ local function Category(parent, y, category)
     local W = UI.Widgets
     local _, h = W:SectionHeader(parent, ns.Upper(CATEGORY_NAMES[category]), y)
     y = y - h
+    local drop = Dropper(category)
     _, h = W:DualRow(parent, y,
         { type = "button", text = ns.L("Add %s"):format(CATEGORY_NAMES[category]), buttonText = "Add",
-            onClick = function() EditEntry(category) end },
-        { type = "label", text = TEXT_IDS })
+            onClick = function() EditEntry(category) end, onDrop = drop },
+        { type = "label", text = TEXT_IDS, onDrop = drop })
     y = y - h
     for index, entry in ipairs(Entries()) do
         if entry.category == category then y = EntryRow(parent, y, category, index, entry) end

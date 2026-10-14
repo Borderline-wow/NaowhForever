@@ -13,6 +13,7 @@ local CATEGORY_ORDER = A.CATEGORY_ORDER
 local WEAPON_SLOTS = { 16, 17 }
 local CLASS_INDEX = 6
 local REQUIRED_LEVEL = 5
+local ITEM_ICON = 10
 local INSTANCE_ID = 8
 local ELITE = { elite = true, rareelite = true, worldboss = true }
 
@@ -81,6 +82,16 @@ local function ItemBuff(itemID)
     return itemBuffs[itemID]
 end
 
+local function ItemIcon(itemID)
+    local icon = select(ITEM_ICON, C_Item.GetItemInfo(itemID))
+    if icon then return icon end
+    if not requested[itemID] then
+        requested[itemID] = true
+        C_Item.RequestLoadItemDataByID(itemID)
+    end
+    return C_Item.GetItemIconByID(itemID)
+end
+
 local function FirstCarried(items)
     for _, id in ipairs(items) do
         if C_Item.GetItemCount(id) > 0 then return id end
@@ -137,7 +148,7 @@ local function Consumable(list, buffs, group, item, icon, last)
         return
     end
     if not item and S.Get("onlyIfCarried") then return end
-    list[#list + 1] = { icon = last or item and C_Item.GetItemIconByID(item) or icon, aura = aura }
+    list[#list + 1] = { icon = last or item and ItemIcon(item) or icon, aura = aura }
 end
 
 local function Groups()
@@ -209,7 +220,7 @@ local function Consumables(list, buffs)
         if not item and onlyCarried and builtIn then group, item = CarriedBuiltIn(category, group, builtIn) end
         if group then
             local before = #list
-            local icon = group.items[1] and C_Item.GetItemIconByID(group.items[1])
+            local icon = group.items[1] and ItemIcon(group.items[1])
             if category == "food" then
                 icon = ns.AccountSettings().lastFoodIcon or icon or C_Spell.GetSpellTexture(D.WELL_FED[1])
             end
@@ -482,6 +493,8 @@ function Reminders.NoteUseCast(spellID)
     account.lastIcons = icons
     return true
 end
+
+Reminders.ItemIcon = ItemIcon
 
 function Reminders.Requested(itemID)
     return requested[itemID] == true

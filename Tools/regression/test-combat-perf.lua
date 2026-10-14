@@ -242,6 +242,7 @@ do
         } }
     local bags = { [13931] = 2, [13510] = 1 }
     local ns = { AccountSettings = function() return {} end, L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"), AuraBuffSettings = Settings(values), THEME = THEME, Apply = function() end,
+        OnePixel = function() return 1 end,
         ShowUnlockMode = function() end, HideUnlockMode = function() end,
         Border = function() end, Solid = function(parent) return New("Texture", nil, parent) end,
         Font = function(parent) return New("FontString", nil, parent) end,
@@ -268,7 +269,7 @@ do
             return list and list[i]
         end },
         C_Item = { GetItemCount = function(id) return bags[id] or 0 end, GetItemIconByID = function(id) return id end,
-            GetItemSpell = function() end, GetItemInfo = function() end },
+            GetItemSpell = function() end, GetItemInfo = function() end, RequestLoadItemDataByID = function() end },
         C_Container = { GetContainerNumSlots = function() return 2 end,
             GetContainerItemID = function(_, slot) return slot == 1 and 13931 or 13510 end },
         NUM_BAG_SLOTS = 0,
