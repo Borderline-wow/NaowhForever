@@ -10,7 +10,6 @@ local C = {
     TREE_COUNT = 3,
     TENTHS = 10,
     ROUND = 0.5,
-    PERCENT = 100,
     STAT_KEYS = { "STR", "AGI", "STA", "INT", "SPI", "AP", "SP", "CRIT", "HIT", "ARMOR" },
     STAT_MAX = { 99999, 99999, 99999, 99999, 99999, 99999, 99999, 1000, 1000, 999999 },
     PARTY_UNITS = {},

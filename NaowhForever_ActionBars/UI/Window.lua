@@ -16,8 +16,6 @@ local INSET, SCROLLBAR = St.CONTENT_INSET, St.SCROLLBAR
 local PAGE = "Action Bars/Settings"
 local TOP_Y = -6
 local SCROLL_RIGHT = 4
-local PERCENT = 100
-local ROUND = 0.5
 
 local TEXT_TITLE = "Action Bars"
 local TEXT_SUBTITLE = ns.L("Save your bars, macros and keybinds, then import them on any character.")
@@ -27,17 +25,8 @@ local W = {}
 local window, views, view
 local queued
 
-local function Opacity()
-    return math.floor((S.Get("windowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    S.Set("windowAlpha", value / PERCENT)
-end
-
 local function Paint()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
     window.note.text:SetText(Sets.Headline())
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
 end
@@ -105,9 +94,7 @@ end
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, "actionBarsWindow")
     W.frame = window
-    local close = Parts.TitleBar(window, TEXT_TITLE, "", PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, TEXT_TITLE, "", PAGE)
     Parts.FooterBrand(window, PAGE)
     window.note = Parts.FooterNote(window, "")
     Parts.SetLink(window.backLink, TEXT_BACK)
@@ -146,10 +133,7 @@ function ns.OpenActionBarsImport(key)
     Open("import")
 end
 
-S.OnChange(function(key)
-    if not (window and window:IsShown()) then return end
-    if key == "windowAlpha" then Paint() else RedrawSoon() end
-end)
+S.OnChange(RedrawSoon)
 
 hooksecurefunc(ns.UI, "RefreshPage", function()
     if view == "sets" then RedrawSoon() end

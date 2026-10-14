@@ -12,7 +12,7 @@ local CARD = C.PAGE .. ":gearBar"
 local EVENTS = { "EQUIPMENT_SETS_CHANGED", "EQUIPMENT_SWAP_FINISHED", "PLAYER_EQUIPMENT_CHANGED",
     "PLAYER_REGEN_ENABLED", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD" }
 local SWAP_EVENTS = { PLAYER_MOUNT_DISPLAY_CHANGED = true, PLAYER_UPDATE_RESTING = true, PLAYER_ENTERING_WORLD = true }
-local QUIET_KEYS = { gearPos = true, gearWindowAlpha = true }
+local QUIET_KEYS = { gearPos = true }
 
 local TEXT_EQUIPPED = ns.L("Equipped")
 local TEXT_MISSING_ONE, TEXT_MISSING = ns.L("%d item missing"), ns.L("%d items missing")

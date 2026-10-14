@@ -380,9 +380,7 @@ end
 
 local function OnSettingChanged(key)
     if not key:find("^consumableBar") then return end
-    if key == "consumableBarWindowAlpha" then
-        ns.Shared.Parts.RepaintSidePanels()
-    elseif key == "consumableBarAskNew" then
+    if key == "consumableBarAskNew" then
         if not S.Get(key) then CB.StopAsking() end
     elseif LOOK[key] or (key == FLAGS and CB.lookOnly) then
         Restyle()

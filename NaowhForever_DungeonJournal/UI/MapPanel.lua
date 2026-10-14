@@ -69,7 +69,7 @@ local function ToggleClass()
 end
 
 local function Paint()
-    panel.backdrop:Paint(S.Get("mapAlpha") or 1)
+    panel.backdrop:Paint(1)
 end
 
 local function Widen(wide)
@@ -272,8 +272,6 @@ local function SettingChanged(key)
     if key == "enabled" or key == "mapPanel" or key == "mapFactions" then
         Sync()
         if hooked then Refresh() end
-    elseif key == "mapAlpha" then
-        if panel then Paint() end
     elseif panel and panel:IsShown() then
         PaintButtons()
         view:Redraw()

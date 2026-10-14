@@ -24,7 +24,6 @@ local S = UI.ModuleSettings("instanceTracker", {
     leavePrintRaid = false,
     trackAlts = false,
     hourlyWarn = 1,
-    windowAlpha = 1,
 })
 ns.InstanceTrackerSettings = S
 

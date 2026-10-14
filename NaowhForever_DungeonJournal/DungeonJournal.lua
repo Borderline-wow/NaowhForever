@@ -8,7 +8,6 @@ local BYTE = 255
 local ZONE = Enum.UIMapType.Zone
 local COLORED = "|cff%02x%02x%02x%s|r"
 local FACTION_TABS = { "reputation", "pvp" }
-local SPLIT_OPACITY = { "trackerAlpha", "mapAlpha" }
 local SUBZONES = {
     ["Chamber of Atonement"] = "ScarletMonasteryGraveyard",
     ["Forlorn Cloister"] = "ScarletMonasteryGraveyard",
@@ -44,10 +43,8 @@ local S = ns.UI.ModuleSettings("journal", {
     bossAbilitiesOpen = true,
     repQuestsOpen = true,
     missingBisOnly = false,
-    windowAlpha = 1,
     trackerAlpha = 1,
     trackerScale = 1,
-    mapAlpha = 1,
     listHidden = false,
     closedGroup1 = false,
     closedGroup2 = false,
@@ -101,10 +98,7 @@ local inFront = {}
 
 local function SplitOpacity()
     local was = S.Raw("windowAlpha")
-    if was == nil then return end
-    for _, key in ipairs(SPLIT_OPACITY) do
-        if S.Raw(key) == nil then S.Set(key, was) end
-    end
+    if was ~= nil and S.Raw("trackerAlpha") == nil then S.Set("trackerAlpha", was) end
 end
 
 local function AddTo(index, id, faction)

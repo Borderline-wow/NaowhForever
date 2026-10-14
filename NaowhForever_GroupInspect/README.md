@@ -101,8 +101,8 @@ NaowhForever_GroupInspect/
   UI/
     Window.lua       the window: party, raid or a note while solo; opening it starts the scan
     Menu.lua         Group Inspect on a party or raid member's right-click menu
-    SettingsPage.lua its settings page: the banner, Share Your Stats, the live preview (GI.Preview),
-                     its key binding and the window's opacity
+    SettingsPage.lua its settings page: the banner, Share Your Stats, the live preview (GI.Preview)
+                     and its key binding
   README.md          this file
 ```
 
@@ -170,7 +170,6 @@ Answering needs Share Your Stats (`groupInspectShare`) and a group.
 | `groupInspectShare` | `true` | answer other players' Group Inspect with your stats and talents |
 | `groupInspectSort` | `"score"` | the raid's sort |
 | `groupInspectView` | `"gear"` | the raid's view: `gear`, `talents` or `stats` |
-| `groupInspectAlpha` | `1` | the window's opacity |
 
 ## Checking
 

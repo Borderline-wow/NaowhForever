@@ -50,7 +50,7 @@ NaowhForever_DungeonJournal/
   View/                drawing a page on the shared row engine; used by the window, the map panel and the popups
     Style.lua          what only the Journal draws: colors, icons, sizes (J.Style, over Shared/Style.lua)
     View.lua           the view: per-draw answers, its events and redraws (J.View)
-    Parts.lua          a fight's length, a row's band to its card's edges, side panels at the Journal's opacity
+    Parts.lua          a fight's length, a row's band to its card's edges, side panels
     DungeonPage.lua    a dungeon's page: header, quests, each wing's boss cards, trash, the folded bosses
     BossPage.lua       a boss's own page: stacked (Boss Loot at Cursor) or compact (the dungeon map)
     FactionPage.lua    a faction's page and the PvP rank's
@@ -330,9 +330,9 @@ the game's own tables, and what they can't settle is listed in the pull request 
 
 - The on/off switches' defaults (`enabled`, `mapPanel`, `mapFactions`, `mapEntrances`) are read
   from `ns.FEATURES.journal`: one file holds every feature's switch and default.
-- The parts' opacity was one setting (`windowAlpha`) before each had its own: a player who set
-  it keeps it on the tracker and the map, copied once on the first login with them; a part's
-  own setting, once set, is never written over.
+- The opacity was one setting (`windowAlpha`) before the tracker had its own: a player who set it
+  keeps it on the tracker, copied once on the first login with it; the tracker's own setting, once
+  set, is never written over. The Journal's windows have no opacity setting: they are always solid.
 - `J.OPTION_GROUPS` is the one list the Filters menu and the settings page are built from, so
   both offer the same switches in the same words, and either changes the other.
 - Dungeons sharing one instance (Scarlet Monastery's wings) are told apart by the subzone you

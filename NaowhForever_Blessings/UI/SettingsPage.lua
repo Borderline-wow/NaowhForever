@@ -27,8 +27,7 @@ local ROUND = B.ROUND
 local ICON_DROP, ICON_SIDE = 2, 3
 local SIZE_SLIDER, SPACING_SLIDER, GROUP_SLIDER = { 20, 70, 1 }, { 0, 30, 1 }, { 0, 40, 1 }
 local FONT_SLIDER = St.HUD_TEXT_RANGE
-local OPACITY_SLIDER, TO_FRACTION = St.OPACITY_RANGE, St.PERCENT_SCALE
-local ORDER_BAR, ORDER_ANCHOR, ORDER_WINDOW = 10, 15, 20
+local ORDER_BAR, ORDER_ANCHOR = 10, 15
 local AURA_LABEL, FURY_LABEL, GROUP_LABEL = ns.L("Aura Button"), ns.L("Righteous Fury Button"), "Aura / Class Gap"
 local HINT = ns.L("Right-click a class for its blessing. Wheel: size, Shift-wheel: spacing. x hides a button.")
 local HINT_OFF = ns.L("Turn on Blessings to edit the bar here.")
@@ -503,13 +502,4 @@ page:Card({
     help = "Where the bar sits: above Buff Reminders at first, then on another element, a unit frame or where you "
         .. "drag it.",
     rows = AnchorRows(),
-})
-
-page:Card({
-    id = "window", name = "Window", order = ORDER_WINDOW,
-    help = "Blessings' own window, with every paladin's blessing for each class, Auto-Assign and the preset.",
-    rows = {
-        { key = "blessWindowAlpha", label = "Window Opacity", slider = OPACITY_SLIDER,
-          unit = "%", scale = TO_FRACTION, help = "How solid the window is, in percent. Also on its title bar." },
-    },
 })

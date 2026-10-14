@@ -10,7 +10,6 @@ local S = ns.UI.ModuleSettings("discovery", {
     tracker = F.tracker, trackerAlways = false, trackerScale = 1, mapPins = F.mapPins, mapPinSize = 20,
     mapTurnIn = true,
     nearbySound = F.nearbySound, nearbyRange = 40, nearbyPing = true, nearbyChat = true, openMap = true,
-    windowAlpha = 1,
     trackerAlpha = 1,
     bagTracker = F.bagTracker, bagTrackerScale = 1, bagTrackerAlpha = 1, bagMapPins = F.bagMapPins,
     bagMapPinSize = 20,

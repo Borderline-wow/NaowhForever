@@ -2,7 +2,6 @@
 local ns = _G.NaowhForever
 
 local T = ns.THEME
-local S = ns.QoLSettings
 local G = ns.GearSets
 local C, Look = G.C, G.Look
 local Shared = ns.Shared
@@ -17,8 +16,6 @@ local NEW_W, NEW_H = 150, 26
 local ROW_H, ICON, ICON_GAP = 52, 36, 12
 local ACTION_W, ACTION_H, ACTION_GAP = 64, 22, 4
 local NAME_SIZE, STATUS_SIZE, LINE_GAP = 13, 11, 3
-local PERCENT = C.PERCENT
-local ROUND = C.ROUND
 local BLACK, MISSING_RGB = St.BLACK, St.MISSING_RGB
 local EVENTS = { "EQUIPMENT_SETS_CHANGED", "PLAYER_EQUIPMENT_CHANGED", "EQUIPMENT_SWAP_FINISHED" }
 local WINDOW_KEY = "gearSetsWindow"
@@ -46,14 +43,6 @@ local ACTION_TIPS = {
     Icon = ns.L("Picks a new icon for the set."),
     Delete = ns.L("Deletes the set. Asks first."),
 }
-
-local function Opacity()
-    return math.floor((S.Get("gearWindowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    S.Set("gearWindowAlpha", value / PERCENT)
-end
 
 local TEXT_ITEM, TEXT_ITEMS = ns.L("%d item"), ns.L("%d items")
 local TEXT_SET, TEXT_SETS = ns.L("%d set"), ns.L("%d sets")
@@ -143,9 +132,7 @@ end
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, WINDOW_KEY)
     window.backdrop:Card(CARD, HEADER + CARD, CARD, FOOTER + CARD)
-    local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, C.PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, C.PAGE)
     Parts.FooterBrand(window, C.PAGE)
     window.note = Parts.FooterNote(window, "")
 
@@ -163,12 +150,7 @@ local function Build()
 end
 
 local function Paint()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
-end
-
-local function OnSettingChanged(key)
-    if key == "gearWindowAlpha" and window and window:IsShown() then Paint() end
+    window.backdrop:Paint(1)
 end
 
 local function OnApply()
@@ -189,5 +171,4 @@ function ns.ToggleGearSetsWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenGearSetsWindow() end
 end
 
-S.OnChange(OnSettingChanged)
 hooksecurefunc(ns, "Apply", OnApply)

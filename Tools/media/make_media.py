@@ -224,16 +224,6 @@ def funnel(x, y, size):
     return (255, 255, 255, int(round(255 * smooth(w / 2, d))))
 
 
-def half_circle(x, y, size):
-    # A ring with its left half filled: the Journal's Opacity.
-    c = size / 2.0
-    d = math.hypot(x - c, y - c)
-    r, w = size * 0.36, size * 0.075
-    ring = smooth(w / 2, abs(d - r))
-    fill = smooth(r, d) if x < c else 0.0
-    return (255, 255, 255, int(round(255 * max(ring, fill))))
-
-
 def ellipse_dist(x, y, cx, cy, rx, ry):
     # Close to the signed distance to an ellipse (negative inside); exact enough for a ~1px
     # edge at icon sizes.
@@ -699,7 +689,6 @@ write_tga(os.path.join(OUT, "hanger.tga"), 64, hanger)
 write_tga(os.path.join(OUT, "sidebar_shown.tga"), 64, sidebar(True))
 write_tga(os.path.join(OUT, "sidebar_hidden.tga"), 64, sidebar(False))
 write_tga(os.path.join(OUT, "funnel.tga"), 64, funnel)
-write_tga(os.path.join(OUT, "opacity.tga"), 64, half_circle)
 write_tga(os.path.join(OUT, "skull.tga"), 64, skull)
 write_tga(os.path.join(OUT, "star.tga"), 64, star)
 write_tga(os.path.join(OUT, "swords.tga"), 64, crossed_swords)

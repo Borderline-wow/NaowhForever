@@ -5,7 +5,7 @@ local CB = ns.ConsumableBar
 local S, C, D = CB.S, CB.C, CB.Data
 local T = ns.THEME
 local Shared = ns.Shared
-local Settings, St, ItemBar = Shared.Settings, Shared.Style, Shared.ItemBar
+local Settings, ItemBar = Shared.Settings, Shared.ItemBar
 
 local Group = Settings.Group
 local STAGE_MIN, STAGE_PAD = 90, 24
@@ -101,12 +101,7 @@ local function Filter(category)
         end }
 end
 
-local function WindowOpacity()
-    return S.Get("consumableBarWindowAlpha") or 1
-end
-
-local ANCHOR = { store = S, prefix = CB.PREFIX, name = BAR_NAME, on = CB.On, frame = CB.BarFrame,
-    opacity = WindowOpacity }
+local ANCHOR = { store = S, prefix = CB.PREFIX, name = BAR_NAME, on = CB.On, frame = CB.BarFrame }
 
 local barRows = {
     Group("Layout"),
@@ -222,13 +217,4 @@ page:Card({
     id = "anchor", name = "Anchor", order = 30,
     help = "Attach the bar to a unit frame, or leave it where you drag it.",
     rows = Shared.Anchor.Rows(ANCHOR),
-})
-
-page:Card({
-    id = "window", name = "Window", order = 40,
-    help = "The Edit Items window.",
-    rows = {
-        { key = "consumableBarWindowAlpha", label = "Window Opacity", slider = St.OPACITY_RANGE,
-          unit = "%", scale = PERCENT_SCALE, help = "How solid the window is." },
-    },
 })

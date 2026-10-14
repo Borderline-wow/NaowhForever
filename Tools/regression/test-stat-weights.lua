@@ -506,7 +506,6 @@ do
         return window
     end
     Parts.TitleBar = function(window) return Frame(window) end
-    Parts.Opacity = function(window) return Frame(window), { _refreshValue = NOTHING } end
     Parts.BarButton = function(parent, _, tip, _, onClick)
         local button = Frame(parent)
         button.onClick = onClick
@@ -539,7 +538,7 @@ do
     for _, f in ipairs(made) do
         if rawget(f, "backdrop") then window = f end
     end
-    check("it opens at the BiS List's opacity", window and window.shown and state.painted == 0.8)
+    check("it opens solid, even with an old lowered opacity saved", window and window.shown and state.painted == 1)
     check("a switch with your class's specs, on yours", #window.specs.items == 3 and window.specs.picked == SW.ActiveSpec()
         and window.specs.items[1].label == "Assassination")
     local weights = window.weights

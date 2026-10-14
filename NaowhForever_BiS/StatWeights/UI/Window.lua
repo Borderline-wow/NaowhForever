@@ -24,7 +24,6 @@ local HOVER_ALPHA = 0.04
 local TITLE_SIZE, LABEL_SIZE, SMALL_SIZE = 13, 12, 11
 local MAX_WORTH = SW.MAX_WORTH
 local SAMPLE_GAIN = 9
-local PERCENT = SW.PERCENT
 local ROUND = 0.5
 local ANY_LENGTH = 0
 local NO_TAB_W = 1
@@ -397,18 +396,8 @@ local function SpecTabs()
     return items
 end
 
-local function Opacity()
-    return math.floor((ns.QoLSettings.Get("bisWindowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    ns.QoLSettings.Set("bisWindowAlpha", value / PERCENT)
-end
-
 local function Paint()
-    local alpha = ns.QoLSettings and ns.QoLSettings.Get("bisWindowAlpha") or 1
-    window.backdrop:Paint(alpha)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
 end
 
 local function Changes()
@@ -486,10 +475,8 @@ end
 
 local function TitleBar(Parts, St)
     local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_ABOUT, PAGE)
-    local opacityIcon
-    opacityIcon, window.opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
     window.reset = Parts.BarButton(window, St.CROSS, TEXT_RESET, TEXT_RESET_TIP, Reset)
-    window.reset:SetPoint("RIGHT", opacityIcon, "LEFT", -FIRST_BUTTON_GAP, 0)
+    window.reset:SetPoint("RIGHT", close, "LEFT", -FIRST_BUTTON_GAP, 0)
     local export = Parts.BarButton(window, St.EXPORT, TEXT_EXPORT, TEXT_EXPORT_TIP, Export)
     export:SetPoint("RIGHT", window.reset, "LEFT", -St.BAR_GAP, 0)
     local import = Parts.BarButton(window, St.IMPORT, TEXT_IMPORT, TEXT_IMPORT_TIP, Import)
@@ -506,10 +493,6 @@ local function Specs(Parts, top, pad)
     window.sample:SetPoint("RIGHT", -(CARD + pad), 0)
     window.sample:SetJustifyH("RIGHT")
     window.sample:SetWordWrap(false)
-end
-
-local function OnSetting(key)
-    if key == "bisWindowAlpha" and window:IsShown() then Paint() end
 end
 
 local function Build()
@@ -531,7 +514,6 @@ local function Build()
     window.upgrades = Card(CARD + half + CARD_GAP, CARD, window.cardsTop, window.footerH, TEXT_UPGRADES_CARD)
     SW.OnChange(QueueDraw)
     if ns.BiS and ns.BiS.OnListChange then ns.BiS.OnListChange(QueueDraw) end
-    ns.QoLSettings.OnChange(OnSetting)
 end
 
 function ns.OpenStatWeightsWindow()

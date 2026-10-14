@@ -458,7 +458,7 @@ function Apply()
 end
 
 local function OnSet(key)
-    if key:find("^bless") and key ~= "blessPos" and key ~= "blessWindowAlpha" then Apply() end
+    if key:find("^bless") and key ~= "blessPos" then Apply() end
 end
 
 local function OnUnlock()

@@ -213,13 +213,6 @@ local function fixture(settings, noMacros, class)
                     return w
                 end,
                 TitleBar = function(window, title) window.title = title; return frame('Button', nil, window) end,
-                Opacity = function(window, _, get, set)
-                    local c = frame('Slider', nil, window)
-                    c.get, c.set = get, set
-                    c._refreshValue = function() c.value = get() end
-                    s.opacity = c
-                    return frame('FontString', nil, window), c
-                end,
                 FooterBrand = function() end,
                 FooterNote = function(window)
                     local note = frame('Frame', nil, window)
@@ -972,7 +965,7 @@ do
     check('or that it is off', bar.summary(s.ns.QoLSettings) == 'Off')
     s.set('consumableBar', true)
     local rows = {}
-    for _, id in ipairs({ 'bar', 'adding', 'anchor', 'window' }) do
+    for _, id in ipairs({ 'bar', 'adding', 'anchor' }) do
         local seen = {}
         for _, row in ipairs(s.cards['Consumable Bar/Settings:' .. id].rows) do
             if row.label then
@@ -1005,7 +998,8 @@ do
     rows['Ask Again for Declined Items'].button()
     check('Ask Again forgets the declined items', next(s.settings.consumableBarDeclined) == nil)
     check('the background opacity waits for its switch', rows['Background Opacity'].needs == 'consumableBarBackground')
-    check('the window card sets the window\'s opacity', rows['Window Opacity'].key == 'consumableBarWindowAlpha')
+    check('no Window card: the window is always solid', s.cards['Consumable Bar/Settings:window'] == nil
+        and rows['Window Opacity'] == nil)
 end
 
 -- The card's preview: the bar as it is set, out of combat and in it
@@ -1139,16 +1133,12 @@ do
     check('growing down makes it taller, not the icons smaller', tall > box.h and box.cells[1].w == 20)
 end
 
--- The window's opacity
+-- The window is always solid, even for a player who had lowered the old opacity setting
 do
-    local s = fixture({ consumableBar = true, consumableBarItems = { 13446 } })
+    local s = fixture({ consumableBar = true, consumableBarItems = { 13446 }, consumableBarWindowAlpha = 0.6 })
     s.editor()
-    check('the window opens at full opacity', s.opacity.get() == 100 and s.window.painted == 1)
-    s.opacity.set(60)
-    check('its slider sets it, the window follows', s.settings.consumableBarWindowAlpha == 0.6
-        and s.window.painted == 0.6)
+    check('the window opens solid, the old setting ignored', s.window.painted == 1)
     check('one item, said so', s.window.note.text.text == '1 item on the bar')
-    check('the panels beside it follow the new opacity', (s.repaints or 0) > 0)
     check('the options can open it too', s.ns.OpenConsumableBarEditor == s.CB.OpenEditor)
 end
 
@@ -1681,11 +1671,10 @@ do
         consumableBarItemFlags = { [13446] = { textOn = true, text = 'HP' } } })
     local b = s.buttons()[1]
     local applies = s.applies
-    for _, key in ipairs({ 'consumableBarWindowAlpha', 'consumableBarSkip', 'consumableBarDeclined',
-        'consumableBarTooltip' }) do
+    for _, key in ipairs({ 'consumableBarSkip', 'consumableBarDeclined', 'consumableBarTooltip' }) do
         s.set(key, s.ns.QoLSettings.Get(key))
     end
-    check('window opacity, scan filters, declined items and tooltips apply nothing', s.applies == applies)
+    check('scan filters, declined items and tooltips apply nothing', s.applies == applies)
     s.set('consumableBarFontSize', 22)
     s.set('consumableBarKeyX', 4)
     check('the count and key text restyle without applying the bar', s.applies == applies

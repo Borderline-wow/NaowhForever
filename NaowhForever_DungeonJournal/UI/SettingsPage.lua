@@ -168,11 +168,6 @@ local function OnSettingChanged(key)
     if key == "enabled" then ns.UI:RefreshPage(true) end
 end
 
-local function OpacityRow(key, help)
-    return { key = key, label = "Window Opacity", slider = OPACITY_RANGE, unit = "%",
-        scale = TO_FRACTION, help = help }
-end
-
 local function Toggle(key, label, help, search)
     return { key = key, label = label, toggle = true, needs = JournalOn, why = TEXT_JOURNAL_OFF, help = help,
         search = search }
@@ -188,15 +183,9 @@ local function DeclareJournal()
         rows = ListRows(),
     })
     page:Card({
-        id = "window", name = "Window", order = ORDER_LAST,
-        help = "The Journal's own window.",
-        search = "up down arrow keys ctrl+f ctrl f search recent reset kills loot",
-        summary = OpacitySummary("windowAlpha"),
-        rows = { OpacityRow("windowAlpha", "How solid the Journal's window and its side panels are.") },
-    })
-    page:Card({
         id = "keys", name = "Key Binding", order = ORDER_FOURTH,
         help = "The key that opens the Journal.",
+        search = "up down arrow keys ctrl+f ctrl f search recent reset kills loot",
         rows = {
             { label = "Open Dungeon Journal", binding = "NAOWHFOREVER_JOURNAL",
               help = "Press it to open or close the Dungeon Journal." },
@@ -230,7 +219,8 @@ local function DeclareTracker()
         help = "The Dungeon Quest Tracker's window.",
         summary = OpacitySummary("trackerAlpha"),
         rows = {
-            OpacityRow("trackerAlpha", "How solid the Dungeon Quest Tracker is."),
+            { key = "trackerAlpha", label = "Opacity", slider = OPACITY_RANGE, unit = "%", scale = TO_FRACTION,
+              help = "How solid the Dungeon Quest Tracker is." },
             { key = "trackerScale", label = "Window Scale", slider = SCALE_RANGE, unit = "%",
               scale = TO_FRACTION, help = "How big the Dungeon Quest Tracker is." },
         },
@@ -242,6 +232,7 @@ local function DeclareMap()
     map:Card({
         id = "map", name = "Beside the World Map", order = ORDER_FIRST,
         help = "The Journal beside the world map: bosses and loot in dungeons, factions outside.",
+        search = "dungeon page map link pin fold map and bosses only",
         summary = MapSummary,
         rows = {
             Toggle("mapPanel", "Bosses and Loot in Dungeons",
@@ -250,14 +241,6 @@ local function DeclareMap()
             Toggle("mapFactions", "Factions Beside the Map",
                 "Shows the factions earned where you are beside the world map."),
         },
-    })
-    map:Card({
-        id = "mapwindow", name = "Window", order = ORDER_LAST,
-        help = "The map's window, the Journal beside the world map and Boss Loot at Cursor.",
-        search = "dungeon page map link pin fold map and bosses only",
-        summary = OpacitySummary("mapAlpha"),
-        rows = { OpacityRow("mapAlpha",
-            "How solid the map's window, the Journal beside the map and Boss Loot at Cursor are.") },
     })
     map:Card({
         id = "lootkey", name = "Boss Loot at Cursor", order = ORDER_THIRD,

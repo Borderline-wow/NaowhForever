@@ -14,7 +14,7 @@ local PIN_SIZE = St.PIN_SIZE_RANGE
 local RANGE = { 10, 100, 5 }
 local OPACITY_RANGE = St.OPACITY_RANGE
 local PERCENT_SCALE = St.PERCENT_SCALE
-local ORDER_TRACKER, ORDER_NEARBY, ORDER_WAYPOINTS, ORDER_KEYS, ORDER_WINDOW = 10, 30, 35, 80, 90
+local ORDER_TRACKER, ORDER_NEARBY, ORDER_WAYPOINTS, ORDER_KEYS = 10, 30, 35, 80
 local TEXT_SECTION = ns.L("Library Books")
 local TEXT_OFF = ns.L("Turn on Discovery")
 local TEXT_PINS_OFF = ns.L("Turn on Library Books pins")
@@ -129,14 +129,5 @@ page:Card({
     rows = {
         { label = "Open Discovery", binding = "NAOWHFOREVER_DISCOVERY",
           help = "Press this key to open Discovery's window, and again to close it." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = ORDER_WINDOW,
-    help = "Discovery's own window, with every book and where to find it.",
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = OPACITY_RANGE,
-          unit = "%", scale = PERCENT_SCALE, help = "How solid the window is, in percent. Also on its title bar." },
     },
 })

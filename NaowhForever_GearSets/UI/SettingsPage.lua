@@ -12,10 +12,8 @@ if not Settings then return end
 local PREVIEW_NOTE_GAP = 10
 local ADD_TEXT_SIZE, NOTE_SIZE = 14, 12
 local BAR_STAGE_H, TRINKET_STAGE_H = 100, 110
-local PERCENT, ROUND = C.PERCENT, C.ROUND
 local BAR_SIZE_RANGE, TRINKET_SIZE_RANGE, SPACING_RANGE = { 20, 48, 1 }, { 20, 70, 1 }, { 0, 30, 1 }
-local OPACITY_RANGE, TO_FRACTION = ns.Shared.Style.OPACITY_RANGE, ns.Shared.Style.PERCENT_SCALE
-local ORDER_GEAR_BAR, ORDER_SWAPS, ORDER_TRINKETS, ORDER_WINDOW = 10, 20, 30, 40
+local ORDER_GEAR_BAR, ORDER_SWAPS, ORDER_TRINKETS = 10, 20, 30
 local SHOW = { { always = "Always", combat = "In Combat", nocombat = "Out of Combat" },
     { "always", "combat", "nocombat" } }
 local GROW = ns.Shared.ItemBar.GrowChoice()
@@ -91,7 +89,6 @@ local function SetChoices()
 end
 
 local TEXT_GEAR_SET, TEXT_GEAR_SETS = ns.L("%d gear set"), ns.L("%d gear sets")
-local TEXT_OPACITY = ns.L("%d%% opacity")
 
 local function SetsText(n)
     return (n == 1 and TEXT_GEAR_SET or TEXT_GEAR_SETS):format(n)
@@ -120,10 +117,6 @@ end
 
 local function SizeSummary(key)
     return function(store) return store.Get(key) .. " px" end
-end
-
-local function WindowSummary(store)
-    return TEXT_OPACITY:format(math.floor((store.Get("gearWindowAlpha") or 1) * PERCENT + ROUND))
 end
 
 local function OpenWindow()
@@ -185,15 +178,5 @@ page:Card({
           why = GEAR_OFF, help = "The gap between the two." },
         { key = "trinketGrow", label = "Growth Direction", choice = GROW, needs = GearOn, why = GEAR_OFF,
           help = "Which way the second trinket sits from the first." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = ORDER_WINDOW,
-    help = "The Gear Sets window, with every set and what you can do with it.",
-    summary = WindowSummary,
-    rows = {
-        { key = "gearWindowAlpha", label = "Window Opacity", slider = OPACITY_RANGE,
-          unit = "%", scale = TO_FRACTION, help = "How solid the Gear Sets window is, in percent. Also on its title bar." },
     },
 })

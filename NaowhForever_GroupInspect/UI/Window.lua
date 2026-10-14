@@ -13,7 +13,6 @@ local SCROLLBAR, TAB_H, BAR_GAP, SCROLL_GAP = St.SCROLLBAR, St.TAB_H, St.BAR_GAP
 local CARD = 6
 local REFRESH_GAP = BAR_GAP * 2
 local SUMMARY_SHRINK = 2
-local PERCENT, ROUND = GI.C.PERCENT, GI.C.ROUND
 local WINDOW_KEY = "groupInspectWindow"
 
 local MODE_WORDS = UI.MODE_WORDS
@@ -28,17 +27,8 @@ local TURNED_ON = ns.L("Group Inspect turned on. Turn it off on its settings pag
 local window, board, list, raidBar
 local listening = false
 
-local function Opacity()
-    return math.floor((S.Get("groupInspectAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    S.Set("groupInspectAlpha", value / PERCENT)
-end
-
 local function PaintBackdrop()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
 end
 
 local function PaintTop()
@@ -118,10 +108,8 @@ local function Build()
     window = Parts.Window(W, H, WINDOW_KEY)
     window.backdrop:Card(CARD, HEADER + CARD, CARD, FOOTER + CARD)
     local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, UI.PAGE)
-    local opacityIcon
-    opacityIcon, window.opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
     local refresh = Parts.BarButton(window, St.RESET, TEXT_REFRESH, TEXT_REFRESH_TIP, RefreshAll, TEXT_REFRESH_LABEL)
-    refresh:SetPoint("RIGHT", opacityIcon, "LEFT", -REFRESH_GAP, 0)
+    refresh:SetPoint("RIGHT", close, "LEFT", -REFRESH_GAP, 0)
     Parts.FooterBrand(window, UI.PAGE)
     window.note = Parts.FooterNote(window, "")
 
@@ -179,8 +167,6 @@ local function OnSettingChanged(key)
     if not window then return end
     if key == "groupInspect" and not GI.On() then
         window:Hide()
-    elseif key == "groupInspectAlpha" then
-        if window:IsShown() then PaintBackdrop() end
     elseif key == "groupInspectView" or key == "groupInspectSort" or key == "naowhScoreCompare" then
         if window:IsShown() then PaintAll() end
     end

@@ -803,7 +803,8 @@ for _, item in ipairs(page.items) do
 end
 check("one page: the window's card, then its cards in order", page.items[1].window
     and page.items[1].text == "Open BiS List" and table.concat(cards, ",")
-    == "marks,dropAlert,lists,statWeights,keys,window")
+    == "marks,dropAlert,lists,statWeights,keys")
+check("no Window card: the windows are always solid", page.cards.window == nil and rows["Window Opacity"] == nil)
 check("the tooltip and bag marks card is named for them", page.cards.marks.name == "Marks on Items")
 check("Marks on Items holds Show on Tooltips and Bag Marks only: Bag Marks draws the level",
     #page.cards.marks.rows == 2 and page.cards.marks.rows[1].key == "bisTooltip"

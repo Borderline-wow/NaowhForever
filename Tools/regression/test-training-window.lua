@@ -237,9 +237,14 @@ Click(window.back)
 window.search:SetText("spell")
 settings.showLearned = true
 for _, fn in ipairs(listeners) do fn("showLearned") end
-settings.windowAlpha = 0.5
-for _, fn in ipairs(listeners) do fn("windowAlpha") end
 window.search:SetText("")
+local painted
+local paint = window.backdrop.Paint
+window.backdrop.Paint = function(self, alpha, ...) painted = alpha; return paint(self, alpha, ...) end
+settings.windowAlpha = 0.5
+window:Hide()
+ns.OpenTrainingWindow()
+check("it opens solid, even with an old lowered opacity saved", painted == 1)
 
 window.switch.onPick("builds")
 check("Builds hides the next visit and the road", not window.hero:IsShown() and not window.road:IsShown())

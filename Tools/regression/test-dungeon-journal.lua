@@ -1009,19 +1009,29 @@ do
 end
 
 -------------------------------------------------------------------------------
---  Each part's opacity, from the one setting it was before
+--  The tracker's opacity, from the one setting it was before; the windows have none
 -------------------------------------------------------------------------------
 do
     local ns, _, S = fixture({ windowAlpha = 0.5 })
     ns.Apply()
-    check("the tracker and the map keep the opacity set before they had their own",
-        S.Get("trackerAlpha") == 0.5 and S.Get("mapAlpha") == 0.5)
-    ns, _, S = fixture({ windowAlpha = 0.5, mapAlpha = 0.9 })
+    check("the tracker keeps the opacity set before it had its own", S.Get("trackerAlpha") == 0.5)
+    ns, _, S = fixture({ windowAlpha = 0.5, trackerAlpha = 0.9 })
     ns.Apply()
-    check("a part's own opacity, once set, is kept", S.Get("mapAlpha") == 0.9 and S.Get("trackerAlpha") == 0.5)
+    check("the tracker's own opacity, once set, is kept", S.Get("trackerAlpha") == 0.9)
     ns, _, S = fixture({})
     ns.Apply()
-    check("none set: each part at its default", S.Raw("trackerAlpha") == nil and S.Raw("mapAlpha") == nil)
+    check("none set: the tracker at its default", S.Raw("trackerAlpha") == nil)
+    local sources = {}
+    for _, path in ipairs({ "UI/Window.lua", "UI/MapWindow.lua", "UI/MapPanel.lua", "UI/Popup.lua",
+        "View/Parts.lua", "UI/SettingsPage.lua" }) do
+        local f = assert(io.open("NaowhForever_DungeonJournal/" .. path, "rb"))
+        sources[#sources + 1] = f:read("*a")
+        f:close()
+    end
+    local all = table.concat(sources, "\n")
+    check("the Journal's windows have no opacity: always solid", all:find("windowAlpha", 1, true) == nil
+        and all:find("mapAlpha", 1, true) == nil and all:find("Parts.Opacity", 1, true) == nil
+        and all:find("Window Opacity", 1, true) == nil)
 end
 
 -------------------------------------------------------------------------------
@@ -1422,9 +1432,7 @@ do
     S.Set("usableOnly", false)
     S.Set("listHidden", true)
     S.Set("listHidden", false)
-    S.Set("windowAlpha", 0.6)
     S.Set("trackerAlpha", 0.7)
-    S.Set("mapAlpha", 0.8)
     check("and takes its settings without an error", true)
     -- The list: the BiS here you still miss, and nothing once you have them all.
     local List, deadmines = ns.Journal.DungeonList, ns.Journal.Get("Deadmines")

@@ -60,8 +60,8 @@ NaowhForever_ConsumableBar/
   and only a scroll that gives a buff belongs on the bar.
 - A cooldown of `GCD` (1.5 s) or less is the global cooldown, not the item's own.
 - A setting is applied as far as it reaches: the bar's look (fonts, offsets, background, an item's
-  own text) restyles the icons, what the bar does not show (window opacity, filters, declined items,
-  tooltips) applies nothing, and the rest lays the bar out again. A drag writes the anchor only
+  own text) restyles the icons, what the bar does not show (filters, declined items, tooltips)
+  applies nothing, and the rest lays the bar out again. A drag writes the anchor only
   when it changes, since every write reaches the listeners.
 - Ask to Add learns what the bags hold on the first bag update, not at login, when they may not
   be filled yet. What waits to be asked about is checked again when it is shown: declined, filtered

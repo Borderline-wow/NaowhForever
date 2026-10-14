@@ -50,10 +50,6 @@ local function LeaveSummary(store)
     return store.Get("leaveWhere") == "group" and ns.L("Sent to the group") or ns.L("Your chat only")
 end
 
-local function WindowSummary(store)
-    return (ns.L("%d%% opacity")):format(math.floor((store.Get("windowAlpha") or 1) * 100 + 0.5))
-end
-
 local page = Settings.Page("Instance Tracker/Settings", S)
 
 page:Window({
@@ -117,14 +113,4 @@ page:Card({
     id = "reset", name = "When You Reset", order = 60, switch = "resetChat",
     help = "Posts the reset in group chat when you are leading.",
     summary = function() return ns.L("Posted in group chat") end,
-})
-
-page:Card({
-    id = "window", name = "Window", order = 90,
-    help = "Keeps this hour and visits in their own window.",
-    summary = WindowSummary,
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
-          unit = "%", scale = 0.01, help = "Sets how solid the window is." },
-    },
 })

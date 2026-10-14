@@ -11,13 +11,10 @@ local CARD_PAD = J.Style.CARD_PAD
 local SECONDS_PER_MINUTE = J.C.SECONDS_PER_MINUTE
 local EDGE_INSET = 1
 local FIGHT_LENGTH = "%d:%02d"
+local FULL_OPACITY = 1
 
 local function Opacity()
-    return J.Settings.Get("windowAlpha") or 1
-end
-
-local function OnSettingChanged(key)
-    if key == "windowAlpha" then Shared.Parts.RepaintSidePanels() end
+    return FULL_OPACITY
 end
 
 function Parts.FightLength(seconds)
@@ -34,5 +31,3 @@ end
 function Parts.SidePanel(actions)
     return Shared.Parts.SidePanel(actions, View.New, Opacity)
 end
-
-J.Settings.OnChange(OnSettingChanged)

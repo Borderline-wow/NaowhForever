@@ -114,7 +114,7 @@ local function Place(from)
 end
 
 local function Paint()
-    window.backdrop:Paint(S.Get("mapAlpha") or 1)
+    window.backdrop:Paint(1)
 end
 
 local function PaintPin(button)
@@ -409,8 +409,6 @@ end
 local function SettingChanged(key)
     if key == "enabled" and not S.Get("enabled") then
         if window then window:Hide() end
-    elseif key == "mapAlpha" and window then
-        Paint()
     elseif window and window:IsShown() then
         windowView:Draw()
         if Map.picked and not Folded() then lootView:QueueRedraw() end

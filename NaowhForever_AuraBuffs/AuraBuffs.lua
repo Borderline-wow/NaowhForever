@@ -35,7 +35,7 @@ local S = ns.UI.ModuleSettings("auraBuffs", {
     lowHealthFont = "", lowHealthFontSize = 16, lowHealthOutline = "OUTLINE",
     lowHealthSound = true, lowHealthSoundKey = "none",
     lowHealthPos = { point = "BOTTOM", relPoint = "BOTTOM", x = 0, y = 249 },
-    campBuffMode = false, windowAlpha = 1,
+    campBuffMode = false,
 })
 
 local ENTRIES = "consumableEntries"

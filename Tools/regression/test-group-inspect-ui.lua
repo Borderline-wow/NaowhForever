@@ -91,7 +91,7 @@ local function Flush()
 end
 
 local QOL = { enabled = true, groupInspect = false, groupInspectShare = true, groupInspectSort = "score",
-    groupInspectView = "gear", groupInspectAlpha = 1, naowhScoreCompare = "max", badgeChat = true }
+    groupInspectView = "gear", naowhScoreCompare = "max", badgeChat = true }
 local values, listeners = {}, {}
 local S = {
     Get = function(key)
@@ -358,7 +358,7 @@ local switches = Source("Core/Features.lua")
 check("its defaults: off, sharing on, by score, the gear view", qol:find("groupInspect = F.groupInspect,", 1, true)
     and switches:find("groupInspect = false,", 1, true) and switches:find("groupInspectShare = true,", 1, true)
     and qol:find("groupInspectShare = F.groupInspectShare,", 1, true) and qol:find('groupInspectSort = "score"', 1, true)
-    and qol:find('groupInspectView = "gear"', 1, true) and qol:find("groupInspectAlpha = 1", 1, true))
+    and qol:find('groupInspectView = "gear"', 1, true) and not qol:find("groupInspectAlpha", 1, true))
 check("/nf group and its key binding", Source("Core/Commands.lua"):find('cmd == "group"', 1, true)
     and Source("Bindings.xml"):find("NaowhForever_ToggleGroupInspect()", 1, true))
 
@@ -370,13 +370,14 @@ local banner = page and page.items[1]
 check("its own page opens with the banner and Open Group Inspect", banner and banner.window
     and banner.text == "Open Group Inspect")
 local pageCards = page.cards
-check("then Share Your Stats, the Preview, Key Binding and Window, in that order", page.items[2] == pageCards.share
-    and page.items[3] == pageCards.preview and page.items[4] == pageCards.binding and page.items[5] == pageCards.window)
+check("then Share Your Stats, the Preview and Key Binding, in that order, and no Window card", page.items[2] == pageCards.share
+    and page.items[3] == pageCards.preview and page.items[4] == pageCards.binding and page.items[5] == nil
+    and pageCards.window == nil)
 check("Share Your Stats is its switch", pageCards.share.switch == "groupInspectShare" and #pageCards.share.rows == 0)
 local card = pageCards.preview
 check("the preview: a party and a raid", card.studio.states[1].key == "party" and card.studio.states[2].key == "raid")
-check("the key binding and the window's opacity", pageCards.binding.rows[1].binding == "NAOWHFOREVER_GROUPINSPECT"
-    and pageCards.window.rows[1].key == "groupInspectAlpha")
+check("the key binding, found by the right-click menu too", pageCards.binding.rows[1].binding == "NAOWHFOREVER_GROUPINSPECT"
+    and pageCards.binding.search:find("right-click", 1, true))
 check("the banner says you are not in a group", banner.headline() == "Not in a group" and banner.detail():find("preview"))
 check("nothing hooks the unit menus while off", #menus.modified == 0)
 

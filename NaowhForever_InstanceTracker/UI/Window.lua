@@ -1,6 +1,5 @@
 -- Window.lua: this hour and the visit history, in Instance Tracker's own window.
 local ns = _G.NaowhForever
-local S = ns.InstanceTrackerSettings
 local Shared = ns.Shared
 local Parts, St = Shared.Parts, Shared.Style
 
@@ -27,14 +26,6 @@ local contents = {}
 local shown = "hour"
 local queued
 
-local function Opacity()
-    return math.floor((S.Get("windowAlpha") or 1) * 100 + 0.5)
-end
-
-local function SetOpacity(value)
-    S.Set("windowAlpha", value / 100)
-end
-
 local function Note()
     local IT = ns.InstanceTracker
     if not IT then return "" end
@@ -43,8 +34,7 @@ local function Note()
 end
 
 local function Paint()
-    window.backdrop:Paint(Opacity() / 100)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
     window.note.text:SetText(Note())
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
     Parts.PaintTabs(window.tabs, shown)
@@ -77,10 +67,7 @@ end
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, "instanceTrackerWindow")
     window.backdrop:Card(CARD, HEADER + CARD, CARD, FOOTER + CARD)
-    local close = Parts.TitleBar(window, "Instance Tracker",
-        ns.L("Visits, and this hour's instances."), PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, "Instance Tracker", ns.L("Visits, and this hour's instances."), PAGE)
     Parts.FooterBrand(window, PAGE)
     window.note = Parts.FooterNote(window, "")
 
@@ -98,10 +85,6 @@ local function Build()
         contents[tab.key] = content
     end
 end
-
-S.OnChange(function(key)
-    if key == "windowAlpha" and window and window:IsShown() then Paint() end
-end)
 
 hooksecurefunc(ns.UI, "RefreshPage", RedrawSoon)
 hooksecurefunc(ns, "Apply", RedrawSoon)

@@ -21,8 +21,6 @@ local PAGE = "Dungeon Journal"
 local SEARCH_DELAY = 0.15
 local NEXT_FRAME = 0
 local MIN_QUERY = 2
-local PERCENT = J.C.PERCENT
-local ROUND_HALF = J.C.ROUND_HALF
 local SEARCH_ROOM = 8
 local SEARCH_W = LIST_W - SEARCH_ROOM - FACTION_W * 2 - FACTION_GAP
 local SEARCH_FULL_W = LIST_W - SEARCH_ROOM
@@ -178,17 +176,8 @@ local function OnKeyDown(self, key)
     C_Timer.After(NEXT_FRAME, PassKeysOn)
 end
 
-local function Opacity()
-    return math.floor((S.Get("windowAlpha") or 1) * PERCENT + ROUND_HALF)
-end
-
-local function SetOpacity(value)
-    S.Set("windowAlpha", value / PERCENT)
-end
-
-local function PaintOpacity()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+local function PaintBackdrop()
+    window.backdrop:Paint(1)
 end
 
 local function ToggleEnter(button)
@@ -256,10 +245,8 @@ end
 
 local function BuildTitleBar()
     local close = Parts.TitleBar(window, PAGE, TEXT_SUBTITLE, PAGE)
-    local opacityIcon
-    opacityIcon, window.opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
     window.filters = Filters.Button(window)
-    window.filters:SetPoint("RIGHT", opacityIcon, "LEFT", -FILTERS_GAP, 0)
+    window.filters:SetPoint("RIGHT", close, "LEFT", -FILTERS_GAP, 0)
     window.listToggle = Parts.BarIcon(window, LIST_SHOWN, true)
     window.listToggle:SetScript("OnClick", ToggleClicked)
     window.listToggle:SetScript("OnEnter", ToggleEnter)
@@ -317,7 +304,7 @@ local function Build()
 end
 
 local function ApplyProfile()
-    PaintOpacity()
+    PaintBackdrop()
     Switch.Paint(window.factions)
     Arrange()
     Filters.Paint()
@@ -334,8 +321,6 @@ local function SettingChanged(key)
     if not (window and window:IsShown()) then return end
     if key == "enabled" then
         if not S.Get("enabled") then window:Hide() end
-    elseif key == "windowAlpha" then
-        PaintOpacity()
     elseif key:find("^closedGroup") then
         List.Layout()
     elseif key == "openUnreleased" then

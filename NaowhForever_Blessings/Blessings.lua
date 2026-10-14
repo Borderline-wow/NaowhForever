@@ -13,7 +13,6 @@ local B = {
     PAGE = "Blessings/Settings",
     AURA_COLUMN = "AURA",
     NOBODY = "-",
-    PERCENT = 100,
     ROUND = 0.5,
     AURA_TIP = ns.L("Left-click: cast your aura.\nRight-click: choose it."),
     FURY_TIP = ns.L("Left-click: cast it on yourself."),

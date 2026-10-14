@@ -1,4 +1,4 @@
--- Window.lua: a window in the house look (ns.Shared.Parts): the frame, its size grip, the title bar with its logo, icons and opacity slider, the footer, and the Forever frame's place for the title bar.
+-- Window.lua: a window in the house look (ns.Shared.Parts): the frame, its size grip, the title bar with its logo and icons, the footer, and the Forever frame's place for the title bar.
 local ns = _G.NaowhForever
 local T = ns.THEME
 local Parts = ns.Shared.Parts
@@ -7,9 +7,7 @@ local St = ns.Shared.Style
 local TipLines = Parts.TipLines
 
 local BORDER_RGB, HEADER, PAD, FOOTER = St.BORDER_RGB, St.WINDOW_HEADER, St.WINDOW_PAD, St.WINDOW_FOOTER
-local BAR_ICON, ROUND, LOGO, LOGO_SIZE = St.BAR_ICON, St.ROUND, St.LOGO, St.LOGO_SIZE
-local SLIDER_W, SLIDER_H, KNOB, KNOB_GLOW, OPACITY_MIN = St.SLIDER_W, St.SLIDER_H, St.KNOB, St.KNOB_GLOW,
-    St.OPACITY_MIN
+local BAR_ICON, LOGO, LOGO_SIZE = St.BAR_ICON, St.LOGO, St.LOGO_SIZE
 local SMALL_SIZE = St.SMALL_SIZE
 local LOGO_REST = 0.9
 local BRAND_REST = 0.8
@@ -21,11 +19,6 @@ local GRIP, GRIP_INSET, GRIP_LEVEL = 16, 3, 20
 local GRIP_TEXTURE = "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-"
 local BAR_ICON_PAD, BAR_ICON_IN = 4, 2
 local BAR_LABEL_GAP, BAR_LABEL_ROOM = 4, 8
-local OPACITY_BOX_W, OPACITY_BOX_H, OPACITY_ALPHA = 24, 18, 1
-local OPACITY_MAX, OPACITY_STEP = St.OPACITY_MAX, St.OPACITY_STEP
-local OPACITY_DEEP = 0.6
-local OPACITY_GLOW_ALPHA = 0.25
-local PERCENT_GAP, BOX_GAP, SLIDER_GAP, ICON_GAP = 14, 1, 10, 6
 local FOOTER_SIZE = 10
 local FOOTER_LOGO = 14
 local FOOTER_INSET = 8
@@ -36,8 +29,6 @@ local BRAND_GAP = 5
 local TEXT_BACK = ns.L("Back")
 local TEXT_ADDON = "Naowh Forever"
 local TEXT_OPEN_OPTIONS = ns.L("Click to open its options.")
-local TEXT_OPACITY = ns.L("Window opacity")
-local TEXT_PERCENT = "%"
 local TEXT_CLOSE = "x"
 local TEXT_BRAND, TEXT_BRAND_ACCENT = "Naowh ", "Forever"
 
@@ -137,60 +128,6 @@ end
 local function BarButtonEnter(button)
     Light(button, true)
     TipLines(button, "ANCHOR_BOTTOM", button.tip, button.hint)
-end
-
-local function Round(parent, layer, size, color, alpha)
-    local dot = parent:CreateTexture(nil, layer)
-    dot:SetTexture(ROUND, nil, nil, "TRILINEAR")
-    dot:SetSize(size, size)
-    dot:SetVertexColor(color.r, color.g, color.b, alpha or 1)
-    return dot
-end
-
-local function GlowShow(slider) slider.glow:Show() end
-
-local function GlowHide(slider)
-    if not IsMouseButtonDown("LeftButton") then slider.glow:Hide() end
-end
-
-local function GlowRelease(slider)
-    if not slider:IsMouseOver() then slider.glow:Hide() end
-end
-
-local function OpacityEnter(frame)
-    Light(frame, true)
-    TipLines(frame, "ANCHOR_BOTTOM", TEXT_OPACITY)
-end
-
-local function PaintSlider(slider)
-    local dim, bright = T.accent, T.accentSoft
-    local deep = { r = dim.r * OPACITY_DEEP, g = dim.g * OPACITY_DEEP, b = dim.b * OPACITY_DEEP }
-    Round(slider, "BORDER", SLIDER_H, deep):SetPoint("CENTER", slider.rail, "LEFT", 0, 0)
-    Round(slider, "BACKGROUND", SLIDER_H, T.line):SetPoint("CENTER", slider.rail, "RIGHT", 0, 0)
-    slider.fill:SetColorTexture(1, 1, 1, 1)
-    slider.fill:SetGradient("HORIZONTAL", CreateColor(deep.r, deep.g, deep.b, 1),
-        CreateColor(bright.r, bright.g, bright.b, 1))
-    slider.thumb:SetTexture(ROUND, nil, nil, "TRILINEAR")
-    slider.thumb:SetVertexColor(T.fg.r, T.fg.g, T.fg.b, 1)
-    slider.thumb:SetSize(KNOB, KNOB)
-    slider.glow = Round(slider, "BORDER", KNOB_GLOW, bright, OPACITY_GLOW_ALPHA)
-    slider.glow:SetPoint("CENTER", slider.thumb, "CENTER")
-    slider.glow:Hide()
-    slider:HookScript("OnEnter", GlowShow)
-    slider:HookScript("OnLeave", GlowHide)
-    slider:HookScript("OnMouseUp", GlowRelease)
-end
-
-local function PaintValueBox(slider)
-    local box = slider.valueBox
-    slider.valueFill:Hide()
-    slider.valueBorder._frame:Hide()
-    box:SetFont(ns.UIFontPath(), SMALL_SIZE, "")
-    box:SetTextColor(T.muted.r, T.muted.g, T.muted.b)
-    box:SetJustifyH("RIGHT")
-    box:SetTextInsets(0, 0, 0, 0)
-    box:SetWidth(OPACITY_BOX_W)
-    return box
 end
 
 local function BrandEnter(brand)
@@ -334,22 +271,6 @@ function Parts.BarButton(parent, texture, tip, hint, onClick, text)
     button:SetScript("OnClick", onClick)
     button:SetScript("OnEnter", BarButtonEnter)
     return button
-end
-
-function Parts.Opacity(parent, rightOf, get, set)
-    local slider = ns.UI.BuildSliderCore(parent, SLIDER_W, SLIDER_H, KNOB, OPACITY_BOX_W, OPACITY_BOX_H, SMALL_SIZE,
-        OPACITY_ALPHA, OPACITY_MIN, OPACITY_MAX, OPACITY_STEP, get, set)
-    PaintSlider(slider)
-    local box = PaintValueBox(slider)
-    local percent = ns.Font(parent, SMALL_SIZE, nil, T.muted)
-    percent:SetText(TEXT_PERCENT)
-    percent:SetPoint("RIGHT", rightOf, "LEFT", -PERCENT_GAP, 0)
-    box:SetPoint("RIGHT", percent, "LEFT", -BOX_GAP, 0)
-    slider:SetPoint("RIGHT", box, "LEFT", -SLIDER_GAP, 0)
-    local icon = Parts.BarIcon(parent, St.OPACITY)
-    icon:SetScript("OnEnter", OpacityEnter)
-    icon:SetPoint("RIGHT", slider, "LEFT", -ICON_GAP, 0)
-    return icon, slider
 end
 
 function Parts.FooterBrand(window, page, left)

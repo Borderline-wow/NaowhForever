@@ -20,7 +20,7 @@ local TEXT_WRONG_SLOT = ns.L("%s does not go in the %s slot.")
 local panel, box
 
 local function Opacity()
-    return B.Settings.Get("bisWindowAlpha") or FULL_OPACITY
+    return FULL_OPACITY
 end
 
 local function Title(slot)

@@ -6,8 +6,7 @@ local S = A.Settings
 local Sets = ns.ActionBarSets
 local Settings = ns.Shared.Settings
 
-local OPACITY_RANGE, PERCENT_SCALE = ns.Shared.Style.OPACITY_RANGE, ns.Shared.Style.PERCENT_SCALE
-local ORDER_IMPORTING, ORDER_WINDOW = 10, 20
+local ORDER_IMPORTING = 10
 local BARS_OFF = ns.L("Turn on Action Bars")
 local TEXT_HIGHEST, TEXT_SAVED = ns.L("Highest ranks"), ns.L("Saved ranks")
 local TEXT_MACROS, TEXT_KEYBINDS = ns.L("macros"), ns.L("keybinds")
@@ -67,14 +66,5 @@ page:Card({
         { key = "saveOnLogout", label = "Save on Logout", toggle = true, needs = On, why = BARS_OFF,
           help = "When you log out, the set this character saved last is saved again with your bars, "
               .. "macros and keybinds as they are." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = ORDER_WINDOW,
-    help = "Action Bars' own window, with your class's saved sets.",
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = OPACITY_RANGE,
-          unit = "%", scale = PERCENT_SCALE, help = "How solid the window is, in percent. Also on its title bar." },
     },
 })

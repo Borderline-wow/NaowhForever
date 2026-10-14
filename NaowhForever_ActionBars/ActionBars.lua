@@ -5,7 +5,7 @@ local F = ns.FEATURES.actionBars
 
 local S = ns.UI.ModuleSettings("actionBars", {
     enabled = F.enabled, highestRank = false, importMacros = true, importBindings = true, saveOnLogout = false,
-    fillLater = false, autoImportSets = {}, windowAlpha = 1,
+    fillLater = false, autoImportSets = {},
 })
 ns.ActionBarSettings = S
 

@@ -12,7 +12,6 @@ local WIDTH, HEIGHT, HEADER, PAD, FOOTER = St.WINDOW_W, St.WINDOW_H, St.WINDOW_H
 local SIDE_W, DOLL_W, SCROLLBAR, CONTENT_INSET = St.SIDE_W, St.DOLL_W, St.SCROLLBAR, St.CONTENT_INSET
 local TAB_H, TAB_GAP, LIST_BUTTON_H = St.TAB_H, St.TAB_GAP, St.LIST_BUTTON_H
 local BAR_GAP, BORDER_RGB = St.BAR_GAP, St.BORDER_RGB
-local PERCENT, ROUND = B.C.PERCENT, B.C.ROUND
 local SIDE_INNER = SIDE_W - 8
 local CONTENT_LEFT = SIDE_W + PAD + 14
 local CARD_IN = 6
@@ -56,14 +55,6 @@ local function DataDate(text)
     local day, month, year = tostring(text or ""):match("^(%d+) (%a+) (%d+)$")
     if not day then return text end
     return ns.L("%d %s %d"):format(tonumber(day), ns.L(month), tonumber(year))
-end
-
-local function Opacity()
-    return math.floor((S.Get("bisWindowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    S.Set("bisWindowAlpha", value / PERCENT)
 end
 
 local function SpecTabs()
@@ -186,10 +177,8 @@ end
 
 local function TitleBar()
     local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_ABOUT, PAGE)
-    local opacityIcon
-    opacityIcon, window.opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
     local weights = Parts.BarButton(window, St.SCALES, TEXT_WEIGHTS, TEXT_WEIGHTS_TIP, A.StatWeights)
-    weights:SetPoint("RIGHT", opacityIcon, "LEFT", -WEIGHTS_GAP, 0)
+    weights:SetPoint("RIGHT", close, "LEFT", -WEIGHTS_GAP, 0)
     local export = Parts.BarButton(window, St.EXPORT, TEXT_EXPORT, TEXT_EXPORT_TIP, A.Export)
     export:SetPoint("RIGHT", weights, "LEFT", -BAR_GAP, 0)
     local import = Parts.BarButton(window, St.IMPORT, TEXT_IMPORT, TEXT_IMPORT_TIP, A.Import)
@@ -240,17 +229,11 @@ local function Build()
 end
 
 local function Paint()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
 end
 
 local function OnSetting(key)
-    if key == "bisWindowAlpha" then
-        Parts.RepaintSidePanels()
-        if window and window:IsShown() then Paint() end
-    elseif key == "bis" and window and not B.On() then
-        window:Hide()
-    end
+    if key == "bis" and window and not B.On() then window:Hide() end
 end
 
 local function Reapply()

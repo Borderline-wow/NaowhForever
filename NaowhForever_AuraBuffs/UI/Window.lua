@@ -15,7 +15,6 @@ local TABS_DROP = 8
 local TOP_DROP = 4
 local SCROLL_GAP = 4
 local TOP_Y = -6
-local PERCENT, ROUND = A.C.PERCENT, A.C.ROUND
 local WINDOW_KEY = "auraBuffsWindow"
 
 local TEXT_TITLE = ns.L("AuraBuffs")
@@ -31,22 +30,13 @@ local contents = {}
 local shown = "consumables"
 local queued
 
-local function Opacity()
-    return math.floor((S.Get("windowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    S.Set("windowAlpha", value / PERCENT)
-end
-
 local function Note()
     local n = #(S.Get("consumableEntries") or {})
     return n == 1 and ns.L("1 consumable watched") or (n .. ns.L(" consumables watched"))
 end
 
 local function Paint()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
     window.note.text:SetText(Note())
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
     Parts.PaintTabs(window.tabs, shown)
@@ -79,9 +69,7 @@ end
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, WINDOW_KEY)
     window.backdrop:Card(CARD, HEADER + CARD, CARD, FOOTER + CARD)
-    local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, A.PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, A.PAGE)
     Parts.FooterBrand(window, A.PAGE)
     window.note = Parts.FooterNote(window, "")
 
@@ -100,10 +88,6 @@ local function Build()
     end
 end
 
-local function OnSettingChanged(key)
-    if key == "windowAlpha" and window and window:IsShown() then Paint() end
-end
-
 function ns.OpenAuraBuffsWindow(tab)
     if not window then Build() end
     if tab and BUILD[tab] then shown = tab end
@@ -116,6 +100,5 @@ function ns.ToggleAuraBuffsWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenAuraBuffsWindow() end
 end
 
-S.OnChange(OnSettingChanged)
 hooksecurefunc(ns.UI, "RefreshPage", RedrawSoon)
 hooksecurefunc(ns, "Apply", RedrawSoon)

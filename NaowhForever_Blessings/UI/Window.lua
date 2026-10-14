@@ -1,7 +1,6 @@
 -- Window.lua: the Blessings window (/nfbless): every paladin's blessing for each class, Auto-Assign and the preset.
 local ns = _G.NaowhForever
 
-local S = ns.QoLSettings
 local B = ns.Blessings
 local Shared = ns.Shared
 local Parts, St = Shared.Parts, Shared.Style
@@ -12,7 +11,6 @@ local INSET, SCROLLBAR = St.CONTENT_INSET, St.SCROLLBAR
 local CARD = 6
 local SCROLL_GAP = 4
 local TOP_Y = -6
-local PERCENT, ROUND = B.PERCENT, B.ROUND
 local WINDOW_KEY = "blessingsWindow"
 local TEXT_TITLE = ns.L("Blessings")
 local TEXT_TITLE_TIP = ns.L("Paladin blessings by class and player, shared with the group's paladins.")
@@ -20,17 +18,8 @@ local TEXT_TITLE_TIP = ns.L("Paladin blessings by class and player, shared with 
 local window, scroll, content
 local queued
 
-local function Opacity()
-    return math.floor((S.Get("blessWindowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function SetOpacity(value)
-    S.Set("blessWindowAlpha", value / PERCENT)
-end
-
 local function Paint()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
     window.note.text:SetText(B.Headline())
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
 end
@@ -53,9 +42,7 @@ end
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, WINDOW_KEY)
     window.backdrop:Card(CARD, HEADER + CARD, CARD, FOOTER + CARD)
-    local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, B.PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, TEXT_TITLE, TEXT_TITLE_TIP, B.PAGE)
     Parts.FooterBrand(window, B.PAGE)
     window.note = Parts.FooterNote(window, "")
     local left, top = CARD + INSET, HEADER + CARD + PAD
@@ -65,10 +52,6 @@ local function Build()
     content = CreateFrame("Frame", nil, scroll)
     content:SetSize(WIDTH - left - CARD - SCROLLBAR - INSET, 1)
     scroll:SetScrollChild(content)
-end
-
-local function OnSettingChanged(key)
-    if key == "blessWindowAlpha" and window and window:IsShown() then Paint() end
 end
 
 function ns.OpenBlessingsWindow()
@@ -82,6 +65,5 @@ function ns.ToggleBlessingsWindow()
     if window and window:IsShown() then window:Hide() else ns.OpenBlessingsWindow() end
 end
 
-S.OnChange(OnSettingChanged)
 hooksecurefunc(ns.UI, "RefreshPage", RedrawSoon)
 hooksecurefunc(ns, "Apply", RedrawSoon)

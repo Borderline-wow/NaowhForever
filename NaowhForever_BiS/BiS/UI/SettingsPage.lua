@@ -10,13 +10,11 @@ local Settings = ns.Shared and ns.Shared.Settings
 if not Settings then return end
 
 local PLACE_DOT = St.PLACE_DOT
-local PERCENT, ROUND = B.C.PERCENT, B.C.ROUND
-local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_KEYS, ORDER_WINDOW = 10, 20, 30, 50, 80
+local ORDER_MARKS, ORDER_DROP_ALERT, ORDER_LISTS, ORDER_KEYS = 10, 20, 30, 50
 local SCALE_RANGE = { 60, 160, 5 }
 local TIME_RANGE = { 2, 15, 1 }
 local ALPHA_RANGE = St.ALPHA_RANGE
 local FONT_RANGE = { 10, 20, 1 }
-local OPACITY_RANGE = St.OPACITY_RANGE
 local TO_FRACTION = St.PERCENT_SCALE
 local BIS_OFF = ns.L("Turn on the BiS List")
 local NEEDS_LOOKS = { "bis", "bisToast" }
@@ -27,7 +25,6 @@ local TEXT_RUN_NEXT = ns.L(" Run next: %s, for %d.")
 local TEXT_MARKS_BOTH, TEXT_MARKS_TIPS = ns.L("On tooltips and in your bags"), ns.L("On tooltips")
 local TEXT_MARKS_BAGS, TEXT_MARKS_NONE = ns.L("In your bags"), ns.L("Only in its window")
 local TEXT_ON_SCREEN, TEXT_IN_CHAT = ns.L(", on screen"), ns.L(", in chat")
-local TEXT_OPACITY = ns.L("%d%% opacity")
 
 local function Headline()
     local list, spec = L.List(), L.CurrentSpec()
@@ -105,10 +102,6 @@ end
 local function ListsSummary()
     local list = L.List()
     return list and (list.name:gsub("||", "|")) or ""
-end
-
-local function WindowSummary(store)
-    return TEXT_OPACITY:format(math.floor((store.Get("bisWindowAlpha") or 1) * PERCENT + ROUND))
 end
 
 local function RefreshPage()
@@ -206,16 +199,6 @@ page:Card({
     rows = {
         { label = "Open BiS List", binding = "NAOWHFOREVER_BIS",
           help = "Press this key to open the BiS List, and again to close it." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = ORDER_WINDOW,
-    help = "The BiS List's own window, and its Stat Weights window.",
-    summary = WindowSummary,
-    rows = {
-        { key = "bisWindowAlpha", label = "Window Opacity", slider = OPACITY_RANGE, unit = "%",
-          scale = TO_FRACTION, help = "How solid the BiS List's windows are, in percent. Also on their title bars." },
     },
 })
 

@@ -19,7 +19,7 @@ local PREVIEW_INSET = 10
 local WHEEL_STEP = 40
 local GHOST = 0.35
 local DRAG_FADE = 0.4
-local PERCENT = 100
+local FULL_OPACITY = 1
 local ITEM_PAGE = "Consumable Bar/Item"
 local POSITION_KEY = "consumableBarWindow"
 local TEXT_TITLE = ns.L("Consumable Bar")
@@ -56,16 +56,8 @@ local OFFSET_RANGE = { -50, 50, 1 }
 local window, preview, side, ghost
 local selected, dragging
 
-local function Opacity()
-    return math.floor((S.Get("consumableBarWindowAlpha") or 1) * PERCENT + 0.5)
-end
-
-local function SetOpacity(value)
-    S.Set("consumableBarWindowAlpha", value / PERCENT)
-end
-
 local function SideOpacity()
-    return Opacity() / PERCENT
+    return FULL_OPACITY
 end
 
 local function Drop(before)
@@ -255,8 +247,7 @@ function Render()
     window:SetHeight(HEADER + CARD + PAD + PreviewHeight() + PAD + BUTTON_H + PAD + FOOTER + CARD)
     window.note.text:SetText(#items == 1 and TEXT_ONE_ITEM or TEXT_ITEMS:format(#items))
     window.note:SetWidth(math.max(1, math.ceil(window.note.text:GetStringWidth())))
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(FULL_OPACITY)
 end
 
 local function BoxDrop()
@@ -379,9 +370,7 @@ end
 local function Build()
     window = Parts.Window(WIDTH, HEADER + CARD + FOOTER + CARD, POSITION_KEY)
     window.backdrop:Card(CARD, HEADER + CARD, CARD, FOOTER + CARD)
-    local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_SUBTITLE, CB.PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, TEXT_TITLE, TEXT_SUBTITLE, CB.PAGE)
     Parts.FooterBrand(window, CB.PAGE)
     window.note = Parts.FooterNote(window, "")
     local left = CARD + INSET

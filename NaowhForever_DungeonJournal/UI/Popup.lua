@@ -3,7 +3,6 @@ local ns = _G.NaowhForever
 
 local T = ns.THEME
 local J = ns.Journal
-local S = J.Settings
 local St = J.Style
 local PANEL_W, PANEL_PAD, PANEL_HEADER = St.PANEL_W, St.PANEL_PAD, St.PANEL_HEADER
 
@@ -42,7 +41,7 @@ local function Open(boss, dungeon)
     popup:ClearAllPoints()
     popup:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale + CURSOR_OFFSET, y / scale - CURSOR_OFFSET)
     popup.title:SetText(dungeon.name:upper())
-    popup.backdrop:Paint(S.Get("mapAlpha") or 1)
+    popup.backdrop:Paint(1)
     popup:Show()
     view:DrawBossLoot(boss, dungeon)
 end

@@ -10,8 +10,6 @@ if not Settings then return end
 local St = UI.Style
 local PREVIEW_H, MARGIN = 320, 12
 local MIN_SCALE = 0.1
-local PERCENT, ROUND = GI.C.PERCENT, GI.C.ROUND
-local OPACITY_RANGE, PERCENT_SCALE = St.OPACITY_RANGE, St.PERCENT_SCALE
 local STATES = {
     { key = "party", label = "Party", tip = "A party of five, a card each." },
     { key = "raid", label = "Raid", tip = "A raid, a row each." },
@@ -118,10 +116,6 @@ local function ShareSummary(store)
     return store.Get("groupInspectShare") and ns.L("Sharing with your group") or ns.L("Not sharing")
 end
 
-local function WindowSummary(store)
-    return (ns.L("%d%% opacity")):format(math.floor((store.Get("groupInspectAlpha") or 1) * PERCENT + ROUND))
-end
-
 local page = Settings.Page(UI.PAGE, S)
 
 page:Window({
@@ -146,19 +140,9 @@ page:Card({
 page:Card({
     id = "binding", name = "Key Binding", order = 30,
     help = "A key that opens Group Inspect.",
+    search = "right-click right click party raid menu",
     rows = {
         { label = "Open Group Inspect", binding = "NAOWHFOREVER_GROUPINSPECT",
           help = "Press this key to open Group Inspect, and again to close it." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = 40,
-    help = "Group Inspect's own window.",
-    search = "right-click right click party raid menu",
-    summary = WindowSummary,
-    rows = {
-        { key = "groupInspectAlpha", label = "Window Opacity", slider = OPACITY_RANGE, unit = "%",
-          scale = PERCENT_SCALE, help = "How solid the window is, in percent. Also on its title bar." },
     },
 })

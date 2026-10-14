@@ -42,7 +42,6 @@ local LEARNED_W, BACK_W = 110, 100
 local TOOL_SPACE = 8
 local MINI_GAP = 6
 local LOAD_SETTLE = 0.1
-local PERCENT, ROUND = Training.C.PERCENT, Training.C.ROUND
 local LINK_GAP = 12
 local COST_GAP, COUNT_GAP, COUNT_LIFT = 10, 14, 4
 local BAR_GAP, NOTE_GAP = 14, 10
@@ -222,14 +221,6 @@ local function SetTab(key)
     V.scroll:SetPoint("TOPLEFT", CARD_INSET + BODY_PAD, -(top + BODY_PAD))
 end
 
-local function OpacityGet()
-    return math.floor((S.Get("windowAlpha") or 1) * PERCENT + ROUND)
-end
-
-local function OpacitySet(value)
-    S.Set("windowAlpha", value / PERCENT)
-end
-
 local function RedrawTop()
     Render()
     V.scroll:SetVerticalScroll(0)
@@ -267,10 +258,8 @@ end
 
 local function BuildTitleBar()
     local close = Parts.TitleBar(window, TEXT_TITLE, "", PAGE)
-    local opacityIcon, slider = Parts.Opacity(window, close, OpacityGet, OpacitySet)
-    window.opacity = slider
     local miniButton = Parts.BarButton(window, Style.LOGO_SMALL, TEXT_MINI, TIP_MINI, ToMini, TEXT_MINI)
-    miniButton:SetPoint("RIGHT", opacityIcon, "LEFT", -Style.BAR_GAP - MINI_GAP, 0)
+    miniButton:SetPoint("RIGHT", close, "LEFT", -Style.BAR_GAP - MINI_GAP, 0)
 end
 
 local function OnTab(key)
@@ -318,7 +307,7 @@ end
 
 local function OnShow(self)
     for _, event in ipairs(WINDOW_EVENTS) do self:RegisterEvent(event) end
-    self.backdrop:Paint(S.Get("windowAlpha") or 1)
+    self.backdrop:Paint(1)
     Render()
 end
 
@@ -391,9 +380,6 @@ end
 local function OnSettingChanged(key)
     if key == "enabled" then
         if not S.Get("enabled") and window then window:Hide() end
-    elseif key == "windowAlpha" and window then
-        window.backdrop:Paint(S.Get("windowAlpha") or 1)
-        window.opacity._refreshValue()
     elseif key == "showLearned" and window then
         PaintLearned()
         Render()

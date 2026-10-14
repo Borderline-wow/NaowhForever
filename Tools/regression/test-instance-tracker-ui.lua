@@ -67,7 +67,9 @@ for help in page:gmatch('Row%b()') do
     local text = help:match(', "([^"]+)"%s*%)$')
     if text then Help(text) end
 end
-Check(helps >= 20, "the settings cards carry help")
+Check(helps >= 18, "the settings cards carry help")
+Check(page:find("windowAlpha", 1, true) == nil and lists:find("windowAlpha", 1, true) == nil
+    and lists:find("Parts.Opacity", 1, true) == nil, "no window opacity: the window is always solid")
 
 Check(lists:find("Parts.Window(", 1, true) ~= nil, "the lists sit in a module window")
 Check(lists:find("BuildInstanceHourPage", 1, true) ~= nil

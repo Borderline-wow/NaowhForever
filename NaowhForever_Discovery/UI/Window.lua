@@ -3,7 +3,6 @@ local ns = _G.NaowhForever
 
 local Discovery = ns.Discovery
 local C = Discovery.C
-local S = Discovery.Settings
 local Library = Discovery.Library
 local Bag = Discovery.Bag
 local Style = Discovery.Style
@@ -13,8 +12,6 @@ local Parts = Shared.Parts
 
 local WIDTH, HEIGHT = 760, 720
 local CARD = 6
-local PERCENT = C.PERCENT
-local ROUND_HALF = 0.5
 local TAB_MARGIN = 28
 local SEARCH_W = 260
 local SEARCH_MIN_W = 140
@@ -47,14 +44,6 @@ local zones
 local zoneBooks = {}
 
 local Draw = {}
-
-local function Opacity()
-    return math.floor((S.Get("windowAlpha") or 1) * PERCENT + ROUND_HALF)
-end
-
-local function SetOpacity(value)
-    S.Set("windowAlpha", value / PERCENT)
-end
 
 local function ZoneOrder()
     local order, seen = {}, {}
@@ -171,9 +160,7 @@ local function Build()
     local header, footer = Style.WINDOW_HEADER, Style.WINDOW_FOOTER
     window = Parts.Window(WIDTH, HEIGHT, "discoveryWindow")
     window.backdrop:Card(CARD, header + CARD, CARD, footer + CARD)
-    local close = Parts.TitleBar(window, TEXT_TITLE, TEXT_ABOUT, PAGE)
-    local _, opacity = Parts.Opacity(window, close, Opacity, SetOpacity)
-    window.opacity = opacity
+    Parts.TitleBar(window, TEXT_TITLE, TEXT_ABOUT, PAGE)
     Parts.FooterBrand(window, PAGE)
     window.note = Parts.FooterNote(window, "")
     local left, top = CARD + Style.CONTENT_INSET, header + CARD + Style.WINDOW_PAD + TABS_TOP_GAP
@@ -196,8 +183,7 @@ local function Build()
 end
 
 local function Paint()
-    window.backdrop:Paint(Opacity() / PERCENT)
-    window.opacity._refreshValue()
+    window.backdrop:Paint(1)
     Parts.PaintTabs(window.filters, filter)
     if QUEST_TABS[filter] then return end
     local _, total = Library.Progress()
@@ -207,10 +193,6 @@ end
 
 local function IsShown()
     return window ~= nil and window:IsShown()
-end
-
-local function OnSettingChanged(key)
-    if key == "windowAlpha" and IsShown() then Paint() end
 end
 
 local function OnApply()
@@ -232,5 +214,4 @@ function ns.ToggleDiscoveryWindow(tab)
     if IsShown() and (not tab or tab == filter) then window:Hide() else ns.OpenDiscoveryWindow(tab) end
 end
 
-S.OnChange(OnSettingChanged)
 hooksecurefunc(ns, "Apply", OnApply)
