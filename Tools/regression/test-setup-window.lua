@@ -341,6 +341,14 @@ check("a pick glows on the card and pops its check", recommended.glow and recomm
 check("one pick: the check moves", Picked() == "Everything Enabled")
 Clicked(minimal)
 check("and back", Picked() == "Minimalist")
+local shortH, blurbHeight = minimal.h, minimal.blurb.GetStringHeight
+minimal.blurb.GetStringHeight = function() return 70 end
+Clicked(minimal)
+check("a long description grows every card to fit it, in one row", minimal.h > shortH
+    and recommended.h == minimal.h and keep.h == minimal.h and keep.point[5] == minimal.point[5])
+minimal.blurb.GetStringHeight = blurbHeight
+Clicked(minimal)
+check("short descriptions keep the usual height", minimal.h == shortH and keep.h == shortH)
 local skinPage = window.skin
 local fades = skinPage.fadeIn and skinPage.fadeIn.plays or 0
 Find("Next").Click()

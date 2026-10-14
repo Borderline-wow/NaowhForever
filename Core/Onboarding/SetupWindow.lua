@@ -550,7 +550,13 @@ end
 
 local function PaintProfile()
     local page = window.profile
-    PlaceGrid(page, #page.tiles, #page.tiles, TileWidth(#page.tiles), TILE_H, TILE_GAP)
+    local height = TILE_H
+    for _, tile in ipairs(page.tiles) do
+        height = math.max(height, TILE_LAYOUT.iconTop * 2 + ICON + TILE_LAYOUT.nameGap + tile.name:GetStringHeight()
+            + TILE_LAYOUT.blurbGap + tile.blurb:GetStringHeight())
+    end
+    for _, tile in ipairs(page.tiles) do tile:SetHeight(height) end
+    PlaceGrid(page, #page.tiles, #page.tiles, TileWidth(#page.tiles), height, TILE_GAP)
     for _, tile in ipairs(page.tiles) do PaintTile(tile, tile.key == picks.profile) end
 end
 
