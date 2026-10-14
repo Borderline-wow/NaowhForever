@@ -5,6 +5,7 @@ local B = ns.Blessings
 local S = B.Settings
 local CLASSES, AURAS, FURY, BY_KEY, FAMILY, QUESTION = B.CLASSES, B.AURAS, B.FURY, B.BY_KEY, B.FAMILY, B.QUESTION
 local Look, Keys, PlayerList = B.Look, B.Keys, B.PlayerList
+local ItemBar = ns.Shared.ItemBar
 local On, IsPaladin, Secret, Store, Learned, HighestKnown = B.On, B.IsPaladin, B.Secret, B.Store, B.Learned, B.HighestKnown
 local Survey, CastSpell, BuffState, Roster, ClassName = B.Survey, B.CastSpell, B.BuffState, B.Roster, B.ClassName
 local RED, YELLOW, BLUE = Look.RED, Look.YELLOW, Look.BLUE
@@ -13,6 +14,11 @@ local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true }
 local GLOW_LIB, GLOW_KEY = "LibCustomGlow-1.0", "NaowhBless"
 local GLOW_LINES, GLOW_THICKNESS = 8, 1
 local HOME_Y = 230
+local PREFIX, SCREEN, CENTER = "bless", "UIParent", "CENTER"
+local BUFFS_MOVER = "Buff Reminders"
+local DOCK_GAP = 18
+local SPOT = { TOPLEFT = { -1, 1 }, TOP = { 0, 1 }, TOPRIGHT = { 1, 1 }, LEFT = { -1, 0 }, CENTER = { 0, 0 },
+    RIGHT = { 1, 0 }, BOTTOMLEFT = { -1, -1 }, BOTTOM = { 0, -1 }, BOTTOMRIGHT = { 1, -1 } }
 local RESCAN_DELAY = 1
 local LANDING_WINDOW = 1
 local TICK = 3
@@ -45,7 +51,7 @@ local CLASS_STEP = [[
 ]]
 
 local bar, cells, auraButton, furyButton, secureHandler
-local dirty, ticker, unlocked, buildAfterCombat
+local dirty, ticker, unlocked, buildAfterCombat, placeDue
 local refreshQueued, landing, landingQueued
 local events = CreateFrame("Frame")
 local Refresh, Apply
@@ -210,6 +216,59 @@ local function PlaceCells(byClass, x)
     return x
 end
 
+local function FirstShift()
+    local shift = -Look.TOWARD[Look.grow] * Look.size / 2
+    if Look.vertical then return 0, shift end
+    return shift, 0
+end
+
+local function ToEdge(pos)
+    local edge = Look.EDGE[Look.grow]
+    local p, r, e = SPOT[pos.point], SPOT[pos.relPoint], SPOT[edge]
+    if not (p and r) then return end
+    local w, h = bar:GetSize()
+    return { point = edge, relPoint = CENTER,
+        x = r[1] * UIParent:GetWidth() / 2 + pos.x + (e[1] - p[1]) * w / 2,
+        y = r[2] * UIParent:GetHeight() / 2 + pos.y + (e[2] - p[2]) * h / 2 }
+end
+
+local function PutAt(pos)
+    bar:ClearAllPoints()
+    bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+end
+
+local function Place()
+    if ItemBar.Anchored(S, PREFIX) or S.Get("blessPos") then return ItemBar.Put(bar, S, PREFIX, HOME_Y) end
+    local dx, dy = FirstShift()
+    bar:ClearAllPoints()
+    bar:SetPoint(Look.EDGE[Look.grow], UIParent, "BOTTOM", dx, HOME_Y + Look.size / 2 + dy)
+end
+
+local function Settle()
+    local pos = S.Get("blessPos")
+    if not pos or ItemBar.Anchored(S, PREFIX) or bar:GetWidth() == 0 then return end
+    if pos.point == Look.EDGE[Look.grow] and pos.relPoint == CENTER then return end
+    local edge = ToEdge(pos)
+    if not edge then return end
+    S.Set("blessPos", edge)
+    PutAt(edge)
+end
+
+local function DockAnchor()
+    Look.Read()
+    local dx = FirstShift()
+    if Look.grow == "DOWN" then return { target = BUFFS_MOVER, side = "BOTTOM", x = dx, y = -DOCK_GAP } end
+    return { target = BUFFS_MOVER, side = "TOP", x = dx, y = DOCK_GAP }
+end
+
+local function Dock()
+    local db = S.DB()
+    if db.blessDocked then return end
+    db.blessDocked = true
+    if S.Raw("blessPos") ~= nil or ItemBar.Anchored(S, PREFIX) or ns.UI.HasAnchor(bar.mover) then return end
+    ns.UI.SetAnchor(bar.mover, DockAnchor())
+end
+
 function Refresh()
     if not bar then return end
     if InCombatLockdown() or C_Secrets.ShouldAurasBeSecret() then
@@ -226,6 +285,11 @@ function Refresh()
     if not bar:IsVisible() then return end
     B.BeginAuraMemo()
     Look.Read()
+    if placeDue then
+        placeDue = false
+        Place()
+    end
+    Settle()
     local x = PlaceSelf(0)
     local roster = Roster()
     local byClass = ByClass(roster)
@@ -234,11 +298,15 @@ function Refresh()
     Keys.Fill(byClass)
     B.EndAuraMemo()
     Look.Fit(bar, x)
+    Settle()
     bar:SetShown(x > 0 or bar.mover:IsShown())
 end
 
 local function SavePosition(pos)
-    S.Set("blessPos", pos)
+    local edge = ToEdge(pos) or pos
+    S.Set("blessPos", edge)
+    PutAt(edge)
+    if ItemBar.Anchored(S, PREFIX) then S.Set("blessAnchor", SCREEN) end
 end
 
 local function OnAuraClick(self, button, down)
@@ -252,12 +320,6 @@ local function BuildBar()
     bar:SetClampedToScreen(true)
     cells = {}
     bar.mover = ns.UI.AttachMover(bar, TEXT_MOVER, SavePosition, B.PAGE, CARD)
-    local pos = S.Get("blessPos")
-    if pos then
-        bar:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
-    else
-        bar:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, HOME_Y)
-    end
     auraButton = NewSelfButton("NaowhForeverBlessAura")
     auraButton:SetScript("PostClick", OnAuraClick)
     ns.Tooltip(auraButton, TEXT_AURA, B.AURA_TIP)
@@ -386,8 +448,12 @@ function Apply()
         return
     end
     if not bar then BuildBar() end
+    Look.Read()
+    ns.UI.SetMoverGrow(bar.mover, Look.grow)
+    placeDue = true
     ticker = C_Timer.NewTicker(TICK, OnTick)
     Refresh()
+    Dock()
 end
 
 local function OnSet(key)
@@ -407,6 +473,19 @@ local function OnLock()
     if not bar then return end
     bar.mover:Hide()
     Refresh()
+end
+
+function B.BarFrame()
+    return bar
+end
+
+function B.ResetPosition()
+    if not bar or InCombatLockdown() then return end
+    if ItemBar.Anchored(S, PREFIX) then S.Set("blessAnchor", SCREEN) end
+    S.Set("blessPos", nil)
+    Look.Read()
+    Place()
+    ns.UI.SetAnchor(bar.mover, DockAnchor())
 end
 
 B.Refresh = Refresh

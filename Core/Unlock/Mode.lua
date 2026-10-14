@@ -3,6 +3,8 @@ local ns = _G.NaowhForever
 
 local MAX_DEPTH = 20
 local ROUND = 0.5
+local HELD_EDGE = { RIGHT = { -1, 0 }, LEFT = { 1, 0 }, UP = { 0, -1 }, DOWN = { 0, 1 } }
+local NO_EDGE = { 0, 0 }
 
 local H = {}
 ns.HudEditor = H
@@ -160,6 +162,10 @@ local function Follows(label, root)
     return false
 end
 
+local function Held(item)
+    return HELD_EDGE[item.grow] or NO_EDGE
+end
+
 local function Capture(item, info)
     local target = placement.byLabel[info.target]
     if not target then return end
@@ -167,11 +173,13 @@ local function Capture(item, info)
     local cl, cr, ct, cb = Box(item)
     if not (tl and cl) then return end
     local fl, fr, ft, fb = Bounds(target.frame)
-    local side = info.side
-    if side == "LEFT" then info.x, info.y = cr - tl, (ct + cb - ft - fb) / 2
-    elseif side == "RIGHT" then info.x, info.y = cl - tr, (ct + cb - ft - fb) / 2
-    elseif side == "TOP" then info.x, info.y = (cl + cr - fl - fr) / 2, cb - tt
-    else info.x, info.y = (cl + cr - fl - fr) / 2, ct - tb end
+    local held, side = Held(item), info.side
+    local alongX = (cl + cr + held[1] * (cr - cl) - fl - fr) / 2
+    local alongY = (ct + cb + held[2] * (ct - cb) - ft - fb) / 2
+    if side == "LEFT" then info.x, info.y = cr - tl, alongY
+    elseif side == "RIGHT" then info.x, info.y = cl - tr, alongY
+    elseif side == "TOP" then info.x, info.y = alongX, cb - tt
+    else info.x, info.y = alongX, ct - tb end
 end
 
 local function Apply(item)
@@ -187,10 +195,12 @@ local function Apply(item)
     end
     local fl, fr, ft, fb = Bounds(target.frame)
     local w, h, x, y, side = cr - cl, ct - cb, info.x or 0, info.y or 0, info.side
-    if side == "LEFT" then MoveTo(item, tl + x - w / 2, (ft + fb) / 2 + y)
-    elseif side == "RIGHT" then MoveTo(item, tr + x + w / 2, (ft + fb) / 2 + y)
-    elseif side == "TOP" then MoveTo(item, (fl + fr) / 2 + x, tt + y + h / 2)
-    else MoveTo(item, (fl + fr) / 2 + x, tb + y - h / 2) end
+    local held = Held(item)
+    local cx, cy = (fl + fr - held[1] * w) / 2 + x, (ft + fb - held[2] * h) / 2 + y
+    if side == "LEFT" then MoveTo(item, tl + x - w / 2, cy)
+    elseif side == "RIGHT" then MoveTo(item, tr + x + w / 2, cy)
+    elseif side == "TOP" then MoveTo(item, cx, tt + y + h / 2)
+    else MoveTo(item, cx, tb + y - h / 2) end
 end
 
 local function Propagate(label, visited)

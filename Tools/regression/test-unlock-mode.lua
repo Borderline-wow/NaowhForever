@@ -634,6 +634,34 @@ Check(Near(select(2, Center(beside)), besideY) and Near(above:GetBottom(), stack
 settings.anchoredTo = nil
 for _, m in ipairs({ stackMover, besideMover, aboveMover }) do m:Hide() end
 
+-- An element that grows one way keeps that edge on its anchor: a bar growing right above its
+-- target keeps its left edge as it widens, set from its settings and asked after; changing which
+-- way it grows keeps it where it is.
+local base, baseMover = Display("Base", 100, 20, 0, -400)
+local grower, growerMover = Display("Grower", 40, 20, 0, -300)
+UI.SetMoverGrow(growerMover, "RIGHT")
+Check(not UI.HasAnchor(growerMover), "nothing anchors it yet")
+UI.SetAnchor(growerMover, { target = "Base", side = "TOP", x = -15, y = 18 })
+Flush()
+Check(UI.HasAnchor(growerMover) and Near(grower:GetLeft(), 960 - 15) and Near(grower:GetBottom(), base:GetTop() + 18),
+    "set from its settings, its left edge sits off the target's centre")
+grower:SetSize(120, 20)
+Flush()
+Check(Near(grower:GetLeft(), 960 - 15) and Near(grower:GetBottom(), base:GetTop() + 18),
+    "widening keeps the left edge, not the centre")
+UI.SetMoverGrow(growerMover, "LEFT")
+grower:SetSize(60, 20)
+Flush()
+Check(Near(grower:GetRight(), 960 - 15 + 120), "growing left from there keeps the right edge where it was")
+local lone, loneMover = Display("Lone", 40, 20, 300, -300)
+UI.SetAnchor(loneMover, { target = "Not Loaded", side = "TOP", x = 0, y = 18 })
+Flush()
+local loneX, loneY = Center(lone)
+Check(UI.HasAnchor(loneMover) and Near(loneX, 960 + 300) and Near(loneY, 540 - 300),
+    "anchored to an element that is not loaded, it keeps the anchor and stays where it is")
+settings.anchoredTo = nil
+for _, m in ipairs({ baseMover, growerMover, loneMover }) do m:Hide() end
+
 -- Anchors and the snap switch saved before they were dropped: both go at login and on every
 -- profile switch, and nothing moves, since each element's own position already holds where its
 -- anchor put it.

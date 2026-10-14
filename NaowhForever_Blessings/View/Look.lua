@@ -31,7 +31,7 @@ local tints = { [RED] = RED, [YELLOW] = YELLOW, [BLUE] = BLUE }
 local deepAccent
 
 local Look = { RED = RED, YELLOW = YELLOW, BLUE = BLUE, HIGHLIGHT = HIGHLIGHT, ICON_BORDER = ICON_BORDER,
-    ICON_CROP = ICON_CROP, CLASS_ICON_PATH = CLASS_ICON_PATH }
+    ICON_CROP = ICON_CROP, CLASS_ICON_PATH = CLASS_ICON_PATH, EDGE = EDGE, TOWARD = TOWARD }
 B.Look = Look
 
 local function Shorten(text, n)

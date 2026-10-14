@@ -129,6 +129,23 @@ NaowhForever_Blessings/
   characters, so a localized name never splits. Nothing sits beside a column's names, so only a row's
   are fitted. The class icon (Class Label Style: Class Icon) is two thirds of the button, kept between
   `CLASS_ICON_MIN` and `CLASS_ICON_MAX`, and made the first time it is asked for.
+- The bar holds its first button, so a class joining or leaving never shifts the buttons already
+  there. Its place is saved by the edge Growth Direction grows from (`blessPos` LEFT, RIGHT, BOTTOM or
+  TOP of the bar, from the screen centre); a spot the HUD Editor saves by its centre, or one saved
+  before, is turned into that edge once the bar has its size. That rewrite of `blessPos` is one way:
+  the old centre is not kept, and the bar sits where it did. Changing Growth Direction keeps the bar
+  where it is.
+- The bar starts above Buff Reminders (AuraBuffs), held there by the HUD Editor's own Anchor, so it
+  follows Buff Reminders, shows on the HUD Editor's tag, and lets go like any other element. It is
+  tied to their centre, not their edge: Buff Reminders grows both ways as reminders come and go, and
+  the bar's buttons must not slide under the cursor while blessing. The first button sits over
+  that centre; growing down it sits under Buff Reminders instead, so it never grows into them. Each
+  profile is anchored once (`blessDocked`), only if the bar was never moved there, so a spot or an
+  anchor the player chose stays. Without AuraBuffs the anchor is kept and waits: the HUD Editor
+  applies it once the Buff Reminders mover is made, and until then the bar sits where it last was, or
+  above the action bars (`HOME_Y`) the first time. Reset Position anchors it again.
+- Anchor to a Unit Frame is the shared item bar anchor (`blessAnchor` and the rest of the `bless`
+  anchor keys); the bar then grows from the point picked there.
 
 ## Checking
 

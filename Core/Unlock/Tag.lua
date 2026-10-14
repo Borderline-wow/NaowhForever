@@ -6,6 +6,7 @@ local H = ns.HudEditor
 local placement = H.placement
 local Grouped, Pixel, Bounds, Position = H.Grouped, H.Pixel, H.Bounds, H.Position
 local Anchors, AnchorOf, SideOf, Gap, SetGap = H.Anchors, H.AnchorOf, H.SideOf, H.Gap, H.SetGap
+local CopyAnchor = H.CopyAnchor
 local Capture, Apply, Propagate = H.Capture, H.Apply, H.Propagate
 local DrawAnchor, Checkpoint, Change, Nudge, Refresh = H.DrawAnchor, H.Checkpoint, H.Change, H.Nudge, H.Refresh
 
@@ -151,6 +152,19 @@ function ns.UI.PickAnchorFor(handle)
     if placement.selected ~= item then return end
     placement.picking = item
     H.ShowTag()
+end
+
+function ns.UI.HasAnchor(handle)
+    local item = handle and handle._placement
+    return item ~= nil and AnchorOf(item.label) ~= nil
+end
+
+function ns.UI.SetAnchor(handle, info)
+    local item = handle and handle._placement
+    if not item or item.ownAnchor then return end
+    Anchors()[item.label] = CopyAnchor(info)
+    Reanchor(item)
+    if placement.active then H.ShowTag() end
 end
 
 function ns.UI.DropAnchor(handle)

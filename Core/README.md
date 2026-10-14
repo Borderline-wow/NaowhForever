@@ -269,6 +269,10 @@ HUD Editor
   moved it kept an anchor to Alerts, some on its top side where the growing plate still carried
   the feed. Each profile lets go of any Loot Feed anchor to Alerts once, in its saved layouts too
   (`lootFeedOffAlerts`); the feed stays at its own saved spot.
+- An element that grows one way (`UI.SetMoverGrow`, the Blessing Bar) keeps that edge on its
+  anchor instead of its centre, along the target's side, so it widens away from where it was put.
+  Changing the way it grows takes the offset again from where it is, so it does not move.
+  `UI.SetAnchor` anchors an element from its own settings (Reset Position), `UI.HasAnchor` asks.
 - Size and position changes are queued and handled once a frame.
 - Before each change by hand the editor keeps every element's spot and anchor (50 steps); a run of
   arrow nudges to one selection is one step. Loading a layout is a change like any other.

@@ -83,6 +83,7 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.up
         Style = setmetatable({ PLUS = "plus", CROSS = "cross", OPACITY_MIN = 20 },
             { __index = dofile("Tools/regression/shared_style.lua") }),
         Parts = { HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end },
+        Anchor = { Rows = function(spec) return { { anchor = spec } } end },
         Settings = {
             Group = function(name) return { group = name } end,
             Look = function(prefix, opts) return { { look = prefix, opts = opts } } end,
@@ -377,6 +378,11 @@ check("a column's names sit beside it with nothing to run into: never squeezed",
     warriorCell.label.text == "Warrior" and warriorCell.label.size == 10)
 settings.blessBarSize, settings.blessSpacing, settings.blessLayout = nil, nil, nil
 studio.paint(preview, "group")
+
+-- The Anchor card: the shared anchor rows on the bar's own settings, and a way back above Buff Reminders.
+local anchorRows = cards.anchor and cards.anchor.rows
+check("the Anchor card has the shared rows and Reset Position", anchorRows and anchorRows[1].anchor.prefix == "bless"
+    and anchorRows[2].label == "Reset Position" and anchorRows[2].button == B.ResetPosition)
 
 -- Off: nothing in the preview edits.
 settings.blessings = false

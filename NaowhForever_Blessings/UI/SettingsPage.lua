@@ -28,7 +28,7 @@ local ICON_DROP, ICON_SIDE = 2, 3
 local SIZE_SLIDER, SPACING_SLIDER, GROUP_SLIDER = { 20, 70, 1 }, { 0, 30, 1 }, { 0, 40, 1 }
 local FONT_SLIDER = St.HUD_TEXT_RANGE
 local OPACITY_SLIDER, TO_FRACTION = St.OPACITY_RANGE, St.PERCENT_SCALE
-local ORDER_BAR, ORDER_WINDOW = 10, 20
+local ORDER_BAR, ORDER_ANCHOR, ORDER_WINDOW = 10, 15, 20
 local AURA_LABEL, FURY_LABEL, GROUP_LABEL = ns.L("Aura Button"), ns.L("Righteous Fury Button"), "Aura / Class Gap"
 local HINT = ns.L("Right-click a class for its blessing. Wheel: size, Shift-wheel: spacing. x hides a button.")
 local HINT_OFF = ns.L("Turn on Blessings to edit the bar here.")
@@ -38,6 +38,9 @@ local ADD_AURA, ADD_FURY, ADD_BOTH = ns.L("Brings back the Aura button."), ns.L(
 local GAP_TIP = ns.L("Drag left or right to change the gap between your aura and the class buttons.")
 local GAP_TIP_VERTICAL = ns.L("Drag up or down to change the gap between your aura and the class buttons.")
 local LAYOUT = ns.Shared.ItemBar.GrowChoice("horizontal", "vertical")
+local ANCHOR = { store = S, prefix = "bless", name = "Blessing Bar", frame = B.BarFrame,
+    on = function() return S.Get("blessings") == true and B.IsPaladin() end }
+local NO_BAR = ns.L("Turn on Blessings on a paladin")
 local AURA_HERE = ns.L("Here: click to choose your aura. Its x hides the button.")
 local SELF_HERE = ns.L("Here: its x hides the button.")
 local CLASS_TIP = ns.L("On the bar, left-click blesses the next %s who needs it, missing first, skipping anyone "
@@ -68,6 +71,7 @@ local function On() return S.Get("blessings") == true end
 local function OpenWindow() ns.OpenBlessingsWindow() end
 local function LabelsOn() return On() and S.Get("blessShowLabels") == true end
 local function NotPaladin() return not B.IsPaladin() end
+local function HasBar() return ANCHOR.on() and B.BarFrame() ~= nil end
 
 local function BlessingChoices(class)
     local values, order = { [NONE] = TEXT_NONE }, {}
@@ -484,6 +488,20 @@ page:Card({
           help = "The same with a Greater Blessing, for a class that shares one blessing, while you carry "
               .. "Symbols of Kings." },
     },
+})
+
+local function AnchorRows()
+    local rows = ns.Shared.Anchor.Rows(ANCHOR)
+    rows[#rows + 1] = { label = "Reset Position", button = B.ResetPosition, buttonText = "Reset", needs = HasBar,
+        why = NO_BAR, help = "Puts the bar back above Buff Reminders, anchored to them." }
+    return rows
+end
+
+page:Card({
+    id = "anchor", name = "Anchor", order = ORDER_ANCHOR,
+    help = "Where the bar sits: above Buff Reminders at first, then on another element, a unit frame or where you "
+        .. "drag it.",
+    rows = AnchorRows(),
 })
 
 page:Card({

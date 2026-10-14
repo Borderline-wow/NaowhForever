@@ -154,7 +154,8 @@ local S = UI.ModuleSettings("qol", {
     blessings = F.blessings, blessSpacing = 6, blessGroupSpacing = 6, blessTimerSize = 14, blessShowLabels = true, blessBarSize = 30, blessTimers = true, blessShowAura = true,
     blessShowFury = false, blessWindowAlpha = 1, blessFont = "", blessOutline = "OUTLINE", blessThemeColors = false,
     blessLabelStyle = "name",
-    blessLayout = "horizontal",
+    blessLayout = "horizontal", blessAnchor = "UIParent", blessAnchorPoint = "BOTTOMLEFT", blessAnchorRelPoint = "TOPLEFT",
+    blessX = 0, blessY = 0,
 
     durability = F.durability, durabilityBelow = 14, durabilityFont = "",
     durabilityFontSize = 22, durabilityOutline = "OUTLINE", durabilityBackground = "none", durabilityTheme = false,

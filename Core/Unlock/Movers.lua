@@ -8,6 +8,7 @@ local placement = H.placement
 local Grouped, Bounds, IsHidden, IsLocked = H.Grouped, H.Bounds, H.IsHidden, H.IsLocked
 local Queue, Moved, ReapplyAll = H.Queue, H.Moved, H.ReapplyAll
 local StopDrag, Refresh, PickTarget = H.StopDrag, H.Refresh, H.PickTarget
+local AnchorOf, Capture = H.AnchorOf, H.Capture
 
 local C = H.C
 local LOCK_BADGE, LOCK_INSET = 12, 4
@@ -149,6 +150,14 @@ end
 
 function UI.SetMoverChoices(mover, choices)
     mover._placement.choices = choices
+end
+
+function UI.SetMoverGrow(mover, grow)
+    local item = mover._placement
+    if item.grow == grow then return end
+    local info = item.grow and not item.ownAnchor and AnchorOf(item.label)
+    item.grow = grow
+    if info then Capture(item, info) end
 end
 
 function UI.CenterPosition(frame)
