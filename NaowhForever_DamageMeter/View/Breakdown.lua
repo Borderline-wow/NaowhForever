@@ -18,8 +18,8 @@ local GRADIENT_TEX = ns.MEDIA .. "NaowhGradient.tga"
 local TEXT_COMBAT, TEXT_NONE = C.TEXT_SPELLS_COMBAT, C.TEXT_SPELLS_NONE
 local TEXT_TARGETS = ns.L("Targets")
 local VALUE_PERCENT = "%s  %s"
-local VALUE_RATE = "%s  %s"
-local VALUE_FULL = "%s  %s  %s"
+local VALUE_RATE = "%s  %s%s"
+local VALUE_FULL = "%s  %s%s  %s"
 local VALUE_TARGET = "%s | %s"
 local TEXT_SESSION = "%s (%s)"
 
@@ -93,9 +93,9 @@ local function PaintRow(row, spell, data, color, alpha, seconds)
     local percent = DM.Percent(spell.totalAmount, data.totalAmount)
     local rate = seconds and DM.PerSecond(spell.totalAmount, seconds)
     if rate and percent then
-        row.value:SetFormattedText(VALUE_FULL, amount, Format(rate) .. DM.RateSuffix(), DM.PercentText(percent))
+        row.value:SetFormattedText(VALUE_FULL, amount, Format(rate), DM.RateSuffix(), DM.PercentText(percent))
     elseif rate then
-        row.value:SetFormattedText(VALUE_RATE, amount, Format(rate) .. DM.RateSuffix())
+        row.value:SetFormattedText(VALUE_RATE, amount, Format(rate), DM.RateSuffix())
     elseif percent then
         row.value:SetFormattedText(VALUE_PERCENT, amount, DM.PercentText(percent))
     else

@@ -7,6 +7,16 @@ local function check(label, ok) assert(ok, label); checks = checks + 1 end
 local function Noop() end
 local METHODS = { __index = function(_, k) if type(k) == "string" and k:find("^[A-Z]") then return Noop end end }
 
+-- What the client does with a secret string: it goes to SetText and SetFormattedText as it is, and joining it, taking
+-- its length or its width is an error. Here it is a flagged table that fails on those, and a secret width of its own.
+local function Refuse() error("attempt to use a secret value", 2) end
+local SECRET_WIDTH = setmetatable({ secret = true }, { __add = Refuse, __sub = Refuse, __mul = Refuse, __div = Refuse,
+    __lt = Refuse, __le = Refuse, __unm = Refuse })
+local function SecretString(text)
+    return setmetatable({ secret = true, text = text }, { __tostring = Refuse, __concat = Refuse, __len = Refuse,
+        __lt = Refuse, __le = Refuse })
+end
+
 local function Region(kind, parent)
     local r = setmetatable({ kind = kind, parent = parent, shown = true, scripts = {}, events = {}, children = {},
         w = 0, h = 0, alpha = 1, level = 1, text = "", points = {} }, METHODS)
@@ -31,8 +41,22 @@ local function Region(kind, parent)
     function r:SetAlpha(a) self.alpha = a end
     function r:SetText(t) self.text = t end
     function r:SetTextColor(rr, g, b) self.textColor = { r = rr, g = g, b = b } end
-    function r:GetText() return self.text end
-    function r:SetFormattedText(fmt, ...) self.text = fmt:format(...) end
+    function r:GetText()
+        self.getTextCalls = (self.getTextCalls or 0) + 1
+        return self.text
+    end
+    function r:SetFormattedText(fmt, ...)
+        local count = select("#", ...)
+        local args, secret = { ... }, false
+        for i = 1, count do
+            local value = args[i]
+            if type(value) == "table" and value.secret == true then
+                args[i], secret = value.text, true
+            end
+        end
+        local text = fmt:format(unpack(args, 1, count))
+        self.text = secret and SecretString(text) or text
+    end
     -- the width the text takes, held to the width the region was given
     function r:GetStringHeight() return 14 end
     function r:SetFrameStrata(v) self.strata = v end
@@ -45,6 +69,7 @@ local function Region(kind, parent)
     function r:EnableMouse(v) self.mouse = v end
     function r:SetToplevel(v) self.toplevel = v end
     function r:GetStringWidth()
+        if type(self.text) == "table" and self.text.secret == true then return SECRET_WIDTH end
         local natural = self.stringWidth or 40
         if self.w > 0 then return math.min(natural, self.w) end
         return natural
@@ -227,6 +252,13 @@ local function Boot(opts)
         AccountSettings = function() return s.account end,
         Apply = Noop, ShowUnlockMode = Noop, HideUnlockMode = Noop,
     }
+    -- how the client writes a number: plain text, or, when s.secretFormat asks, a secret string (of every number, or
+    -- of the ones that are secret)
+    local function Written(n, text)
+        local secret = s.secretFormat == "all"
+            or (s.secretFormat == "secret" and (type(n) == "table" or n == SECRET_NUMBER))
+        return secret and SecretString(text) or text
+    end
     local env = { ipairs = ipairs, pairs = pairs, type = type, select = select, tostring = tostring, tonumber = tonumber,
         math = math, table = table, string = string, setmetatable = setmetatable, pcall = pcall, unpack = unpack,
         UIParent = Region("Frame"), NaowhForever = ns, RAID_CLASS_COLORS = CLASS,
@@ -263,11 +295,11 @@ local function Boot(opts)
         issecretvalue = function(v)
             return (type(v) == "table" and v.secret == true) or v == SECRET_NUMBER or v == SECRET_TEXT
         end,
-        AbbreviateLargeNumbers = function(n) return "<" .. tostring(n) .. ">" end,
+        AbbreviateLargeNumbers = function(n) return Written(n, "<" .. tostring(n) .. ">") end,
         CreateAbbreviateConfig = function(rows) s.configs = (s.configs or 0) + 1; return { rows = rows } end,
         AbbreviateNumbers = function(n, options)
             s.abbreviated = { n = n, rows = options.config.rows }
-            return "{" .. tostring(n) .. ":" .. #options.config.rows .. "}"
+            return Written(n, "{" .. tostring(n) .. ":" .. #options.config.rows .. "}")
         end,
         GetLocale = function() return s.locale or "enUS" end,
         LibStub = function() return s.lsm end,
@@ -4304,7 +4336,8 @@ do
     -- the totals of other lists, for the same player
     s.byType = { [5] = { combatSources = { { name = "Aldrin", sourceGUID = "Player-2", totalAmount = 7 },
         { name = "You", sourceGUID = "Player-1", isLocalPlayer = true, totalAmount = 3 } } },
-        [9] = { combatSources = { { name = "Cara", sourceGUID = "Player-3", totalAmount = 2 } } } }
+        [9] = { combatSources = { { name = "Cara", sourceGUID = "Player-3", totalAmount = 0, deathTimeSeconds = 30 },
+            { name = "Cara", sourceGUID = "Player-3", totalAmount = 0, deathTimeSeconds = 90 } } } }
     s.store.Set("columns", "name,total,rate,interrupts,deaths"); s.Flush()
     local you = w.rows[2]
     check("another list's total as a column: found by guid, and yours as yours", row.colX1.text == "<7>"
@@ -4630,6 +4663,159 @@ do
     s.store.Set("backgroundImage", "Marble")
     check("and have one", image.needs() == true and RowOf(page, "imageTile").needs() == true)
     s.store.Set("backgroundImage", "")
+end
+
+-- secret text: what the game's numbers are written as in combat goes on as it is, and is never read back, measured,
+-- joined or compared (a secret here is a flagged table that fails on any of those)
+do
+    local reserve = math.floor(7 * 0.62 * 11)
+    local function Secret(text) return type(text) == "table" and text.secret == true end
+    local function Plain(s)
+        for i, source in ipairs(s.session.combatSources) do
+            source.totalAmount, source.amountPerSecond = 1000 * i, 10 * i
+        end
+        s.session.totalAmount, s.session.maxAmount = 6000, 3000
+    end
+
+    -- the numbers read as plain, and the client still wrote their text as a secret
+    local s = Boot({ settings = { enabled = true } })
+    Plain(s)
+    s.secretFormat = "all"
+    s.Login()
+    local w = s.Window()
+    local pane, row = w.panes[1], w.rows[1]
+    check("a figure written as secret text is painted as it is", Secret(row.colA.text) and Secret(row.colB.text))
+    check("it is never given to the ruler, whose width would be secret", not Secret(pane.ruler.text))
+    check("its column keeps the width of the longest figure it could be", row.colA.w == reserve and row.colB.w == reserve)
+    check("and no text is read back from a cell or a title", row.colA.getTextCalls == nil and row.colB.getTextCalls == nil
+        and pane.headA.getTextCalls == nil and pane.headB.getTextCalls == nil)
+    s.store.Set("columns", "name,total,rate,percent"); s.Flush()
+    check("a share that is plain is still fitted beside them", row.colP.text == "16.7%" and row.colP.w == 42
+        and row.colA.w == reserve and not Secret(pane.ruler.text))
+    s.store.Set("columns", "auto")
+    s.store.Set("showDivider", true); s.Flush()
+    check("the divider's one text: secret, painted, and not measured", Secret(row.colB.text)
+        and row.colB.w == 2 * 47 + math.floor(3 * 0.62 * 11) and not Secret(pane.ruler.text))
+    s.store.Set("showDivider", false); s.Flush()
+    s.store.Set("columns", "name,total,healing"); s.Flush()
+    check("another list's total written as secret text: painted, not measured", Secret(row.colX1.text)
+        and not Secret(pane.ruler.text) and row.colX1.w == reserve)
+    s.store.Set("columns", "auto"); s.Flush()
+    s.session.combatSources[1].totalAmount = SECRET_NUMBER
+    s.secretFormat = "secret"
+    s.Fire("DAMAGE_METER_CURRENT_SESSION_UPDATED"); s.Flush()
+    check("amounts that are secret numbers: the same", Secret(row.colA.text) and not Secret(pane.ruler.text)
+        and row.colA.w == reserve and row.colB.w == reserve)
+    s.secretFormat = nil
+    s.session.combatSources[1].totalAmount = 1000
+    s.Fire("DAMAGE_METER_CURRENT_SESSION_UPDATED"); s.Flush()
+    check("and once they are plain they are fitted again", row.colA.text == "<1000>" and row.colA.w == 42
+        and row.colB.w == 42)
+
+    -- the summary line: a secret total goes in as it is, and the figure made from it is left out
+    local u = Boot({ settings = { enabled = true, showSummary = true } })
+    u.secretFormat = "secret"
+    u.session.totalAmount = SECRET_NUMBER
+    u.Login()
+    local line = u.Window().summary.text
+    check("the summary takes a secret total whole, with no raid figure made from it", Secret(line)
+        and line.text:find("<424242>", 1, true) ~= nil and line.text:find("Raid", 1, true) == nil)
+
+    -- the spell panel: the per-second figure's suffix is an argument of the text, not joined to what was written
+    local v = Boot({ settings = { enabled = true, rateSuffix = true } })
+    v.Login()
+    local vw = v.Window()
+    v.secretFormat = "all"
+    v.Hover(vw, 2)
+    local panel = v.Panel()
+    check("a spell's amount, per second and share, with the suffix, as one secret text", Secret(panel.rows[1].value.text)
+        and panel.rows[1].value.text.text == "<600>  <4.8>/s  60.0%")
+    v.spells.combatSpells[1].totalAmount = SECRET_NUMBER
+    v.Hover(vw, 2)
+    check("a secret amount: the figures that are plain still go in", Secret(panel.rows[1].value.text))
+
+    -- the report: a line is made only of text that is plain
+    local r = Boot({ settings = { enabled = true } })
+    r.Login()
+    local DM = r.DM
+    local session = { combatSources = { { name = "Aldrin", classFilename = "MAGE", totalAmount = 1500,
+        amountPerSecond = 150 } } }
+    r.secretFormat = "all"
+    check("a number written as secret text is left out of a report, not joined into a line",
+        #DM.ReportLines(session, DM.Mode("damage"), "Current", 5, true) == 1)
+    r.secretFormat = nil
+    check("and written when it is plain", DM.ReportLines(session, DM.Mode("damage"), "Current", 5, true)[2]
+        == "1. Aldrin  <1500> (<150>)")
+    check("a clock and a share are written from plain numbers only", DM.Clock(SECRET_NUMBER) == ""
+        and DM.PercentText(SECRET_NUMBER) == "" and DM.Clock(65) == "1:05" and DM.PercentText(12.34) == "12.3%")
+
+    -- names: a surname, your own name or a class that is secret is not used
+    local n = Boot({ settings = { enabled = true, nameFormat = "full" }, forever = true })
+    local ND = n.DM
+    n.ownName, n.ownSurname = "Rowan", SECRET_TEXT
+    local own = { name = SECRET_TEXT, classFilename = "ROGUE", isLocalPlayer = true }
+    check("a surname that is secret is left off, not joined to your name", ND.DisplayName(own) == "Rowan")
+    n.ownSurname = "Thorne"
+    n.units = { party1 = { name = "Brenna", surname = SECRET_TEXT, class = "WARLOCK" } }
+    n.group = true
+    ND.ScanRoster()
+    check("nor to a group member's", ND.DisplayName({ name = SECRET_TEXT, classFilename = "WARLOCK" }) == "Brenna")
+    n.store.Set("nameFormat", "initials")
+    n.ownName = SECRET_TEXT
+    check("your own name, when it is secret, goes as the row has it", ND.DisplayName(own) == SECRET_TEXT)
+    check("a class that is secret does not make the row a player's", ND.DisplayName({ name = "Zed",
+        classFilename = SECRET_TEXT }) == "Zed")
+
+    -- the targets and the fights are ordered by plain numbers, whatever the names are
+    local t = Boot({ settings = { enabled = true } })
+    t.duration = 120
+    t.byType = { [10] = { combatSources = {
+        { name = SECRET_TEXT, sourceGUID = "E-1", sourceCreatureID = 100 },
+        { name = "Defias Thug", sourceGUID = "E-2", sourceCreatureID = 100 },
+        { name = "Gnoll", sourceGUID = "E-3", sourceCreatureID = 100 } } } }
+    local function Hit(who, total) return { totalAmount = total, combatSpellDetails = { unitName = who } } end
+    t.enemyData = { ["E-1"] = { combatSpells = { Hit("You", 100) } }, ["E-2"] = { combatSpells = { Hit("You", 300) } },
+        ["E-3"] = { combatSpells = { Hit("You", SECRET_NUMBER) } } }
+    t.Login()
+    local list = t.DM.Targets("current", nil, "You")
+    check("an enemy with a secret name is listed by what it took, and its name goes as it is",
+        #list == 2 and list[1].name == "Defias Thug" and list[1].total == 300 and list[2].name == SECRET_TEXT)
+    t.fights = { { sessionID = 3, name = SECRET_TEXT, durationSeconds = 30 }, { sessionID = SECRET_NUMBER },
+        { sessionID = 9, name = "Boss", durationSeconds = SECRET_NUMBER }, { sessionID = 5, name = "Pull" } }
+    local fights = t.DM.Fights()
+    check("fights are ordered by their plain ids; a name or length that is secret is dropped, not compared",
+        #fights == 3 and fights[1].id == 9 and fights[1].name == "Boss" and fights[1].seconds == nil
+        and fights[2].id == 5 and fights[3].id == 3 and fights[3].name == nil and fights[3].seconds == 30)
+end
+
+-- Deaths: the game's total for a death is 0, so the list shows when each one was
+do
+    local function Death(name, class, own, guid, at, recap)
+        return { name = name, classFilename = class, isLocalPlayer = own, sourceGUID = guid, totalAmount = 0,
+            amountPerSecond = 0, deathTimeSeconds = at, deathRecapID = recap, specIconID = 0 }
+    end
+    local s = Boot({ settings = { enabled = true, mode = "deaths", showSummary = true } })
+    s.session.combatSources = { Death("You", "ROGUE", true, "Player-1", 28, 3),
+        Death("Aldrin", "MAGE", false, "Player-2", 75, 4), Death("Zed", "MAGE", false, "Player-9", SECRET_NUMBER, SECRET_NUMBER) }
+    s.session.totalAmount, s.session.maxAmount = 0, 0
+    s.Login()
+    local w = s.Window()
+    check("when each death was, not the game's total of 0", w.rows[1].colB.text == "0:28" and w.rows[2].colB.text == "1:15")
+    check("a time the game keeps back is left empty", w.rows[3].colB.text == "")
+    check("no per-second figure, and the figure's title says what it is", w.rows[1].colA.shown == false
+        and w.panes[1].headB.text == "Time")
+    check("the bars are whole, so every death shows in its class color", w.rows[1].barMax == 1 and w.rows[1].barValue == 1)
+    check("the summary counts the deaths, with no rank", w.summary.text:find("Deaths 3", 1, true) ~= nil
+        and w.summary.text:find("Rank", 1, true) == nil)
+    local DM = s.DM
+    local lines = DM.ReportLines(s.session, DM.Mode("deaths"), "Current", 5, true)
+    check("a report says when", lines[1] == "Deaths, Current" and lines[2] == "1. You  0:28"
+        and lines[3] == "2. Aldrin  1:15" and #lines == 3)
+    w.rows[1].scripts.OnMouseUp(w.rows[1], "LeftButton")
+    s.Flush()
+    check("a click on a death opens no breakdown", not w.detail)
+    check("the Overall session's -1 is no time", DM.DeathClock({ deathTimeSeconds = -1 }) == nil
+        and DM.DeathClock({ deathTimeSeconds = 0 }) == "0:00")
 end
 
 print("PASS damage meter: " .. checks .. " checks")

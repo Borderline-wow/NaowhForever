@@ -17,7 +17,7 @@ local roster = {}
 local cache, cacheCount = {}, {}
 
 local function WithSurname(name, surname, own)
-    if not FOREVER or type(name) ~= "string" or type(surname) ~= "string" then return name end
+    if not FOREVER or not DM.Plain(name, "string") or not DM.Plain(surname, "string") then return name end
     if own and not C_PlayerInfo.ShouldDisplaySurname() then return name end
     local tail = SEPARATOR .. surname
     if name:sub(-#tail) == tail then return name end
@@ -74,7 +74,7 @@ function DM.ScanRoster()
         if unit ~= "player" and UnitIsUnit(unit, "player") then return end
         local class = select(2, UnitClass(unit))
         local name, surname = UnitName(unit)
-        if type(class) ~= "string" or type(name) ~= "string" or DM.IsSecret(name) then return end
+        if not DM.Plain(class, "string") or not DM.Plain(name, "string") then return end
         local full = WithSurname(name, surname, unit == "player")
         if roster[class] == nil then roster[class] = full else roster[class] = false end
     end
@@ -88,7 +88,7 @@ end
 
 local function IsPlayer(source)
     local class = source.classFilename
-    return type(class) == "string" and class ~= ""
+    return DM.Plain(class, "string") and class ~= ""
 end
 
 function DM.DisplayName(source)
@@ -99,12 +99,12 @@ function DM.DisplayName(source)
     if source.isLocalPlayer == true then
         local own, surname = UnitName("player")
         plain = WithSurname(own, surname, true)
-    elseif type(name) == "string" and not DM.IsSecret(name) then
+    elseif DM.Plain(name, "string") then
         plain = name
     else
         local found = roster[source.classFilename]
         if type(found) == "string" then plain = found end
     end
-    if type(plain) ~= "string" then return name end
+    if not DM.Plain(plain, "string") then return name end
     return Write(plain, format)
 end

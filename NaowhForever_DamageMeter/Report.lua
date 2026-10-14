@@ -33,6 +33,16 @@ function DM.Channels()
     return list
 end
 
+local function Figures(total, rate, withRate)
+    local value = Format(total)
+    if not Plain(value, "string") then return nil end
+    if withRate and Plain(rate, "number") then
+        local per = Format(rate)
+        if Plain(per, "string") then return LINE_RATE:format(value, per) end
+    end
+    return value
+end
+
 function DM.ReportLines(session, mode, sessionName, count, withRate)
     local lines = { HEADER:format(mode.label, sessionName) }
     local sources = session.combatSources
@@ -40,11 +50,13 @@ function DM.ReportLines(session, mode, sessionName, count, withRate)
         if #lines > count then break end
         local source = sources[i]
         local name, total, rate = DM.DisplayName(source), source.totalAmount, source.amountPerSecond
-        if Plain(name, "string") and Plain(total, "number") then
-            local value = Format(total)
-            if withRate and mode.rate and Plain(rate, "number") then value = LINE_RATE:format(value, Format(rate)) end
-            lines[#lines + 1] = LINE:format(#lines, name, value)
+        local value
+        if mode.deathTime == true then
+            value = DM.DeathClock(source)
+        elseif Plain(total, "number") then
+            value = Figures(total, rate, withRate and mode.rate)
         end
+        if Plain(name, "string") and value then lines[#lines + 1] = LINE:format(#lines, name, value) end
     end
     return lines
 end

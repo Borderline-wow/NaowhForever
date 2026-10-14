@@ -44,6 +44,7 @@ function DM.Format(n)
 end
 
 function DM.PercentText(percent)
+    if not Plain(percent, "number") then return "" end
     return ("%." .. S.Get("percentDecimals") .. "f%%"):format(percent)
 end
 
@@ -52,11 +53,18 @@ function DM.RateSuffix()
 end
 
 function DM.Clock(seconds)
+    if not Plain(seconds, "number") then return "" end
     seconds = math.floor(seconds)
     if seconds >= 3600 then
         return ("%d:%02d:%02d"):format(math.floor(seconds / 3600), math.floor(seconds % 3600 / 60), seconds % 60)
     end
     return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
+end
+
+function DM.DeathClock(source)
+    local seconds = source.deathTimeSeconds
+    if Plain(seconds, "number") and seconds >= 0 then return DM.Clock(seconds) end
+    return nil
 end
 
 function DM.PerSecond(total, seconds)

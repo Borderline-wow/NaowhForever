@@ -15,7 +15,7 @@ local MODES = {
     { key = "interrupts", short = "Interrupts", label = "Interrupts", type = "Interrupts", rate = false, total = "Interrupts" },
     { key = "dispels", short = "Dispels", label = "Dispels", type = "Dispels", rate = false, total = "Dispels" },
     { key = "deaths", short = "Deaths", label = "Deaths", type = "Deaths", rate = false, spells = false, percent = false,
-      total = "Deaths" },
+      total = "Deaths", totalHead = "Time", deathTime = true },
 }
 
 local byKey, labels, order = {}, {}, {}
