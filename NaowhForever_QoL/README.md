@@ -658,6 +658,7 @@ NaowhForever_QoL/
 ### Performance
 - The game keeps its settings per computer, so the values the recommended ones replaced live in the account store (`cvarBackups`), not the profile.
 - `SAME_WITHIN` compares numeric CVars loosely, as the game writes some back with float noise.
+- HDR and Peak Brightness set the game's own `HDRFactor` and `HDRPeakBrightness`, which have no place in the game's options. Peak Brightness also turns on `useHDRPeakBrightness`, without which the game ignores it. They are the player's own values, not recommended ones, so they are not backed up, and they show only where the client has `HDRFactor`.
 
 ### Stealth Reminder
 - The form IDs are `GetShapeshiftFormID` values, the same ones the Threat Meter reads.

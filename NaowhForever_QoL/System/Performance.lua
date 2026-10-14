@@ -7,6 +7,9 @@ local SAME_WITHIN = 0.001
 local SPELL_QUEUE = "SpellQueueWindow"
 local SPELL_QUEUE_MAX = 400
 local SPELL_QUEUE_RANGE = { 0, SPELL_QUEUE_MAX, 1 }
+local HDR, HDR_PEAK, HDR_PEAK_ON = "HDRFactor", "HDRPeakBrightness", "useHDRPeakBrightness"
+local HDR_PEAK_DEFAULT = 1000
+local HDR_PEAK_RANGE = { 100, 2000, 10 }
 
 local TEXT_COMBAT = ns.L("Game settings can only be changed out of combat.")
 local TEXT_RELOAD = ns.L("Some settings only take effect after a reload. Reload UI now?")
@@ -17,6 +20,7 @@ local TEXT_NOTHING_BACK = ns.L(" was already at this value before, so there is n
 local TEXT_RESTORE_ALL = ns.L("Put back every setting this page has changed?")
 local TEXT_ROW_HELP = ns.L("Recommended: %s.|n|nOn sets it; off puts back the value you had before. Now: %s.")
 local TEXT_SUMMARY = ns.L("%d of %d recommended settings in use")
+local TEXT_HDR_OFF = ns.L("Turn on HDR")
 
 local CATEGORIES = {
     { name = "Render & Display", cvars = {
@@ -186,6 +190,25 @@ local function SpellQueueSet(v)
     C_CVar.SetCVar(SPELL_QUEUE, v)
 end
 
+local function HDROn()
+    return (tonumber(C_CVar.GetCVar(HDR)) or 0) > 0
+end
+
+local function HDRSet(on)
+    if CanChange() then C_CVar.SetCVar(HDR, on and "1" or "0") end
+    UI:RefreshPage(true)
+end
+
+local function PeakGet()
+    return tonumber(C_CVar.GetCVar(HDR_PEAK)) or HDR_PEAK_DEFAULT
+end
+
+local function PeakSet(v)
+    if not CanChange() then return UI:RefreshPage(true) end
+    C_CVar.SetCVar(HDR_PEAK_ON, "1")
+    C_CVar.SetCVar(HDR_PEAK, v)
+end
+
 local function ConfirmRestoreAll()
     ns.Confirm(TEXT_RESTORE_ALL, RestoreAll)
 end
@@ -205,6 +228,14 @@ local HEAD = {
     { label = "Reload UI", buttonText = "Reload UI", button = OfferReload,
       help = "Some settings only take effect after a reload." },
 }
+local HDR_ROWS = {
+    Group("HDR"),
+    { label = "HDR", toggle = true, get = HDROn, set = HDRSet,
+      help = "High dynamic range, for an HDR monitor with HDR on in Windows." },
+    { label = "Peak Brightness", slider = HDR_PEAK_RANGE, unit = " nits", get = PeakGet, set = PeakSet,
+      needs = HDROn, why = TEXT_HDR_OFF,
+      help = "Your monitor's peak brightness in nits, so the brightest parts are not clipped or dimmed." },
+}
 for _, cat in ipairs(CATEGORIES) do cat.group = Group(cat.name) end
 
 local function CVarRow(c)
@@ -223,6 +254,9 @@ end
 local function Rows()
     wipe(rows)
     for i = 1, #HEAD do rows[i] = HEAD[i] end
+    if Exists(HDR) then
+        for _, row in ipairs(HDR_ROWS) do rows[#rows + 1] = row end
+    end
     for _, cat in ipairs(CATEGORIES) do
         local grouped = false
         for _, c in ipairs(cat.cvars) do

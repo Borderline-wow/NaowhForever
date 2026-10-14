@@ -4455,6 +4455,12 @@ L["Spell IDs never shown, separated by commas. 6603 is Auto Attack, 75 is Auto S
 L["Spell Power"] = true
 L["Spell Queue"] = true
 L["Spell Queue Window"] = true
+L["HDR"] = true
+L["Peak Brightness"] = true
+L[" nits"] = true
+L["Turn on HDR"] = true
+L["High dynamic range, for an HDR monitor with HDR on in Windows."] = true
+L["Your monitor's peak brightness in nits, so the brightest parts are not clipped or dimmed."] = true
 L["Spell, item and NPC IDs at the bottom of tooltips, where the game lets them be read. Hover a spell, item or NPC and press your shortcut to open a copy card with its ID and Wowhead link. Copy cards open outside combat; typing never triggers the shortcut."] = true
 L["Spells"] = true
 L["spells"] = true
