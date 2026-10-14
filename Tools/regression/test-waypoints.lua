@@ -52,7 +52,7 @@ function UIParent:GetCenter() return W / 2, H / 2 end
 
 local settings = {}
 local defaults = { enabled = true, waypoints = false, waypointShape = "hex", waypointScale = 1, waypointCard = true,
-    waypointTime = true, waypointBeam = true, waypointFadeNear = 40, waypointEdge = true, waypointNav = true,
+    waypointTime = true, waypointBeam = true, waypointFadeNear = 40, waypointArrive = 5, waypointEdge = true, waypointNav = true,
     waypointSound = "none", waypointHideGame = true }
 local S = {}
 function S.Get(k) if settings[k] ~= nil then return settings[k] end return defaults[k] end
@@ -347,9 +347,14 @@ Check(pin.card.dist.text ~= "Arrived" and cleared == clearedBefore and #played =
     "next to a stop on another map the waypoint is left alone")
 -- Placed on a parent map (a continent), standing in a zone inside it: that is the spot's map too.
 playerMap = 1500
-nav.distance = 4
+nav.distance = 15
 driver.scripts.OnUpdate()
-Check(not pin:IsShown() and #played == playedBefore + 1, "within 5 yards it is over at once, with its sound, on a map inside the waypoint's")
+Check(pin.card.dist.text ~= "Arrived" and cleared == clearedBefore, "15 yards out is not there at the default 5")
+-- Arrival Distance moves where it counts as there.
+settings.waypointArrive = 20
+driver.scripts.OnUpdate()
+settings.waypointArrive = nil
+Check(not pin:IsShown() and #played == playedBefore + 1, "within Arrival Distance it is over at once, with its sound, on a map inside the waypoint's")
 Check(cleared == clearedBefore + 1 and superCleared >= 1, "and the waypoint is cleared")
 -- The clear waits while the world map is open: standing there, nothing repeats.
 Check(driver.scripts.OnUpdate == nil and cleared == clearedBefore + 1, "the pin stops following, and does not arrive or clear again")
@@ -368,6 +373,21 @@ Check(cleared == clearedBefore, "on a route's stop the pin clears nothing itself
 routeInfo = nil
 nav.distance = was
 tracking = 1
+cleared, superCleared = 0, 0
+
+-- Placed inside a long Arrival Distance: not there at once, it arrives at the usual 5 yards.
+settings.waypointArrive = 100
+userWaypoint = { uiMapID = playerMap, position = { x = 0.5, y = 0.5 } }
+events.scripts.OnEvent(events, "NAVIGATION_FRAME_DESTROYED")
+nav.frame, nav.distance = navFrame, 60
+events.scripts.OnEvent(events, "NAVIGATION_FRAME_CREATED")
+driver.scripts.OnUpdate()
+Check(pin:IsShown() and cleared == 0, "placed 60 yards away with Arrival Distance at 100: still up")
+nav.distance = 4
+driver.scripts.OnUpdate()
+Check(cleared == 1, "it clears within 5 yards")
+settings.waypointArrive = nil
+nav.distance = was
 cleared, superCleared = 0, 0
 
 -- A stop on a route: the navigator says which, and the arrival names the next stop, or says the

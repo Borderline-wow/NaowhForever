@@ -4,7 +4,7 @@ local ns = _G.NaowhForever
 local PERCENT = 100
 local ARRIVED_WITHIN = 0.05
 local ROUTE_MIN_STOPS = 2
-local STOP_FIELDS = 6
+local PLACE_FIELDS = 7
 local TOMTOM_FROM = "Naowh Forever"
 local TEXT_SPOT = "%s%s: %s %.1f, %.1f"
 local TEXT_TOMTOM = ns.L("TomTom waypoint for ")
@@ -21,6 +21,7 @@ local tomtomWaypoint
 local route
 local arrivals = 0
 local watch = CreateFrame("Frame")
+local dungeon, wasInside
 local CLEAR = {}
 local pending, held, preview
 
@@ -62,13 +63,17 @@ function ns.WaypointLink(map, x, y)
     return link
 end
 
-local function SetNow(title, map, x, y, note, icon)
+local WatchDungeon
+
+local function SetNow(title, map, x, y, note, icon, clearInside)
     ns.placedWaypoint = { title = title, note = note, icon = icon, map = map, x = x, y = y }
+    WatchDungeon(clearInside)
     C_Map.SetUserWaypoint(MapPoint(map, x, y))
     if C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
 end
 
 local function ClearNow()
+    WatchDungeon(false)
     ns.placedWaypoint = nil
     C_Map.ClearUserWaypoint()
     if C_SuperTrack then C_SuperTrack.ClearAllSuperTracked() end
@@ -127,7 +132,7 @@ local function Flush()
     elseif change.quest then
         TrackNow(change.quest)
     else
-        SetNow(unpack(change, 1, STOP_FIELDS))
+        SetNow(unpack(change, 1, PLACE_FIELDS))
     end
 end
 
@@ -149,12 +154,12 @@ local function Hold(change)
     preview:RefreshAllData()
 end
 
-local function SetGameWaypoint(title, map, x, y, note, icon)
+local function SetGameWaypoint(title, map, x, y, note, icon, clearInside)
     if not MapOpen() then
-        SetNow(title, map, x, y, note, icon)
+        SetNow(title, map, x, y, note, icon, clearInside)
         return false
     end
-    Hold({ title, map, x, y, note, icon })
+    Hold({ title, map, x, y, note, icon, clearInside })
     return true
 end
 
@@ -179,7 +184,7 @@ function ns.ShowJourneyStep(title, map, x, y, note, icon)
     return true
 end
 
-function ns.PlaceWaypoint(title, map, x, y, note, icon)
+function ns.PlaceWaypoint(title, map, x, y, note, icon, clearInside)
     EndRoute()
     if ns.JourneyTo and ns.JourneyTo(title, { { title, map, x, y, note, icon } }) then return true end
     local pin = ns.WaypointPinOn and ns.WaypointPinOn()
@@ -188,13 +193,44 @@ function ns.PlaceWaypoint(title, map, x, y, note, icon)
         ns.Print(TEXT_NO_WAYPOINTS)
         return false
     end
-    local later = SetGameWaypoint(title, map, x, y, note, icon)
+    local later = SetGameWaypoint(title, map, x, y, note, icon, clearInside)
     ns.Print(TEXT_PLACED .. ns.WaypointText(title, map, x, y, note) .. (later and TEXT_LATER or ""))
     return true
 end
 
 local function Near(position, spot)
     return math.abs(position * PERCENT - spot) < ARRIVED_WITHIN
+end
+
+local function StillPlaced()
+    local point, placed = C_Map.GetUserWaypoint(), ns.placedWaypoint
+    return point ~= nil and placed ~= nil and point.uiMapID == placed.map and Near(point.position.x, placed.x)
+        and Near(point.position.y, placed.y)
+end
+
+local function InDungeon()
+    local _, kind = IsInInstance()
+    return kind == "party" or kind == "raid"
+end
+
+local function OnDungeonEvent()
+    local inside = InDungeon()
+    local entered = inside and not wasInside
+    wasInside = inside
+    if entered and StillPlaced() then ns.ClearWaypoint() end
+end
+
+function WatchDungeon(on)
+    if not on then
+        if dungeon then dungeon:UnregisterAllEvents() end
+        return
+    end
+    if not dungeon then
+        dungeon = CreateFrame("Frame")
+        dungeon:SetScript("OnEvent", OnDungeonEvent)
+    end
+    wasInside = InDungeon()
+    dungeon:RegisterEvent("PLAYER_ENTERING_WORLD")
 end
 
 local function OnStop(point)

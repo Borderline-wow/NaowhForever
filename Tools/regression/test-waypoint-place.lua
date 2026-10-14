@@ -2,7 +2,7 @@
 -- waypoint is used, unless the Waypoint Pin is on, which follows the game's own; either way the
 -- spot's title, note and icon are kept for the pin. A route places its stops in order, the next
 -- one a moment after the game says the last was reached, and ends when another waypoint is
--- placed or the waypoint is cleared.
+-- placed or the waypoint is cleared. A dungeon's entrance clears once you are inside.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
@@ -10,6 +10,8 @@ local tomtom, set, tracked, printed, timers = {}, {}, 0, {}, {}
 local current   -- the game's user waypoint, as C_Map.GetUserWaypoint gives it
 local pinOn = false
 local watch
+local frames = {}
+local instanceKind
 local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
     Print = function(msg) printed[#printed + 1] = msg end,
     WaypointPinOn = function() return pinOn end,
@@ -17,15 +19,28 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.up
 local function Fire(event, ...)
     if watch.events[event] then watch.scripts.OnEvent(watch, event, ...) end
 end
+local function Listening(event)
+    for _, frame in ipairs(frames) do
+        if frame ~= watch and frame.events[event] then return frame end
+    end
+end
+local function Load(kind)
+    instanceKind = kind
+    local frame = Listening("PLAYER_ENTERING_WORLD")
+    if frame then frame.scripts.OnEvent(frame, "PLAYER_ENTERING_WORLD") end
+end
 local env = setmetatable({
     NaowhForever = ns,
     CreateFrame = function()
-        watch = { events = {}, scripts = {} }
-        function watch:SetScript(k, fn) self.scripts[k] = fn end
-        function watch:RegisterEvent(e) self.events[e] = true end
-        function watch:UnregisterAllEvents() self.events = {} end
-        return watch
+        local frame = { events = {}, scripts = {} }
+        function frame:SetScript(k, fn) self.scripts[k] = fn end
+        function frame:RegisterEvent(e) self.events[e] = true end
+        function frame:UnregisterAllEvents() self.events = {} end
+        frames[#frames + 1] = frame
+        watch = watch or frame
+        return frame
     end,
+    IsInInstance = function() return instanceKind ~= nil, instanceKind or "none" end,
     C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end },
     TomTom = {
         AddWaypoint = function(_, map, x, y, opts)
@@ -55,7 +70,7 @@ local env = setmetatable({
     end,
     MapCanvasPinMixin = {},
     MapCanvasDataProviderMixin = {},
-    C_SuperTrack = { SetSuperTrackedUserWaypoint = function() tracked = tracked + 1 end },
+    C_SuperTrack = { SetSuperTrackedUserWaypoint = function() tracked = tracked + 1 end, ClearAllSuperTracked = function() end },
     UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { map = map, x = x, y = y } end },
 }, { __index = _G })
 env._G = env
@@ -131,5 +146,41 @@ env.TomTom = nil
 pinOn = false
 ns.PlaceWaypoint("Rwag", 1411, 41.3, 68.0)
 Check(ns.placedWaypoint.icon == nil and ns.placedWaypoint.note == nil, "no TomTom: the game's, without extras")
+
+-- A dungeon's entrance clears as you go from outside a dungeon or raid to inside one.
+ns.PlaceWaypoint("The Deadmines", 1436, 43.2, 72.4, " (entrance)", nil, true)
+Check(Listening("PLAYER_ENTERING_WORLD"), "an entrance listens for loading screens")
+Load(nil)
+Check(current ~= nil, "outside: kept")
+Load("pvp")
+Check(current ~= nil, "a battleground is not a dungeon: kept")
+Load("party")
+Check(current == nil and ns.placedWaypoint == nil and not Listening("PLAYER_ENTERING_WORLD"), "inside: cleared, not listening")
+
+-- Placed while inside one: it waits until you leave and enter again.
+Load("party")
+ns.PlaceWaypoint("Wailing Caverns", 1413, 46.0, 36.0, " (entrance)", nil, true)
+Load("party")
+Check(current ~= nil, "still inside: kept")
+Load(nil)
+Load("party")
+Check(current == nil, "out and back in: cleared")
+Load(nil)
+
+-- Only the waypoint it was placed with: one set by hand, one placed since, or a route drop it.
+ns.PlaceWaypoint("The Deadmines", 1436, 43.2, 72.4, " (entrance)", nil, true)
+env.C_Map.SetUserWaypoint({ map = 1429, x = 0.1, y = 0.1 })
+Load("party")
+Check(current ~= nil and current.uiMapID == 1429, "a waypoint set by hand since is not cleared")
+Load(nil)
+ns.PlaceWaypoint("The Deadmines", 1436, 43.2, 72.4, " (entrance)", nil, true)
+ns.PlaceWaypoint("Rwag", 1411, 41.3, 68.0)
+Check(not Listening("PLAYER_ENTERING_WORLD"), "a waypoint placed since stops listening")
+Load("party")
+Check(current ~= nil and ns.placedWaypoint.title == "Rwag", "and is not cleared")
+Load(nil)
+ns.PlaceWaypoint("The Deadmines", 1436, 43.2, 72.4, " (entrance)", nil, true)
+ns.PlaceWaypointRoute("Training run", STOPS)
+Check(not Listening("PLAYER_ENTERING_WORLD"), "so does a route")
 
 print(("test-waypoint-place: %d checks passed"):format(checks))

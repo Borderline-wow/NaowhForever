@@ -267,7 +267,7 @@ local S = UI.ModuleSettings("qol", {
     aimTrainer = F.aimTrainer, aimMode = "hexakill", aimPulse = true, aimSound = true,
     aimSoundKey = "game:click", aimShare = true,
     waypoints = F.waypoints, waypointShape = "hex", waypointScale = 1, waypointCard = true,
-    waypointTime = true, waypointBeam = true, waypointFadeNear = 40, waypointEdge = true,
+    waypointTime = true, waypointBeam = true, waypointFadeNear = 40, waypointArrive = 5, waypointEdge = true,
     waypointNav = true, waypointSound = "none", waypointHideGame = true,
 
     gamble = F.gamble, gambleChannel = "PARTY", gamblePool = "200g00s", gambleMode = "classic",

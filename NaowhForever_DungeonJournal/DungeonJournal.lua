@@ -352,7 +352,7 @@ end
 function J.ShowEntrance(dungeon)
     local entrance = dungeon.entrance
     if not entrance then return false end
-    ns.PlaceWaypoint(dungeon.name, entrance.map, entrance.x, entrance.y, TEXT_ENTRANCE)
+    ns.PlaceWaypoint(dungeon.name, entrance.map, entrance.x, entrance.y, TEXT_ENTRANCE, nil, true)
     if not InCombatLockdown() then C_Map.OpenWorldMap(entrance.map) end
     return true
 end

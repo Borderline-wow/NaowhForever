@@ -132,7 +132,7 @@ local function MakePinMixin()
         if button ~= "LeftButton" then return end
         local dungeons = self.group.dungeons
         local entrance = dungeons[1].entrance
-        ns.PlaceWaypoint(GroupName(dungeons, dungeons[1].name), entrance.map, entrance.x, entrance.y, TEXT_ENTRANCE)
+        ns.PlaceWaypoint(GroupName(dungeons, dungeons[1].name), entrance.map, entrance.x, entrance.y, TEXT_ENTRANCE, nil, true)
     end
 end
 

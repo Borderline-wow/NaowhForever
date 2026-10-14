@@ -34,7 +34,7 @@ local NAV_NAME, NAV_SUB, NAV_DIST = 14, 11, 16
 local NAV_Y = -70
 local NAV_NAME_LIFT, NAV_SUB_GAP, CUE_TEXT_GAP = 2, 1, 2
 local ARRIVED_HOLD = ns.WAYPOINT_HOLD
-local REACHED, LEAVE = 5, 7
+local REACHED, LEAVE_MARGIN = 5, 2
 local QUEST_NEAR, QUEST_LEAVE = 40, 55
 local CHECK_SHARE = 0.6
 local ROUND = ns.QoLConstants.ROUND
@@ -44,7 +44,7 @@ local SAME_SPOT = 0.05
 local DOWN = -math.pi / 2
 local NO_TIME = -1
 local STAGE_H = 190
-local SCALE_RANGE, FADE_NEAR_RANGE = St.SCALE_RANGE, { 0, 100, 5 }
+local SCALE_RANGE, FADE_NEAR_RANGE, ARRIVE_RANGE = St.SCALE_RANGE, { 0, 100, 5 }, { 5, 100, 5 }
 local PERCENT_SCALE = St.PERCENT_SCALE
 local GAME_PARTS = { "Icon", "Arrow", "DistanceText", "IconBorder" }
 local SHAPE_CHOICES = { { hex = "Hex", diamond = "Diamond", dot = "Dot" }, { "hex", "diamond", "dot" } }
@@ -259,7 +259,7 @@ end
 local pin, nav, cue, driver, navFrame, unlocked, gameHidden, warned
 local arrived, arrivals = false, 0
 local Arrived
-local selfCleared, seenAway
+local selfCleared, seenAway, seenFar
 local mapHooked, trackOnMapClose
 local reached
 local lastX, lastY
@@ -389,8 +389,8 @@ local function OnWaypointMap()
     return false
 end
 
-local function CheckReached(yards)
-    local near, leave = REACHED, LEAVE
+local function CheckReached(yards, near)
+    local leave = near + LEAVE_MARGIN
     if shown.quest then near, leave = QUEST_NEAR, QUEST_LEAVE end
     if shown.ground or yards > leave then
         reached = false
@@ -465,9 +465,12 @@ local function Update()
     else
         PlaceOnSpot(nx, ny, scale)
     end
-    CheckReached(yards)
-    if yards > LEAVE then seenAway = true end
-    if shown.user and not shown.onRoute and not selfCleared and seenAway and yards <= REACHED and OnWaypointMap() then
+    local near = S.Get("waypointArrive")
+    CheckReached(yards, near)
+    if yards > REACHED + LEAVE_MARGIN then seenAway = true end
+    if yards > near + LEAVE_MARGIN then seenFar = true end
+    local reach = seenFar and near or REACHED
+    if shown.user and not shown.onRoute and not selfCleared and seenAway and yards <= reach and OnWaypointMap() then
         selfCleared = true
         Arrived()
         ns.ClearWaypoint()
@@ -520,7 +523,7 @@ local function Attach()
     navFrame = C_Navigation.GetFrame()
     if not navFrame then Detach() return end
     if not driver then Build() end
-    seenAway = false
+    seenAway, seenFar = false, false
     PlaceNav()
     Retitle()
     lastX, lastY = nil, nil
@@ -599,7 +602,7 @@ end
 
 local function OnEvent(_, event, isWaypoint)
     if event == "USER_WAYPOINT_UPDATED" then
-        seenAway = false
+        seenAway, seenFar = false, false
         WatchPlaced()
     end
     if event == "NAVIGATION_FRAME_CREATED" then
@@ -722,6 +725,8 @@ Settings.Page("QoL/Interface", S):Card({
           help = "A line from the pin down to a map pin's or corpse's spot." },
         { key = "waypointFadeNear", label = "Fade Up Close", slider = FADE_NEAR_RANGE, unit = "yd",
           help = "Fades the pin as you get this close, so it does not cover what you came for." },
+        { key = "waypointArrive", label = "Arrival Distance", slider = ARRIVE_RANGE, unit = "yd",
+          help = "How close counts as there: a map waypoint clears." },
         { key = "waypointEdge", label = "Edge Arrow Off Screen", toggle = true,
           help = "Keeps the pin at the edge of the screen, pointing the way, when the spot is off it." },
         { key = "waypointNav", label = "Navigator Bar", toggle = true,
