@@ -9,6 +9,11 @@ local SLASH_KEY = "NAOWHFOREVER"
 local MODULE_ARGS = { bars = "ActionBarsCommand" }
 local MODULE_KEYS = { instance = true, discovery = true, gear = true, bless = true, macros = true, bars = true,
     buffs = true, threat = true, pvp = true }
+local NAMED_KEYS = { Journeys = "JOURNEYS", Professions = "PROFESSIONS", ["Consumable Bar"] = "CONSUMABLEBAR",
+    ["Swing Timer"] = "SWINGTIMER" }
+local WINDOW_KEYS = { scrap = { "ToggleScrapList", "Scrap List", "Quality of Life" },
+    disenchant = { "ToggleDisenchant", "Disenchant", "Professions" }, quiz = { "ToggleQuiz", "Quiz", "Quality of Life" },
+    aim = { "ToggleAimTrainer", "Aim Trainer", "Quality of Life" } }
 local TIP_TITLE = { r = 1, g = 0.82, b = 0 }
 local TIP_TEXT = { r = 1, g = 1, b = 1 }
 local TEXT_BRAND = "Naowh Forever"
@@ -170,10 +175,29 @@ for _, mod in ipairs(MODULES) do
     if MODULE_KEYS[mod.command] then
         _G["BINDING_NAME_NAOWHFOREVER_" .. mod.command:upper()] = TEXT_OPEN:format(DisplayName(mod))
     end
+    if NAMED_KEYS[mod.name] then
+        _G["BINDING_NAME_NAOWHFOREVER_" .. NAMED_KEYS[mod.name]] = TEXT_OPEN:format(DisplayName(mod))
+    end
+end
+BINDING_NAME_NAOWHFOREVER_TOPBAR = TEXT_OPEN:format(ns.L("Top Bar"))
+for key, window in pairs(WINDOW_KEYS) do
+    _G["BINDING_NAME_NAOWHFOREVER_" .. key:upper()] = TEXT_OPEN:format(ns.L(window[2]))
 end
 
 function _G.NaowhForever_ToggleModule(command)
     for _, mod in ipairs(MODULES) do
-        if mod.command == command then return OpenModule(mod) end
+        if mod.command == command or mod.name == command then return OpenModule(mod) end
     end
+end
+
+function _G.NaowhForever_OpenTopBar()
+    if not C_AddOns.IsAddOnLoaded("NaowhForever_TopBar") then
+        return ns.Print(TEXT_SWITCHED_OFF:format(ns.L("Top Bar")))
+    end
+    ns.OpenOptionsWindow("QoL/Interface")
+end
+
+function _G.NaowhForever_ToggleWindow(key)
+    local window = WINDOW_KEYS[key]
+    if ns[window[1]] then ns[window[1]]() else ns.Print(TEXT_SWITCHED_OFF:format(ns.L(window[3]))) end
 end

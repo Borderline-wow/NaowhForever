@@ -20,4 +20,13 @@
     <Binding name="NAOWHFOREVER_THREAT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("threat")</Binding>
     <Binding name="NAOWHFOREVER_PVP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("pvp")</Binding>
     <Binding name="NAOWHFOREVER_TRAINING" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleTraining()</Binding>
+    <Binding name="NAOWHFOREVER_JOURNEYS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Journeys")</Binding>
+    <Binding name="NAOWHFOREVER_PROFESSIONS" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Professions")</Binding>
+    <Binding name="NAOWHFOREVER_CONSUMABLEBAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Consumable Bar")</Binding>
+    <Binding name="NAOWHFOREVER_SWINGTIMER" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleModule("Swing Timer")</Binding>
+    <Binding name="NAOWHFOREVER_TOPBAR" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_OpenTopBar()</Binding>
+    <Binding name="NAOWHFOREVER_SCRAP" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("scrap")</Binding>
+    <Binding name="NAOWHFOREVER_DISENCHANT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("disenchant")</Binding>
+    <Binding name="NAOWHFOREVER_QUIZ" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("quiz")</Binding>
+    <Binding name="NAOWHFOREVER_AIM" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("aim")</Binding>
 </Bindings>
