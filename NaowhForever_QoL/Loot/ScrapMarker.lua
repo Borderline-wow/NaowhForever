@@ -72,6 +72,11 @@ local NOT_SCRAP = {
 }
 local VENDOR = { { sell = "Sell", ask = "Ask First", none = "Nothing" }, { "sell", "ask", "none" } }
 local SCOPE = { { account = "Account", char = "This Character" }, { "account", "char" } }
+local MODIFIER = { { alt = "Alt", ctrl = "Ctrl" }, { "alt", "ctrl" } }
+local MARK_HELP = {
+    alt = ns.L("Alt-click an item in your bags to mark it as scrap, and sell it at the next vendor."),
+    ctrl = ns.L("Ctrl-click an item in your bags to mark it as scrap, and sell it at the next vendor."),
+}
 
 local TEXT_ITEM = ns.L("item ")
 local TEXT_MARKED = ns.L(" marked as scrap.")
@@ -110,6 +115,10 @@ local function On()
     return S.Get("enabled") and S.Get("scrapMarker") == true
 end
 Scrap.On = On
+
+function Scrap.Modifier()
+    return S.Get("scrapMarkerModifier") == "ctrl" and "ctrl" or "alt"
+end
 
 local function SellPrice(id)
     return select(SELL_PRICE, GetItemInfo(id))
@@ -247,8 +256,12 @@ local function Paint(button, over, id)
 end
 
 local function OnClick(button, mouse)
-    if mouse ~= "LeftButton" or not IsAltKeyDown() or IsControlKeyDown() or IsShiftKeyDown() then return end
-    if not On() or GetCursorInfo() then return end
+    if not On() or mouse ~= "LeftButton" or IsShiftKeyDown() or GetCursorInfo() then return end
+    if Scrap.Modifier() == "ctrl" then
+        if not IsControlKeyDown() or IsAltKeyDown() then return end
+    elseif not IsAltKeyDown() or IsControlKeyDown() then
+        return
+    end
     local bag, slot = bagOf[button], slotOf[button]
     local id = bag and GetContainerItemID(bag, slot)
     if id then Toggle(id, bag, slot) end
@@ -694,10 +707,12 @@ end
 
 Shared.Settings.Page("QoL/Loot & Items", S):Card({
     id = "scrapMarker", name = "Scrap Marker", order = 65, switch = "scrapMarker",
-    help = "Alt-click an item in your bags to mark it as scrap, and sell it at the next vendor.",
-    search = "/nf scrap nf scrap list",
+    help = function() return MARK_HELP[Scrap.Modifier()] end,
+    search = "/nf scrap nf scrap list alt-click ctrl-click mark scrap sell vendor",
     summary = Summary,
     rows = {
+        { key = "scrapMarkerModifier", label = "Marking Modifier", choice = MODIFIER,
+          help = "The key to hold as you click an item to mark it; Ctrl also opens the dressing room on gear." },
         { key = "scrapMarkerVendor", label = "At the Vendor", choice = VENDOR,
           help = "Sell your scrap when you open a vendor, ask you first, or do nothing." },
         { key = "scrapMarkerScope", label = "New Marks", choice = SCOPE,

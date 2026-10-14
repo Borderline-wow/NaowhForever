@@ -100,7 +100,7 @@ for id, item in pairs(ITEMS) do LINKS[id] = "[" .. item[1] .. "]" end
 local QUALITY = { [0] = { hex = "|cff9d9d9d", r = 0.6, g = 0.6, b = 0.6 }, [1] = WHITE,
     [2] = { hex = "|cff1eff00", r = 0.1, g = 1, b = 0 }, [3] = { hex = "|cff0070dd", r = 0, g = 0.4, b = 0.9 } }
 
-local DEFAULTS = { enabled = true, scrapMarker = false, scrapMarkerVendor = "sell", scrapMarkerScope = "account",
+local DEFAULTS = { scrapMarkerModifier = "alt", enabled = true, scrapMarker = false, scrapMarkerVendor = "sell", scrapMarkerScope = "account",
     scrapMarkerShow = true, scrapMarkerProtect = true, scrapMarkerSave = true, scrapRuleWear = false, scrapRuleOld = false,
     scrapRuleLevels = 10 }
 local state = {
@@ -440,6 +440,25 @@ Alt(cloth)
 check("Alt-click again unmarks it", state.account.scrapItems[201] == nil and Mark(cloth).shown == false
     and Mark(bagFrame.items[8]).shown == false and Printed():find("no longer scrap", 1, true) ~= nil)
 
+for _, modifier in ipairs({ "alt", "ctrl" }) do
+    Set("scrapMarkerModifier", modifier)
+    for _, mouse in ipairs({ "LeftButton", "RightButton", "MiddleButton" }) do
+        for mask = 0, 7 do
+            local ctrl, shift, alt = mask % 2 == 1, math.floor(mask / 2) % 2 == 1, mask >= 4
+            local expected = mouse == "LeftButton" and not shift
+                and ((modifier == "ctrl" and ctrl and not alt) or (modifier == "alt" and alt and not ctrl))
+            Click(cloth, mouse, ctrl, shift, alt)
+            check(modifier .. " click matrix " .. mouse .. " " .. mask,
+                (state.account.scrapItems[201] == true) == expected)
+            if expected then
+                Click(cloth, mouse, ctrl, shift, alt)
+                check(modifier .. " unmarks with the same click", state.account.scrapItems[201] == nil)
+            end
+        end
+    end
+end
+Set("scrapMarkerModifier", "alt")
+
 for _, button in ipairs({ quest, key, stone }) do Alt(button) end
 check("quest items, keys and items with no sell price are refused, each with why",
     next(state.account.scrapItems) == nil and state.printed[#state.printed - 2]:find("quest item", 1, true)
@@ -539,6 +558,16 @@ check("a pooled button moved to another slot marks what is there at the click", 
     and state.account.scrapItems[213] == nil)
 Alt(bOre)
 check("and unmarks it again", state.account.scrapItems[201] == true)
+Set("scrapMarkerModifier", "ctrl")
+for _, button in ipairs({ cloth, eCloth, bOre }) do
+    Alt(button)
+    check("Ctrl selected: Alt leaves the mark alone", state.account.scrapItems[201] == true)
+    Click(button, "LeftButton", true)
+    check("Ctrl unmarks in each bag integration", state.account.scrapItems[201] == nil)
+    Click(button, "LeftButton", true)
+    check("Ctrl marks in each bag integration", state.account.scrapItems[201] == true)
+end
+Set("scrapMarkerModifier", "alt")
 local bLate = BaganatorButton(0, 6)
 local bLateMark = widget.onInit(bLate)
 state.combat = true
@@ -805,7 +834,18 @@ for _, row in ipairs(card.rows) do
         check("each key has a default: " .. tostring(row.key), row.key == nil or DEFAULTS[row.key] ~= nil)
     end
 end
-check("the card's help one short sentence", #card.help < 100)
+check("the card's help one short sentence", #card.help() < 100)
+check("default help says Alt-click", card.help():find("Alt-click", 1, true) ~= nil)
+local modifierRow
+for _, row in ipairs(card.rows) do
+    if row.key == "scrapMarkerModifier" then modifierRow = row end
+end
+check("the modifier choice offers only Alt and Ctrl", modifierRow and #modifierRow.choice[2] == 2
+    and modifierRow.choice[2][1] == "alt" and modifierRow.choice[2][2] == "ctrl")
+Set("scrapMarkerModifier", "ctrl")
+check("help follows Ctrl without a reload", card.help():find("Ctrl-click", 1, true) ~= nil)
+Set("scrapMarkerModifier", "alt")
+check("help returns to Alt", card.help():find("Alt-click", 1, true) ~= nil)
 local page = ns.Shared.Settings.pages["QoL/Loot & Items"]
 local windowCard
 for _, item in ipairs(page.items) do
@@ -939,6 +979,14 @@ RunTimers()
 check("then clears every mark, and the list says how to mark", state.account.scrapItems == nil
     and list.pools.item.used == 0 and list.pools.note[1].text.text
     == "Nothing marked. Alt-click an item in your bags to mark it.")
+Set("scrapMarkerModifier", "ctrl")
+RunTimers()
+check("the open empty list follows Ctrl", list.pools.note[1].text.text
+    == "Nothing marked. Ctrl-click an item in your bags to mark it.")
+Set("scrapMarkerModifier", "alt")
+RunTimers()
+check("the open empty list returns to Alt", list.pools.note[1].text.text
+    == "Nothing marked. Alt-click an item in your bags to mark it.")
 state.bis[209] = nil
 
 -------------------------------------------------------------------------------
@@ -1000,6 +1048,12 @@ check("off: Bag Space is told nothing is scrap", Scrap.IsScrap(201) == false)
 check("off: Baganator refreshed, its marks hidden, only greys junk", BAGANATOR.refreshes > refreshes
     and widget.onUpdate(bClothMark, { itemID = 201 }) == false and junk.callback(0, 8, 201) == false
     and junk.callback(0, 1, 214) == true)
+Set("scrapMarkerModifier", "ctrl")
+Click(bCloth, "LeftButton", true)
+Click(marked, "LeftButton", true)
+check("off: Ctrl-click does nothing and enables no events", state.account.scrapItems[201] == true
+    and not Registered("MERCHANT_SHOW") and not Registered("EQUIPMENT_SETS_CHANGED"))
+Set("scrapMarkerModifier", "alt")
 Alt(bCloth)
 check("off: Alt-click on a Baganator button does nothing", state.account.scrapItems[201] == true)
 Alt(marked)
