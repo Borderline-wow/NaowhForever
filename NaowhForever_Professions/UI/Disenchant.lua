@@ -22,6 +22,7 @@ local BOTTOM_H = 34
 local ALL_W, ALL_H = 150, 24
 local SUMMARY_SIZE = 12
 local MARK_SIZE, MARK_IN, MARK_LEVEL = 10, 2, 5
+local RING_IN = 2
 local KEPT_ALPHA = 0.35
 local HIGHLIGHT_ALPHA = 0.15
 local OPEN_W, OPEN_H, OPEN_RIGHT, OPEN_DROP = 90, 22, 36, 7
@@ -62,7 +63,9 @@ local function PaintSlot(b, r)
     b.icon.texture:SetDesaturated(kept or refused or r.locked)
     b.icon:SetAlpha((kept or refused) and KEPT_ALPHA or 1)
     b.mark:SetShown(kept)
-    local edge = r == armed and T.accent or ITEM_QUALITY_COLORS[r.quality] or T.line
+    b.ring:SetShown(r == armed)
+    b.ring.edge:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+    local edge = ITEM_QUALITY_COLORS[r.quality] or T.line
     b.icon.edge:SetColor(edge.r, edge.g, edge.b, 1)
     Parts.MarkForever(b.icon, r.itemID)
     b:Show()
@@ -113,6 +116,10 @@ local function NewSlot(i)
     b.mark = ns.Font(over, MARK_SIZE, "OUTLINE", St.RED_RGB)
     b.mark:SetPoint("BOTTOM", 0, MARK_IN)
     b.mark:SetText(TEXT_KEEP_MARK)
+    b.ring = CreateFrame("Frame", nil, over)
+    b.ring:SetPoint("TOPLEFT", b.icon, RING_IN, -RING_IN)
+    b.ring:SetPoint("BOTTOMRIGHT", b.icon, -RING_IN, RING_IN)
+    b.ring.edge = ns.Border(b.ring)
     local light = b:CreateTexture(nil, "HIGHLIGHT")
     light:SetAllPoints()
     light:SetColorTexture(1, 1, 1, HIGHLIGHT_ALPHA)
