@@ -1,6 +1,60 @@
 # Changelog
 
-## Unreleased
+## 1.1.17
+
+### Added
+- German: Glimmer, Naowh's Forge's Simple view, Mana Efficiency, the Shopping List's consumables,
+  the XP bar's new effects and the other new parts of 1.1.12 to 1.1.15 now show in German on German
+  clients.
+- Professions: the Shopping List's Consumables picker has a search box, and a star on each item that
+  pins it under Favorites at the top of the list (saved per profile).
+- Ability to remind a player to learn a new flight point if unknown
+- Damage Meter: a left click on a death in the Deaths list opens the game's Death Recap for it.
+- QoL: Group Finder Roles, role buttons on the Group Finder that show only players of a role, or
+  only groups that still need one.
+
+### Changed
+- Journeys: the minimap route draws flights, ships, the tram and portals in their own colours, as
+  the world map does.
+- Journeys: a flight is drawn through each flight point it stops at, on the world map and the
+  minimap.
+- Consumable Bar: Ask to Add asks at the bar even when it has no items yet.
+- Lighter at login: about 3 MB less memory while the Quest List or Journeys is off; their quests,
+  rares and quest spots load the first time those features need them, from Naowh Forever: Discovery
+  Data and Naowh Forever: Journeys Data in your AddOns list, so keep both enabled.
+- Lighter all the time: about 0.6 MB less memory for the English text, and a smaller download
+  without an unused font and two unused icons.
+- Lighter in combat and at idle: the Damage Meter, Threat Meter, Instance Tracker, Pet Tracker, Zone
+  Levels, Bag Space and Restock do less work.
+- Glimmer: the Behind My Character cut-out is removed.
+- Glimmer: Quest Item Sparkle is a toggle in the Glimmer card, next to Show Skill and Quest Line.
+- Scrap Marker: a mark now ends when the item leaves your bags, so copies you loot later are not
+  scrap. Turn on Save Marks to keep marks for good.
+- Macros: My Macros, Smart Macros and Library are now tabs of the Macros page instead of a separate
+  window; /nfmacros opens them there.
+- Macros: Simple mode is a short form (spell, who to aim at, what to do if no one is there) that
+  says what one press does and shows the macro it writes.
+- Macros: "the unit under your mouse" is now "mouseover" everywhere.
+- PvP: the Focus Macro button opens Macros on its Smart Macros tab.
+- Onboarding: the Minimalist setup is now Recommended, and both setups have clearer descriptions.
+- Onboarding: a module you turn on moves to the end of the Enabled list.
+- Settings: changing the Skin asks to reload right away.
+
+### Fixed
+- Journeys: a far-away quest you track now goes to the quest itself, flying when that is quicker,
+  instead of walking to the next zone border.
+- Journeys: learning a flight point at a flight master plans the journey you are on again, so it can
+  take that flight.
+- Journeys: walks start from the ground you stand on instead of the lowest ground nearby, and are no
+  longer counted as longer the higher up you are.
+- German: the Mana Efficiency line in spell tooltips says Heilung or Schaden instead of the English
+  healing or damage.
+- Damage Meter: a Lua error that repeated after you died in a fight, from the figure columns being
+  sized from text the game keeps secret.
+- Damage Meter: the Deaths list shows when each death was instead of 0, and its summary and a Deaths
+  column on another list count the deaths.
+- Journeys: walking routes cut straight across open ground instead of bending at every map tile
+  edge.
 
 ## 1.1.16
 
