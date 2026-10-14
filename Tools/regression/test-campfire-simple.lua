@@ -987,6 +987,14 @@ do
         if type(needs) ~= "function" or needs() then tabs[#tabs + 1] = state.key end
     end
     check("preview: No Bonuses is a Simple-only tab", not table.concat(tabs, " "):find("unread", 1, true))
+    s.values.campShowUnder, s.values.campShowUnderMinutes = true, 2
+    card.studio.paint(shot, "up")
+    check("preview Active with Show Only When Low: the reminder still drawn, dimmed, with the note",
+        shot.icon.shown ~= false and shot.icon.alpha < 1
+        and shot.note.text:find("hidden until under 2 min", 1, true))
+    card.studio.paint(shot, "missing")
+    check("preview Refresh: the reminder at full strength", shot.icon.shown ~= false and shot.icon.alpha == 1)
+    s.values.campShowUnder = nil
     s.values.campStyle = "simple"
     card.studio.paint(shot, "low")
     local f = shot.bar

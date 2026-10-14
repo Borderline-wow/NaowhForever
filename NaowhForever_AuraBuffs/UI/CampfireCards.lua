@@ -239,7 +239,8 @@ local function PaintBarPreview(shot, state, hidden)
     shot.dragRange[1] = math.max(WIDTH_RANGE[1], math.ceil(f.minW / step) * step)
 
     FitBar(shot)
-    shot.barHost:SetShown(not hidden)
+    shot.barHost:Show()
+    shot.barHost:SetAlpha(hidden and HIDDEN_ALPHA or 1)
     shot.hint:SetText(editable and SIMPLE_HINT or SIMPLE_OFF_HINT)
     shot.note:ClearAllPoints()
     shot.note:SetPoint("BOTTOM", shot.hint, "TOP", 0, NOTE_GAP_Y)
@@ -276,7 +277,8 @@ local function PaintPreview(shot, state)
         Run(f, SAMPLES[state] or SAMPLES.up, CAMP_HOUR)
         if not note and mode == "hover" then note = TEXT_HOVER end
     end
-    f:SetShown(not hidden)
+    f:Show()
+    f:SetAlpha(hidden and HIDDEN_ALPHA or 1)
     shot.note:SetText(note or "")
 end
 
