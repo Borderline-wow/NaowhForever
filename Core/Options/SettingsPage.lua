@@ -30,6 +30,7 @@ local TEXT_REPLACE = ns.L("Replace your custom colors with %s?")
 local TEXT_COLORS_RELOAD = ns.L("Reload UI to apply your color changes.")
 local TEXT_RXP_RELOAD = ns.L("Reload UI to apply your RestedXP changes.")
 local TEXT_RXP_PICK_RELOAD = "Reload UI to pick a theme."
+local TEXT_SKIN_RELOAD = ns.L("Reload UI to change the skin.")
 local TEXT_SKIN_TIP = ns.L("Dresses the addon's windows as Naowh's own or WoW Forever's, after a reload.")
 local TEXT_FOREVER = "Forever"
 local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_FOREVER] = TEXT_FOREVER }
@@ -321,6 +322,7 @@ local function SkinRow()
         setValue = function(v)
             ns.AccountSettings().skin = v ~= "" and v or nil
             ColorsChanged()
+            ns.ConfirmReload(TEXT_SKIN_RELOAD)
         end }
 end
 

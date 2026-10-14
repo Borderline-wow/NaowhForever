@@ -208,7 +208,8 @@ local env = setmetatable({ _G = { NaowhForever = ns }, CreateFrame = function(_,
         return f
     end, InCombatLockdown = function() return s.combat end, UnitName = function() return ME end,
     CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end,
-    wipe = function(t) for k in pairs(t) do t[k] = nil end return t end },
+    wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+    CopyTable = function(t) local out = {} for k, v in pairs(t) do out[k] = v end return out end },
     { __index = _G })
 local chunk = assert(loadfile("Core/Onboarding/SetupWindow.lua"))
 setfenv(chunk, env)
@@ -319,7 +320,7 @@ check("past the welcome the animation stops", sign.scripts.OnUpdate == nil)
 check("step 1 of 4, its segments lit", window.subtitle.text == "Step 1 of 4" and #window.segments == 4
     and window.segments[1].shown)
 check("step 1 asks where to start", Said("Where do you want to start?") ~= nil)
-local minimal, recommended, keep = Tile("Minimalist"), Tile("Everything Enabled"), Tile("Keep mine")
+local minimal, recommended, keep = Tile("Recommended"), Tile("Everything Enabled"), Tile("Keep mine")
 check("three profiles: Naowh's two, with their own words, and Keep mine", #Tiles() == 3 and minimal and recommended
     and keep and minimal.blurb.text == w.ns.PRESETS.minimalist.about
     and recommended.blurb.text == w.ns.PRESETS.recommended.about and keep.blurb.text == "Your settings stay as they are.")
@@ -331,7 +332,7 @@ check("each draws our own icon", Ours(minimal.icon.tex.texture, "essentials")
     and Ours(recommended.icon.tex.texture, "everything") and Ours(keep.icon.tex.texture, "purist"))
 check("one row of cards, centred in the window", minimal.point[5] == keep.point[5]
     and math.abs(minimal.point[4] - (960 - (keep.point[4] + keep.w))) < 0.01)
-check("an account never set up starts on Minimalist, with its check", Picked() == "Minimalist"
+check("an account never set up starts on Minimalist, with its check", Picked() == "Recommended"
     and minimal.check.shown and not recommended.check.shown)
 check("Back and Next carry arrows", Find("Back").arrow.texture:find("back.tga", 1, true)
     and Find("Next").arrow.texture:find("next.tga", 1, true))
@@ -340,7 +341,7 @@ check("a pick glows on the card and pops its check", recommended.glow and recomm
     and recommended.check.pop and recommended.check.pop.plays == 1)
 check("one pick: the check moves", Picked() == "Everything Enabled")
 Clicked(minimal)
-check("and back", Picked() == "Minimalist")
+check("and back", Picked() == "Recommended")
 local shortH, blurbHeight = minimal.h, minimal.blurb.GetStringHeight
 minimal.blurb.GetStringHeight = function() return 70 end
 Clicked(minimal)
@@ -465,7 +466,12 @@ local function TallEnough()
 end
 check("a three-line blurb makes every tile tall enough for it, still above the footer", TallEnough() and AboveFooter())
 completo.blurb.GetStringHeight = function() return 14 end
-check("and moves it up to the ones on, in its place, the same tile", InGroup(completo) and Sorted()
+local function LastOn()
+    local last
+    for _, tile in ipairs(Reading()) do if tile.on then last = tile end end
+    return last
+end
+check("and moves it up to the end of the ones on, the same tile", InGroup(completo) and LastOn() == completo
     and Tile("Discovery") == completo and #Tiles() == #LISTED)
 Clicked(qol)
 check("Quality of Life off", not qol.on)
@@ -474,16 +480,17 @@ for _, tile in ipairs(Reading()) do if not firstOff and not tile.on then firstOf
 check("moves down to the ones off, at their head", InGroup(qol) and Sorted() and firstOff == qol)
 local frames = #made
 Clicked(qol)
-check("on again: back at the top, with no new frames", qol.on and InGroup(qol) and Reading()[1] == qol
-    and #made == frames)
+check("on again: at the end of the ones on, after Discovery, with no new frames", qol.on and InGroup(qol)
+    and LastOn() == qol and Reading()[1] ~= qol and #made == frames)
 Clicked(qol)
 Clicked(qol)
 check("and on again", qol.on)
 Clicked(Tile("Professions"))
 check("Professions on leaves the Training Planner off", Tile("Professions").on and not Tile("Training Planner").on)
+check("and lands last of the ones on", LastOn() == Tile("Professions"))
 Find("Back").Click()
 Find("Back").Click()
-check("Back goes a step back, the pick kept", window.subtitle.text == "Step 1 of 4" and Picked() == "Minimalist")
+check("Back goes a step back, the pick kept", window.subtitle.text == "Step 1 of 4" and Picked() == "Recommended")
 Find("Next").Click()
 check("the skin kept too", Picked() == "Forever")
 Find("Next").Click()
@@ -491,14 +498,14 @@ check("the same profile: the module flips kept", Tile("Discovery").on and Tile("
 Find("Back").Click()
 Find("Back").Click()
 Clicked(Tile("Everything Enabled"))
-Clicked(Tile("Minimalist"))
+Clicked(Tile("Recommended"))
 Find("Next").Click()
 Find("Next").Click()
 check("another profile picked: its modules again", Picked() == MINIMALIST)
 Find("Next").Click()
 check("step 4: the summary", window.subtitle.text == "Step 4 of 4" and Said("Here's your setup") ~= nil
     and Said("Nothing changes until you apply it.") ~= nil)
-check("it names the profile and the new skin", Said("Profile") and Said("Minimalist") and Said("Skin") and Said("Forever"))
+check("it names the profile and the new skin", Said("Profile") and Said("Recommended") and Said("Skin") and Said("Forever"))
 local off = Saying("Discovery")
 check("and the modules it turns off, in red", Said("Turns off") and off and off.color[1] == St.RED_RGB.r
     and not off.text:find("BiS List", 1, true))
@@ -536,7 +543,7 @@ Clicked(Tile("PvP"))
 Clicked(Tile("Threat Meter"))
 for _, tile in ipairs(Tiles()) do if not tile.on then Clicked(tile) end end
 check("all on: one group, no line, still above the footer", modulesPage.onSection.shown
-    and not modulesPage.offSection.shown and Sorted() and AboveFooter())
+    and not modulesPage.offSection.shown and Grouped() and AboveFooter())
 window:Hide()
 check("X or Escape partway: nothing changes", Snapshot() == kept)
 

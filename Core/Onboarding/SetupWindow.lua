@@ -528,6 +528,7 @@ local function ProfileKeys()
 end
 
 local function PickProfile(tile)
+    if picks.profile ~= tile.key then picks.added = nil end
     Setup.PickProfile(picks, tile.key)
     Paint()
 end
@@ -710,7 +711,16 @@ local function LayoutModuleTile(tile, width)
 end
 
 local function FlipModule(tile)
+    local was = CopyTable(picks.modules)
     Setup.Toggle(picks, tile.key, not picks.modules[tile.key])
+    local added = {}
+    for _, id in ipairs(picks.added or {}) do
+        if picks.modules[id] then added[#added + 1] = id end
+    end
+    for _, m in ipairs(modules) do
+        if picks.modules[m.id] and not was[m.id] then added[#added + 1] = m.id end
+    end
+    picks.added = added
     Paint()
 end
 
@@ -789,6 +799,8 @@ local function PaintModules()
     local width = TileWidth(MODULE_LAYOUT.columns)
     wipe(page.on)
     wipe(page.off)
+    local added, late = {}, {}
+    for _, id in ipairs(picks.added or {}) do added[id] = true end
     for i, m in ipairs(modules) do
         local tile = Tile(page, i)
         LayoutModuleTile(tile, width)
@@ -798,9 +810,14 @@ local function PaintModules()
         tile.icon.tex:SetTexture(NAV_ICONS .. (m.navIcon or NAV_FALLBACK) .. ".tga", nil, nil, FILTER)
         local on = picks.modules[m.id] == true
         PaintTile(tile, on)
-        local group = on and page.on or page.off
-        group[#group + 1] = tile
+        if on and added[m.id] then
+            late[m.id] = tile
+        else
+            local group = on and page.on or page.off
+            group[#group + 1] = tile
+        end
     end
+    for _, id in ipairs(picks.added or {}) do page.on[#page.on + 1] = late[id] end
     PlaceModules(page, width)
     window.note:SetText(TEXT_MODULES.count:format(OnCount(), #modules))
 end

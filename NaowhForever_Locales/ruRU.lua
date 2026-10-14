@@ -5223,6 +5223,7 @@ L["|n|nSwitches with %s."] = "|n|nПереключается вместе с %s.
 L["Language"] = "Язык"
 L["Game Language"] = "Язык игры"
 L["Reload UI to switch the language."] = "Перезагрузите интерфейс, чтобы сменить язык."
+L["Reload UI to change the skin."] = "Перезагрузите интерфейс, чтобы сменить оформление."
 L["The language of this addon. Game Language follows your game client. Saved for this computer.|n|nTakes effect after a /reload."] = "Язык этого аддона. «Язык игры» следует языку клиента. Сохраняется для этого компьютера.|n|nВступает в силу после /reload."
 L["Korean"] = "Корейский"
 L["Chinese (Simplified)"] = "Китайский (упрощённый)"

@@ -322,7 +322,7 @@ do
     check("and its hover names what Everything Enabled turns back on", tip:find("Group Inspect", 1, true) ~= nil)
     w = Game({ account = { welcomeSeen = true }, root = { discovery = { enabled = true } } })
     check("the hover for Minimalist names the modules it turns off", w.ns.PresetChanges("minimalist")
-        :find("Minimalist turns off: ", 1, true) ~= nil and w.ns.PresetChanges("minimalist"):find("Discovery", 1, true))
+        :find("Recommended turns off: ", 1, true) ~= nil and w.ns.PresetChanges("minimalist"):find("Discovery", 1, true))
     local enabled, loaded = All(true), All(true)
     enabled.NaowhForever_DungeonJournal, loaded.NaowhForever_DungeonJournal = false, false
     enabled.NaowhForever_Discovery, loaded.NaowhForever_Discovery = false, false

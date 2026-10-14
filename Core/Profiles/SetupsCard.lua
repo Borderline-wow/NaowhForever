@@ -43,7 +43,7 @@ Settings.Page(ns.SETUPS_PAGE, S):Card({
           get = function() return S.Get("preset") or "custom" end,
           set = function(key) if P[key] then ns.UsePreset(key) end end,
           tip = Tip,
-          help = "Minimalist turns on only Quality of Life, the Dungeon Journal and the BiS List; Everything Enabled turns on every module." },
+          help = "Recommended turns on the essentials and nothing that spoils the game; Everything Enabled turns on every module." },
         { label = "Onboarding", buttonText = "Start", button = function() ns.ShowSetup() end,
           help = "Walks you through a profile, a skin and your modules." },
         { label = "Before Onboarding", buttonText = "Restore", button = Restore, hidden = NoBackup,

@@ -13,14 +13,14 @@
 -- other module on (Core/Onboarding/Setup.lua, Setup.PresetSwitches), and the build writes the same switches
 -- into its profile, so a new install starting from it agrees. Without it the preset's switches decide.
 local INFO = {
-    minimalist = { order = 1, name = "Minimalist",
-        about = "Perfect if you're a Classic player and don't want to use a lot of addons. This option is for you if you prefer opting in instead of opting out.",
+    minimalist = { order = 1, name = "Recommended",
+        about = "A streamlined setup with the essentials enabled and nothing that spoils the game. You can add more modules whenever you like. Perfect if you're a Classic player and don't want to use a lot of addons.",
         modulesOff = { "NaowhForever_InstanceTracker", "NaowhForever_Training", "NaowhForever_Journeys",
             "NaowhForever_Discovery", "NaowhForever_GearSets", "NaowhForever_Blessings", "NaowhForever_Professions",
             "NaowhForever_Macros", "NaowhForever_ConsumableBar", "NaowhForever_ActionBars", "NaowhForever_AuraBuffs",
             "NaowhForever_ThreatMeter", "NaowhForever_GroupInspect", "NaowhForever_PvP", "NaowhForever_SwingTimer" } },
     recommended = { order = 2, name = "Everything Enabled",
-        about = "Loads every module and gives you the full Naowh Forever experience.", modulesOff = {} },
+        about = "Every module enabled for the full Naowh Forever experience. Great if you're a power user with addons and want all the bells and whistles.", modulesOff = {} },
 }
 local NEW_INSTALL = "minimalist"
 local OUT = "Core/Profiles/Presets.lua"
