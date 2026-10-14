@@ -1325,15 +1325,32 @@ function UI.SlimScroll(parent, width, gap)
     local function Sync(self, _, range)
         range = range or self:GetVerticalScrollRange()
         local shown = self:GetHeight()
+        local _, old = bar:GetMinMaxValues()
         bar:SetMinMaxValues(0, range)
         bar:SetShown(range > 0)
         if range > 0 then
             thumb:SetHeight(math.max(SCROLL.minThumb, bar:GetHeight() * shown / (shown + range)))
         end
-        if bar:GetValue() > range then bar:SetValue(range) end
+        local value = bar:GetValue()
+        if old == 0 and range > 0 then
+            -- A slider hides its thumb at an empty range and only places it again when its value moves.
+            bar:SetValue(range)
+            bar:SetValue(value)
+        elseif value > range then
+            bar:SetValue(range)
+        end
+    end
+    local function Refresh()
+        scroll:UpdateScrollChildRect()
+        Sync(scroll)
     end
     scroll:SetScript("OnScrollRangeChanged", Sync)
-    scroll:HookScript("OnShow", Sync)
+    scroll:HookScript("OnShow", Refresh)
+    local setChild = scroll.SetScrollChild
+    function scroll:SetScrollChild(child)
+        setChild(self, child)
+        child:HookScript("OnSizeChanged", Refresh)
+    end
     scroll:HookScript("OnHide", function() bar:Hide() end)
     scroll:SetScript("OnVerticalScroll", function(_, offset)
         if math.abs(bar:GetValue() - offset) > SCROLL.sync then bar:SetValue(offset) end
