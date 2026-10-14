@@ -61,6 +61,7 @@ local function Fixture(opts)
         slotReads = 0,
         requested = {},
         glows = {},
+        presses = {},
         reads = 0,
     }
     local timers, frames = {}, {}
@@ -125,7 +126,8 @@ local function Fixture(opts)
         Apply = function() end,
         ShowUnlockMode = function() end,
         HideUnlockMode = function() end,
-        Border = function() end, THEME = { bg = {} },
+        Border = function(frame, color) rawset(frame, "edge", color) end, THEME = { bg = {} },
+        ThemeTint = function(key, literal) return key == "line" and opts.themeLine or literal end,
         Solid = function() return Recorder() end,
         Font = function()
             local fs = Recorder()
@@ -133,7 +135,13 @@ local function Fixture(opts)
             return fs
         end,
         UI = { AttachMover = function() return NewFrame() end, ModuleSettings = function() return S end },
-        Shared = { Style = dofile("Tools/regression/shared_style.lua"), Parts = { HUD_OUTLINES = { { NONE = "None", [""] = "Shadow", OUTLINE = "Outline" }, { "NONE", "", "OUTLINE" } },
+        Shared = { Style = dofile("Tools/regression/shared_style.lua"),
+            ItemBar = { SetItem = function(button, itemID)
+                button.itemID = itemID
+                button:SetAttribute("type1", itemID and "item" or nil)
+                button:SetAttribute("item1", itemID and ("item:" .. itemID) or nil)
+            end },
+            Parts = { HUD_OUTLINES = { { NONE = "None", [""] = "Shadow", OUTLINE = "Outline" }, { "NONE", "", "OUTLINE" } },
             HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end } },
     }
 
@@ -152,8 +160,12 @@ local function Fixture(opts)
         UIParent = {},
         LibStub = function()
             return {
-                PixelGlow_Start = function(frame) state.glows[frame] = "pixel" end,
-                PixelGlow_Stop = function(frame) state.glows[frame] = nil end,
+                PixelGlow_Start = function(frame, _, _, _, _, _, _, _, _, key)
+                    if key then state.presses[frame] = key else state.glows[frame] = "pixel" end
+                end,
+                PixelGlow_Stop = function(frame, key)
+                    if key then state.presses[frame] = nil else state.glows[frame] = nil end
+                end,
                 ButtonGlow_Start = function(frame) state.glows[frame] = "standard" end,
                 ButtonGlow_Stop = function(frame) state.glows[frame] = nil end }
         end,
@@ -691,6 +703,10 @@ do
     t.Login()
     Check("disabled: nothing shown", t.Shown(), "")
     Check("disabled: no aura events", t.Listening("UNIT_AURA"), false)
+    t.state.combat = true
+    t.ns.Apply()
+    Check("disabled: a profile apply in combat waits for nothing", t.Listening("PLAYER_REGEN_ENABLED"), false)
+    t.state.combat = false
     t.Set("enabled", true)
     Check("enabled: listening", t.Listening("UNIT_AURA"), true)
     Check("enabled: shown", t.Shown(), "item:13931")
@@ -719,7 +735,19 @@ do
     Check("refresh keeps the menu open", popup.shown, true)
     Check("refresh drops items no longer carried", popup.buttons[2].shown, false)
     popup.buttons[1].scripts.PostClick(popup.buttons[1])
+    Check("using an item makes it glow", t.state.presses[popup.buttons[1]], "press")
+    Check("the menu stays while it glows", popup.shown, true)
+    t.Advance(0.5)
+    Check("then the glow ends", t.state.presses[popup.buttons[1]], nil)
     Check("using an item closes the menu", popup.shown, false)
+    Check("menu icons keep the black edge by default", popup.buttons[1].edge.r, 0)
+    Check("row icon is a secure button", cell.template, "SecureActionButtonTemplate")
+    Check("row icon uses the item it shows", (cell.attributes.type1 or "") .. " " .. (cell.attributes.item1 or ""),
+        "item item:111")
+    cell.scripts.PostClick(cell)
+    Check("clicking a row icon makes it glow", t.state.presses[cell], "press")
+    t.Advance(0.5)
+    Check("and the glow ends", t.state.presses[cell], nil)
     cell.scripts.OnEnter(cell)
     Check("open menu hangs under its cell", popup.anchor, cell)
     Check("menu sits centred under its cell", popup.point .. ">" .. popup.relativePoint, "TOP>BOTTOM")
@@ -741,6 +769,43 @@ do
     t.state.combat = true
     cell.scripts.OnEnter(cell)
     Check("no menu in combat", popup.shown, false)
+    t.state.bags = { 222 }
+    t.Fire("BAG_UPDATE_DELAYED")
+    t.Advance(0.5)
+    t.Set("iconSize", 50)
+    Check("in combat the row's item stays", cell.attributes.item1, "item:111")
+    Check("in combat the row's size stays", cell.width, 36)
+    t.state.combat = false
+    t.Fire("PLAYER_REGEN_ENABLED")
+    t.Advance(0.5)
+    Check("after combat the row takes the carried item", cell.attributes.item1, "item:222")
+    Check("after combat the row takes its new size", cell.width, 50)
+end
+
+-- The row and menu icon edges follow the theme's Borders & Lines colour; Last Used uses the item it shows.
+do
+    local line = { r = 0.2, g = 0.4, b = 0.6 }
+    local t = Fixture({ instance = "raid", bags = { 111, 222 }, themeLine = line,
+        settings = { buffIconMode = "last", consumableEntries = {
+            { category = "food", itemID = 111, auras = { 11 } },
+            { category = "food", itemID = 222, auras = { 22 } },
+        } } })
+    t.ns.AccountSettings().lastFoodIcon = "item:222"
+    t.Login()
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") then cell = f end end
+    Check("Last Used shows the last food", cell.icon.texture, "item:222")
+    Check("and clicking it eats that one", cell.attributes.item1, "item:222")
+    Check("row icon edge follows Borders & Lines", cell.edge, line)
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    Check("menu icon edge follows Borders & Lines", popup.buttons[1].edge, line)
+    t.state.bags = { 111 }
+    t.Fire("BAG_UPDATE_DELAYED")
+    t.Advance(0.5)
+    Check("with the last food gone the row shows the carried one", cell.icon.texture, "item:111")
+    Check("and clicking it eats the one it shows", cell.attributes.item1, "item:111")
 end
 
 -- A full menu spreads out from the middle, each line centred under the hovered icon.
@@ -792,6 +857,11 @@ do
     local t = Fixture({ units = { player = "MAGE" }, known = { [168] = true, [7302] = true } })
     t.Login()
     Check("mage: ice armor missing", t.Shown(), "spell:7302")
+    for _, f in ipairs(t.frames) do
+        if rawget(f, "items") == nil and rawget(f, "count") and f.shown then
+            Check("a spell reminder uses no item", f.attributes.type1, nil)
+        end
+    end
     t.state.auras.player = { { 168, 1700, 1800 } }
     t.Fire("UNIT_AURA", "player")
     t.Advance(0.5)

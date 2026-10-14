@@ -13,12 +13,12 @@ local COUNT_SIZE, COUNT_INSET = St.BUFF_COUNT_SIZE, St.BUFF_COUNT_INSET
 local Cell = {}
 A.BuffCell = Cell
 
-function Cell.New(parent)
-    local cell = CreateFrame("Frame", nil, parent)
+function Cell.New(parent, template)
+    local cell = CreateFrame(template and "Button" or "Frame", nil, parent, template)
     cell.icon = cell:CreateTexture(nil, "ARTWORK")
     cell.icon:SetAllPoints()
     cell.icon:SetTexCoord(CROP, 1 - CROP, CROP, 1 - CROP)
-    ns.Border(cell, St.BLACK)
+    ns.Border(cell, ns.ThemeTint("line", St.BLACK))
     cell.count = ns.Font(cell, COUNT_SIZE, "OUTLINE")
     cell.count:SetPoint("BOTTOMRIGHT", -COUNT_INSET, COUNT_INSET)
     return cell

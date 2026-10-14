@@ -5,6 +5,7 @@ local A = ns.AuraBuffs
 local S = A.Settings
 local St = A.Style
 local R, Cell = A.Buffs, A.BuffCell
+local Glow = A.Glow
 
 local COLS, PAD, GAP = St.MENU_COLS, St.MENU_PAD, St.MENU_GAP
 local ICON_GAP, CROP = St.BUFF_GAP, St.BUFF_CROP
@@ -43,6 +44,14 @@ local function OnItemLeave()
     Menu.Leave()
 end
 
+local function OnItemUsed(self)
+    Glow.Press(self, "buffGlow")
+    local owner = popup.owner
+    C_Timer.After(Glow.PRESS_TIME, function()
+        if popup.owner == owner then Menu.Hide() end
+    end)
+end
+
 local function Build()
     popup = CreateFrame("Frame", nil, UIParent)
     popup:SetFrameStrata("DIALOG")
@@ -63,8 +72,8 @@ local function Button(count)
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetAllPoints()
     button.icon:SetTexCoord(CROP, 1 - CROP, CROP, 1 - CROP)
-    ns.Border(button, St.BLACK)
-    button:SetScript("PostClick", Menu.Hide)
+    ns.Border(button, ns.ThemeTint("line", St.BLACK))
+    button:SetScript("PostClick", OnItemUsed)
     button:SetScript("OnEnter", OnItemEnter)
     button:SetScript("OnLeave", OnItemLeave)
     popup.buttons[count] = button

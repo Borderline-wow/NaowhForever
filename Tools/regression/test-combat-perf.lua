@@ -245,9 +245,11 @@ do
         OnePixel = function() return 1 end,
         ShowUnlockMode = function() end, HideUnlockMode = function() end,
         Border = function() end, Solid = function(parent) return New("Texture", nil, parent) end,
+        ThemeTint = function(_, literal) return literal end,
         Font = function(parent) return New("FontString", nil, parent) end,
         UI = { AttachMover = function() return New("Mover") end },
-        Shared = { Parts = { HudFont = function(fs, _, size, outline) fs:SetFont("font", size, outline) end } } }
+        Shared = { Parts = { HudFont = function(fs, _, size, outline) fs:SetFont("font", size, outline) end },
+            ItemBar = { SetItem = function(button, itemID) button.itemID = itemID end } } }
     local lastAfter
     local timer = { Cancel = function() end }
     local env = BaseEnv(ns, {

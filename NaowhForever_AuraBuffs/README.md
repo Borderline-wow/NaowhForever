@@ -7,7 +7,8 @@ minimap and Top Bar button). Its on/off switches and their defaults come from
 
 - **Buffs & Consumables:** a row of icons for missing food, flask and elixir buffs from the
   consumables you watch, class buffs missing in your group, and your own class buff (armor, Inner
-  Fire, Battle Shout, poisons, a weapon imbue) when it is missing. Hover one to use a carried item.
+  Fire, Battle Shout, poisons, a weapon imbue) when it is missing. Click one to use the item it
+  shows, or hover it to pick another carried item.
   Worn Gear Reminder (off by default) adds an icon while you wear gear with a drawback where it
   matters (`D.WORN`): Cloak of Hermitic Bliss in Wailing Caverns. Its tooltip is the item's own.
 - **Campfire:** in two looks on one mover. Round, a camp icon with a time ring and a countdown;
@@ -184,6 +185,17 @@ NaowhForever_AuraBuffs/
   clamp keeps it in at the sides. The icon size and every gap, in the row and the menu, are rounded
   to whole pixels (`Cell.Snap`): at a UI scale where a unit is not a whole pixel, a menu icon a
   fraction of a pixel off the row was resampled and looked rougher than the icon above it.
+- The row's icons are secure item buttons (`type1 = "item"`), each using the carried item it shows
+  (under Last Used, the carried one with that icon; when no carried item has it, the row shows and
+  uses the first carried item instead); a class or raid buff icon uses nothing. Secure buttons make the row
+  protected, so in combat nothing touches it: a refresh waits, and a setting change or Unlock Mode
+  is applied once combat ends (`PLAYER_REGEN_ENABLED`), registered only while the row is on or
+  showing.
+- A press glows the icon (`Glow.Press`): a short Pixel Glow in the Glow color, lines and thickness,
+  under its own LibCustomGlow key so a reminder's own glow keeps running. It is not the game's button
+  highlight or pushed look (`Parts.Press`). The menu waits for the glow before it closes.
+- The row's and the menu's icon edges take the theme's Borders & Lines color (`ns.ThemeTint`), and
+  stay black with the default theme.
 - Camp Benefits (1229741, probed 2026-09-19), Campfire Nearby (1283391, the area aura in range of
   a campfire, 2026-09-24) and Welcoming Campfire (1229739 and the crafting 1289723, the 60 second
   aura while sitting, before Camp Benefits lands, 2026-09-25) were probed on the client.
