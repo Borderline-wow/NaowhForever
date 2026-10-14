@@ -43,7 +43,7 @@ local TILE_LAYOUT = { checkInset = 6, markInset = 4, iconTop = 20, nameGap = 14,
 local SKIN_LAYOUT = { columns = #Setup.SKINS, tileH = 220, nameGap = 14 }
 local PREVIEW = { w = 190, h = 112, bar = 22, pad = 8, titleSize = 12, bodySize = 11, labelSize = 10,
     buttonW = 64, buttonH = 20 }
-local MODULE_LAYOUT = { columns = 4, tileH = 56, gap = 8, plate = 36, glyph = 22, iconX = 10, textGap = 10,
+local MODULE_LAYOUT = { columns = 4, tileH = 56, pad = 10, gap = 8, plate = 36, glyph = 22, iconX = 10, textGap = 10,
     textRoom = 30, blurbGap = 2, sectionH = 16, sectionGap = 10, groupGap = 14, ruleGap = 8 }
 local SUMMARY_LAYOUT = { w = 560, rowH = 58, gap = 10, plate = 34, glyph = 22, iconX = 12, textGap = 12,
     textRoom = 70, subGap = 3, pad = 22, rows = 4 }
@@ -664,11 +664,11 @@ local function PaintSkin()
 end
 
 local function LayoutModuleTile(tile, width)
-    tile:SetSize(width, MODULE_LAYOUT.tileH)
+    tile:SetWidth(width)
     tile.icon:SetSize(MODULE_LAYOUT.plate, MODULE_LAYOUT.plate)
     tile.icon.tex:SetSize(MODULE_LAYOUT.glyph, MODULE_LAYOUT.glyph)
     tile.icon:ClearAllPoints()
-    tile.icon:SetPoint("LEFT", MODULE_LAYOUT.iconX, 0)
+    tile.icon:SetPoint("TOPLEFT", MODULE_LAYOUT.iconX, -MODULE_LAYOUT.pad)
     local textW = width - MODULE_LAYOUT.iconX - MODULE_LAYOUT.plate - MODULE_LAYOUT.textGap - MODULE_LAYOUT.textRoom
     tile.name:SetJustifyH("LEFT")
     tile.name:ClearAllPoints()
@@ -705,6 +705,15 @@ local function BuildModules()
     return page
 end
 
+local function ModuleTileHeight(tiles)
+    local height = MODULE_LAYOUT.tileH
+    for _, tile in ipairs(tiles) do
+        height = math.max(height, MODULE_LAYOUT.pad * 2 + tile.name:GetStringHeight() + MODULE_LAYOUT.blurbGap
+            + tile.blurb:GetStringHeight())
+    end
+    return math.ceil(height)
+end
+
 local function PlaceGroup(page, section, tiles, left, y, width)
     section:SetShown(#tiles > 0)
     if #tiles == 0 then return y end
@@ -717,11 +726,12 @@ local function PlaceGroup(page, section, tiles, left, y, width)
         local row, col = math.floor((i - 1) / columns), (i - 1) % columns
         tile:ClearAllPoints()
         tile:SetPoint("TOPLEFT", page, "TOPLEFT", left + col * (width + MODULE_LAYOUT.gap),
-            -(y + row * (MODULE_LAYOUT.tileH + MODULE_LAYOUT.gap)))
+            -(y + row * (page.tileH + MODULE_LAYOUT.gap)))
+        tile:SetHeight(page.tileH)
         tile:Show()
     end
     local rows = math.ceil(#tiles / columns)
-    return y + rows * MODULE_LAYOUT.tileH + (rows - 1) * MODULE_LAYOUT.gap + MODULE_LAYOUT.groupGap
+    return y + rows * page.tileH + (rows - 1) * MODULE_LAYOUT.gap + MODULE_LAYOUT.groupGap
 end
 
 local function PlaceModules(page, width)
@@ -730,6 +740,7 @@ local function PlaceModules(page, width)
     page.title:ClearAllPoints()
     page.title:SetPoint("TOP", 0, -INSET)
     local y = INSET + page.title:GetStringHeight() + TILE_LAYOUT.hintGap + page.hint:GetStringHeight() + HINT_GAP
+    page.tileH = math.max(ModuleTileHeight(page.on), ModuleTileHeight(page.off))
     y = PlaceGroup(page, page.onSection, page.on, left, y, width)
     PlaceGroup(page, page.offSection, page.off, left, y, width)
     for i = #modules + 1, #page.tiles do page.tiles[i]:Hide() end

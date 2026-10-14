@@ -420,9 +420,19 @@ check("four to a row", offTiles[1].point[5] == offTiles[4].point[5] and offTiles
     and offTiles[1].point[4] == Reading()[1].point[4])
 check("every tile above the footer", AboveFooter())
 local completo, qol = Tile("Discovery"), Tile("Quality of Life")
+local THREE_LINES = 36
+completo.blurb.GetStringHeight = function() return THREE_LINES end
 Clicked(completo)
 check("a click flips it, glowing", completo.on and completo.glow.plays == 1
     and Said(MINIMALIST_ON + 1 .. " of " .. #LISTED .. " on") ~= nil)
+local function TallEnough()
+    for _, tile in ipairs(Tiles()) do
+        if tile.h < 10 * 2 + 14 + 2 + THREE_LINES then return false end
+    end
+    return true
+end
+check("a three-line blurb makes every tile tall enough for it, still above the footer", TallEnough() and AboveFooter())
+completo.blurb.GetStringHeight = function() return 14 end
 check("and moves it up to the ones on, in its place, the same tile", InGroup(completo) and Sorted()
     and Tile("Discovery") == completo and #Tiles() == #LISTED)
 Clicked(qol)
