@@ -29,4 +29,5 @@
     <Binding name="NAOWHFOREVER_DISENCHANT" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("disenchant")</Binding>
     <Binding name="NAOWHFOREVER_QUIZ" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("quiz")</Binding>
     <Binding name="NAOWHFOREVER_AIM" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("aim")</Binding>
+    <Binding name="NAOWHFOREVER_EFFICIENCY" category="BINDING_HEADER_NAOWHFOREVER">NaowhForever_ToggleWindow("efficiency")</Binding>
 </Bindings>

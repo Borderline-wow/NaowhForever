@@ -3,7 +3,8 @@
 -- on one target, spell power and its sub-20 penalty, cast against instant), mana-only gating, secrets
 -- area spells saying per target, talents (percent mods by rank, crit refunds, free casts) and malformed entries failing to no line, no garbage per hover once a spell is decoded, off meaning
 -- no hook, every option's effect on the line, a bad imported color falling back to the default, the
--- card's preview and Preview Tooltip, and the card's rows, defaults and search.
+-- card's preview and Preview Tooltip, the line's numbers being ns.SpellEfficiencyOf's (which the Mana Efficiency
+-- window shows), and the card's rows, defaults and search.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -386,6 +387,25 @@ spellInfo = 7
 check("spell info that is not a table, nothing", #Show(2050) == 0)
 spellInfo = nil
 check("readable spell info again: the line", Show(2050)[1][1] == "1.76 healing per mana  ||  35 per second")
+
+local KIND_WORDS = { [0] = "damage", [1] = "healing" }
+local function SharedLines(id)
+    local result, out = ns.SpellEfficiencyOf(id), {}
+    for i = 1, result.count do
+        local part, target = result[i], result.area and " / target" or ""
+        local text = ns.SpellEfficiencyNumber(part.perMana) .. " " .. KIND_WORDS[part.kind] .. " per mana" .. target
+        if part.perSecond then
+            text = text .. "  ||  " .. ns.SpellEfficiencyNumber(part.perSecond, true) .. " per second" .. target
+        end
+        out[i] = text
+    end
+    return out
+end
+for _, id in ipairs({ 2050, 2053, 589, 116, 8936, 10, 5740, 20473, 900002, 900004 }) do
+    local shown, shared = Show(id), SharedLines(id)
+    check(id .. ": the tooltip has a line for each part ns.SpellEfficiencyOf returns", #shown == #shared and #shown > 0)
+    for i = 1, #shown do check(id .. ": the tooltip's numbers are ns.SpellEfficiencyOf's", shown[i][1] == shared[i]) end
+end
 check("a spell with no data gets nothing", #Show(12345) == 0)
 
 local MALFORMED = {
@@ -570,6 +590,7 @@ local cardNs = setmetatable({
     } },
 }, { __index = ns })
 cardEnv._G = setmetatable({ NaowhForever = cardNs }, { __index = cardEnv })
+ns.OpenSpellEfficiencyReport = function() end
 local chunk = assert(loadfile("NaowhForever_QoL/Interface/GlobalCopy.lua"))
 setfenv(chunk, cardEnv)
 chunk()
@@ -592,6 +613,10 @@ end
 check("the switch row", rows.spellEfficiency.row.label == "Mana Efficiency" and rows.spellEfficiency.row.always)
 check("its options need it", rows.spellEfficiencyStyle.row.needs == "spellEfficiency")
 check("Preview Tooltip opens the sample", rows["Preview Tooltip"].row.button == ns.PreviewSpellEfficiency)
+local report = rows["Mana Efficiency Report"]
+check("a button opens the Mana Efficiency window", report and report.group == "Spell Efficiency"
+    and report.row.button == ns.OpenSpellEfficiencyReport and report.row.always)
+check("with one short sentence of help", #report.row.help < 100 and not report.row.help:sub(1, -2):find("%. "))
 
 local Search = dofile("Tools/regression/settings_search.lua")({ ["QoL/Interface"] = { card } })
 local function Finds(query, label)
@@ -606,6 +631,8 @@ check("search finds Per Mana per Second", Finds("per mana per second", "Per Mana
 check("search finds Include My Spell Power", Finds("spell power", "Include My Spell Power"))
 check("search finds Show On", Finds("show on", "Show On"))
 check("search finds the Preview Tooltip", Finds("preview tooltip", "Preview Tooltip"))
+check("search finds the report", Finds("mana efficiency report", "Mana Efficiency Report"))
+check("and by its command", Finds("/nf efficiency", "Mana Efficiency Report"))
 
 local function DeepCopy(t)
     if type(t) ~= "table" then return t end

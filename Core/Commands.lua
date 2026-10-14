@@ -13,7 +13,8 @@ local NAMED_KEYS = { Journeys = "JOURNEYS", Professions = "PROFESSIONS", ["Consu
     ["Swing Timer"] = "SWINGTIMER" }
 local WINDOW_KEYS = { scrap = { "ToggleScrapList", "Scrap List", "Quality of Life" },
     disenchant = { "ToggleDisenchant", "Disenchant", "Professions" }, quiz = { "ToggleQuiz", "Quiz", "Quality of Life" },
-    aim = { "ToggleAimTrainer", "Aim Trainer", "Quality of Life" } }
+    aim = { "ToggleAimTrainer", "Aim Trainer", "Quality of Life" },
+    efficiency = { "ToggleSpellEfficiencyReport", "Mana Efficiency", "Quality of Life" } }
 local TIP_TITLE = { r = 1, g = 0.82, b = 0 }
 local TIP_TEXT = { r = 1, g = 1, b = 1 }
 local TEXT_BRAND = "Naowh Forever"
@@ -36,6 +37,7 @@ local HELP_LINES = {
     ns.L("/nf trainer: a waypoint to your nearest class trainer"),
     "/nf profrank: your professions' next ranks",
     ns.L("/nf scrap: the Scrap List"),
+    ns.L("/nf efficiency: Mana Efficiency, every rank of your mana spells"),
     ns.L("/nf shopping: the Professions Shopping List"),
     ns.L("/nf quiz: the WoW quiz"),
     "/nf setup: the onboarding",
@@ -149,6 +151,8 @@ SlashCmdList["NAOWHFOREVER"] = function(msg)
         ns.ToggleDisenchant()
     elseif cmd == "scrap" and ns.ToggleScrapList then
         ns.ToggleScrapList()
+    elseif cmd == "efficiency" and ns.ToggleSpellEfficiencyReport then
+        ns.ToggleSpellEfficiencyReport()
     elseif cmd == "shopping" and ns.ToggleShoppingList then
         ns.ToggleShoppingList()
     elseif (cmd == "setup" or cmd == "welcome") and ns.ShowSetup then

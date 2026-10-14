@@ -391,5 +391,8 @@ Settings.Page("QoL/Interface", S):Card({
           needs = "spellEfficiency", help = "Which mana spells get the line." },
         { label = "Preview Tooltip", button = ns.PreviewSpellEfficiency, buttonText = "Preview", always = true,
           help = "Shows a sample spell's tooltip with the line as your settings draw it." },
+        { label = "Mana Efficiency Report", button = ns.OpenSpellEfficiencyReport, buttonText = "Open", always = true,
+          help = "Every rank of your mana spells with its numbers, the best one starred.",
+          search = "/nf efficiency ranks downrank hpm dpm" },
     },
 })

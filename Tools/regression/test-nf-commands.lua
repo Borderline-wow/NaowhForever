@@ -55,7 +55,7 @@ do
     check("/nf help prints a list and leaves the window alone", #s.printed > 10 and s.toggled == 0)
     check("it names /nf move", Printed(s, "/nf move"))
     for _, word in ipairs({ "/nf bars", "/nf ab", "/nf xp", "/nf lockouts", "/nf ranks", "/nf trainer", "/nf profrank",
-            "/nf scrap", "/nf quiz", "/nf setup" }) do
+            "/nf scrap", "/nf efficiency", "/nf quiz", "/nf setup" }) do
         check("it names " .. word, Printed(s, word))
     end
     for _, mod in ipairs(s.ns.Options.MODULES) do
@@ -84,6 +84,11 @@ do
     check("/nf hud closes it again", not s.unlock)
     s.env.NaowhForever_ToggleHudEditor()
     check("its key binding opens it", s.unlock)
+
+    local opened = 0
+    s.ns.ToggleSpellEfficiencyReport = function() opened = opened + 1 end
+    nf("efficiency")
+    check("/nf efficiency opens the Mana Efficiency window", opened == 1 and s.toggled == 0)
 
     nf("nonsense")
     check("an unknown command still opens the window", s.toggled == 1)
@@ -179,7 +184,8 @@ do
 end
 for key, window in pairs({ SCRAP = { "scrap", "ToggleScrapList", "Scrap List", "Quality of Life" },
         DISENCHANT = { "disenchant", "ToggleDisenchant", "Disenchant", "Professions" },
-        QUIZ = { "quiz", "ToggleQuiz", "Quiz", "Quality of Life" }, AIM = { "aim", "ToggleAimTrainer", "Aim Trainer", "Quality of Life" } }) do
+        QUIZ = { "quiz", "ToggleQuiz", "Quiz", "Quality of Life" }, AIM = { "aim", "ToggleAimTrainer", "Aim Trainer", "Quality of Life" },
+        EFFICIENCY = { "efficiency", "ToggleSpellEfficiencyReport", "Mana Efficiency", "Quality of Life" } }) do
     local t = Fixture(0)
     check("a key binding for the " .. window[3], bindings:find('NAOWHFOREVER_' .. key .. '" category="BINDING_HEADER_NAOWHFOREVER">'
         .. 'NaowhForever_ToggleWindow("' .. window[1] .. '")</Binding>', 1, true))

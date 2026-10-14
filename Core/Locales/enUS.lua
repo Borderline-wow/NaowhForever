@@ -2,6 +2,20 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["Mana Efficiency Report"] = true
+L["Every rank of your mana spells with its numbers, the best one starred."] = true
+L["Every rank of your mana spells. The star marks the most per mana."] = true
+L["None of your spells has Mana Efficiency numbers."] = true
+L["No spell matches your search."] = true
+L["Click to sort by this column, again to reverse it."] = true
+L["Click to open or close Mana Efficiency."] = true
+L["/nf efficiency: Mana Efficiency, every rank of your mana spells"] = true
+L["/ target"] = true
+L["healing"] = true
+L["damage"] = true
+L["Amount"] = true
+L["Mana"] = true
+L["Per Mana/s"] = true
 L["%d quest rewards"] = true
 L["Saved Quest Items"] = true
 L["The quest rewards you saved with Alt-click."] = true

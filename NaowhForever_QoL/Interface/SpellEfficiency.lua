@@ -78,6 +78,7 @@ local decoded = {}
 local decodedMods = {}
 local decoratedAt = setmetatable({}, { __mode = "k" })
 local decoratedText = setmetatable({}, { __mode = "k" })
+local scratch, sampleRates = {}, {}
 
 local function On()
     return S.Get("enabled") and S.Get("spellEfficiency")
@@ -212,9 +213,13 @@ local function Shows(kind)
     return true
 end
 
+local function Number(value, whole)
+    if whole then return WHOLE:format(floor(value + C.ROUND)) end
+    return (NUMBER_FORMATS[S.Get("spellEfficiencyDecimals")] or NUMBER_FORMATS[DEFAULT_DECIMALS]):format(value)
+end
+
 local function Piece(text, which, kind, value, area)
-    local number = which == PER_SECOND and WHOLE:format(floor(value + C.ROUND))
-        or (NUMBER_FORMATS[S.Get("spellEfficiencyDecimals")] or NUMBER_FORMATS[DEFAULT_DECIMALS]):format(value)
+    local number = Number(value, which == PER_SECOND)
     local piece
     if S.Get("spellEfficiencyStyle") == STYLE_SHORT then
         piece = SHORT_PIECE:format(SHORT_LABELS[kind][which], number)
@@ -228,13 +233,23 @@ local function Piece(text, which, kind, value, area)
     return text .. SEPARATOR .. piece
 end
 
-local function Line(kind, amount, mana, seconds, area)
-    if not (amount > 0 and mana > 0) then return nil end
+local function Rate(part, kind, amount, mana, seconds)
     local perMana = amount / mana
-    local text = S.Get("spellEfficiencyPerMana") and Piece(nil, PER_MANA, kind, perMana, area) or nil
+    part.kind, part.amount, part.perMana = kind, amount, perMana
     if seconds and seconds > 0 then
-        if S.Get("spellEfficiencyPerSecond") then text = Piece(text, PER_SECOND, kind, amount / seconds, area) end
-        if S.Get("spellEfficiencyPerManaSecond") then text = Piece(text, PER_MANA_SECOND, kind, perMana / seconds, area) end
+        part.perSecond, part.perManaSecond = amount / seconds, perMana / seconds
+    else
+        part.perSecond, part.perManaSecond = nil, nil
+    end
+    return part
+end
+
+local function Line(part, area)
+    local kind = part.kind
+    local text = S.Get("spellEfficiencyPerMana") and Piece(nil, PER_MANA, kind, part.perMana, area) or nil
+    if part.perSecond then
+        if S.Get("spellEfficiencyPerSecond") then text = Piece(text, PER_SECOND, kind, part.perSecond, area) end
+        if S.Get("spellEfficiencyPerManaSecond") then text = Piece(text, PER_MANA_SECOND, kind, part.perManaSecond, area) end
     end
     return text
 end
@@ -306,36 +321,52 @@ local function AlreadyDecorated(tooltip, text)
     return Readable(shown) and shown == text
 end
 
-local function AddLines(tooltip, spellID)
+local function Efficiency(spellID, out)
     local entry = Entry(spellID)
-    if not entry then return end
+    if not entry then return nil end
     local mana = ManaCost(spellID)
-    if not mana then return end
+    if not mana then return nil end
     local castMs = CastMs(spellID)
-    if not castMs then return end
+    if not castMs then return nil end
     local level = UnitLevel("player")
-    if not Readable(level) then return end
+    if not Readable(level) then return nil end
     local gain = Gain(entry, level)
     local directMod, periodicMod, costMod = TalentEffects(spellID, entry[SCHOOL])
     mana = mana * costMod
-    local area = entry[AREA] == 1
-    local color = LineColor()
-    local first
+    out = out or {}
+    out.mana, out.castMs, out.area, out.level = mana, castMs, entry[AREA] == 1, entry[LEVEL]
+    local count = 0
     for at = PART_START, #entry, PART_SIZE do
         local kind = entry[at + KIND]
         if Shows(kind) then
             local bonus = Bonus(entry, kind)
-            if not bonus then return end
-            local text = Line(kind, Amount(entry, at, gain, bonus, directMod, periodicMod), mana, Seconds(entry, at, castMs), area)
-            if text then
-                if not first then
-                    if AlreadyDecorated(tooltip, text) then return end
-                    first = text
-                end
-                tooltip:AddLine(text, color.r, color.g, color.b)
-                if first == text then
-                    decoratedAt[tooltip], decoratedText[tooltip] = tooltip:NumLines(), text
-                end
+            if not bonus then break end
+            local amount = Amount(entry, at, gain, bonus, directMod, periodicMod)
+            if amount > 0 and mana > 0 then
+                count = count + 1
+                out[count] = Rate(out[count] or {}, kind, amount, mana, Seconds(entry, at, castMs))
+            end
+        end
+    end
+    out.count = count
+    return out
+end
+
+local function AddLines(tooltip, spellID)
+    local result = Efficiency(spellID, scratch)
+    if not result then return end
+    local color = LineColor()
+    local first
+    for i = 1, result.count do
+        local text = Line(result[i], result.area)
+        if text then
+            if not first then
+                if AlreadyDecorated(tooltip, text) then return end
+                first = text
+            end
+            tooltip:AddLine(text, color.r, color.g, color.b)
+            if first == text then
+                decoratedAt[tooltip], decoratedText[tooltip] = tooltip:NumLines(), text
             end
         end
     end
@@ -390,6 +421,9 @@ local function OnSettingChanged(key)
     if key == "enabled" or key == "spellEfficiency" then Apply() end
 end
 
+ns.SpellEfficiencyOf = Efficiency
+ns.SpellEfficiencyNumber = Number
+
 function ns.PreviewSpellEfficiency()
     if GameTooltip:IsForbidden() then return end
     local foci = GetMouseFoci and GetMouseFoci()
@@ -402,7 +436,7 @@ end
 local function SampleLine(sample)
     if not Shows(sample.kind) then return nil end
     local bonus = S.Get("spellEfficiencyBonus") and SAMPLE_POWER * sample.coefficient or 0
-    return Line(sample.kind, sample.amount + bonus, sample.mana, sample.cast, sample.area)
+    return Line(Rate(sampleRates, sample.kind, sample.amount + bonus, sample.mana, sample.cast), sample.area)
 end
 
 local function NewMock(shot)
