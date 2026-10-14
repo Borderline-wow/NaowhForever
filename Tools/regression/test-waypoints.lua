@@ -2,7 +2,8 @@
 -- navigation. Off by default and idle while off; on, it follows the navigation frame with the
 -- name ns.PlaceWaypoint gave the spot, moves to the screen's edge or the behind-you cue while
 -- the spot is off screen, shows the arrival where the pin stood even once the game has cleared
--- the waypoint, ignores stops on the way, and fades the game's own marker only while it is on.
+-- the waypoint, ignores stops on the way, goes within 40 yards of a tracked quest (its area) and
+-- comes back past 55, and fades the game's own marker only while it is on.
 -- These do not emulate rendering or the 3D projection.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
@@ -394,6 +395,21 @@ nav.clamped, nav.x, nav.y = false, 1100, 700
 nav.distance = far
 driver.scripts.OnUpdate()
 Check(pin:IsShown(), "walking away brings it back")
+-- A quest's area: Forever reports a quest reached only right on its point, so the pin goes within
+-- 40 yards of it and comes back past 55, wherever you walk about the area.
+nav.distance = 50
+driver.scripts.OnUpdate()
+Check(pin:IsShown(), "coming toward a quest, 50 yards out it still points there")
+nav.distance = 39
+driver.scripts.OnUpdate()
+Check(not pin:IsShown() and not cue:IsShown(), "within 40 yards, in the quest's area, it goes")
+nav.distance = 54
+driver.scripts.OnUpdate()
+Check(not pin:IsShown(), "walking about the area does not bring it back")
+nav.distance = 56
+driver.scripts.OnUpdate()
+Check(pin:IsShown(), "past 55 yards it comes back")
+nav.distance = far
 
 -- A corpse is on the ground: lifted with its line, and it does not go up close.
 tracking = 2

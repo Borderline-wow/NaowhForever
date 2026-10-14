@@ -34,6 +34,7 @@ local NAV_Y = -70
 local NAV_NAME_LIFT, NAV_SUB_GAP, CUE_TEXT_GAP = 2, 1, 2
 local ARRIVED_HOLD = ns.WAYPOINT_HOLD
 local REACHED, LEAVE = 5, 7
+local QUEST_NEAR, QUEST_LEAVE = 40, 55
 local CHECK_SHARE = 0.6
 local ROUND = ns.QoLConstants.ROUND
 local MINUTE = ns.QoLConstants.SECONDS_PER_MINUTE
@@ -387,9 +388,11 @@ local function OnWaypointMap()
 end
 
 local function CheckReached(yards)
-    if shown.ground or yards > LEAVE then
+    local near, leave = REACHED, LEAVE
+    if shown.quest then near, leave = QUEST_NEAR, QUEST_LEAVE end
+    if shown.ground or yards > leave then
         reached = false
-    elseif yards <= REACHED then
+    elseif yards <= near then
         reached = true
     end
 end
@@ -467,6 +470,7 @@ local function Retitle()
     if shown.onRoute then shown.sub = TEXT_STOP:format(route, St.PLACE_DOT, at, n) end
     shown.shape = S.Get("waypointShape")
     shown.user = kind == types.UserWaypoint
+    shown.quest = kind == types.Quest
     shown.ground = shown.user or kind == types.Corpse
     shown.card, shown.beam = S.Get("waypointCard"), S.Get("waypointBeam") and shown.ground
     pin.onNav, reached = false, false

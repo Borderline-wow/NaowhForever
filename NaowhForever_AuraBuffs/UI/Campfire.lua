@@ -123,8 +123,8 @@ local function TipMissing(tip)
     tip:AddLine(TEXT_SIT, out.r, out.g, out.b)
 end
 
-local function ShowTip(owner)
-    if unlocked or not Parts.Tip(owner, "ANCHOR_TOP") then return end
+local function CampTip(owner)
+    if unlocked or not Parts.Tip(owner, "ANCHOR_TOP") then return false end
     local tip, soft = GameTooltip, T.accentSoft
     tip:SetText(TEXT_TITLE, T.accent.r, T.accent.g, T.accent.b)
     if campState == "sitting" then
@@ -138,7 +138,11 @@ local function ShowTip(owner)
     if readable and C_UnitAuras.GetPlayerAuraBySpellID(CAMPFIRE_NEARBY) then
         tip:AddLine(TEXT_IN_RANGE, soft.r, soft.g, soft.b)
     end
-    tip:Show()
+    return true
+end
+
+local function ShowTip(owner)
+    if CampTip(owner) then GameTooltip:Show() end
 end
 
 local function HideTip()
@@ -165,14 +169,24 @@ local function SetGlow(on)
     Glow.Set(icon, on and S.Get("campGlow") and not unlocked, "campGlow")
 end
 
-local function OnSitClick(_, button)
-    if button == "LeftButton" and not unlocked then C_ChatInfo.PerformEmote("SIT") end
+local function OnSitClick(self, button)
+    if unlocked then return end
+    local dismiss = self.dismiss and (button == "RightButton" or IsControlKeyDown())
+    if dismiss then return self.dismiss(self.dismissFrom, "RightButton") end
+    if button == "LeftButton" and not InCombatLockdown() then C_ChatInfo.PerformEmote("SIT") end
 end
 
 local function OnSitEnter(self)
     Look.Hot(self:GetParent(), true)
+    if self.campTip then
+        if not CampTip(self) then return end
+        GameTooltip:AddLine(TEXT_SIT_TIP, T.fg.r, T.fg.g, T.fg.b)
+        GameTooltip:Show()
+        return
+    end
     if not Parts.Tip(self, "ANCHOR_TOP") then return end
     GameTooltip:SetText(TEXT_SIT_TIP, T.fg.r, T.fg.g, T.fg.b)
+    if self.dismiss then GameTooltip:AddLine(DISMISS_TIP, T.muted.r, T.muted.g, T.muted.b) end
     GameTooltip:Show()
 end
 
@@ -181,12 +195,14 @@ local function OnSitLeave(self)
     HideTip()
 end
 
-local function SitSpot(fire, above)
+local function SitSpot(fire, above, area, dismiss)
     if fire.sitSpot then return fire.sitSpot end
     local spot = CreateFrame("Button", nil, fire)
-    spot:SetAllPoints()
+    spot:SetAllPoints(area or fire)
     spot:SetFrameLevel(math.max(fire:GetFrameLevel(), above and above:GetFrameLevel() or 0) + 1)
-    spot:RegisterForClicks("LeftButtonUp")
+    spot.dismiss, spot.dismissFrom = dismiss, above
+    spot.campTip = area ~= nil and not dismiss
+    if dismiss then spot:RegisterForClicks("LeftButtonUp", "RightButtonUp") else spot:RegisterForClicks("LeftButtonUp") end
     spot:SetScript("OnClick", OnSitClick)
     spot:SetScript("OnEnter", OnSitEnter)
     spot:SetScript("OnLeave", OnSitLeave)
@@ -194,10 +210,10 @@ local function SitSpot(fire, above)
     return spot
 end
 
-local function ShowSitSpot(fire, on, above)
+local function ShowSitSpot(fire, on, above, area, dismiss)
     on = on and S.Get("campSitButton") and not unlocked and true or false
     if not (on or fire.sitSpot) then return end
-    local spot = SitSpot(fire, above)
+    local spot = SitSpot(fire, above, area, dismiss)
     spot:SetShown(on)
     if not on then Look.Hot(fire, false) end
 end
@@ -254,7 +270,7 @@ end
 
 local function ShowSit(nearby)
     ShowSitSpot(icon, nearby and not BarShown())
-    if simpleBar then ShowSitSpot(simpleBar.camp, nearby and BarShown()) end
+    if simpleBar then ShowSitSpot(simpleBar.camp, nearby and BarShown(), simpleBar, simpleBar) end
 end
 
 local function PaintTime(color, low)
@@ -428,7 +444,7 @@ local function SetAlert(show, start, duration)
         alert.passed = true
     end
     alert.click:EnableMouse(show and alert.passed and not unlocked or false)
-    ShowSitSpot(alert.bar.camp, show, alert.click)
+    ShowSitSpot(alert.bar.camp, show, alert.click, alert, AlertDismiss)
 end
 
 local function DisarmAlert()

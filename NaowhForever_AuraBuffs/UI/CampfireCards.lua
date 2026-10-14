@@ -453,7 +453,7 @@ alertCard = page:Card({
           needs = CampOn, why = NEEDS_CAMP,
           help = "Fades the alert in and out, breathing softly while it shows." },
         Group("Size"),
-        { key = "campAlertScale", label = "Alert Size", slider = ALERT_SCALE, unit = "%", scale = TO_FRACTION,
+        { key = "campAlertScale", label = "Alert Size", slider = ALERT_SCALE, scale = TO_FRACTION,
           needs = CampOn, why = NEEDS_CAMP },
         Settings.Look("campAlert", { text = true, background = "card", keys = { FontSize = false },
             needs = CampOn, why = NEEDS_CAMP }),

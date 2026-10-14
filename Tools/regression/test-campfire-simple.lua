@@ -299,6 +299,7 @@ local function Fixture(settings)
         GetTime = function() return state.now end,
         GetCursorPosition = function() return state.cursorX, state.cursorY end,
         IsShiftKeyDown = function() return state.shift end,
+        IsControlKeyDown = function() return state.ctrl end,
         InCombatLockdown = function() return state.combat end,
         IsInInstance = function() return false end,
         issecretvalue = function(v) return v == SECRET_TEXT or (state.secret and v == 2) end,
@@ -643,6 +644,20 @@ do
         and bar.note.pt.LEFT == 29 and icon.w == 360 and icon.h == 26 and bar.time.shown == false)
     check("in range, the bar's fire lights up and takes the click", bar.camp.sitSpot and bar.camp.sitSpot.shown
         and bar.camp.tex.desaturated == false and not (icon.sitSpot and icon.sitSpot.shown))
+    check("the whole bar takes the click, not only the fire", bar.camp.sitSpot.all == bar)
+    local barSpot = bar.camp.sitSpot
+    s.tips = {}
+    barSpot.scripts.OnEnter(barSpot)
+    local tipped = s.tipText()
+    check("hovering it still shows the bar's Camp Benefits tooltip, then how to sit",
+        tipped:find("^Camp Benefits") and tipped:find("Click to sit at the campfire.$"))
+    local before = #s.emotes
+    s.combat = true
+    barSpot.scripts.OnClick(barSpot, "LeftButton")
+    s.combat = false
+    check("in combat a click on it never sits you down", #s.emotes == before)
+    barSpot.scripts.OnClick(barSpot, "LeftButton")
+    check("out of combat it does", #s.emotes == before + 1)
     s.auras[NEARBY] = nil
     s.fire("UNIT_AURA")
 
@@ -1302,6 +1317,17 @@ do
     check("hovering it: how to dismiss it", s.tipText() == "Right-click to dismiss until you leave the campfire.")
     click.scripts.OnClick(click, "LeftButton")
     check("a left click does nothing", alert.shown == true)
+    local sit = alert.bar.camp.sitSpot
+    check("the whole alert is the click to sit, above the dismiss click", sit and sit.shown and sit.all == alert
+        and sit:GetFrameLevel() > click:GetFrameLevel())
+    s.tips = {}
+    sit.scripts.OnEnter(sit)
+    check("hovering it: how to sit, then how to dismiss", s.tipText()
+        == "Click to sit at the campfire.\nRight-click to dismiss until you leave the campfire.")
+    local emotes = #s.emotes
+    sit.scripts.OnClick(sit, "LeftButton")
+    check("a left click anywhere on it sits", #s.emotes == emotes + 1 and s.emotes[#s.emotes] == "SIT"
+        and alert.shown == true)
     local fades = alert.fadeOut.plays
     click.scripts.OnClick(click, "RightButton")
     check("right-click: it fades out and stops taking the mouse", alert.shown == false
@@ -1313,6 +1339,18 @@ do
     s.auras[NEARBY] = {}
     s.fire("UNIT_AURA")
     check("back in range after leaving: it shows again", alert.shown == true and click.mouse == true)
+    local fadesAgain, emotesAgain = alert.fadeOut.plays, #s.emotes
+    sit.scripts.OnClick(sit, "RightButton")
+    check("right-click on it still dismisses it, no sitting", alert.shown == false
+        and alert.fadeOut.plays == fadesAgain + 1 and #s.emotes == emotesAgain)
+    s.auras[NEARBY] = nil
+    s.fire("UNIT_AURA")
+    s.auras[NEARBY] = {}
+    s.fire("UNIT_AURA")
+    s.ctrl = true
+    sit.scripts.OnClick(sit, "LeftButton")
+    s.ctrl = false
+    check("Ctrl-click still dismisses it too", alert.shown == false and #s.emotes == emotesAgain)
 end
 
 do
