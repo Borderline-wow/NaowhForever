@@ -316,6 +316,16 @@ Profile strings
 - `NaowhForever_API:ImportProfile(str, "Naowh")` is the NaowhUI installer's entry point: it lands
   the string as that profile, replacing it, and moves every character to it. It prints its own
   failures because the installer ignores return values.
+- WagoUI Packs drives the same global table: `ExportProfile(key)` (any profile by name, the same
+  string the Profiles page makes with every part ticked), `ImportProfile(str, key)`,
+  `DecodeProfileString(str)` (the string's parts, for comparing), `SetProfile(key)` (this
+  character only), `GetProfileKeys()`, `GetProfileAssignments()`, `GetCurrentProfileKey()`,
+  `OpenConfig()` and `CloseConfig()`. Profile key = profile name. None of them reload the UI
+  themselves, but switching to a profile whose module switches differ from this character's
+  AddOn list changes the list and brings up the reload prompt (see Module state).
+- The AddOn list belongs to the character, not the profile, so a profile that is not the current one
+  exports its modules (`__modules`) from its own switches, leaving out a module whose addon is not
+  loaded here, and an export never writes to the profile it reads.
 
 Waypoints
 - The game redraws the world map's waypoint pin inside every change to its waypoint, so while that

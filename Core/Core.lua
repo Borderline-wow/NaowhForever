@@ -1406,6 +1406,11 @@ function ns.EnsureProfile(name)
     return sv.profiles[name].tankReminder
 end
 
+function ns.ProfileTable(name)
+    local p = DB().profiles[name]
+    return type(p) == "table" and p or nil
+end
+
 function ns.ProfileRoot(name)
     ns.EnsureProfile(name)
     return DB().profiles[name]
