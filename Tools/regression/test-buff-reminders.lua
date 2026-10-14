@@ -131,6 +131,13 @@ local function Fixture(opts)
     local env = {
         NUM_BAG_SLOTS = 0,
         UIParent = {},
+        RAID_CLASS_COLORS = setmetatable({}, { __index = function(colors, class)
+            local color = { r = 0.5, g = 0.5, b = 0.5 }
+            function color.WrapTextInColorCode(_, text) return "|c" .. class .. "|" .. text end
+            colors[class] = color
+            return color
+        end }),
+        LOCALIZED_CLASS_NAMES_MALE = setmetatable({}, { __index = function(_, class) return class:lower() end }),
         Enum = { ItemClass = { Weapon = 2 } },
         GetTime = function() return state.now end,
         InCombatLockdown = function() return state.combat end,
@@ -243,7 +250,9 @@ local function Fixture(opts)
         for _, timer in ipairs(timers) do if not timer.cancelled then n = n + 1 end end
         return n
     end
+    t.env = env
     function t.Set(k, v) S.Set(k, v) end
+    function t.Get(k) return S.Get(k) end
     function t.Login() t.Fire("PLAYER_LOGIN") end
     -- The textures of the visible reminder icons, left to right, with counts and timers.
     function t.Shown()
@@ -666,7 +675,7 @@ do
     Check("two minute shout is not nagged early", w.Shown(), "")
 end
 
--- A class with no personal buff: the default profile keeps the row off and the card shows no group.
+-- A class with no personal buff: the default profile keeps the row off, though the card lists other classes'.
 do
     local t = Fixture({ page = true, settings = { consumableEntries = {} }, units = { player = "PALADIN" },
         known = { [19740] = true } })
@@ -677,7 +686,7 @@ do
     for _, row in ipairs(card.rows) do
         if row.key == "personalBuffs" then found = true end
     end
-    Check("paladin default: no personal buffs group", found, nil)
+    Check("paladin: the group lists the other classes", found, true)
 end
 
 -- Hunter's Mark: only for a hostile elite target without the mark.
@@ -706,7 +715,7 @@ do
     Check("trueshot missing", t.Shown(), "spell:19506")
 end
 
--- The card lists the personal buffs of the player's class only.
+-- The card lists every class's personal buffs, the player's first and the rest in grey.
 do
     local t = Fixture({ page = true, units = { player = "SHAMAN" } })
     local card = t.ns.Shared.Settings.pages["AuraBuffs/Settings"].cards.buffs
@@ -714,7 +723,24 @@ do
     for _, row in ipairs(card.rows) do
         if row.key == "personalBuffPicks" then fields[#fields + 1] = row.field end
     end
-    Check("shaman picks", table.concat(fields, " "), "imbue shield")
+    Check("shaman picks come first, then every other class", table.concat(fields, " "),
+        "imbue shield demonArmor mageArmor poisons battleShout innerFire shadowform trueshot huntersMark thorns")
+    local byField = {}
+    for _, row in ipairs(card.rows) do
+        if row.key == "personalBuffPicks" then byField[row.field] = row end
+    end
+    Check("own class in its colour", byField.imbue.labelColor, t.env.RAID_CLASS_COLORS.SHAMAN)
+    Check("another class in grey", byField.demonArmor.labelColor, t.ns.THEME.muted)
+    Check("its class named in its colour", byField.demonArmor.note(), "|cWARLOCK|warlock")
+    byField.demonArmor.set(false)
+    Check("switched off for a class that is not played", byField.demonArmor.get(), false)
+    Check("stored by the buff's own key", t.Get("personalBuffPicks").demonArmor, false)
+    byField.demonArmor.set(true)
+    local intellect
+    for _, row in ipairs(card.rows) do
+        if row.key == "raidBuffPicks" and row.field == "intellect" then intellect = row end
+    end
+    Check("another class's raid buff is not grey", intellect.labelColor, nil)
     local shot = card.studio.new(t.ns.Shared.Settings)
     local function Preview(state)
         card.studio.paint(shot, state)

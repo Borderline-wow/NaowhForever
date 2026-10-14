@@ -93,7 +93,7 @@ NaowhForever_AuraBuffs/
 - Paladin blessings start off in the raid buff picks: the Blessings module covers them. A talent
   buff (Divine Spirit) only counts when you can cast it, since another player's talents cannot be
   seen. A camp buff standing in for a class buff is not seen, so it still counts as missing.
-- Personal buffs (`D.PERSONAL`) show only for the player's class and once a spell of the family is
+- Personal buffs (`D.PERSONAL`) fire only for the player's class and once a spell of the family is
   known, so a talent buff (Shadowform, Trueshot Aura, Water Shield) waits for the talent. Any spell
   of a family counts as up: Frost, Ice or Mage Armor all satisfy the mage. The icon is the first
   known spell, so families list the best first. Forever adds its own IDs: Trueshot Aura 1299346 and
@@ -120,8 +120,13 @@ NaowhForever_AuraBuffs/
 - Warn With Minutes Left covers personal buffs too, except a buff no longer than the warning
   (Battle Shout's 2 minutes), which would otherwise show the moment it is cast. Poisons last 30
   minutes and Forever's imbues 60, past the slider's 10.
-- A class with no personal buff (paladin) gets no Personal Buffs group, and the switch alone does
-  not turn the row on.
+- The card lists every class's personal buffs, the player's own class first: its label in the class
+  color, the others grey with the class named in its color beside the switch. Picks are stored under
+  the buff's own key (`personalBuffPicks.demonArmor`), so a Warlock buff switched off on a Priest is
+  ready for the Warlock; every personal rule checks `family.class` against the player's class, so
+  none fires for another class. Raid buff picks are not greyed: another class's raid buff fires when a
+  group member of that class can cast it. A class with no personal buff (paladin) still gets the
+  group for the others, and the switch alone does not turn the row on.
 - Hunter's Mark is asked for only with a hostile elite, rare elite or boss targeted, read from the
   target's debuffs; like every reminder it holds what it showed once combat starts.
 - The buff menu holds secure buttons, so it can only be hidden outside combat. It uses

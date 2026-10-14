@@ -120,7 +120,8 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   declared `under` that row's label: hidden rows, still searched, counted and reset with the
   card, and a search hit on one opens the cog. `icons = { { texture, tip, open, enabled }, ... }`
   adds other icons beside it. A row's or card's `note` is a function given the row or card that
-  returns a short line for it, or nil: beside a row's control, after a card's summary.
+  returns a short line for it, or nil: beside a row's control, after a card's summary. A row's
+  `labelColor` is a color table for its label (AuraBuffs' class colors and grey).
   A card with `into = "<id>"` puts its rows, under a group named for it, in the card of that id on the
   same page, in `order`, instead of drawing a card of its own (QoL's Looting, Vendors, Auction Prices
   and Mail & Alts are one card); it has no switch, and its id still finds the shared card. A card's

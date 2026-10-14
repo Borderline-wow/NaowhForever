@@ -243,6 +243,8 @@ local function SetSetting(row, setting, split)
     row.split:SetShown(split)
     local off, why = Settings.Off(setting)
     Control.Dim(row, control, off)
+    local tint = setting.labelColor or T.fg
+    row.label:SetTextColor(tint.r, tint.g, tint.b, 1)
     PlaceLabel(row, SetIcons(row, setting, control, off), off and ns.L(why) or (setting.note and setting.note(setting)))
     return ROW_H
 end
