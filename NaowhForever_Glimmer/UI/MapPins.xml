@@ -1,0 +1,21 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- MapPins.xml: the Gathered pin's template, and the file that fills it. -->
+    <Script file="MapPins.lua"/>
+    <Button name="NaowhForeverGatheredPinTemplate" mixin="NaowhForeverGatheredPinMixin" enableMouse="true" virtual="true">
+        <Size x="18" y="18"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture parentKey="Ring" file="Interface\AddOns\NaowhForever_Glimmer\Media\ring">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-4" y="4"/>
+                        <Anchor point="BOTTOMRIGHT" x="4" y="-4"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Icon" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+        <Scripts><OnClick method="OnClick"/></Scripts>
+    </Button>
+</Ui>

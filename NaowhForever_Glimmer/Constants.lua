@@ -29,4 +29,12 @@ ns.Glimmer.C = {
     STATE_CHECK = 0.15,
     STATE_HOLD = 0.15,
     OTHER_ADDONS = { "Lueur", "ForeverLootSparkles" },
+    DATA_ADDON = "NaowhForever_GlimmerData",
+    ICON_SPELL = { herb = 2383, ore = 2580 },
+    SPOT_SCALE = 1000,
+    SNAP = 15,
+    MAX_GATHERED = 400,
+    MINIMAP_MAX = 40,
+    MAP_EVENTS = { "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_ENTERING_WORLD",
+        "SKILL_LINES_CHANGED", "PLAYER_REGEN_ENABLED" },
 }

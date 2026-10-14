@@ -5,7 +5,8 @@ five effects: dim while out of reach, a flash and full brightness once you can u
 ore take the color of your chance of a skill-up and get a line under their name saying so; a node
 your skill is too low for shows red with the skill it needs. Quest objects get the line of the
 quest objective they count for. A second switch keeps the game's loot sparkle on quest items
-through graphics presets. Its settings page is Glimmer/Settings; its switches and their defaults
+through graphics presets. Two map switches: every spot herbs and ore grow near you as icons on the
+minimap, ringed in their skill-up color, and every herb and vein you gather on the world map. Its settings page is Glimmer/Settings; its switches and their defaults
 come from `ns.FEATURES.glimmer`.
 
 ## Layout
@@ -21,12 +22,16 @@ NaowhForever_Glimmer/
                              from Tools/build/glimmer_nodes.py
   CVars.lua                  the game settings it changes, saved first and put back (G.CVars)
   Target.lua                 what the soft interact target is, its reach and its skill-up chance (G.Target)
+  Spots.lua                  where herbs and veins grow (NaowhForever_GlimmerData), and the ones gathered (G.Spots)
   View/
     Style.lua                its look: skill colors, effect sizes and timings (G.Style)
     Effects.lua              the five effects on a frame, over the world and on the previews (G.Effects)
   UI/
     Conflict.lua             the question when another addon changes the same game settings (G.CheckOthers)
     Highlight.lua            the effect and its line on the target's nameplate, and its events
+    Minimap.lua              where herbs and veins grow, as icons on the minimap
+    MapPins.xml              the Gathered pin's template, and the file that fills it
+    MapPins.lua              the herbs and veins you gathered on the world map, noted as you loot them
     SettingsPage.lua         its settings page, declared as cards, with its previews
   Media/                     glow, flare, ring, beam and bracket, drawn by Tools/media/make_media.py
   README.md                  this file
@@ -71,8 +76,31 @@ NaowhForever_Glimmer/
 - Other addons that change the same soft target settings (`OTHER_ADDONS`) undo Glimmer's and it
   undoes theirs; with one on as well, Glimmer asks once per session to disable it.
 - A slider drag sets its key on every step, so settings apply once on the next frame.
+- The game does not tell an addon where its tracking dots are, and it cannot switch tracking for you:
+  Find Herbs and Find Minerals are casts, which only a click may start. So the minimap icons come from
+  where Wowhead Forever has each herb and vein growing (`ns.GlimmerSpots`, in the load-on-demand
+  NaowhForever_GlimmerData), and herbs and ore show together whatever you track. The game's own dot on
+  top of an icon is a node up right now.
+- The minimap shows at most `MINIMAP_MAX` icons, the spots inside its view. Placing them is
+  `Parts.MinimapLayer` (Shared/UI/MinimapPins.lua): it moves them only while you move or the minimap
+  turns.
+- The spot data loads the first time Minimap Icons is on, out of combat: loading an addon in combat is
+  not something to rely on, so it waits for the fight to end, and only then does `PLAYER_REGEN_ENABLED`
+  redraw the icons. A skill-up repaints their rings, and redraws them only when it changes whether
+  herbs or ore show. Gathered on the Map alone never loads the data.
+- Only My Professions shows herbs to an herbalist and ore to a miner; a character with neither sees
+  both, so the icons still help someone deciding what to learn.
+- A gather is noted when the loot window opens while the soft target is a herb or vein in reach and
+  the loot came from it (`GetLootSourceInfo`), so it needs no spell IDs and a corpse looted beside a
+  node does not count. One node counts once per loot window, even if it is opened again. Where it is
+  noted is a pin already there for that node within `SNAP` (tenths of a map percent) of where you
+  stand, else the data's own spot for it when the data is loaded, else where you stand, so gathering
+  a node again when it grows back counts on the same pin. Each
+  map keeps at most `MAX_GATHERED` nodes, dropping the one gathered longest ago. They are kept in the
+  account settings, so every character's gathering shows.
 
 ## Checking
 
 - `lua Tools/regression/test-glimmer.lua`: reading the target, skill-up colors, the game settings
-  saved and put back, combat, and the nameplate it opens, against stubs of the game's API.
+  saved and put back, combat, the nameplate it opens, the minimap icons and the gathered pins, against
+  stubs of the game's API.

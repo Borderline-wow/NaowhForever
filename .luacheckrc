@@ -25,7 +25,7 @@ globals = {
     "SLASH_NAOWHFOREVERCOPY1", "SLASH_NAOWHFOREVERCOPY2", "SLASH_NAOWHFOREVERAIM1",
     "BINDING_HEADER_NAOWHFOREVER", "BINDING_NAME_NAOWHFOREVER_BAGSPACE_PICKUP",
     "BINDING_NAME_NAOWHFOREVER_BOSSLOOT", "BINDING_NAME_NAOWHFOREVER_JOURNAL", "BINDING_NAME_NAOWHFOREVER_BIS", "BINDING_NAME_NAOWHFOREVER_COMPLETO",
-    "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverUnexploredPinMixin", "NaowhForeverSkybornePinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverJourneyRoutePinMixin", "NaowhForeverSleepingBagPinMixin", "NaowhForeverEntrancePinMixin", "NaowhForeverWaypointPreviewPinMixin",
+    "NaowhForeverTownPinMixin", "NaowhForeverZoneLinkPinMixin", "NaowhForeverUnexploredPinMixin", "NaowhForeverSkybornePinMixin", "NaowhForeverLibraryPinMixin", "NaowhForeverJourneyRoutePinMixin", "NaowhForeverSleepingBagPinMixin", "NaowhForeverGatheredPinMixin", "NaowhForeverEntrancePinMixin", "NaowhForeverWaypointPreviewPinMixin",
     "NaowhForeverQuestGiverPinMixin",
     "NaowhForeverRarePinMixin",
     "SlashCmdList", "hash_SlashCmdList", "StaticPopupDialogs",

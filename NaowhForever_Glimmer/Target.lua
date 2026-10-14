@@ -15,6 +15,14 @@ local CURSOR_PATH = "Interface\\Cursor\\"
 local CURSOR_FILES = { Mine = "ore", GatherHerbs = "herb" }
 local UNABLE = "Unable"
 local QUEST_LINE = Enum.TooltipDataLineType.QuestObjective
+local TEXT_REQUIRES = ns.L("Requires %s %d")
+local TEXT_TIER = {
+    orange = ns.L("Skill-up every gather"),
+    yellow = ns.L("Skill-up likely"),
+    green = ns.L("Skill-up unlikely"),
+    grey = ns.L("No skill-up"),
+}
+local TEXT_PROFESSION = { ore = ns.L("Mining"), herb = ns.L("Herbalism") }
 
 local Target = {}
 G.Target = Target
@@ -67,7 +75,7 @@ local function QuestLine(unit)
     end
 end
 
-local function Skill(category)
+function Target.Skill(category)
     local line = C.PROFESSION_OF[category]
     for _, index in pairs({ GetProfessions() }) do
         local _, _, rank, _, _, _, skillLine = GetProfessionInfo(index)
@@ -83,6 +91,11 @@ function Target.Tier(skill, need)
     if over < C.SKILL_YELLOW then return "yellow" end
     if over < C.SKILL_GREEN then return "green" end
     return "grey"
+end
+
+function Target.TierText(category, need, tier)
+    if tier == "red" then return TEXT_REQUIRES:format(TEXT_PROFESSION[category], need) end
+    return TEXT_TIER[tier]
 end
 
 function Target.Reach(unit)
@@ -103,7 +116,7 @@ function Target.Read(unit, info)
     info.id, info.unable = id, unable or false
     if category == "ore" or category == "herb" then
         info.need = node and node[2]
-        info.skill = Skill(category)
+        info.skill = Target.Skill(category)
         if info.need then info.tier = Target.Tier(info.skill, info.need) end
         info.locked = info.tier == "red" or info.unable
     else

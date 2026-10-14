@@ -6,6 +6,7 @@ local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
 local FILES = dofile("Tools/regression/toc_files.lua")("^NaowhForever_Glimmer/.*%.lua$")
 table.insert(FILES, 1, "Core/Features.lua")
+table.insert(FILES, 2, "Shared/UI/MinimapPins.lua")
 
 local SHARED = {}
 dofile("Tools/regression/load_files.lua")({ "Shared/Style.lua" }, { _G = { NaowhForever = {
@@ -32,6 +33,11 @@ local function Widget(log)
     function w:SetTextColor(r, g, b) self.textColor = { r, g, b } end
     function w:CreateTexture() return Widget(log) end
     function w:GetTexture() return self.texture end
+    function w:SetTexture(t) self.texture = t end
+    function w:SetPoint(...) self.point = { ... } end
+    function w:SetVertexColor(r, g, b) self.color = { r, g, b } end
+    function w:GetWidth() return 140 end
+    function w:GetHeight() return 140 end
     log.frames[#log.frames + 1] = w
     return w
 end
@@ -47,7 +53,8 @@ local function Session(settings, opts)
     }
     log.cvars = cvars
     local game = { combat = false, instance = false, guid = nil, object = true, near = false, related = false,
-        tooltip = nil, plate = nil, mining = 70, loaded = opts.loaded or {} }
+        tooltip = nil, plate = nil, mining = 70, herbalism = 0, loaded = opts.loaded or {}, px = 0.5, py = 0.5,
+        pins = {} }
     log.game = game
     local account = {}
     log.account = account
@@ -62,6 +69,10 @@ local function Session(settings, opts)
         end },
     }
     SHARED.Parts = { HudText = function(fs) return fs end }
+    SHARED.MapPins = {}
+    SHARED.Ago = function() return "today" end
+    SHARED.ScalePin = function() end
+    function ns.PlaceWaypoint(title, map, x, y) log.waypoint = { title, map, x, y } end
     function ns.Apply() end
     function ns.AccountSettings() return account end
     function ns.Font() return Widget(log) end
@@ -80,6 +91,7 @@ local function Session(settings, opts)
         end,
         C_CVar = {
             GetCVar = function(name) return cvars[name] end,
+            GetCVarBool = function(name) return cvars[name] == "1" end,
             SetCVar = function(name, value)
                 assert(not game.combat, "a game setting was changed in combat: " .. name)
                 cvars[name] = value
@@ -94,20 +106,63 @@ local function Session(settings, opts)
             IsAddOnLoaded = function(name) return game.loaded[name] and true or false end,
             GetAddOnInfo = function(name) return name, name end,
             DisableAddOn = function(name) game.loaded[name] = nil; log.disabled = name end,
+            LoadAddOn = function(name)
+                log.dataLoaded = name
+                ns.GlimmerSpots = { [1429] = { 1731, 500, 520, 1618, 510, 500, 1732, 900, 900 } }
+            end,
         },
         Enum = { TooltipDataLineType = { QuestObjective = 8 } },
         UnitGUID = function() return game.guid end,
         UnitIsGameObject = function() return game.guid ~= nil and game.object end,
         UnitIsInInteractRange = function() return game.near end,
         UnitIsUnit = function(unit) return unit ~= "nameplate9" end,
+        GetNumLootItems = function() return 1 end,
+        GetLootSourceInfo = function() return game.lootFrom or game.guid end,
         SetUnitCursorTexture = function() return false end,
         GetFileIDFromPath = function() return nil end,
-        GetProfessions = function() return 1 end,
-        GetProfessionInfo = function() return "Mining", 0, game.mining, 300, 0, 0, 186 end,
+        GetProfessions = function() return 1, game.herbalism > 0 and 2 or nil end,
+        GetProfessionInfo = function(i)
+            if i == 2 then return "Herbalism", 0, game.herbalism, 300, 0, 0, 182 end
+            return "Mining", 0, game.mining, 300, 0, 0, 186
+        end,
         InCombatLockdown = function() return game.combat end,
         IsInInstance = function() return game.instance end,
         GetTime = function() return log.now or 0 end,
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
+        time = function() return 1000 end,
+        CreateVector2D = function(x, y) return { x = x, y = y, GetXY = function(v) return v.x, v.y end } end,
+        C_Map = {
+            GetBestMapForUnit = function() return 1429 end,
+            GetPlayerMapPosition = function() return { GetXY = function() return game.px, game.py end } end,
+            GetWorldPosFromMapPos = function(_, v)
+                return 0, { GetXY = function() return v.x * 1000, v.y * 1000 end }
+            end,
+            GetMapWorldSize = function() return 1000, 1000 end,
+        },
+        C_Minimap = { GetViewRadius = function() return 100 end },
+        C_Spell = { GetSpellTexture = function(id) return "spell" .. id end },
+        UnitPosition = function() return game.px * 1000, game.py * 1000, 0, 0 end,
+        GetPlayerFacing = function() return 0 end,
+        IsPlayerMoving = function() return false end,
+        Minimap = Widget(log),
+        CreateFromMixins = function(...)
+            local t = {}
+            for _, m in ipairs({ ... }) do for k, v in pairs(m) do t[k] = v end end
+            return t
+        end,
+        MapCanvasDataProviderMixin = {},
+        MapCanvasPinMixin = {},
+        WorldMapFrame = {
+            AddDataProvider = function(_, p)
+                log.provider = p
+                p.GetMap = function() return {
+                    GetMapID = function() return 1429 end,
+                    RemoveAllPinsByTemplate = function() for k in pairs(game.pins) do game.pins[k] = nil end end,
+                    AcquirePin = function(_, _, entry) game.pins[#game.pins + 1] = entry end,
+                } end
+            end,
+            IsShown = function() return game.mapShown end,
+        },
     }, { __index = _G })
     dofile("Tools/regression/load_files.lua")(FILES, env)
     log.ns, log.env, log.S = ns, env, S
@@ -326,6 +381,57 @@ do
     check("yes: disabled, then the house reload prompt", next(c.game.loaded) == nil and #c.reloads == 1)
 end
 
+-- Minimap icons: off until switched on, then the data loads and the spots near you show.
+do
+    local m = Session({ enabled = true })
+    m.Login()
+    check("map features off: the spot data is not loaded", m.dataLoaded == nil)
+    m.Set("minimapIcons", true)
+    check("minimap icons on: the spot data loads", m.dataLoaded == "NaowhForever_GlimmerData")
+    local shown = {}
+    for _, f in ipairs(m.frames) do
+        if f.ring and f.shown and f.id then shown[#shown + 1] = f end
+    end
+    check("a miner sees the near vein, not the herb or the far vein", #shown == 1 and shown[1].id == 1731)
+    check("ringed in its skill-up color", shown[1].ring.color[1] == m.ns.Glimmer.Style.TIER_RGB.green.r)
+    check("placed toward its spot", shown[1].point[4] == 0 and shown[1].point[5] < 0)
+    m.game.herbalism = 50
+    m.Fire("SKILL_LINES_CHANGED")
+    local n = 0
+    for _, f in ipairs(m.frames) do if f.ring and f.shown and f.id then n = n + 1 end end
+    check("an herbalist and miner sees both", n == 2)
+end
+
+-- Gathered: noted on loot, at the spot it grows, and shown on the world map.
+do
+    local g = Session({ enabled = true, gatheredPins = true })
+    g.Login()
+    check("gathered pins alone do not load the spot data", g.dataLoaded == nil)
+    g.game.guid, g.game.near, g.game.px, g.game.py = GUID(COPPER), true, 0.501, 0.519
+    g.game.lootFrom = "Creature-0-1-2-3-99-0000000001"
+    g.Fire("LOOT_OPENED")
+    check("a corpse looted beside a vein is not a gather", g.account.glimmerGathered == nil)
+    g.game.lootFrom = nil
+    g.Fire("LOOT_OPENED")
+    local map = g.account.glimmerGathered and g.account.glimmerGathered[1429]
+    local entry = map and map["1731:501:519"]
+    check("a gathered vein is noted where you stand", entry ~= nil and entry.count == 1)
+    g.Fire("LOOT_OPENED")
+    check("the same loot window opened again counts once", entry.count == 1)
+    g.game.guid, g.game.px, g.game.py = "GameObject-0-1-2-3-1731-0000ABCDF0", 0.503, 0.517
+    g.Fire("LOOT_OPENED")
+    check("the node grown back counts on the same pin", entry.count == 2)
+    g.game.near = false
+    g.Fire("LOOT_OPENED")
+    check("not while out of reach", entry.count == 2)
+    g.game.mapShown = true
+    g.provider:RefreshAllData()
+    check("on the world map", #g.game.pins == 1 and g.game.pins[1] == entry)
+    g.Set("ore", false)
+    g.provider:RefreshAllData()
+    check("ore off: not on the map", #g.game.pins == 0)
+end
+
 -- A look setting repaints the lit effect without starting it over; a nameplate that is not the soft target
 -- is passed over.
 do
@@ -393,6 +499,26 @@ do
     Restore()
     check("core: Glimmer off: both sets put back and forgotten", cvars.SoftTargetInteract == "1"
         and cvars.graphicsOutlineMode == "2" and account.glimmerSoftCVars == nil and account.glimmerSparkleCVars == nil)
+end
+
+-- With the spot data loaded, a first gather is pinned at the data's own spot.
+do
+    local d = Session({ enabled = true, gatheredPins = true, minimapIcons = true })
+    d.Login()
+    d.game.guid, d.game.near, d.game.px, d.game.py = GUID(COPPER), true, 0.501, 0.519
+    d.Fire("LOOT_OPENED")
+    local map = d.account.glimmerGathered and d.account.glimmerGathered[1429]
+    check("snapped to the spot it grows", map and map["1731:500:520"] ~= nil)
+end
+
+-- A category color, with Skill-Up Colors off, repaints the minimap rings.
+do
+    local c = Session({ enabled = true, minimapIcons = true, skillColors = false })
+    c.Login()
+    c.Set("oreColor", { r = 0.1, g = 0.2, b = 0.3 })
+    local ring
+    for _, f in ipairs(c.frames) do if f.ring and f.shown and f.id then ring = f.ring end end
+    check("the ring takes the new color", ring and ring.color[1] == 0.1 and ring.color[3] == 0.3)
 end
 
 print(("test-glimmer: %d checks passed"):format(checks))

@@ -11,14 +11,6 @@ local Target, Effects, CVars = G.Target, G.Effects, G.CVars
 local Plain = G.Plain
 
 local UNIT = C.UNIT
-local TEXT_REQUIRES = ns.L("Requires %s %d")
-local TEXT_TIER = {
-    orange = ns.L("Skill-up every gather"),
-    yellow = ns.L("Skill-up likely"),
-    green = ns.L("Skill-up unlikely"),
-    grey = ns.L("No skill-up"),
-}
-local TEXT_PROFESSION = { ore = ns.L("Mining"), herb = ns.L("Herbalism") }
 
 local EVENTS = {
     "PLAYER_SOFT_INTERACT_CHANGED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED",
@@ -61,10 +53,7 @@ end
 local function LineFor(info)
     if info.category == "quest" then return info.line, St.QUEST_LINE_RGB end
     if not info.tier then return end
-    if info.tier == "red" then
-        return TEXT_REQUIRES:format(TEXT_PROFESSION[info.category], info.need), St.TIER_RGB.red
-    end
-    return TEXT_TIER[info.tier], St.TIER_RGB[info.tier]
+    return Target.TierText(info.category, info.need, info.tier), St.TIER_RGB[info.tier]
 end
 
 local function ColorFor(info)

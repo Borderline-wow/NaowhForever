@@ -5,9 +5,12 @@
     <Script file="Data\Nodes.lua"/>
     <Script file="CVars.lua"/>
     <Script file="Target.lua"/>
+    <Script file="Spots.lua"/>
     <Script file="View\Style.lua"/>
     <Script file="View\Effects.lua"/>
     <Script file="UI\Conflict.lua"/>
     <Script file="UI\Highlight.lua"/>
+    <Script file="UI\Minimap.lua"/>
+    <Include file="UI\MapPins.xml"/>
     <Script file="UI\SettingsPage.lua"/>
 </Ui>

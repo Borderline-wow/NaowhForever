@@ -78,6 +78,8 @@ Shared/
                    the bar's mover, its place or anchor, the count and keybind rows with their cogs, and the
                    Growth Direction choice and placing (ItemBar.GrowChoice, Place): the Consumable Bar,
                    QoL's Food & Drink Bar and Group Buttons, and the Gear Set, Trinket and Blessing bars
+  UI/MinimapPins.lua spots on a world map as pins on the minimap, kept in place while you move
+                   (Parts.MinimapLayer): Glimmer's herb and ore icons
   UI/Anchor.lua    anchoring a bar to a frame (Shared.Anchor): its Anchor rows, the picker that lights the
                    frame under the cursor, and the editor beside the bar
   View/View.lua    the row engine: pooled rows, cards, the card grid, one redraw per burst
@@ -198,6 +200,12 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   house edge) sized `icon`, or `iconGrow` more than the text, `iconGap` from it and `iconDrop`
   lower; `icons[i]` is its texture, false for none. Anchor the row by its left edge.
   Refilling it with the same strings makes no garbage.
+- **Minimap pins:** `Parts.MinimapLayer({ max, new, paint, xy })` keeps up to `max` pins on the minimap
+  for the spots of one world map. `new(i)` makes pin `i` (a frame on `Minimap`), `paint(pin, spots, i)`
+  fills it for spot `i`, and `xy(spots, i)` gives spot `i`'s place on the map from 0 to 1, so the spots
+  can be any list, flat or not. `layer:Set(mapID, spots, count)` shows a map's spots (nil to clear),
+  `layer:Repaint()` paints every pin again. It moves the pins only while you move or the minimap turns,
+  and looks only at the spots within twice the minimap's view, gathered again every `REFRESH_YARDS`.
 - **Copying:** `Parts.CopyWowhead(kind, id, name)` opens the copy card on an item, quest or
   NPC's Wowhead link; a menu's Copy uses `ns.ShowCopyLine(title, text, icon)` (`CopyCard.lua`)
   for any line. `ns.ShowCopyCard(kind, label, id, title, mode, onClose)` opens the ID card itself.

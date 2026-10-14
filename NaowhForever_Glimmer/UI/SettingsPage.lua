@@ -22,7 +22,11 @@ local SIZE_RANGE, BRIGHT_RANGE = { 60, 160, 5 }, { 30, 150, 5 }
 local RANGE_RANGE = { 5, 15, 1 }
 local TO_FRACTION = St.PERCENT_SCALE
 local ORDER_WINDOW, ORDER_LOOK, ORDER_OBJECTS, ORDER_HIDE = 5, 10, 20, 30
-local ORDER_DETECT, ORDER_SPARKLE, ORDER_RESTORE = 40, 50, 60
+local ORDER_DETECT, ORDER_MINIMAP, ORDER_GATHERED, ORDER_SPARKLE, ORDER_RESTORE = 40, 44, 46, 50, 60
+local MINIMAP_SIZE = { 10, 24, 1 }
+local PIN_SIZE = St.PIN_SIZE_RANGE
+local TEXT_SECTION = ns.L("Glimmer")
+local TEXT_PINS_OFF = ns.L("Turn on Gathered Herbs and Ore")
 local INTERACT_BINDING = "INTERACTTARGET"
 
 local STYLE_NAMES = {
@@ -189,6 +193,33 @@ page:Card({
           help = "Gathers, loots or uses the lit object once it is in reach." },
     },
 })
+
+local function PinsOn() return G.On() and S.Get("gatheredPins") end
+
+page:Card({
+    id = "minimap", name = "Minimap Icons", order = ORDER_MINIMAP, switch = "minimapIcons",
+    help = "Every spot herbs and ore grow near you, on the minimap, ringed in its skill-up color.",
+    rows = {
+        { key = "minimapSize", label = "Icon Size", slider = MINIMAP_SIZE, needs = Enabled, why = OFF },
+        { key = "myProfessions", label = "Only My Professions", toggle = true, needs = Enabled, why = OFF,
+          help = "Only herbs if you are an herbalist, only ore if you are a miner." },
+    },
+})
+
+local GATHERED_ROWS = {
+    { key = "gatheredPins", label = "Gathered Herbs and Ore", toggle = true, store = S, needs = Enabled, why = OFF,
+      help = "Every herb and vein you gather, on the world map; click one for a waypoint." },
+    { key = "gatheredPinSize", label = "Gathered Pin Size", slider = PIN_SIZE, store = S, always = true,
+      needs = PinsOn, why = TEXT_PINS_OFF, help = "How big the pins are on the map." },
+}
+
+page:Card({
+    id = "gathered", name = "Gathered on the Map", order = ORDER_GATHERED,
+    help = "Glimmer notes every herb and vein you gather, so you can find them again.",
+    rows = GATHERED_ROWS,
+})
+
+table.insert(ns.Shared.MapPins, { title = TEXT_SECTION, store = S, switch = "gatheredPins", rows = GATHERED_ROWS })
 
 page:Card({
     id = "questSparkle", name = "Quest Item Sparkle", order = ORDER_SPARKLE, switch = "questSparkle",
