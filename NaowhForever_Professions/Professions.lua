@@ -8,7 +8,7 @@ local S = ns.UI.ModuleSettings("professions", {
     recipeFinder = F.recipeFinder, rankAlert = F.rankAlert, bagReagents = F.bagReagents,
     bankReagents = F.bankReagents, vendorMaterials = F.vendorMaterials,
     craftOrders = F.craftOrders, orderTip = 10,
-    craftTimer = F.craftTimer,
+    craftTimer = F.craftTimer, craftTimerShowCastBar = F.craftTimerShowCastBar,
     craftTimerFont = "", craftTimerFontSize = 14, craftTimerOutline = "OUTLINE", craftTimerTexture = "",
     craftTimerBgAlpha = 0.9,
     shoppingList = F.shoppingList,

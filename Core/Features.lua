@@ -151,6 +151,7 @@ ns.FEATURES = {
         vendorMaterials = false,
         craftOrders = false,
         craftTimer = false,
+        craftTimerShowCastBar = false,
         shoppingList = false,
         trainFavorites = false,
         searchFavoritesAH = false,

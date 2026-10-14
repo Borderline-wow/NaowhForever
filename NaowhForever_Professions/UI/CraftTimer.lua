@@ -1,4 +1,4 @@
--- CraftTimer.lua: Total Craft Timer: one bar for a batch of crafts, on the Flight Timer's spot, in place of the cast bar.
+-- CraftTimer.lua: Total Craft Timer: one bar for a batch of crafts, on the Flight Timer's spot, optionally alongside the cast bar.
 local ns = _G.NaowhForever
 
 local T = ns.THEME
@@ -51,6 +51,7 @@ local function Clock(seconds)
 end
 
 local function HideCastBars()
+    if S.Get("craftTimerShowCastBar") then return end
     for _, name in ipairs(CAST_BARS) do
         local frame = _G[name]
         if frame and frame.SetAlpha then
@@ -239,6 +240,8 @@ end
 local function OnSettingChanged(key)
     if key == "enabled" or key == "craftTimer" then
         Apply()
+    elseif key == "craftTimerShowCastBar" then
+        if S.Get(key) then RestoreCastBars() elseif job then HideCastBars() end
     elseif bar and key:find("^craftTimer") then
         Look.Style(bar)
     end
