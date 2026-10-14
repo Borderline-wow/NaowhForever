@@ -133,7 +133,7 @@ local S = UI.ModuleSettings("qol", {
     bagSpacePrices = true, bagSpaceBackground = "card",
     bagSpaceFont = "", bagSpaceFontSize = 12, bagSpaceOutline = "",
     scrapMarker = F.scrapMarker, scrapMarkerVendor = "sell", scrapMarkerScope = "account", scrapMarkerShow = true,
-    scrapMarkerProtect = true, scrapRuleWear = false, scrapRuleOld = false, scrapRuleLevels = 10,
+    scrapMarkerProtect = true, scrapMarkerSave = false, scrapRuleWear = false, scrapRuleOld = false, scrapRuleLevels = 10,
     townCapitalsOnly = true, townSpiritHealers = true, townZoneLinks = true,
     townMap = F.townMap, townClass = true, townProfession = true, townFlight = true, townInn = true,
     townBank = true, townStable = false, townRepair = true, townSupplies = true,

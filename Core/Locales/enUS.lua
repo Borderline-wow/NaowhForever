@@ -2522,6 +2522,8 @@ L["Item tooltips show the item's price at your last auction house scan, for one 
 L["Items above this quality are never offered."] = true
 L["Items Bag Space never offers. Search for one, drag one in, or middle-click an icon on the row."] = true
 L["Items on your BiS list or in a gear set are never scrap."] = true
+L["Save Marks"] = true
+L["Keep a mark after the item leaves your bags, so the next one you loot is scrap too."] = true
 L["Items Shown"] = true
 L["its book"] = true
 L["Its Buff"] = true

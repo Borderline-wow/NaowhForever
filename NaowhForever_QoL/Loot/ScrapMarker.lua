@@ -100,6 +100,7 @@ local guid, class
 local listeners = {}
 local askIDs, askCount, askValue = {}, {}, {}
 local countTexts = {}
+local held, inBags = {}, {}
 local AskPanel, Toggle, Step
 
 local Scrap = {}
@@ -344,6 +345,7 @@ function Scrap.Mark(id, link, bag, slot)
     else
         Writable("scrapItems")[id] = true
     end
+    if bag then held[id] = true end
     if link then ns.Print(link .. TEXT_MARKED) end
     Changed()
     return true
@@ -386,6 +388,35 @@ end
 function Toggle(id, bag, slot)
     local link = GetContainerItemLink(bag, slot) or (TEXT_ITEM .. id)
     if State(id) then Scrap.Unscrap(id, link) else Scrap.Mark(id, link, bag, slot) end
+end
+
+local function Forget(list)
+    local dropped = false
+    for id in pairs(list) do
+        if inBags[id] then
+            held[id] = true
+        elseif held[id] then
+            list[id], dropped = nil, true
+        end
+    end
+    return dropped
+end
+
+local function Prune()
+    if S.Get("scrapMarkerSave") then return end
+    wipe(inBags)
+    for bag = BACKPACK_CONTAINER, LAST_BAG do
+        for slot = 1, GetContainerNumSlots(bag) do
+            local id = GetContainerItemID(bag, slot)
+            if id then inBags[id] = true end
+        end
+    end
+    local dropped = Forget(AccountMarks())
+    dropped = Forget(CharMarks()) or dropped
+    for id in pairs(held) do
+        if not inBags[id] then held[id] = nil end
+    end
+    if dropped then Changed() end
 end
 
 local function Sellable(info)
@@ -575,6 +606,8 @@ local function OnEvent(_, event)
         Changed()
     elseif event == "PLAYER_LEVEL_UP" then
         Repaint()
+    elseif event == "BAG_UPDATE_DELAYED" then
+        Prune()
     end
 end
 
@@ -627,6 +660,10 @@ local function Apply()
     events:RegisterEvent("EQUIPMENT_SETS_CHANGED")
     watchingSets = true
     if S.Get("scrapRuleOld") then events:RegisterEvent("PLAYER_LEVEL_UP") end
+    if not S.Get("scrapMarkerSave") then
+        events:RegisterEvent("BAG_UPDATE_DELAYED")
+        Prune()
+    end
     if S.Get("scrapMarkerVendor") ~= "none" then
         atMerchant = MerchantFrame ~= nil and MerchantFrame:IsShown()
         events:RegisterEvent("MERCHANT_SHOW")
@@ -669,6 +706,8 @@ Shared.Settings.Page("QoL/Loot & Items", S):Card({
           help = "A scrap icon on the bag slot of each item marked as scrap." },
         { key = "scrapMarkerProtect", label = "Protect BiS and Gear Sets", toggle = true,
           help = "Items on your BiS list or in a gear set are never scrap." },
+        { key = "scrapMarkerSave", label = "Save Marks", toggle = true,
+          help = "Keep a mark after the item leaves your bags, so the next one you loot is scrap too." },
         Group("Rules"),
         { key = "scrapRuleWear", label = "Gear You Can't Wear", toggle = true,
           help = "Armour and weapons your class can never use count as scrap." },

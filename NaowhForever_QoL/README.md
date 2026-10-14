@@ -632,6 +632,10 @@ NaowhForever_QoL/
 
 ### Scrap Marker and Scrap List
 - Items are marked by ID, never by name: for the account (`scrapItems`) or for one character by its GUID (`scrapChars`).
+- With Save Marks off (the default) a mark lasts only while you hold the item: on `BAG_UPDATE_DELAYED`, a marked ID
+  this character has had in its bags this session and no longer has loses its mark. Only IDs seen in the bags this
+  session are dropped, so a login before the bags are read, another character's account mark, or a mark added from
+  the Scrap List for an item you do not carry are all kept.
 - Scrap sells `BATCH` (6) items at a time, `STEP_DELAY` (0.25 s) apart, and each sale checks again that you are still at the vendor, out of combat, with the same item in that slot. That is why the taint scan allows its one `C_Container.UseContainerItem`; keep that check right before the call.
 - A generation number drops a step left over from an earlier sale, so closing the vendor or entering combat ends a sale cleanly.
 - The X on a rule match keeps it (`scrapKeep`), so the rule leaves it alone until you mark it yourself.

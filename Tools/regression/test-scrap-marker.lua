@@ -7,7 +7,8 @@
 -- until it loads, then one corner widget and junk plugin, the Alt-click and the mark on its live
 -- buttons only, read at the click, and a refresh asked on each change); the vendor selling a few
 -- at a time only while it is open and out of combat, rereading each slot, keeping protected
--- items and stopping when it closes; Ask First's panel and Nothing; the card's summary; the
+-- items and stopping when it closes; Ask First's panel and Nothing; Save Marks off ending a mark
+-- once its item has left the bags; the card's summary; the
 -- API Bag Space reads; the Scrap List window (built on first open, its rows, X, scope tag,
 -- search, drop, Clear All, Export and Import, live updates); and no garbage per bag update,
 -- sale step or list redraw.
@@ -100,7 +101,7 @@ local QUALITY = { [0] = { hex = "|cff9d9d9d", r = 0.6, g = 0.6, b = 0.6 }, [1] =
     [2] = { hex = "|cff1eff00", r = 0.1, g = 1, b = 0 }, [3] = { hex = "|cff0070dd", r = 0, g = 0.4, b = 0.9 } }
 
 local DEFAULTS = { enabled = true, scrapMarker = false, scrapMarkerVendor = "sell", scrapMarkerScope = "account",
-    scrapMarkerShow = true, scrapMarkerProtect = true, scrapRuleWear = false, scrapRuleOld = false,
+    scrapMarkerShow = true, scrapMarkerProtect = true, scrapMarkerSave = true, scrapRuleWear = false, scrapRuleOld = false,
     scrapRuleLevels = 10 }
 local state = {
     values = {}, listeners = {}, overlays = {}, refreshed = 0, account = {}, printed = {}, postCalls = 0,
@@ -757,6 +758,39 @@ check("the tooltip says Scrap only", tip.lines[1] == "Scrap")
 Set("scrapMarkerVendor", "sell")
 merchant.shown = false
 Fire("MERCHANT_CLOSED")
+
+-------------------------------------------------------------------------------
+--  Save Marks off: a mark ends once its item has been in the bags and left them.
+-------------------------------------------------------------------------------
+local keptBags, keptMarks = { state.bags[0], state.bags[1] }, state.account.scrapItems
+check("Save Marks on: the bags are not watched", not Registered("BAG_UPDATE_DELAYED"))
+state.account.scrapItems = { [201] = true, [214] = true, [212] = true }
+state.bags[0], state.bags[1] = { 201 }, {}
+Set("scrapMarkerSave", false)
+check("Save Marks off: the bags are watched", Registered("BAG_UPDATE_DELAYED"))
+check("marks of items not in the bags stay until they have been", state.account.scrapItems[214] == true
+    and state.account.scrapItems[212] == true)
+state.bags[0] = {}
+Fire("BAG_UPDATE_DELAYED")
+check("sold: its mark is gone, the others stay", state.account.scrapItems[201] == nil
+    and state.account.scrapItems[214] == true and state.account.scrapItems[212] == true)
+state.bags[0] = { 214 }
+Fire("BAG_UPDATE_DELAYED")
+check("looted: the mark holds while it is in the bags", state.account.scrapItems[214] == true)
+state.bags[0] = {}
+Fire("BAG_UPDATE_DELAYED")
+check("and ends when it leaves them", state.account.scrapItems[214] == nil and state.account.scrapItems[212] == true)
+Set("scrapMarkerScope", "char")
+state.bags[0] = { 213 }
+Scrap.Mark(213, nil, 0, 1)
+state.bags[0] = {}
+Fire("BAG_UPDATE_DELAYED")
+check("a character mark made in the bags ends the same way", state.account.scrapChars[state.guid][213] == nil)
+Set("scrapMarkerScope", "account")
+Set("scrapMarkerSave", true)
+check("Save Marks back on: the bags are not watched", not Registered("BAG_UPDATE_DELAYED"))
+state.account.scrapItems = keptMarks
+state.bags[0], state.bags[1] = keptBags[1], keptBags[2]
 
 -------------------------------------------------------------------------------
 --  The settings card
