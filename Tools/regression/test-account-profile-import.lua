@@ -269,7 +269,7 @@ Case("a Profiles page string replaces the named profile with every part but the 
     local API = WithApi(e, Lands(e, sv))
     assert(API:ImportProfile("NFPROFILE1:x", "Naowh") == true)
     local wanted = e.args.wanted
-    for _, part in ipairs({ "settings", "macros", "library", "consumables", "builds", "bisLists", "look" }) do
+    for _, part in ipairs({ "settings", "macros", "library", "consumables", "builds", "bisLists", "questRewards", "look" }) do
         assert(wanted[part] == true, part)
     end
     assert(not wanted.acting and not wanted.reminders)

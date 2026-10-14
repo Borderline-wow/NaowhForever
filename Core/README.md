@@ -281,9 +281,18 @@ Profile strings
   profile string sends 0 as a marker and puts it back on import.
 - Reminder Packs (`NSRPACK2:`) are gone. An old pack string is refused before anything in it is
   read, in the Import box and through `NaowhForever_API:ImportProfile`, with a message saying so.
-- The Consumables part carries only `utilityReminders.consumables` from the reminders' store, and
-  its import replaces only that list. The store keeps its saved key, `tankReminder`: renaming saved
-  data would need a migration.
+- The Share picker offers Settings, Macros, Talent Builds, BiS Lists, Saved Quest Items and Look.
+  Macro Library and Consumables are no longer exported, but a string from an older build that carries
+  them still lists them on Import, and `NaowhForever_API:ImportProfile` still takes them. The
+  Consumables part is only `utilityReminders.consumables` from the reminders' store, and its import
+  replaces only that list. The store keeps its saved key, `tankReminder`: renaming saved data would
+  need a migration.
+- Saved Quest Items is `qol.questRewards`, the Alt-click reward picks, as a part of its own and
+  left out of the Settings part (`ns.PROFILE_OWN`), so unticking it keeps them out of the string.
+  Like every part it starts ticked. Import replaces the new profile's picks with the string's. A
+  string from before the part existed carries them inside Settings; the decode lifts them out into
+  the part, and a `questRewards` part wins over them. The part is checked whole (quest and item
+  IDs whole numbers from 1 to 2^31 - 1, at most 2000 picks), and one bad pick leaves it all out.
 - A string from an older build has its consumables inside a `smartReminders` or `reminders` part;
   the decode takes only those from either, and a `consumables` part wins over both. Older builds
   ignore the `consumables` key, so a string from this build brings them no consumables.

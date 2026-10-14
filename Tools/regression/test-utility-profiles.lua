@@ -44,20 +44,22 @@ local function ClassMacros(macros)
     return assert(World().ns.DecodeProfile(Profile({ macros = { classMacros = macros } }))).parts.macros
 end
 
-Case("consumable and class macro definitions survive export, decode and import", function()
+Case("consumable and class macro definitions survive decode and import", function()
     local w = World()
     w.profiles.Default.tankReminder.utilityReminders = {
         consumables = { { category = "food", itemID = 123, auras = { 456, 789 } } },
         classMacros = { PALADIN = { { name = "Example", body = "/say example", icon = 134400, note = "Says hi" } } },
     }
     local payload = assert(w.ns.DecodeProfile(assert(w.ns.ExportProfile())))
+    assert(payload.parts.consumables == nil, "Consumables are no longer exported")
+    payload.parts.consumables = { { category = "food", itemID = 123, auras = { 456, 789 } } }
     w.ns.ImportProfile(payload, { consumables = true, macros = true }, "Other")
     local imported = w.profiles.Other.tankReminder.utilityReminders
     assert(imported.consumables[1].auras[2] == 789 and imported.consumables[1].category == "food")
     assert(imported.classMacros.PALADIN[1].body == "/say example")
     assert(imported.classMacros.PALADIN[1].note == "Says hi" and imported.classMacros.PALADIN[1].icon == 134400)
     imported.consumables[1].itemID = 999
-    assert(w.profiles.Default.tankReminder.utilityReminders.consumables[1].itemID == 123, "a copy, not the same table")
+    assert(payload.parts.consumables[1].itemID == 123, "a copy, not the same table")
 end)
 
 Case("an invalid consumable leaves the whole list out", function()

@@ -14,6 +14,7 @@ local MAX_CONSUMABLES, MAX_AURAS, MAX_CLASS_MACROS = 500, 100, 100
 local MAX_ID = 2147483647
 local ITEM_ID_LIMIT = 2147483648
 local MAX_PICKS = 50
+local MAX_QUEST_REWARDS = 2000
 local ZERO = "\0"
 local DEFAULT_PROFILE = "Default"
 local IMPORTED_PROFILE = ns.L("Imported Profile")
@@ -27,25 +28,29 @@ local LOOK_TYPES = { themePreset = "string", themeColors = "table", uiFont = "st
 local GEAR_SLOT = { [1] = true, [2] = true, [3] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true,
     [10] = true, [11] = true, [12] = true, [13] = true, [14] = true, [15] = true, [16] = true, [17] = true, [18] = true }
 local OWN = { qol = { "characterPanelAsked", "characterPanelTookOver", "inspectPanelAsked", "inspectPanelTookOver",
-    "groupInvites" } }
+    "groupInvites", "questRewards" } }
 local PARTS = {
     { key = "settings", label = "Settings", help = "Every module's settings and positions",
       share = ns.L("Every module's settings and where its frames sit.") },
     { key = "macros", label = "Macros", help = "Your class macros and the Macros settings",
       share = ns.L("Your class macros and the Macros settings.") },
-    { key = "library", label = "Macro Library", help = "Added next to your Library, never over it",
-      share = ns.L("The macros you saved to the Forge's Library.") },
-    { key = "consumables", label = "Consumables", help = "The consumables your reminders watch",
-      share = "The consumables your reminders watch." },
     { key = "builds", label = "Talent Builds", help = "Added next to your saved builds",
       share = ns.L("The talent builds you saved in the Training Planner.") },
     { key = "bisLists", label = "BiS Lists", help = "Added next to your own lists, never over them",
       share = ns.L("Your BiS lists, for every class.") },
+    { key = "questRewards", label = "Saved Quest Items", help = "The rewards you saved for quests, in this profile",
+      share = ns.L("The quest rewards you saved with Alt-click.") },
     { key = "look", label = "Look", help = "Skin, theme colors, font and window scale, for every profile",
       share = ns.L("Skin, theme colors, font and window scale.") },
 }
+local LEGACY_PARTS = {
+    { key = "library", label = "Macro Library", help = "Added next to your Library, never over it",
+      share = ns.L("The macros you saved to the Forge's Library.") },
+    { key = "consumables", label = "Consumables", help = "The consumables your reminders watch",
+      share = "The consumables your reminders watch." },
+}
 local API_PARTS = { settings = true, macros = true, library = true, consumables = true, builds = true,
-    bisLists = true, look = true }
+    bisLists = true, questRewards = true, look = true }
 local LIST_NOUN = { bisLists = ns.L("lists"), library = ns.L("macros"), builds = ns.L("builds") }
 local TEXT_NO_LIBRARIES = ns.L("The serializer libraries are missing from this build.")
 local TEXT_TOO_BIG_PROFILE = ns.L("This profile is too big to share.")
@@ -58,6 +63,7 @@ local TEXT_DAMAGED = ns.L("The string is damaged: copy it again in full.")
 local TEXT_NEWER = ns.L("This string is from a newer Naowh Forever: update first.")
 local TEXT_MODULES = ns.L("%d modules")
 local TEXT_CLASS_MACROS = ns.L("%d class macros")
+local TEXT_QUEST_REWARDS = ns.L("%d quest rewards")
 local TEXT_NOTHING_TO_READ = ns.L("Nothing to read.")
 local TEXT_IMPORT_FAILED = ns.L("Naowh Forever import failed: ")
 local TEXT_SPEC_SWITCH_OFF = ns.L("Per-spec profile switching is off while every character shares '%s'; your spec "
@@ -129,6 +135,22 @@ local function ValidClassMacros(classMacros)
             or not ArrayOf(entries, MAX_CLASS_MACROS, ValidMacro) then return false end
     end
     return true
+end
+
+local function ValidQuestRewards(picks)
+    if type(picks) ~= "table" then return false end
+    local count = 0
+    for questID, itemID in pairs(picks) do
+        count = count + 1
+        if count > MAX_QUEST_REWARDS or not PositiveID(questID) or not PositiveID(itemID) then return false end
+    end
+    return true
+end
+
+local function CleanQuestRewards(picks)
+    local out = {}
+    for questID, itemID in pairs(picks) do out[questID] = itemID end
+    return next(out) and out or nil
 end
 
 local function CleanConsumables(list)
@@ -228,10 +250,10 @@ local function CollectMacros(root, utility, budget)
     return next(macros) and macros or nil
 end
 
-local function CollectConsumables(utility, budget)
-    local list = utility and utility.consumables
-    if type(list) ~= "table" or not next(list) then return nil end
-    return Plain(list, 1, budget)
+local function CollectQuestRewards(root, budget)
+    local picks = type(root.qol) == "table" and root.qol.questRewards
+    if type(picks) ~= "table" or not next(picks) then return nil end
+    return Plain(picks, 1, budget)
 end
 
 local function CollectBisLists(account, budget)
@@ -243,17 +265,6 @@ local function CollectBisLists(account, budget)
         end
     end
     return next(lists) and lists or nil
-end
-
-local function CollectLibrary(account, budget)
-    if type(account.libraryMacros) ~= "table" then return nil end
-    local library = {}
-    for class, list in pairs(account.libraryMacros) do
-        local own = {}
-        for i, m in ipairs(list) do own[i] = Plain(m, 1, budget) end
-        if #own > 0 then library[class] = own end
-    end
-    return next(library) and library or nil
 end
 
 local function CollectBuilds(account, budget)
@@ -293,10 +304,9 @@ local function Collect()
         parts.settings[MODULE_STATE_KEY] = moduleState
     end
     parts.macros = CollectMacros(root, utility, budget)
-    parts.consumables = CollectConsumables(utility, budget)
     parts.bisLists = CollectBisLists(account, budget)
-    parts.library = CollectLibrary(account, budget)
     parts.builds = CollectBuilds(account, budget)
+    parts.questRewards = CollectQuestRewards(root, budget)
     parts.look = CollectLook(account, budget)
     return parts, budget.over
 end
@@ -344,6 +354,12 @@ local function CleanParts(payload)
         local state = parts.settings[MODULE_STATE_KEY]
         parts.settings[MODULE_STATE_KEY] = ValidModuleState(state) and state or nil
     end
+    local qol = type(parts.settings) == "table" and parts.settings.qol
+    if type(qol) == "table" then
+        if parts.questRewards == nil then parts.questRewards = qol.questRewards end
+        qol.questRewards = nil
+    end
+    parts.questRewards = ValidQuestRewards(parts.questRewards) and CleanQuestRewards(parts.questRewards) or nil
     OldConsumables(parts)
     parts.consumables = ValidConsumables(parts.consumables) and CleanConsumables(parts.consumables) or nil
     local macros = parts.macros
@@ -398,16 +414,19 @@ local function PartDetail(key, data)
         return TEXT_MODULES:format(n)
     end
     if key == "macros" then return TEXT_CLASS_MACROS:format(ClassMacroCount(data)) end
+    if key == "questRewards" then return TEXT_QUEST_REWARDS:format(Count(data)) end
     if LIST_NOUN[key] then return ("%d %s"):format(ListCount(data), LIST_NOUN[key]) end
 end
 
 function ns.ProfileStringParts(payload)
     local out, parts = {}, payload.parts
-    for _, part in ipairs(PARTS) do
-        local data = parts[part.key]
-        if type(data) == "table" and next(data) then
-            out[#out + 1] = { key = part.key, label = part.label, help = part.help,
-                detail = PartDetail(part.key, data) }
+    for _, list in ipairs({ PARTS, LEGACY_PARTS }) do
+        for _, part in ipairs(list) do
+            local data = parts[part.key]
+            if type(data) == "table" and next(data) then
+                out[#out + 1] = { key = part.key, label = part.label, help = part.help,
+                    detail = PartDetail(part.key, data) }
+            end
         end
     end
     return out
@@ -655,6 +674,11 @@ local function ImportSettings(root, settings, wanted)
     end
 end
 
+local function ImportQuestRewards(root, picks)
+    if type(root.qol) ~= "table" then root.qol = {} end
+    root.qol.questRewards = CleanQuestRewards(picks)
+end
+
 local function OwnUtility(root)
     if type(root.tankReminder) ~= "table" then root.tankReminder = {} end
     local sr = root.tankReminder
@@ -697,6 +721,9 @@ function ns.ImportProfile(payload, wanted, name, overwrite)
         OwnUtility(root).consumables = CleanConsumables(parts.consumables)
     end
     if wanted.macros and type(parts.macros) == "table" then ImportMacros(root, parts.macros) end
+    if wanted.questRewards and ValidQuestRewards(parts.questRewards) then
+        ImportQuestRewards(root, parts.questRewards)
+    end
     local added = { bisLists = 0, library = 0, builds = 0 }
     if wanted.bisLists and type(parts.bisLists) == "table" then added.bisLists = AddBisLists(parts.bisLists) end
     if wanted.library and ns.Macros and type(parts.library) == "table" then added.library = AddLibrary(parts.library) end
