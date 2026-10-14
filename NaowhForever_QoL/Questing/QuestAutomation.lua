@@ -31,10 +31,22 @@ local function On(key)
     return S.Get("enabled") and S.Get(key)
 end
 
+local listeners = {}
+
+local function Changed()
+    for i = 1, #listeners do listeners[i]() end
+end
+
 local function Picks()
     local db = S.DB()
     db.questRewards = db.questRewards or {}
     return db.questRewards
+end
+
+local function Titles()
+    local account = ns.AccountSettings()
+    account.questTitles = account.questTitles or {}
+    return account.questTitles
 end
 
 local function ChoiceItemID(index)
@@ -69,11 +81,47 @@ local function SaveClick(self)
     if picks[questID] == itemID then
         picks[questID] = nil
         ns.Print(TEXT_CLEARED:format(title))
+        Changed()
         return
     end
     picks[questID] = itemID
+    if title ~= "" then Titles()[questID] = title end
+    Changed()
     ns.Print(TEXT_SAVED:format(link or (TEXT_ITEM .. itemID), title))
     if not QuestInfoFrame.questLog and QuestInfoFrame.chooseItems then QuestInfoItem_OnClick(self) end
+end
+
+local QuestRewards = {}
+ns.QuestRewards = QuestRewards
+
+function QuestRewards.OnChange(fn)
+    listeners[#listeners + 1] = fn
+end
+
+function QuestRewards.List(out)
+    wipe(out)
+    for questID, itemID in pairs(Picks()) do
+        if type(questID) == "number" and type(itemID) == "number" then out[#out + 1] = questID end
+    end
+    return out
+end
+
+function QuestRewards.ItemID(questID)
+    return Picks()[questID]
+end
+
+function QuestRewards.Title(questID)
+    return C_QuestLog.GetTitleForQuestID(questID) or Titles()[questID]
+end
+
+function QuestRewards.Remove(questID)
+    Picks()[questID] = nil
+    Changed()
+end
+
+function QuestRewards.Clear()
+    wipe(Picks())
+    Changed()
 end
 
 local function OnRewardButton(rewardsFrame, index)

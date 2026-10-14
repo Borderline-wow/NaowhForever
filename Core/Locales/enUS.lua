@@ -2,6 +2,14 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["%d saved reward"] = true
+L["%d saved rewards"] = true
+L["Every reward you saved for a quest, to look over and remove."] = true
+L["Nothing saved. Alt-click a quest reward to save it for that quest."] = true
+L["Open Saved Rewards"] = true
+L["Picked for you when you hand the quest in. Alt-click a reward to save one."] = true
+L["Quest %d"] = true
+L["Remove every saved quest reward in this profile?"] = true
 L["Threat Meter"] = true
 L["Meter"] = true
 L["Profiles"] = true

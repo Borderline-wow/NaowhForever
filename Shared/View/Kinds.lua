@@ -125,7 +125,7 @@ end
 
 local function RemoveClicked(button)
     local row = button:GetParent()
-    if row.onRemove then row.onRemove(row.itemID) end
+    if row.onRemove then row.onRemove(row.itemID, row.key) end
 end
 
 local function TagClicked(link)
@@ -187,8 +187,8 @@ local function ItemName(row, itemID)
     return name, refused
 end
 
-local function SetItem(row, itemID, meta, value, onRemove, removeTip, tag, onTag, tagTip)
-    row.itemID, row.onRemove, row.onTag = itemID, onRemove, onTag
+local function SetItem(row, itemID, meta, value, onRemove, removeTip, tag, onTag, tagTip, key)
+    row.itemID, row.onRemove, row.onTag, row.key = itemID, onRemove, onTag, key
     row.hover:Hide()
     row.icon:SetTexture(GetItemIconByID(itemID))
     local name, refused = ItemName(row, itemID)

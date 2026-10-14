@@ -60,7 +60,8 @@ NaowhForever_QoL/
     GroupButtons.lua    On-Screen Buttons (Invite, your invite buttons, Invite All, Disband)
     FreeForAll.lua      Always Free for All, the party loot method while you lead
     TalentPoints.lua    the unspent talent points reminder
-    QuestAutomation.lua accept, hand in and share quests, saved reward picks
+    QuestAutomation.lua accept, hand in and share quests, saved reward picks (ns.QuestRewards)
+    RewardList.lua      the Saved Quest Rewards window (ns.OpenQuestRewards)
     PlayerHistory.lua   Player History (ns.PlayerHistory), read by the Naowh Inspect panel
     Disband.lua         removing everyone from your group (ns.DisbandGroup), for the Disband button
     Trainer.lua         the trainer popup and rank swaps (ns.TrainerRankCheck, ns.TrainerForgetKept),
