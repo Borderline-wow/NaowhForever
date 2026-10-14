@@ -1269,6 +1269,19 @@ do
     check('the panel follows the window\'s opacity', s.side.opacity() == 1)
 end
 
+-- Ask to Add asks at the bar, even one with nothing on it yet, so the question shows where the item will go
+do
+    local s = fixture({ consumableBar = true, consumableBarAskNew = true })
+    s.fire('BAG_UPDATE_DELAYED')
+    check('an empty bar shows nothing', not s.bar.shown)
+    s.bags[0] = { 5512 }
+    s.counts[5512] = 1
+    s.fire('BAG_UPDATE_DELAYED')
+    local ask = s.panels[1]
+    check('a new consumable is asked about at the empty bar', ask and ask.shown and ask.point
+        and ask.point[1] == 'BOTTOM' and ask.point[2] == s.bar and ask.point[3] == 'TOP')
+end
+
 -- New consumables ask to be added
 do
     local s = fixture({ consumableBar = true, consumableBarAskNew = true, consumableBarItems = { 13446 } })

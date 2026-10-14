@@ -68,6 +68,9 @@ NaowhForever_ConsumableBar/
   out, no longer in the bags or on the bar already, it is skipped.
   Only what the bags hold now counts as known, so an item that left the bags and is looted again
   is new again.
+- Ask to Add asks at the bar, even an empty one or one whose items are all hidden: the bar frame is
+  placed either way, so the question shows where the item will go. Only before the bar is built
+  does it fall back to the top of the screen.
 - After Hide After Use hides an item, the bar looks again when its cooldown or effect should end,
   `WAKE_LEAD` (0.1 s) after. Only the soonest look is scheduled; a later one just looks again.
 - Hide When Out (on by default) lays the bar out with only what you carry, in the saved order, so

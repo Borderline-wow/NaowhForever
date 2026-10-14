@@ -86,7 +86,7 @@ function ShowAsk()
     ask.text:SetText(TEXT_QUESTION:format(CB.ItemName(id)))
     ask:ClearAllPoints()
     local bar = CB.BarFrame()
-    if bar and bar:IsVisible() then
+    if bar then
         ask:SetPoint("BOTTOM", bar, "TOP", 0, ASK_ABOVE)
     else
         ask:SetPoint("TOP", UIParent, "TOP", 0, ASK_TOP)
