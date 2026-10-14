@@ -912,6 +912,9 @@ NaowhForever_QoL/
 - `SoftTargetInteract` 3 keeps the soft target on, and `SoftTargetInteractOnlyInRange` 0 lets it pick
   objects beyond reach, so they can light up dim before you get there. The range is capped at 15
   yards on the page because the client drops the soft target near there whatever is asked.
+- `SoftTargetIconGameObject` 1 is needed too: with it at 0 the game picks the object as the soft
+  target but never makes its nameplate, so nothing lights up. A setting Glimmer adds later is saved
+  into the old values the first time it is written, so turning Glimmer off puts it back as well.
 - The nameplate is only opened for an object Glimmer lights (`onlyHighlighted`), so NPCs, mailboxes
   and doors do not grow a nameplate. Whether to open it does not need the nameplate: the object is
   read from the unit token, then the nameplate arrives with `NAME_PLATE_UNIT_ADDED`.

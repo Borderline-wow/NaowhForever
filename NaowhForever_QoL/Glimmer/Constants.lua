@@ -11,6 +11,7 @@ ns.Glimmer.C = {
     SOFT_CVARS = {
         SoftTargetInteract = "3",
         SoftTargetInteractOnlyInRange = "0",
+        SoftTargetIconGameObject = "1",
     },
     RANGE_CVAR = "SoftTargetInteractRange",
     ARC_CVAR = "SoftTargetInteractArc",

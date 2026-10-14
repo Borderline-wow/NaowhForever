@@ -34,9 +34,10 @@ end
 
 local function Save(slot, names)
     local account = ns.AccountSettings()
-    if account[slot] then return end
-    local saved = {}
-    for name in pairs(names) do saved[name] = GetCVar(name) end
+    local saved = account[slot] or {}
+    for name in pairs(names) do
+        if saved[name] == nil then saved[name] = GetCVar(name) end
+    end
     account[slot] = saved
 end
 

@@ -51,7 +51,7 @@ local function Session(settings, opts)
     local log = { frames = {}, writes = {}, timers = {}, confirms = {}, reloads = {}, printed = {} }
     local cvars = {
         SoftTargetInteract = "1", SoftTargetInteractOnlyInRange = "1", SoftTargetInteractRange = "10",
-        SoftTargetInteractArc = "1", SoftTargetNameplateInteract = "0",
+        SoftTargetInteractArc = "1", SoftTargetNameplateInteract = "0", SoftTargetIconGameObject = "0",
         outlineModeShowLootEffectWhenDisabled = "0", graphicsOutlineMode = "2", OutlineEngineMode = "2",
         raidGraphicsOutlineMode = "2", RAIDOutlineEngineMode = "2",
     }
@@ -266,6 +266,8 @@ check("on: the soft target is kept on", cv.SoftTargetInteract == "3" and cv.Soft
 check("on: range and direction from the settings", cv.SoftTargetInteractRange == "15" and cv.SoftTargetInteractArc == "2")
 check("on: the old values are saved", log.account.glimmerSoftCVars.SoftTargetInteract == "1"
     and log.account.glimmerSoftCVars.SoftTargetInteractRange == "10")
+check("on: objects get their nameplate", cv.SoftTargetIconGameObject == "1"
+    and log.account.glimmerSoftCVars.SoftTargetIconGameObject == "0")
 check("on: the quest sparkle is left alone", cv.graphicsOutlineMode == "2" and log.account.glimmerSparkleCVars == nil)
 check("on: no target, no nameplate opened", cv.SoftTargetNameplateInteract == "0")
 
@@ -410,7 +412,8 @@ check("sparkle off: the old values come back", cv.graphicsOutlineMode == "2" and
 -- Off again: everything put back, nothing listening.
 log.Set("enabled", false)
 check("off: the soft target settings come back", cv.SoftTargetInteract == "1" and cv.SoftTargetInteractRange == "10"
-    and cv.SoftTargetInteractOnlyInRange == "1" and log.account.glimmerSoftCVars == nil)
+    and cv.SoftTargetInteractOnlyInRange == "1" and cv.SoftTargetIconGameObject == "0"
+    and log.account.glimmerSoftCVars == nil)
 check("off: dark", Lit(log) == nil)
 check("off: no event left", Registered(log) == 0)
 
@@ -423,6 +426,17 @@ do
     r.RunTimers()
     check("restore: both sets put back", r.cvars.SoftTargetInteract == "1" and r.cvars.graphicsOutlineMode == "2")
     check("restore: Glimmer and the sparkle off", r.S.Get("enabled") == false and r.S.Get("questSparkle") == false)
+end
+
+-- Saved before SoftTargetIconGameObject was one of the settings: it is saved too, and put back.
+do
+    local o = Session({ enabled = true })
+    o.account.glimmerSoftCVars = { SoftTargetInteract = "1", SoftTargetInteractRange = "10" }
+    o.Login()
+    check("old save: the new setting is saved on top", o.account.glimmerSoftCVars.SoftTargetIconGameObject == "0"
+        and o.account.glimmerSoftCVars.SoftTargetInteract == "1" and o.cvars.SoftTargetIconGameObject == "1")
+    o.Set("enabled", false)
+    check("old save: and put back", o.cvars.SoftTargetIconGameObject == "0" and o.account.glimmerSoftCVars == nil)
 end
 
 -- Other addons on the same settings: asked once, then the reload prompt.
