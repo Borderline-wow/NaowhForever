@@ -12,9 +12,9 @@ minimap and Top Bar button). Its on/off switches and their defaults come from
   Simple, a bar in the windows' backdrop with the campfire at its left, the camp's bonuses with
   their amounts, and the time left on the right over a line that runs down green, yellow, then
   red. Hovering it lists each bonus, the time left and when to refresh.
-  With no Camp Benefits it glows (LibCustomGlow) and carries a Sit icon on its right, the camp
-  icon's size with its label under it, which performs the /sit emote; Camp Nearby carries the same
-  icon, as tall as its bar with the label beside it.
+  With no Camp Benefits it glows (LibCustomGlow) and its fire is grey. With a campfire in range the
+  fire lights up, the words say Click to sit, and a click on the fire performs the /sit emote; it
+  glows brighter under the mouse. Camp Nearby's fire does the same.
 - **Camp Nearby:** the same bar drawn bare (no backdrop, edge or line), larger by its own scale,
   sized to what it says and stacked in the Alerts group (`ns.AlertStack`), with the camp's time
   left inline after a dot while it still runs.
@@ -60,7 +60,6 @@ NaowhForever_AuraBuffs/
     WindowPages.lua            the window's page: consumables, with list import and export
     Window.lua                 the AuraBuffs window
   Media/CampfireHD.tga         the campfire icon's art (View/CampIcon.lua)
-  Media/Sit.tga                the Sit icon's seated figure, drawn by Tools/media/make_media.py
   README.md                    this file
 ```
 
@@ -176,8 +175,10 @@ NaowhForever_AuraBuffs/
   old on/off switch (`campBuffs`), so nobody's setting changes. On Mouseover the buff lines stay
   written but invisible until the icon is hovered, and the icon only takes the mouse then, so
   clicks and camera drags otherwise go through.
-- The Sit icon is the same round plate as the camp icon with the seated figure on it, and its label
-  uses the camp label's drop (`LABEL_DROP`), so both labels sit on one line under the time ring.
+- Sitting is a click on the fire, not a second icon: a button beside the reminder doubled its size
+  for one emote. The click only takes the fire's own square, so Camp Nearby still lets every other
+  click through, and only while a campfire is in range, the only time /sit can refresh the camp.
+  A lit fire with no Camp Benefits is the hint: grey says no camp, lit says a fire is here to sit at.
 - The Round icon's plate follows the theme's Panels color (`ns.ThemeTint`), and a black circle one
   pixel wider behind it is its 1px round border. The black disk extends past the time ring on both
   sides, edging it.

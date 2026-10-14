@@ -17,6 +17,7 @@ local TEXT_NO_BONUSES = ns.L("no bonuses")
 local TEXT_RESTING = ns.L("Resting")
 local TEXT_REFRESH, TEXT_REFRESH_CAMP = ns.L("Refresh (camp)"), ns.L("%s Camp")
 local TEXT_NEARBY, TEXT_SIT = ns.L("Camp Nearby"), ns.L("sit to refresh")
+local TEXT_CLICK_SIT = ns.L("click to sit")
 local TEXT_MORE = ns.L("+%d more")
 
 local moreTexts = {}
@@ -192,6 +193,7 @@ local function NewWords(f)
     f.refreshText = TEXT_REFRESH_CAMP:format(ns.Color("accent", TEXT_REFRESH))
     f.nearbyText = f.bare and ns.Color("accent", TEXT_NEARBY)
         or ns.Color("accent", TEXT_NEARBY) .. ns.Color("muted", St.PLACE_DOT .. TEXT_SIT)
+    f.nearbySitText = ns.Color("accent", TEXT_NEARBY) .. ns.Color("muted", St.PLACE_DOT .. TEXT_CLICK_SIT)
 end
 
 function Bar.CampSize(height)
@@ -286,11 +288,12 @@ function Bar.Sitting(f, labels, icons, n, timed, upcoming)
 end
 
 function Bar.Missing(f, nearby, lit)
-    BarLit(f, lit and true or false)
+    local sit = nearby and S.Get("campSitButton")
+    BarLit(f, (lit or sit) and true or false)
     f.lead, f.more, f.group = 0, 0, 0
     f.labels:SetLabels(nil, 0)
     PlaceLabels(f)
-    BarNote(f, nearby and f.nearbyText or f.refreshText, T.fg)
+    BarNote(f, sit and f.nearbySitText or nearby and f.nearbyText or f.refreshText, T.fg)
     Bar.Timed(f, false)
     f.pill, f.slot = true, 0
     Bar.Size(f)

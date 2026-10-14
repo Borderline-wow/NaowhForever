@@ -130,6 +130,8 @@ local function Fixture(settings)
         ClearAllPoints = function() end,
         SetAllPoints = function(f, rel) f.all = rel or true end,
         SetTexCoord = function(f, l, r, t, b) f.coords = { l, r, t, b } end,
+        GetTexCoord = function(f) return unpack(f.coords or { 0, 1, 0, 1 }) end,
+        SetBlendMode = function(f, mode) f.blend = mode end,
         SetShadowColor = function(f, _, _, _, a) f.shadow = a end,
         GetCenter = function(f) return rawget(f, "cx"), rawget(f, "cy") end,
         GetLeft = function(f) return rawget(f, "left") end,
@@ -637,8 +639,10 @@ do
     s.auras[NEARBY] = {}
     s.fire("UNIT_AURA")
     check("down with a campfire in range: the same pattern and size, a muted hint after a dot",
-        bar.note.text == "{accent:Camp Nearby}{muted:" .. s.St.PLACE_DOT .. "sit to refresh}"
+        bar.note.text == "{accent:Camp Nearby}{muted:" .. s.St.PLACE_DOT .. "click to sit}"
         and bar.note.pt.LEFT == 29 and icon.w == 360 and icon.h == 26 and bar.time.shown == false)
+    check("in range, the bar's fire lights up and takes the click", bar.camp.sitSpot and bar.camp.sitSpot.shown
+        and bar.camp.tex.desaturated == false and not (icon.sitSpot and icon.sitSpot.shown))
     s.auras[NEARBY] = nil
     s.fire("UNIT_AURA")
 
@@ -654,8 +658,9 @@ do
     s.ns.ShowUnlockMode()
     local alert = s.named.NaowhForeverCampNearby
     local ab = alert and alert.bar
-    check("Camp Nearby is the bar's own component: same builder, the words without the sit hint, same sizes", ab
-        and ab.backdrop and ab.line and ab.labels and Plain(ab.note.text) == "Camp Nearby"
+    check("Camp Nearby is the bar's own component: same builder, the click hint after a dot, same sizes", ab
+        and ab.backdrop and ab.line and ab.labels
+        and Plain(ab.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "click to sit"
         and ab.note.size == bar.note.size and ab.campSize == bar.campSize and ab.labelX == bar.labelX
         and rawget(ab.camp, "plate") == nil and rawget(alert, "text") == nil)
     check("Camp Nearby is drawn bare: no backdrop, edge or line, the fire and words alone", ab.bare == true
@@ -679,8 +684,8 @@ do
     local timers = 0
     for _, f in ipairs(s.frames) do if f.scripts.OnUpdate then timers = timers + 1 end end
     check("no OnUpdate: the client runs the fade", timers == 0)
-    check("no camp time to show: the time's place empty, the fire grey", ab.time.shown == false
-        and ab.camp.tex.desaturated == true)
+    check("no camp time to show: the time's place empty, the fire lit to click", ab.time.shown == false
+        and ab.camp.tex.desaturated == false and ab.camp.sitSpot and ab.camp.sitSpot.shown)
     s.auras[CAMP] = { duration = 3600, expirationTime = s.now + 90, auraInstanceID = 9 }
     s.fire("UNIT_AURA")
     check("camp still running: its time left in red, inline after a muted dot, the fire lit",
@@ -706,7 +711,7 @@ do
     s.S.Set("campAlertFade", true)
     s.S.Set("campStyle", "simple")
     check("Simple: the alert hides, the bar's own pill covers it", alert.shown == false and bar.pill
-        and Plain(bar.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "sit to refresh")
+        and Plain(bar.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "click to sit")
     pos = s.S.Get("campPos")
     check("switching to Simple puts the bar's fire where the icon was", pos.point == "LEFT" and pos.x == 288
         and pos.y == 500)
@@ -1087,7 +1092,7 @@ do
     card.studio.paint(shot, "nearby")
     local stateW = shot.barHost.w
     check("preview Camp Nearby: the same rectangle, only the body editable", f.pill and shot.barHost.w == stateW
-        and Plain(f.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "sit to refresh"
+        and Plain(f.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "click to sit"
         and shot.widthZone.shown == false and shot.zones[1].shown ~= false)
     card.studio.paint(shot, "missing")
     check("preview Refresh: the same rectangle, the fire in the same seat", f.pill
@@ -1123,9 +1128,9 @@ do
     shot.w, shot.h = 700, 120
     card.studio.paint(shot, "nearby")
     local a = shot.alert
-    check("alert preview: the shared bar, Camp Nearby alone, with the fire grey and no time", a.bar.pill
-        and Plain(a.bar.note.text) == "Camp Nearby"
-        and a.bar.time.shown == false and a.bar.camp.tex.desaturated == true)
+    check("alert preview: the shared bar, Camp Nearby and the click hint, the fire lit and no time",
+        a.bar.pill and Plain(a.bar.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "click to sit"
+        and a.bar.time.shown == false and a.bar.camp.tex.desaturated == false)
     check("alert preview: it breathes while shown", a.breathe.playing and a.breathe.looping == "BOUNCE")
     check("alert preview: no dismiss button taking the mouse", rawget(a, "click") == nil)
     local left = a.pt.LEFT
@@ -1203,7 +1208,7 @@ do
     s.auras[CAMP] = nil
     s.fire("UNIT_AURA")
     check("Simple, camp gone and a campfire in range: the bar's own pill, no alert", alert.shown == false
-        and bar.pill and Plain(bar.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "sit to refresh")
+        and bar.pill and Plain(bar.note.text) == "Camp Nearby" .. s.St.PLACE_DOT .. "click to sit")
     s.auras[CAMP] = { duration = 3600, expirationTime = s.now + 1800, auraInstanceID = 2 }
     s.fire("UNIT_AURA")
     check("Simple, plenty of camp left: no alert yet", alert.shown == false)
@@ -1306,25 +1311,39 @@ do
     local s = Fixture()
     s.fire("PLAYER_LOGIN")
     local icon = s.named.NaowhForeverCampfire
-    check("no camp, none nearby: the reminder glows and offers Sit", s.glows[icon] and icon.sit and icon.sit.shown)
-    check("Sit sits on the right of the reminder", icon.sit.rel.LEFT == icon and icon.sit.pt.LEFT > 0)
-    check("Sit is an icon the size of the camp icon, drawn from the sitting art",
-        icon.sit.w == s.S.Get("campIconSize") and icon.sit.h == icon.sit.w and icon.sit.tex.texture == "Interface\\AddOns\\NaowhForever_AuraBuffs\\Media\\Sit.tga")
-    check("Sit's label is the camp label's size, on the same line under its icon",
-        icon.sit.label.text == "Sit" and icon.sit.label.size == icon.label.size
-        and icon.sit.label.pty.TOP == icon.label.pty.TOP and icon.sit.label.rel.TOP == icon.sit)
-    icon.sit.scripts.OnClick(icon.sit)
-    check("clicking Sit performs the /sit emote", #s.emotes == 1 and s.emotes[1] == "SIT")
+    check("no camp: no glow by default, the grey fire says it", not s.glows[icon] and icon.tex.desaturated == true)
+    s.S.Set("campGlow", true)
+    check("no camp, none nearby: with Glow on it glows, no click, Refresh Camp", s.glows[icon]
+        and not (icon.sitSpot and icon.sitSpot.shown) and icon.label.text == "Refresh Camp")
+    s.auras[NEARBY] = {}
+    s.fire("UNIT_AURA")
+    local spot = icon.sitSpot
+    check("a campfire in range: the fire lights up and takes the click, Click to sit", spot and spot.shown
+        and icon.tex.desaturated == false and icon.label.text == "Click to sit")
+    spot.scripts.OnEnter(spot)
+    check("under the mouse the fire glows brighter", icon.hot and icon.hot.shown ~= false
+        and icon.hot.blend == "ADD")
+    spot.scripts.OnLeave(spot)
+    check("and settles when the mouse leaves", icon.hot.shown == false)
+    spot.scripts.OnClick(spot, "LeftButton")
+    check("clicking the fire performs the /sit emote", #s.emotes == 1 and s.emotes[1] == "SIT")
+    spot.scripts.OnClick(spot, "RightButton")
+    check("a right click doesn't", #s.emotes == 1)
     s.auras[CAMP] = { duration = 3600, expirationTime = s.now + 2400, auraInstanceID = 1 }
     s.fire("UNIT_AURA")
-    check("camp up: no glow, no Sit", not s.glows[icon] and icon.sit.shown == false)
+    check("camp up: no glow, no click", not s.glows[icon] and spot.shown == false)
     s.auras[CAMP] = nil
     s.S.Set("campGlow", false)
     s.S.Set("campSitButton", false)
-    check("the options turn the glow and the Sit button off", not s.glows[icon] and icon.sit.shown == false)
+    check("the options turn the glow and the click off", not s.glows[icon] and spot.shown == false
+        and icon.label.text == "Refresh Camp")
     s.S.Set("campGlow", true)
     s.S.Set("campSitButton", true)
-    check("and on again", s.glows[icon] and icon.sit.shown)
+    check("and on again", s.glows[icon] and spot.shown and icon.label.text == "Click to sit")
+    s.auras[NEARBY] = nil
+    s.fire("UNIT_AURA")
+    check("out of range again: the fire greys and stops taking the click", spot.shown == false
+        and icon.tex.desaturated == true and icon.label.text == "Refresh Camp")
     local glow = s.glows[icon]
     check("the default glow is today's: red pixel lines, eight, two thick, a four second march",
         glow.kind == "pixel" and glow.color[1] == 0.97 and glow.color[2] == 0.27 and glow.lines == 8

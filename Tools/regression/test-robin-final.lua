@@ -11,7 +11,7 @@ local function fixture(kind)
         local f = { scripts = {}, events = {}, shown = true, parent = parent, attributes = {},
             secure = template == 'SecureActionButtonTemplate' or name == 'NaowhForeverTrinkets' }
         local noop = function() end
-        setmetatable(f, { __index = function(_, key) if key ~= 'sit' then return noop end end })
+        setmetatable(f, { __index = function(_, key) if key ~= 'sitSpot' and key ~= 'hot' then return noop end end })
         function f:SetScript(key, fn) self.scripts[key] = fn end
         function f:HookScript(key, fn)
             local old = self.scripts[key]

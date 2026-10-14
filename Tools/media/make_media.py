@@ -902,16 +902,6 @@ for name, pixel in JOURNEY_ICONS.items():
     write_tga(os.path.join(JOURNEYS_OUT, name + ".tga"), 64, pixel)
 
 
-AURABUFFS_OUT = os.path.join(paths.ROOT, "NaowhForever_AuraBuffs", "Media")
-write_tga(os.path.join(AURABUFFS_OUT, "Sit.tga"), 128, line_icon(
-    dot(0.43, 0.2, 0.09),
-    path([(0.4, 0.35), (0.37, 0.6)]),
-    path([(0.37, 0.6), (0.66, 0.6), (0.66, 0.86), (0.8, 0.86)]),
-    path([(0.4, 0.4), (0.55, 0.52)]),
-    path([(0.2, 0.3), (0.2, 0.9)]),
-    path([(0.2, 0.62), (0.3, 0.62)]),
-    width=0.07))
-
 GLIMMER_OUT = os.path.join(paths.ROOT, "NaowhForever_Glimmer", "Media")
 
 
