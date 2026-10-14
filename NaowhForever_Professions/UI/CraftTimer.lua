@@ -4,6 +4,7 @@ local ns = _G.NaowhForever
 local T = ns.THEME
 
 local P = ns.Professions
+local R = P.Recipes
 local S = P.Settings
 local Style = P.Style
 local Widgets = P.Widgets
@@ -209,11 +210,13 @@ local function Watch()
 end
 
 local function OnCraft(recipeID, count)
+    if not On() then return end
+    local recipe = C_TradeSkillUI.GetRecipeInfo(recipeID)
     count = tonumber(count) or 1
+    if recipe then count = math.min(count, R.Craftable(recipe)) end
+    if count < MIN_BATCH then return end
     local spell = C_Spell.GetSpellInfo(recipeID)
     local cast = spell and (spell.castTime or 0) / MS or 0
-    if not On() or count < MIN_BATCH then return end
-    local recipe = C_TradeSkillUI.GetRecipeInfo(recipeID)
     Stop()
     job = { recipeID = recipeID, name = recipe and recipe.name or (spell and spell.name),
         icon = recipe and recipe.icon or (spell and spell.iconID), count = count, done = 0,
