@@ -13,12 +13,14 @@ local GCD = 1.5
 local LANDING_DELAY = 10
 local MOVED = 100
 local PLAYER = "player"
+local NO_HEIGHT = 0
 local EVENTS = { "TAXIMAP_OPENED", "TAXIMAP_CLOSED", "TAXI_NODE_STATUS_CHANGED", "HEARTHSTONE_BOUND", "PLAYER_ENTERING_WORLD" }
 
 local World = {}
 Jy.World = World
 
 local events, landing, castFrom, atFlightMaster
+local learned = {}
 local knownVersion = 0
 local teleportBySpell = {}
 for _, tp in ipairs(ns.JourneyTeleports) do teleportBySpell[tp.spell] = tp end
@@ -30,7 +32,7 @@ end
 function World.Player()
     local x, y, z, c = UnitPosition(PLAYER)
     if not x or Secret(x) then return nil end
-    return { c = c, x = x, y = y, z = not Secret(z) and z or nil }
+    return { c = c, x = x, y = y, z = not Secret(z) and z ~= NO_HEIGHT and z or nil }
 end
 
 function World.FromMap(map, x, y)
@@ -57,6 +59,10 @@ end
 
 function World.Known()
     return Jy.CharStore("journeyFlights"), knownVersion
+end
+
+function World.OnLearned(fn)
+    learned[#learned + 1] = fn
 end
 
 local function Ready(start, duration)
@@ -92,10 +98,14 @@ end
 
 local function LearnFlights()
     local known = Jy.CharStore("journeyFlights")
+    local changed = false
     for _, node in ipairs(C_TaxiMap.GetAllTaxiNodes(GetTaxiMapID())) do
-        known[node.nodeID] = node.state ~= Enum.FlightPathState.Unreachable or nil
+        local now = node.state ~= Enum.FlightPathState.Unreachable or nil
+        if known[node.nodeID] ~= now then known[node.nodeID], changed = now, true end
     end
+    if not changed then return end
     knownVersion = knownVersion + 1
+    for i = 1, #learned do learned[i]() end
 end
 
 local function LearnLanding()

@@ -8,6 +8,7 @@ local Jy = ns.Journeys
 local S = Jy.Settings
 local Guide = Jy.Guide
 local World = Jy.World
+local TINT = Jy.RouteTint
 
 local DOT = ns.Shared.Style.ROUND
 local FILTER = "TRILINEAR"
@@ -24,6 +25,7 @@ local dots = {}
 local points
 local sinceUpdate = 0
 local count, size, alpha, limit = 0, 0, 0, 0
+local tint
 
 local Math = {}
 Jy.MinimapMath = Math
@@ -52,7 +54,11 @@ local function Place(x, y)
     dot:ClearAllPoints()
     dot:SetPoint("CENTER", overlay, "CENTER", x, y)
     dot:SetSize(size, size)
-    dot:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, alpha)
+    if tint then
+        dot:SetVertexColor(tint[1], tint[2], tint[3], alpha)
+    else
+        dot:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, alpha)
+    end
     dot:Show()
 end
 
@@ -75,6 +81,7 @@ local function Draw(here)
             local x, y = Math.Project(p.x - here.x, p.y - here.y, facing, half / radius)
             if px then
                 size, alpha = p.walk and WALK_SIZE or LEG_SIZE, p.walk and WALK_ALPHA or LEG_ALPHA
+                tint = not p.walk and TINT[p.mode] or nil
                 carry = Jy.RouteDots(px, py, x, y, p.walk and WALK_GAP or LEG_GAP, carry, Place)
             end
             px, py = x, y

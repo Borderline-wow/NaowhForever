@@ -20,7 +20,9 @@ local function On()
 end
 
 local function OnMap(quest, map)
-    for _, info in ipairs(C_QuestLog.GetQuestsOnMap(map)) do
+    local quests = C_QuestLog.GetQuestsOnMap(map)
+    if not quests then return nil end
+    for _, info in ipairs(quests) do
         if info.questID == quest then return info.x, info.y end
     end
 end
@@ -86,14 +88,13 @@ local function Recorded(quest)
     return Entrance(quest)
 end
 
-local function Target(quest)
-    local map, x, y = C_QuestLog.GetNextWaypoint(quest)
-    if map and x and y then return map, x, y end
+local function Marked(quest)
     local here = C_Map.GetBestMapForUnit(PLAYER)
-    if not here then return Recorded(quest) end
-    x, y = OnMap(quest, here)
+    if not here then return nil end
+    local x, y = OnMap(quest, here)
     if x then return here, x, y end
     local mine = Continent(here)
+    local map
     if mine then
         map, x, y = InZones(quest, mine)
         if map then return map, x, y end
@@ -104,7 +105,15 @@ local function Target(quest)
             if map then return map, x, y end
         end
     end
-    return Recorded(quest)
+end
+
+local function Target(quest)
+    local map, x, y = Marked(quest)
+    if map then return map, x, y end
+    map, x, y = Recorded(quest)
+    if map then return map, x, y end
+    map, x, y = C_QuestLog.GetNextWaypoint(quest)
+    if map and x and y then return map, x, y end
 end
 
 local function Far(map, x, y)

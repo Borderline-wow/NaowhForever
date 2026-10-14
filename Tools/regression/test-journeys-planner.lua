@@ -1,5 +1,5 @@
 -- Run with Lua 5.1 from the repository root: the Journeys planner. A short trip is a walk, a long
--- one takes known flights and your faction's ships, an unknown flight point or the other faction's
+-- one takes known flights (knowing where each stops) and your faction's ships, an unknown flight point or the other faction's
 -- boat is never used, the Hearthstone is taken only when it wins, a ship's wait counts, and the route
 -- being followed is kept unless another is clearly quicker.
 local function Read(path)
@@ -48,6 +48,14 @@ Check(Modes(long):find("tram", 1, true) and long.legs[#long.legs - 1].mode == "p
 local total = 0
 for _, leg in ipairs(long.legs) do total = total + leg.seconds end
 Check(math.abs(total - long.seconds) < 0.01, "the legs add up to the journey")
+
+local via = Plan({ known = { [2] = true, [6] = true, [7] = true, [12] = true }, from = { c = 0, x = -3793.4, y = -782.4 },
+    to = { c = 0, x = -10560, y = -1170, name = "Darkshire" } })
+local flown = via and via.legs[1]
+Check(flown and flown.mode == "fly" and flown.name == "Darkshire, Duskwood", "Menethil to Darkshire is one flight")
+local net = ns.JourneyNetwork.flights
+Check(flown.stops and #flown.stops == 4 and flown.stops[1] == net[6][3] and flown.stops[3] == net[2][3],
+    "which knows the flight points it stops at, Ironforge then Stormwind")
 
 local short = Plan({ to = { c = 0, x = -4900, y = -1100, name = "Bank" } })
 Check(short and Modes(short) == "walk", "a short trip is one walk: " .. (short and Modes(short) or "none"))

@@ -47,6 +47,8 @@ NaowhForever_Journeys/
   place, then the rest as it was), so near ties do not flip the journey back and forth.
 - Positions are world yards on a continent, as `UnitPosition`, `C_Map.GetWorldPosFromMapPos` and the
   game's tables give them, x north and y west.
+- `UnitPosition`'s height is a placeholder 0 (`NO_HEIGHT`), so a 0 is no height at all. Taken as a real
+  one, the walk from where you stand started on the ground nearest sea level and cost its height in yards.
 - Walking costs and paths come from the walking maps `Tools/nav` bakes from the client's terrain, in
   `NaowhForever_JourneysData`, a load-on-demand addon loaded on the first journey out of combat. Each
   tile is CBOR, deflated and in Base64, decoded by `C_EncodingUtil` when a walk first touches it; at
@@ -81,14 +83,16 @@ NaowhForever_Journeys/
   `Tools/build/journeys.py`, which makes it a "Lift" link in the network like the tram. The watch only runs
   for `LIFT_WINDOW` seconds after you stop, one check a second, and ends the moment you move.
 - Water costs `SWIM` times its yards and the sea `SEA` times, the same factors the bake used.
-- Tracking a quest (`SUPER_TRACKING_CHANGED`) starts a journey to the game's own next point for it
-  (`C_QuestLog.GetNextWaypoint`), or its marker on your map, when that is over `QUEST_NEAR` yards away
-  or on another continent. Close by, the game's quest arrow and area are better. On arrival the quest
-  is tracked again, so the game shows its area; if that point was only a zone crossing, the next is
-  far again and the journey goes on.
-- The game's own points come first: its next point, then the quest's marker on your map, then on
-  any zone's map. Only a quest the game marks nowhere uses `Data/QuestSpots.lua`, from Wowhead: the
-  turn-in once it is complete (or when it has no objective camps), else its nearest camp.
+- Tracking a quest (`SUPER_TRACKING_CHANGED`) starts a journey to the quest itself when that is over
+  `QUEST_NEAR` yards away or on another continent. Close by, the game's quest arrow and area are better.
+  On arrival the quest is tracked again, so the game shows its area.
+- The quest's own place comes first: its marker on your map, then on any zone's map. A quest the game
+  marks nowhere uses `Data/QuestSpots.lua`, from Wowhead: the turn-in once it is complete (or when it has
+  no objective camps), else its nearest camp. The game's next point (`C_QuestLog.GetNextWaypoint`) is the
+  last resort: for a quest in another zone it is the zone crossing on your map, so a journey to it only
+  ever walked to the border, one zone at a time, and never flew.
+- `C_QuestLog.GetQuestsOnMap` may return nothing for a map: that map has no marker, and the next place is
+  looked at.
 - The Journey card is a frame of its own, not the shared tracker panel: that panel's title bar, bar and
   footer take a third of the height a three-step journey needs, and it is shared by other modules. A line
   a step (icon, name, time), the total time, the cog and the close button in one header, and one thin
@@ -100,7 +104,8 @@ NaowhForever_Journeys/
 - `SHIP_SPEED` and the tram's 150 seconds are estimates until they are timed in game. A ship's
   expected wait is half its period until its departures are known.
 - Flight points come from the flight master's map (`TAXIMAP_OPENED`): `C_TaxiMap.GetAllTaxiNodes` only
-  answers there. They are kept per character in the account store, like the Action Bars' last set.
+  answers there. They are kept per character in the account store, like the Action Bars' last set, and
+  a new one plans the journey you follow again, so it can take that flight.
   A node learned with the map open (`TAXI_NODE_STATUS_CHANGED`) is read then too, but only between
   `TAXIMAP_OPENED` and `TAXIMAP_CLOSED`: the event also fires away from a flight master, where every node
   reads as unreachable and would wipe the list. With none known, the first journey says how to learn them.
@@ -108,9 +113,10 @@ NaowhForever_Journeys/
   walking maps stack floors in the cities, and without it the Ironforge tram end attached to a roof cut
   off from the city, so no journey used the tram.
 - Every walk in a plan gets its path (the first for the guide's corners, the later ones for the drawn
-  route), kept per journey so a replan does not search them again. Rides are drawn in their mode's colour.
-- A tracked dungeon quest the game gives no point for goes to its dungeon's entrance from the Dungeon
-  Journal, when that addon is on and the quest is not yet complete.
+  route), kept per journey so a replan does not search them again. Rides are drawn in their mode's colour,
+  on both maps, and a flight through each flight point it stops at on the way.
+- A tracked dungeon quest the game marks nowhere and `Data/QuestSpots.lua` has no place for goes to its
+  dungeon's entrance from the Dungeon Journal, when that addon is on and the quest is not yet complete.
 - The Hearthstone lands where you stood when you bound it (`HEARTHSTONE_BOUND`, at the innkeeper), and
   where it last landed. A teleport lands at its city's flight master until it has been cast once; the
   client has no table of where a teleport goes.

@@ -25,6 +25,8 @@ local TINT = {
     teleport = { 0.85, 0.35, 1 },
 }
 
+Jy.RouteTint = TINT
+
 local provider = CreateFromMixins(MapCanvasDataProviderMixin)
 local added
 local points = {}

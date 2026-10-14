@@ -1,6 +1,6 @@
 -- Run with Lua 5.1 from the repository root: the journey on the minimap. A world offset lands where the minimap
 -- puts it, turned by your facing when it rotates; and the dots drawn run along the walk to the first point and
--- each leg after it, one on the first corner, none beyond the circle.
+-- each leg after it, one on the first corner, none beyond the circle; a ride in its mode's colour, as on the world map.
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 local function Near(a, b) return math.abs(a - b) < 1e-6 end
@@ -13,7 +13,7 @@ end
 
 local drawn = {}
 local frame
-local points = { { c = 0, x = 50, y = 0, walk = true }, { c = 0, x = 500, y = 0, walk = false }, { c = 1, x = 0, y = 0 } }
+local points = { { c = 0, x = 50, y = 0, walk = true }, { c = 0, x = 500, y = 0, walk = false, mode = "fly" }, { c = 1, x = 0, y = 0 } }
 local listeners = {}
 local settings = { minimapRoute = true }
 local here = { c = 0, x = 0, y = 0 }
@@ -48,7 +48,7 @@ local env = setmetatable({
             dot.ClearAllPoints = function() end
             dot.SetPoint = function(d, _, _, _, x, y) d.x, d.y = x, y end
             dot.SetSize = function(d, w) d.size = w end
-            dot.SetVertexColor = function() end
+            dot.SetVertexColor = function(d, r, g, b) d.r, d.g, d.b = r, g, b end
             dot.Show = function(d) d.shown = true end
             dot.Hide = function(d) d.shown = false end
             drawn[#drawn + 1] = dot
@@ -77,12 +77,18 @@ Check(Near(x, 0) and Near(y, -50), "facing south, north is down")
 Check(frame and frame.scripts.OnUpdate, "a journey with points updates the minimap")
 frame.scripts.OnUpdate(frame, 0.1)
 local shown, corner, farthest = {}, false, 0
+local fly, accent = ns.Journeys.RouteTint.fly, ns.THEME.accent
 for _, dot in ipairs(drawn) do
     if dot.shown then
         shown[#shown + 1] = dot
         Check(Near(dot.x, 0), "every dot is on the route, due north")
         if Near(dot.y, 50) then corner = dot.size == 5 end
         farthest = math.max(farthest, dot.y)
+        if dot.y > 50 then
+            Check(dot.r == fly[1] and dot.g == fly[2] and dot.b == fly[3], "a flight's dots are in the flight colour")
+        else
+            Check(dot.r == accent.r and dot.g == accent.g and dot.b == accent.b, "a walk's dots are in the accent")
+        end
     end
 end
 Check(#shown == 11, "six on the walk to the first point, five on the leg until the circle: " .. #shown)

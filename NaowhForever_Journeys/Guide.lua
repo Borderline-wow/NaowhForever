@@ -306,6 +306,10 @@ local function Tick()
     end
 end
 
+local function OnLearned()
+    if journey then QueueReplan() end
+end
+
 local function OnEvent(_, event, isWaypoint)
     if event == "USER_WAYPOINT_UPDATED" then
         local point = C_Map.GetUserWaypoint()
@@ -381,6 +385,10 @@ function Guide.Points()
                 list[#list + 1] = { c = leg.c, x = leg.corners[k], y = leg.corners[k + 1], walk = true }
             end
         else
+            local stops = leg.stops
+            if stops then
+                for k = 1, #stops, 2 do list[#list + 1] = { c = leg.c, x = stops[k], y = stops[k + 1], mode = leg.mode } end
+            end
             list[#list + 1] = { c = leg.c, x = leg.x, y = leg.y, walk = leg.mode == "walk", mode = leg.mode }
         end
     end
@@ -420,6 +428,7 @@ local function Apply()
     if not Jy.On() then Guide.Cancel() end
 end
 
+World.OnLearned(OnLearned)
 Jy.Settings.OnChange(Apply)
 hooksecurefunc(ns, "Apply", Apply)
 Apply()
