@@ -580,38 +580,4 @@ do
     check("the ring takes the new color", ring and ring.color[1] == 0.1 and ring.color[3] == 0.3)
 end
 
--- Behind my character: the effect's textures take the cut-out mask, and lose it when it is off.
-do
-    local b = Session({ enabled = true, cutout = true })
-    b.Login()
-    b.game.guid, b.game.plate = GUID(COPPER), Widget(b)
-    b.Fire("PLAYER_SOFT_INTERACT_CHANGED", "", "x")
-    local lit = Lit(b)
-    local masked = lit and lit.cutout and lit.glow.mask == lit.cutout and lit.glints[1].tex.mask == lit.cutout
-        and lit.burst.mask == lit.cutout
-    check("cut-out on: every texture of the effect is masked", masked)
-    check("anchored where the character stands", lit.cutout.point[2] ~= b.game.plate)
-    b.Set("cutout", false)
-    lit = Lit(b)
-    check("cut-out off: no mask", lit and lit.glow.mask == nil and lit.glints[1].tex.mask == nil)
-end
-
--- Show the Cut-Out: a second click takes the outline off at once, and the button says which it does.
-do
-    local o = Session({ enabled = true, cutout = true })
-    o.Login()
-    local Cutout = o.ns.Glimmer.Cutout
-    check("the button offers to show it", Cutout.EdgeText() == "Show" and not Cutout.EdgeShown())
-    Cutout.ToggleEdge()
-    check("clicked: the outline shows, the button offers to hide it", Cutout.EdgeShown() and Cutout.EdgeText() == "Hide")
-    local stale = o.timers[#o.timers]
-    Cutout.ToggleEdge()
-    check("clicked again: it is off at once", not Cutout.EdgeShown() and Cutout.EdgeText() == "Show")
-    Cutout.ToggleEdge()
-    stale()
-    check("the first click's timer leaves a new outline alone", Cutout.EdgeShown())
-    o.RunTimers()
-    check("its own timer takes it off", not Cutout.EdgeShown() and Cutout.EdgeText() == "Show")
-end
-
 print(("test-glimmer: %d checks passed"):format(checks))

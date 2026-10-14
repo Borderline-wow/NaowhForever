@@ -27,7 +27,6 @@ NaowhForever_QoL/
     View/Style.lua                 its look: skill colors, effect sizes and timings (G.Style)
     View/Effects.lua               the five effects on a frame, over the world and on the previews (G.Effects)
     UI/Conflict.lua                the question when another addon changes the same game settings (G.CheckOthers)
-    UI/Cutout.lua                  the hole in the effect where your character stands, and its red outline (G.Cutout)
     UI/Highlight.lua               the effect and its line on the target's nameplate, and its events
     UI/Minimap.lua                 where herbs and veins grow, as icons on the minimap
     UI/MapPins.xml                 the Gathered pin's template, and the file that fills it
@@ -122,7 +121,7 @@ NaowhForever_QoL/
   Media/
     crosshair_ring.tga  the Crosshair's ring
     MouseRing/          the Mouse Ring's rings, glows and trail
-    Glimmer/            Glimmer's glow, flare, ring, beam, bracket, the cut-out and its outline, drawn by
+    Glimmer/            Glimmer's glow, flare, ring, beam and bracket, drawn by
                         Tools/media/make_media.py
   README.md           this file
 ```
@@ -853,16 +852,13 @@ NaowhForever_QoL/
   quest to pick up or hand in, the only NPCs Glimmer lights. Quest objects get the line of the
   quest objective they count for. Quest Item Sparkle keeps the game's loot sparkle on quest items
   through graphics presets. Minimap Icons shows every spot herbs and ore grow near you, ringed in their
-  skill-up color, and Gathered on the Map every herb and vein you gather. Behind My Character cuts the
-  effect out around you, so it passes behind you instead of over you.
+  skill-up color, and Gathered on the Map every herb and vein you gather.
 - Its spots (25,177 on 44 maps) used to be the load-on-demand NaowhForever_GlimmerData; they are now one string in
   QoL, CBOR deflated in Base64 (about 130 KB), which Spots.Load unpacks with the client's own C_EncodingUtil
   the first time Minimap Icons or Gathered on the Map needs them (about 1.2 MB as a table, measured in Lua 5.1),
   then lets the string go. A player who never turns those on holds only the string, and there is one addon
   fewer in the list. It never unpacks in combat. An old NaowhForever_GlimmerData folder is switched off at
   login with a note to delete it.
-- Show the Cut-Out is a toggle: a second click takes the outline off at once, and its button says Hide
-  while the outline shows (a button row's `buttonText` may be a function).
 - The game always picks one object to interact with, the `softinteract` unit, and gives it a
   nameplate when `SoftTargetNameplateInteract` is on. Glimmer hangs its effect on that nameplate,
   so only that one object lights up and the effect follows it on screen with no work of ours.
@@ -897,13 +893,9 @@ NaowhForever_QoL/
   preset turns the quest sparkle settings back; `CVAR_UPDATE` on a preset or one of those settings
   puts them back `SPARKLE_AGAIN` seconds later, after the preset has finished writing.
 - Taking the quest sparkle off only shows after a full restart of the game, so the card says so.
-- The game does not tell an addon where your character is on screen. With the camera behind you, you
-  stand near the middle, so Behind My Character masks a capsule there (`CUTOUT_SHARE` of the screen's
-  height, `CUTOUT_Y` below the middle) with its size and height as settings, and Show the Cut-Out
-  outlines it in red so you can fit it. The mask belongs to the effect's frame but is anchored to the
-  screen, so its size and place are scaled from the screen's scale to the nameplate's, which changes
-  with distance; it is placed again on every repaint and every reach check. Its texture is opaque to its edges, so
-  anything outside it stays visible.
+- There used to be a Behind My Character cut-out, a mask at a guessed spot near the middle of the
+  screen, since the game does not tell an addon where your character is. It took three settings to fit
+  and testers did not understand it, so it was removed.
 - Other addons that change the same soft target settings (`OTHER_ADDONS`) undo Glimmer's and it
   undoes theirs; with one on as well, Glimmer asks once per session to disable it.
 - A slider drag sets its key on every step, so settings apply once on the next frame.
@@ -930,7 +922,7 @@ NaowhForever_QoL/
   map keeps at most `MAX_GATHERED` nodes, dropping the one gathered longest ago. They are kept in the
   account settings, so every character's gathering shows.
 - Check it offline: `lua Tools/regression/test-glimmer.lua`: reading the target, skill-up colors, the game settings
-  saved and put back, combat, the nameplate it opens, the cut-out, the minimap icons and the gathered pins, against
+  saved and put back, combat, the nameplate it opens, the minimap icons and the gathered pins, against
   stubs of the game's API.
 
 ### QoL defaults (Core/Settings.lua)

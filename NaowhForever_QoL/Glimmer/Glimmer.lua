@@ -10,7 +10,6 @@ local S = ns.UI.ModuleSettings("glimmer", {
     questSparkle = F.questSparkle,
     minimapIcons = F.minimapIcons, minimapSize = 14, myProfessions = true,
     gatheredPins = F.gatheredPins, gatheredPinSize = 18,
-    cutout = F.cutout, cutoutSize = 1, cutoutHeight = 0,
     style = "sparkles", size = 1, brightness = 1,
     skillColors = true, showLine = true,
     hideInstance = true, hideLocked = false,

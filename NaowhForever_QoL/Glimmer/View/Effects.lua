@@ -240,19 +240,6 @@ function Effects.Start(fx)
     for _, glint in ipairs(fx.glints) do Respawn(glint) end
 end
 
-function Effects.Mask(fx, mask)
-    if fx.mask == mask then return end
-    for _, list in pairs(fx.parts) do
-        for _, t in ipairs(list) do
-            if fx.mask then t:RemoveMaskTexture(fx.mask) end
-            if mask then t:AddMaskTexture(mask) end
-        end
-    end
-    if fx.mask then fx.burst:RemoveMaskTexture(fx.mask) end
-    if mask then fx.burst:AddMaskTexture(mask) end
-    fx.mask = mask
-end
-
 function Effects.Burst(fx)
     fx.burstAge = 0
     for _, glint in ipairs(fx.glints) do Respawn(glint, true) end

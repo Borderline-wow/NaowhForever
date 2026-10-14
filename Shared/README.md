@@ -128,7 +128,7 @@ Each file uses only the ones above it in `Shared.xml`. Every part sits on `ns.Sh
   returns a short line for it, or nil: beside a row's control, after a card's summary. A row's
   `labelColor` is a color table for its label (AuraBuffs' class colors and grey).
   A button row's `buttonText` may be a function, read when the row is drawn and again after each
-  click (Glimmer's Show the Cut-Out says Hide while its outline shows).
+  click.
   A card with `into = "<id>"` puts its rows, under a group named for it, in the card of that id on the
   same page, in `order`, instead of drawing a card of its own (QoL's Looting, Vendors, Auction Prices
   and Mail & Alts are one card); it has no switch, and its id still finds the shared card. A card's

@@ -6113,14 +6113,6 @@ L["Every herb and vein you gather, on the world map; click one for a waypoint."]
 L["Gathered Pin Size"] = true
 L["Gathered on the Map"] = true
 L["Glimmer notes every herb and vein you gather, so you can find them again."] = true
-L["Behind My Character"] = true
-L["Cut the effect out around your character, so it passes behind you instead of over you."] = true
-L["Cut-Out Size"] = true
-L["Bigger if the effect still covers you, smaller if it stops short."] = true
-L["Cut-Out Height"] = true
-L["Moves the cut-out up or down the screen."] = true
-L["Show the Cut-Out"] = true
-L["Outlines it in red for a few seconds; it should hug your character."] = true
 L["%d bytes over the game's %d: the end is cut off."] = true
 L["Only #showtooltip and #show do anything; other # lines are skipped."] = true
 L["#showtooltip only works on the first line."] = true

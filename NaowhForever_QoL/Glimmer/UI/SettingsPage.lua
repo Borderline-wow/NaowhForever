@@ -22,10 +22,8 @@ local SIZE_RANGE, BRIGHT_RANGE = { 60, 160, 5 }, { 30, 150, 5 }
 local RANGE_RANGE = { 5, 15, 1 }
 local TO_FRACTION = St.PERCENT_SCALE
 local ORDER_WINDOW, ORDER_LOOK, ORDER_OBJECTS, ORDER_HIDE = 5, 10, 20, 30
-local ORDER_DETECT, ORDER_MINIMAP, ORDER_GATHERED, ORDER_SPARKLE, ORDER_RESTORE = 40, 44, 46, 50, 60
+local ORDER_DETECT, ORDER_MINIMAP, ORDER_GATHERED, ORDER_RESTORE = 40, 44, 46, 60
 local MINIMAP_SIZE = { 10, 24, 1 }
-local CUTOUT_SIZE, CUTOUT_HEIGHT = { 50, 200, 5 }, { -30, 30, 1 }
-local ORDER_CUTOUT = 15
 local PIN_SIZE = St.PIN_SIZE_RANGE
 local TEXT_SECTION = ns.L("Glimmer")
 local TEXT_PINS_OFF = ns.L("Turn on Gathered Herbs and Ore")
@@ -163,22 +161,10 @@ page:Card({
           help = "Color herbs and ore by your chance of a skill-up, red when your skill is too low." },
         { key = "showLine", label = "Show Skill and Quest Line", toggle = true, needs = Enabled, why = OFF,
           help = "A line under the name: the skill-up chance, or what the quest still needs." },
+        { key = "questSparkle", label = "Quest Item Sparkle", toggle = true, needs = Enabled, why = OFF,
+          help = "The game's own sparkle on every quest item, kept on through graphics presets." },
     },
-})
-
-local function CutoutOn() return G.On() and S.Get("cutout") end
-
-page:Card({
-    id = "cutout", name = "Behind My Character", order = ORDER_CUTOUT, switch = "cutout",
-    help = "Cut the effect out around your character, so it passes behind you instead of over you.",
-    rows = {
-        { key = "cutoutSize", label = "Cut-Out Size", slider = CUTOUT_SIZE, unit = "%", scale = TO_FRACTION,
-          needs = CutoutOn, why = OFF, help = "Bigger if the effect still covers you, smaller if it stops short." },
-        { key = "cutoutHeight", label = "Cut-Out Height", slider = CUTOUT_HEIGHT, unit = "%", scale = TO_FRACTION,
-          needs = CutoutOn, why = OFF, help = "Moves the cut-out up or down the screen." },
-        { label = "Show the Cut-Out", button = G.Cutout.ToggleEdge, buttonText = G.Cutout.EdgeText,
-          needs = CutoutOn, why = OFF, help = "Outlines it in red for a few seconds; it should hug your character." },
-    },
+    note = SparkleNote,
 })
 
 page:Card({
@@ -237,14 +223,6 @@ page:Card({
 })
 
 table.insert(ns.Shared.MapPins, { title = TEXT_SECTION, store = S, switch = "gatheredPins", rows = GATHERED_ROWS })
-
-page:Card({
-    id = "questSparkle", name = "Quest Item Sparkle", order = ORDER_SPARKLE, switch = "questSparkle",
-    help = "The game's own sparkle on every quest item, kept on through graphics presets; Glimmer's Effect "
-        .. "does not change it.",
-    note = SparkleNote,
-    rows = {},
-})
 
 page:Card({
     id = "restore", name = "Game Settings", order = ORDER_RESTORE,
