@@ -194,6 +194,7 @@ local function fixture(settings, noMacros, class)
         -- The Shared kit: a window's parts, and the settings pages a file declares.
         Shared = {
             Parts = {
+                Press = function(button) button.pressed = true end,
                 -- The kit's panel: its title and its x, as Parts.Panel makes them.
                 Panel = function(title)
                     local f = frame('Panel')

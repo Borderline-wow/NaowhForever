@@ -87,6 +87,7 @@ end
 function ItemBar.SecureButton(parent, name)
     local button = ItemBar.NewButton(parent, "SecureActionButtonTemplate", name)
     button:RegisterForClicks("AnyUp", "AnyDown")
+    Shared.Parts.Press(button)
     button:SetScript("OnEnter", TipEnter)
     button:SetScript("OnLeave", TipLeave)
     return button

@@ -148,7 +148,7 @@ local function NewSelfButton(name)
     btn:RegisterForClicks("AnyUp", "AnyDown")
     btn:SetAttribute("type1", "spell")
     btn:SetAttribute("unit1", "player")
-    btn:SetHighlightTexture(Look.HIGHLIGHT, "ADD")
+    ns.Shared.Parts.Press(btn)
     Look.Icon(btn)
     B.Watch(btn)
     return btn

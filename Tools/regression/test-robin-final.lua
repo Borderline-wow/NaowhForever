@@ -59,6 +59,7 @@ local function fixture(kind)
         Shared = { Style = { TIME_OK_RGB = {}, TIME_LOW_RGB = {}, TIME_OUT_RGB = {} },
             Parts = { Smooth = function(t) return t end, HudText = function(t) return t end,
                 Pill = function() return frame() end, SetPill = function() return 0 end, ColorPill = function() end,
+                Press = function(button) button.pressed = true end,
                 HudFont = function(fs, font, size, outline) fs:SetFont(font, size, outline) end } },
         Font = function() return frame() end, Tooltip = function() end,
         Button = function(parent, text, w, h, callback)

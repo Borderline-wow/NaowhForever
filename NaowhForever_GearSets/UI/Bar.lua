@@ -59,6 +59,7 @@ local function NewButton()
     btn.icon, btn.border = Look.Dress(btn)
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     btn:SetScript("OnClick", OnButtonClick)
+    ns.Shared.Parts.Press(btn)
     btn:SetScript("OnEnter", SetTooltip)
     btn:SetScript("OnLeave", HideTooltip)
     return btn

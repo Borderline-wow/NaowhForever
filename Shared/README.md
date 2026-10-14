@@ -40,7 +40,9 @@ Shared/
                    QoL's town pins, the Training Planner's trainers and Professions' rank alerts read it
   Game/Played.lua  the character's /played time, asked for once with the chat print muted (XP Bar, XP per Hour)
   UI/Parts.lua     the small parts: icons in text (Parts.Inline), smooth textures, hover cards (Parts.Tip,
-                   Parts.TipLines), the chevron, links, icon buttons, a short label in a pill of its color
+                   Parts.TipLines), the chevron, links, icon buttons, the game's hover glow and pressed look
+                   on a bar button (Parts.Press: the item bars, Blessings, Gear Set and Trinket bars, Group
+                   Buttons), a short label in a pill of its color
                    (Parts.Pill, Parts.SetPill: Group Inspect's "NF"), the worn bar, the Wowhead copy card
   UI/Marks.lua     an item's marks: rank stars and lines, the upgrade line, Forever's mark, the item icon,
                    its slot marks (item level, star, Forever's mark, upgrade arrow) and an atlas badge on

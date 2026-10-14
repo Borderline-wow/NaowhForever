@@ -92,6 +92,7 @@ local function Fixture(opts)
         QoLSettings = Q,
         Shared = {
             Style = dofile("Tools/regression/shared_style.lua"),
+            Parts = { Press = function(button) button.pressed = true end },
             -- The settings kit, keeping the cards each page declares.
             Settings = {
                 Group = function(title) return { group = title } end,

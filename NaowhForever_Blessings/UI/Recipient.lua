@@ -2,7 +2,7 @@
 local ns = _G.NaowhForever
 
 local B = ns.Blessings
-local HIGHLIGHT = B.Look.HIGHLIGHT
+local Parts = ns.Shared.Parts
 
 local TEMPLATE = "NaowhForeverBlessButtonTemplate"
 local NOBODY = B.NOBODY
@@ -24,7 +24,7 @@ function B.Recipient(parent, name)
     local button = header:GetAttribute("child1")
     button:RegisterForClicks("AnyUp", "AnyDown")
     button:SetAttribute("type1", "spell")
-    button:SetHighlightTexture(HIGHLIGHT, "ADD")
+    Parts.Press(button)
     return header, button
 end
 

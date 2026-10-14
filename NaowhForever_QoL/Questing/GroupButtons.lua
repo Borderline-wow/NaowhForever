@@ -48,6 +48,7 @@ local function Style(button, text, tip)
     button.label:SetPoint("CENTER")
     button.label:SetText(text)
     button.tip = tip
+    Parts.Press(button)
     button:SetScript("OnEnter", Enter)
     button:SetScript("OnLeave", Leave)
 end

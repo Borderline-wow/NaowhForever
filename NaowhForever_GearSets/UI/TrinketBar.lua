@@ -3,6 +3,7 @@ local ns = _G.NaowhForever
 
 local S = ns.QoLSettings
 local T = ns.THEME
+local Parts = ns.Shared.Parts
 local G = ns.GearSets
 local C, St, Look = G.C, G.Style, G.Look
 local TRINKET_SLOTS = C.TRINKET_SLOTS
@@ -92,6 +93,7 @@ local function PickButton(i)
     button.icon:SetAllPoints()
     ns.Border(button, BLACK)
     button:SetScript("OnClick", OnPickClick)
+    Parts.Press(button)
     button:SetScript("OnEnter", OnPickEnter)
     button:SetScript("OnLeave", HideTooltip)
     picker.buttons[i] = button
@@ -139,6 +141,7 @@ local function NewSlot(i)
     local slot = TRINKET_SLOTS[i]
     local button = CreateFrame("Button", nil, trinkets, "SecureActionButtonTemplate")
     button:RegisterForClicks("AnyUp", "AnyDown")
+    Parts.Press(button)
     button:SetAttribute("item1", tostring(slot))
     button.icon = button:CreateTexture(nil, "ARTWORK")
     ns.PixelInset(button.icon, ICON_INSET)

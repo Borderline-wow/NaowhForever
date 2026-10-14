@@ -1,4 +1,4 @@
--- Parts.lua: the small parts a page is made of (ns.Shared.Parts): icons in text, smooth textures, hover cards, the chevron, links, icon buttons, pills, the worn bar and the Wowhead copy card.
+-- Parts.lua: the small parts a page is made of (ns.Shared.Parts): icons in text, smooth textures, hover cards, the chevron, links, icon buttons, the game's hover glow and pressed look for a bar button, pills, the worn bar and the Wowhead copy card.
 local ns = _G.NaowhForever
 local T = ns.THEME
 local Shared = ns.Shared
@@ -17,6 +17,9 @@ local TIP_TITLE = 1
 local ID_LABELS = { item = ns.L("Item ID"), spell = ns.L("Spell ID"), quest = ns.L("Quest ID"), npc = ns.L("NPC ID"), object = ns.L("Object ID") }
 local TEXT_ID = ns.L("ID")
 local COPY_FIELD = "url"
+local BUTTON_HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
+local BUTTON_PUSHED = "Interface\\Buttons\\UI-Quickslot-Depress"
+local PUSHED_LAYER, PUSHED_SUBLEVEL = "ARTWORK", 1
 
 local function Tip(owner, anchor, x, y)
     if Menu.GetManager():IsAnyMenuOpen() then return false end
@@ -94,6 +97,17 @@ Parts.LinkColor = LinkColor
 function Parts.Inline(texture, color, drop)
     return INLINE_ICON:format(texture, -(drop or Parts.TOOLTIP_DROP),
         color.r * COLOR_SCALE, color.g * COLOR_SCALE, color.b * COLOR_SCALE)
+end
+
+local function SyncPushed(button, _, down)
+    button:SetButtonState(down and "PUSHED" or "NORMAL")
+end
+
+function Parts.Press(button)
+    button:SetHighlightTexture(BUTTON_HIGHLIGHT, "ADD")
+    button:SetPushedTexture(BUTTON_PUSHED)
+    button:GetPushedTexture():SetDrawLayer(PUSHED_LAYER, PUSHED_SUBLEVEL)
+    button:HookScript("OnClick", SyncPushed)
 end
 
 function Parts.Link(parent, onClick, arrow)
