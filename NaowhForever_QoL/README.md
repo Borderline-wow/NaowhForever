@@ -19,9 +19,11 @@ NaowhForever_QoL/
     Constants.lua                  the names, game settings, timings and limits its files share (G.C)
     Data/Nodes.lua                 every herb, vein and chest by object ID, with the skill it needs (G.NODES),
                                    from Tools/build/glimmer_nodes.py
+    Data/Spots.lua                 where herbs and veins grow, packed into one string (ns.GlimmerSpotsPacked),
+                                   from Tools/build/glimmer_nodes.py
     CVars.lua                      the game settings it changes, saved first and put back (G.CVars)
     Target.lua                     what the soft interact target is, its reach and its skill-up chance (G.Target)
-    Spots.lua                      where herbs and veins grow (NaowhForever_GlimmerData), and the ones gathered (G.Spots)
+    Spots.lua                      where herbs and veins grow, unpacked on first use, and the ones gathered (G.Spots)
     View/Style.lua                 its look: skill colors, effect sizes and timings (G.Style)
     View/Effects.lua               the five effects on a frame, over the world and on the previews (G.Effects)
     UI/Conflict.lua                the question when another addon changes the same game settings (G.CheckOthers)
@@ -830,7 +832,12 @@ NaowhForever_QoL/
   through graphics presets. Minimap Icons shows every spot herbs and ore grow near you, ringed in their
   skill-up color, and Gathered on the Map every herb and vein you gather. Behind My Character cuts the
   effect out around you, so it passes behind you instead of over you.
-- Its spot data stays the load-on-demand NaowhForever_GlimmerData, which needs NaowhForever_QoL.
+- Its spots (25,177 on 44 maps) used to be the load-on-demand NaowhForever_GlimmerData; they are now one string in
+  QoL, CBOR deflated in Base64 (about 130 KB), which Spots.Load unpacks with the client's own C_EncodingUtil
+  the first time Minimap Icons or Gathered on the Map needs them (about 1.2 MB as a table, measured in Lua 5.1),
+  then lets the string go. A player who never turns those on holds only the string, and there is one addon
+  fewer in the list. It never unpacks in combat. An old NaowhForever_GlimmerData folder is switched off at
+  login with a note to delete it.
 - Show the Cut-Out is a toggle: a second click takes the outline off at once, and its button says Hide
   while the outline shows (a button row's `buttonText` may be a function).
 - The game always picks one object to interact with, the `softinteract` unit, and gives it a
@@ -879,8 +886,8 @@ NaowhForever_QoL/
 - A slider drag sets its key on every step, so settings apply once on the next frame.
 - The game does not tell an addon where its tracking dots are, and it cannot switch tracking for you:
   Find Herbs and Find Minerals are casts, which only a click may start. So the minimap icons come from
-  where Wowhead Forever has each herb and vein growing (`ns.GlimmerSpots`, in the load-on-demand
-  NaowhForever_GlimmerData), and herbs and ore show together whatever you track. The game's own dot on
+  where Wowhead Forever has each herb and vein growing (`ns.GlimmerSpots`, unpacked from
+  Data/Spots.lua on first use), and herbs and ore show together whatever you track. The game's own dot on
   top of an icon is a node up right now.
 - The minimap shows at most `MINIMAP_MAX` icons, the spots inside its view. Placing them is
   `Parts.MinimapLayer` (Shared/UI/MinimapPins.lua): it moves them only while you move or the minimap

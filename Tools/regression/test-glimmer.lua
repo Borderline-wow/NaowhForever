@@ -110,12 +110,16 @@ local function Session(settings, opts)
             IsAddOnLoaded = function(name) return game.loaded[name] and true or false end,
             GetAddOnInfo = function(name) return name, name end,
             DisableAddOn = function(name) game.loaded[name] = nil; log.disabled = name end,
-            LoadAddOn = function(name)
-                log.dataLoaded = name
-                ns.GlimmerSpots = { [1429] = { 1731, 500, 520, 1618, 510, 500, 1732, 900, 900 } }
+        },
+        C_EncodingUtil = {
+            DecodeBase64 = function(s) return s end,
+            DecompressString = function(s) return s end,
+            DeserializeCBOR = function(s)
+                log.dataLoaded = s
+                return { 1429, { 1731, 500, 520, 1618, 510, 500, 1732, 900, 900 } }
             end,
         },
-        Enum = { TooltipDataLineType = { QuestObjective = 8 } },
+        Enum = { TooltipDataLineType = { QuestObjective = 8 }, CompressionMethod = { Deflate = 0 } },
         UnitGUID = function() return game.guid end,
         UnitIsGameObject = function() return game.guid ~= nil and game.object end,
         UnitIsInInteractRange = function() return game.near end,
@@ -429,7 +433,8 @@ do
     m.Login()
     check("map features off: the spot data is not loaded", m.dataLoaded == nil)
     m.Set("minimapIcons", true)
-    check("minimap icons on: the spot data loads", m.dataLoaded == "NaowhForever_GlimmerData")
+    check("minimap icons on: the packed spots are unpacked, once, and let go", type(m.dataLoaded) == "string"
+        and #m.dataLoaded > 0 and m.ns.GlimmerSpotsPacked == nil and m.ns.GlimmerSpots[1429] ~= nil)
     local shown = {}
     for _, f in ipairs(m.frames) do
         if f.ring and f.shown and f.id then shown[#shown + 1] = f end

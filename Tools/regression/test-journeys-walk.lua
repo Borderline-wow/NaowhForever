@@ -1,5 +1,5 @@
 -- Run with Lua 5.1 from the repository root: walking over the baked maps. Zephras Isle's real data is
--- decoded the way the client does (Base64, deflate, CBOR; LibDeflate and the readers below stand in for
+-- decoded the way the client does (Base64, deflate, CBOR; Tools/regression/encoding_util.lua stands in for
 -- C_EncodingUtil), a spot finds the polygon under it, a walk costs at least the straight line, the same
 -- walk costs the same both ways, and the network's own places walk to each other through the table.
 local function Read(path)
@@ -11,50 +11,6 @@ end
 local checks = 0
 local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
-local B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local B64_VALUE = {}
-for i = 1, #B64 do B64_VALUE[B64:sub(i, i)] = i - 1 end
-
-local function DecodeBase64(s)
-    local out, bits, count = {}, 0, 0
-    for i = 1, #s do
-        local v = B64_VALUE[s:sub(i, i)]
-        if v then
-            bits, count = bits * 64 + v, count + 6
-            if count >= 8 then
-                count = count - 8
-                local byte = math.floor(bits / 2 ^ count)
-                out[#out + 1] = string.char(byte)
-                bits = bits - byte * 2 ^ count
-            end
-        end
-    end
-    return table.concat(out)
-end
-
-local function Cbor(s)
-    local at = 1
-    local function Arg(info)
-        if info < 24 then return info end
-        local n = ({ [24] = 1, [25] = 2, [26] = 4 })[info]
-        local v = 0
-        for _ = 1, n do v = v * 256 + s:byte(at); at = at + 1 end
-        return v
-    end
-    local function Item()
-        local head = s:byte(at); at = at + 1
-        local major, n = math.floor(head / 32), Arg(head % 32)
-        if major == 0 then return n end
-        if major == 1 then return -1 - n end
-        if major == 3 then local text = s:sub(at, at + n - 1); at = at + n; return text end
-        if major == 4 then local t = {}; for i = 1, n do t[i] = Item() end; return t end
-        local t = {}
-        for _ = 1, n do local k = Item(); t[k] = Item() end
-        return t
-    end
-    return Item()
-end
-
 local env = setmetatable({}, { __index = _G })
 env._G = env
 local function Load(path)
@@ -62,19 +18,9 @@ local function Load(path)
     setfenv(chunk, env)
     return chunk()
 end
-env.LibStub = nil
-env.strmatch = string.match
-Load("Libs/LibStub/LibStub.lua")
-Load("Libs/LibDeflate/LibDeflate.lua")
-local LibDeflate = env.LibStub("LibDeflate")
-
 local ns = { Journeys = {} }
 env.NaowhForever = ns
-env.C_EncodingUtil = {
-    DecodeBase64 = DecodeBase64,
-    DecompressString = function(s) return LibDeflate:DecompressDeflate(s) end,
-    DeserializeCBOR = Cbor,
-}
+env.C_EncodingUtil = dofile("Tools/regression/encoding_util.lua")()
 env.Enum = { CompressionMethod = { Deflate = 0 } }
 env.InCombatLockdown = function() return false end
 env.C_AddOns = { IsAddOnLoaded = function() return true end, LoadAddOn = function() end }

@@ -29,7 +29,6 @@ ns.Glimmer.C = {
     STATE_CHECK = 0.15,
     STATE_HOLD = 0.15,
     OTHER_ADDONS = { "Lueur", "ForeverLootSparkles" },
-    DATA_ADDON = "NaowhForever_GlimmerData",
     ICON_SPELL = { herb = 2383, ore = 2580 },
     SPOT_SCALE = 1000,
     SNAP = 15,
