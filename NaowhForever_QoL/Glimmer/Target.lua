@@ -111,7 +111,7 @@ local function QuestGiver(unit, info)
     local category, unable = Cursor(unit)
     if category ~= "quest" then return end
     wipe(info)
-    info.category, info.unable = category, unable or false
+    info.category, info.unable = "giver", unable or false
     info.locked = info.unable
     info.ready = Target.Reach(unit)
     return info

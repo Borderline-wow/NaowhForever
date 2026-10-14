@@ -69,6 +69,7 @@ local function Session(settings, opts)
         UI = { ModuleSettings = function(_, defaults)
             function S.Get(k) local v = settings[k]; if v == nil then return defaults[k] end; return v end
             function S.Set(k, v) settings[k] = v end
+            function S.Raw(k) return settings[k] end
             return S
         end },
     }
@@ -232,6 +233,28 @@ do
     check("off: no event but the login check", Registered(log) == 0)
 end
 
+-- Quest givers used to be part of Quest Objects: a profile without its own giver settings takes the
+-- quest ones, once, and a profile switched to later gets the same.
+do
+    local settings = { quest = false, questStyle = "ring", questColor = { r = 0.1, g = 0.2, b = 0.3 } }
+    local log = Session(settings)
+    log.ns.Apply()
+    check("quest objects off: quest givers stay off", settings.giver == false)
+    check("and keep the quest effect", settings.giverStyle == "ring")
+    check("and the quest color, as a copy", settings.giverColor ~= settings.questColor
+        and settings.giverColor.r == 0.1 and settings.giverColor.g == 0.2 and settings.giverColor.b == 0.3)
+    log.S.Set("giver", true)
+    log.S.Set("giverStyle", "beam")
+    log.ns.Apply()
+    check("only once: givers turned back on stay on", settings.giver == true and settings.giverStyle == "beam")
+
+    for k in pairs(settings) do settings[k] = nil end
+    settings.quest, settings.giverStyle = true, "glow"
+    log.ns.Apply()
+    check("another profile: givers follow quest objects", settings.giver == true)
+    check("a giver effect already picked is kept", settings.giverStyle == "glow" and settings.giverColor == nil)
+end
+
 -- Every effect draws, in reach and out, through its flash.
 do
     local e = Session({})
@@ -336,6 +359,10 @@ check("a quest giver with a quest to hand in lights up", Lit(log) ~= nil)
 log.game.cursor = "Interface\\Cursor\\Quest"
 log.Fire("PLAYER_SOFT_INTERACT_CHANGED", "y", "z")
 check("and one with a quest to pick up", Lit(log) ~= nil)
+log.Set("giver", false)
+log.Fire("PLAYER_SOFT_INTERACT_CHANGED", "z", "y")
+check("quest givers switched off: dark, and no nameplate opened", cv.SoftTargetNameplateInteract == "0" and Lit(log) == nil)
+log.Set("giver", true)
 log.game.cursor = nil
 log.Fire("PLAYER_SOFT_INTERACT_CHANGED", "z", "y")
 check("an NPC with no quest stays dark", Lit(log) == nil)
@@ -356,6 +383,10 @@ log.game.guid, log.game.related = GUID(999999), true
 log.game.tooltip = { lines = { { type = 1, leftText = "Supply Crate" }, { type = 8, leftText = "Supplies: 1/4" } } }
 log.Fire("PLAYER_SOFT_INTERACT_CHANGED", "b", "c")
 check("a quest object shows what is still needed", Lit(log) ~= nil and LineText(log) == "Supplies: 1/4")
+log.Set("giver", false)
+log.Fire("PLAYER_SOFT_INTERACT_CHANGED", "z", "y")
+check("quest objects stay lit with quest givers off", Lit(log) ~= nil)
+log.Set("giver", true)
 log.game.related = false
 
 -- The game does not call it quest related, but its tooltip lists the objective: still a quest object,

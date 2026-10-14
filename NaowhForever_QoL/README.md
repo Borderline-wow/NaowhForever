@@ -922,6 +922,10 @@ NaowhForever_QoL/
   quest objective they count for. Quest Item Sparkle keeps the game's loot sparkle on quest items
   through graphics presets. Minimap Icons shows every spot herbs and ore grow near you, ringed in their
   skill-up color, and Gathered on the Map every herb and vein you gather.
+- Quest Givers were part of Quest Objects until they got their own category, and turning Quest Objects
+  off was the only way to keep the nameplate off quest NPCs. A profile with no `giver` setting yet
+  takes `quest`, `questStyle` and `questColor` for it on `ns.Apply`, which also runs on a profile
+  switch; once `giver` is set it never runs again for that profile.
 - Its spots (25,177 on 44 maps) used to be the load-on-demand NaowhForever_GlimmerData; they are now one string in
   QoL, CBOR deflated in Base64 (about 130 KB), which Spots.Load unpacks with the client's own C_EncodingUtil
   the first time Minimap Icons or Gathered on the Map needs them (about 1.2 MB as a table, measured in Lua 5.1),
