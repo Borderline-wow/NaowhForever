@@ -12,6 +12,9 @@ local FILL_SUBLEVEL = 1
 local SEARCH_ICON_SIZE, SEARCH_ICON_LEFT, SEARCH_ICON_GAP = 13, 7, 6
 local SEARCH_TEXT_LEFT = SEARCH_ICON_LEFT + SEARCH_ICON_SIZE + SEARCH_ICON_GAP
 local SEARCH_TEXT_RIGHT = 22
+local FOREVER_OVERHANG = math.max(St.FOREVER_TAB_RIGHT_X, St.FOREVER_ACTIVE_RIGHT_X)
+
+local fitOrder = {}
 
 local function TabClicked(button)
     local bar = button:GetParent()
@@ -20,7 +23,7 @@ end
 
 local function TabEnter(button)
     if button.key ~= button:GetParent().shown then button.text:SetTextColor(T.fg.r, T.fg.g, T.fg.b) end
-    if button.tip then TipLines(button, "ANCHOR_BOTTOM", button.label, button.tip) end
+    if button.tip or button.cut then TipLines(button, "ANCHOR_BOTTOM", button.label, button.tip) end
 end
 
 local function TabLeave(button)
@@ -95,15 +98,60 @@ function Parts.PaintTabs(bar, shown)
     end
 end
 
+local function Widest(a, b) return a.fit > b.fit end
+
+local function CutWidest(count, room, total)
+    for i = 1, count do
+        total = total - fitOrder[i].fit
+        local level = math.floor((room - total) / i)
+        if i == count or level >= fitOrder[i + 1].fit then
+            for j = 1, i do
+                local button = fitOrder[j]
+                button.fit = math.max(level, button.pad)
+                button.cut = true
+                button.text:SetWordWrap(false)
+                button.text:SetWidth(math.max(1, button.fit - button.pad))
+            end
+            return
+        end
+    end
+end
+
+local function FitForeverTabs(bar, count, width)
+    local room = width - St.FOREVER_TAB_GAP * (count - 1) - FOREVER_OVERHANG
+    local total = 0
+    for i = 1, count do
+        local button = bar.buttons[i]
+        button.fit, button.pad, button.cut = button.want, button.capRoom or 0, nil
+        button.text:SetWidth(0)
+        total = total + button.want
+    end
+    if total <= room then return end
+    local trim = math.ceil((total - room) / count)
+    total = 0
+    for i = 1, count do
+        local button = bar.buttons[i]
+        local cut = math.min(trim, math.max(0, button.pad - 2 * St.FOREVER_TAB_PAD))
+        button.fit, button.pad = button.fit - cut, button.pad - cut
+        total = total + button.fit
+        fitOrder[i] = button
+    end
+    for i = count + 1, #fitOrder do fitOrder[i] = nil end
+    if total <= room then return end
+    table.sort(fitOrder, Widest)
+    CutWidest(count, room, total)
+end
+
 function Parts.SetTabs(bar, items)
     local width = bar:GetWidth()
     local words = FillTabs(bar, items)
     if #items == 0 then return end
+    if ns.foreverSkin then FitForeverTabs(bar, #items, width) end
     local spare, x = (width - words) / #items, 0
     for i = 1, #items do
         local button = bar.buttons[i]
         local w = i == #items and width - x or math.floor(button.want + spare + 0.5)
-        if ns.foreverSkin then w = button.want end
+        if ns.foreverSkin then w = button.fit end
         button:SetSize(w, TAB_H)
         button:SetPoint("LEFT", x, 0)
         if i > 1 and not ns.foreverSkin then Split(bar, i, x) end

@@ -566,7 +566,10 @@ What a comment in the code used to say, in short. The house rules behind it are 
   `FOREVER_TAB_PAD`): measured on the label alone, a long one ("Dungeons & Raids") ran past its caps.
 - Forever tabs keep that width and sit side by side `FOREVER_TAB_GAP` apart, as the game's do, instead of
   stretching to fill the row; the end caps are scaled by `FOREVER_TOP_TAB_SHARE` with the tab's height, so
-  the art keeps its shape.
+  the art keeps its shape. When the row is too narrow for them (Quality of Life's eleven), each gives up padding
+  down to `FOREVER_TAB_PAD` a side, then the widest are cut to one width with their label shortened, as the
+  game's `PanelTemplates_ResizeTabsToFit` does; a cut tab shows its full label on hover. The row's room
+  leaves out the art's overhang past the last tab (`FOREVER_TAB_RIGHT_X`).
 - A settings card is only its list bar, the Friends list's category header ("Favorites 0/2"):
   `SocialUIScrollableHeaderTemplate` (`Blizzard_SocialUIShared/SocialUISharedTemplates.xml`) on
   `ListHeaderVisualTemplate` (`Blizzard_SharedXML/ListTemplates.xml`), whose bar is

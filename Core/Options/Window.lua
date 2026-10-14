@@ -839,9 +839,11 @@ local function ContentHeader()
     moduleLabel = ns.Font(contentHeader, HEAD.labelSize, nil, nil, true)
     moduleLabel:SetPoint("RIGHT", moduleSwitch, "LEFT", -HEAD.labelGap, 0)
     ns.Tooltip(moduleSwitch, TEXT_MODULE, TEXT_MODULE_HELP)
+    local tabsW = WINDOW_W - SIDEBAR_W - CONTENT_X - CONTENT_RIGHT
+    if window.forever then tabsW = tabsW - ns.Shared.Style.FOREVER_RAIL end
     for _, mod in ipairs(MODULES) do
         if #mod.tabs > 1 then
-            local bar = TabStrip(contentHeader, mod, ShowPage, WINDOW_W - SIDEBAR_W - CONTENT_X - CONTENT_RIGHT)
+            local bar = TabStrip(contentHeader, mod, ShowPage, tabsW)
             bar:SetPoint("TOPLEFT", contentHeader, "TOPLEFT", CONTENT_X, -(PAGE_HEADER_H - HEAD.tabDrop))
             bar:Hide()
             tabStrips[mod.name] = bar

@@ -348,6 +348,19 @@ do
     check("the tab art's caps scale with its height", picked.idleArt[1].w ~= nil)
     check("the label sits in the middle of the tab art, not of the taller button", picked.text.points[1][2] == picked.idleArt[2]
         and picked.text.points[1][1] == "CENTER")
+    local three = { { key = "a", label = "A" }, { key = "b", label = "B" }, { key = "c", label = "C" } }
+    local overhang = math.max(St.FOREVER_TAB_RIGHT_X, St.FOREVER_ACTIVE_RIGHT_X)
+    local function RowW(tabW) return 3 * tabW + 2 * St.FOREVER_TAB_GAP + overhang end
+    local tight = Parts.Tabs(New("Frame"), RowW(20 + 2 * St.FOREVER_TAB_PAD), three, function() end)
+    check("a row too narrow for its tabs trims their padding first, keeping every label whole",
+        tight.buttons[1].w == 20 + 2 * St.FOREVER_TAB_PAD and not tight.buttons[3].cut
+        and tight.buttons[3].text.w == 0)
+    local cut = Parts.Tabs(New("Frame"), RowW(40), three, function() end)
+    check("then cuts the widest to one width, their labels ending short", cut.buttons[1].w == 40
+        and cut.buttons[3].w == 40 and cut.buttons[2].cut and cut.buttons[2].text.w == 40 - 2 * St.FOREVER_TAB_PAD)
+    Parts.SetTabs(cut, { { key = "a", label = "A" } })
+    check("and gives a tab back its full width once the row has room", cut.buttons[1].w == cut.buttons[1].want
+        and not cut.buttons[1].cut and cut.buttons[1].text.w == 0)
 
     local search = Parts.SearchBox(New("Frame"), "Search", function() end)
     check("the search box on the game's search art", search.foreverArt and search.foreverArt[1].atlas == St.FOREVER_SEARCH_ATLAS.left
