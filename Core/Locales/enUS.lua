@@ -6372,3 +6372,6 @@ L["Your macros, and the editor."] = true
 L["Each line as a sentence you edit with menus, and Test it."] = true
 L["The macro text with colors, Build, Reads as and Simulate."] = true
 L["No spell you know matches."] = true
+L["No consumable matches your search."] = true
+L["Search consumables"] = true
+L["Adds it to Favorites at the top of the list, or takes it off."] = true

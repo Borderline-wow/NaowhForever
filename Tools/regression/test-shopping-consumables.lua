@@ -3,7 +3,8 @@
 -- best for your level is marked, "Only for my class" off shows everything, items whose data has
 -- not loaded wait, and a pick lands on the list as an other item. The picker itself is driven
 -- against stub frames: amounts of four digits, the box after Enter, one redraw per frame, a
--- recount (not a re-pick) when the list changes, a re-pick on level up, and the saved toggle.
+-- recount (not a re-pick) when the list changes, a re-pick on level up, the saved toggle, favourites
+-- kept in the profile and shown first, and the search box.
 -- The module's real data, rules, plan and picker files are loaded and run.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
@@ -76,9 +77,9 @@ end
 widgetMeta.__index = function(_, k) return methods[k] or (k:match("^%u") and Noop) or nil end
 
 local function NewEnv(withModules)
-    local account, levels, timers = {}, {}, {}
-    local ns = { L = dofile("Tools/regression/locale_stub.lua").L,
-        Professions = {},
+    local account, levels, timers, profile = {}, {}, {}, {}
+    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Lower = string.lower,
+        Professions = { Settings = { DB = function() return profile end } },
         THEME = { muted = {} },
         HEALING_POTIONS = { 13446, 3928, 929, 118 },
         MANA_POTIONS = { 13444, 6149, 2455 },
@@ -93,7 +94,11 @@ local function NewEnv(withModules)
             Name = function(id) return levels[id] and ("item" .. id) or ("item " .. id) end,
             QualityHex = function() return "|cffffffff" end,
             OnLoaded = Noop,
-        }, Parts = {} },
+        }, Parts = {
+            SearchBox = function(parent, hint, onSearch)
+                local box = Widget(parent); box.hint, box.onSearch = hint, onSearch; return box
+            end,
+        } },
     }
     if withModules then
         ns.Macros = { Items = { BANDAGES = { 14530, 14529, 8545, 1251 } } }
@@ -128,12 +133,15 @@ local function NewEnv(withModules)
         setmetatable(env, { __index = _G }))
     local P = ns.Professions
     P.Style = { ROW_ICON_SHRINK = 4, ICON_NAME_GAP = 6, FONT = 12, FONT_SMALL = 11,
-        GOLD_RGB = { r = 1, g = 1, b = 0 }, RED_RGB = { r = 1, g = 0, b = 0 }, READY_RGB = { r = 0, g = 1, b = 0 } }
+        GOLD_RGB = { r = 1, g = 1, b = 0 }, RED_RGB = { r = 1, g = 0, b = 0 }, READY_RGB = { r = 0, g = 1, b = 0 },
+        PANEL_HEADER = 30, PANEL_INSET = 4, PANEL_PAD = 10, SEARCH_H = 24 }
     P.Widgets = {
         Crop = function(t) return t end,
         EnableButton = function(b, on) b.enabled = on end,
         QtyBox = function(parent) local box = Widget(parent); box.maxLetters = 3; return box end,
         CheckBox = function(parent) return Widget(parent) end,
+        StarButton = function(parent) local b = Widget(parent); b.tex = Widget(b); return b end,
+        Star = function(texture, on) texture.on = on end,
     }
     ns.Shared.Parts.SidePanel = function(_, newView)
         local panel = Widget()
@@ -143,7 +151,7 @@ local function NewEnv(withModules)
     end
     ns.Shared.Parts.ShowBeside = function(panel) panel:Show() end
     for id, lv in pairs(LV) do levels[id] = lv end
-    return env, ns, levels, timers, account
+    return env, ns, levels, timers, account, profile
 end
 
 local _, ns, levels = NewEnv(true)
@@ -321,7 +329,7 @@ check("taking it off forgets what was bought for it", SL.Have()[13446] == nil)
 -------------------------------------------------------------------------------
 --  The picker
 -------------------------------------------------------------------------------
-local uiEnv, uiNs, _, timers, account = NewEnv(true)
+local uiEnv, uiNs, _, timers, account, profile = NewEnv(true)
 Load({ "NaowhForever_Professions/UI/ShoppingConsumables.lua" }, uiEnv)
 local UP = uiNs.Professions
 local picks, pickedLevel = 0, nil
@@ -398,6 +406,60 @@ box:SetChecked(true)
 box.scripts.OnClick(box)
 check("switched on again: nothing saved", account.profShopAllConsumables == nil)
 
+-- A star makes a pick a favourite: kept in the profile, shown first under Favorites, out of its kind.
+local function Rows()
+    local list = {}
+    for _, f in ipairs(frames) do if f.qty then list[#list + 1] = f end end
+    return list
+end
+local function Shown(id)
+    local n = 0
+    for _, f in ipairs(Rows()) do if f.id == id and f.shown then n = n + 1 end end
+    return n
+end
+local function ShownText(text)
+    for _, f in ipairs(frames) do if f.text == text and f.shown then return f end end
+end
+check("no favourites at first: no Favorites heading", not ShownText("Favorites") and next(profile.shopFavorites) == nil)
+check("no favourites at first: every star off", RowOf(13453).star.tex.on == false)
+local potion = RowOf(13446)
+check("a healing potion lists after the elixirs", Rows()[1].id ~= 13446)
+picks = 0
+potion.star.scripts.OnClick(potion.star)
+check("starred: kept in the profile by item ID", profile.shopFavorites[13446] == true)
+check("starred: Favorites heads the list", ShownText("Favorites") ~= nil)
+check("starred: it is the first row, star on", Rows()[1].id == 13446 and Rows()[1].shown and Rows()[1].star.tex.on)
+check("starred: shown once, not again in its kind", Shown(13446) == 1)
+check("starred: a star picks nothing again", picks == 0)
+Rows()[1].star.scripts.OnClick(Rows()[1].star)
+check("unstarred: gone from the profile", profile.shopFavorites[13446] == nil)
+check("unstarred: back in its kind, no Favorites heading", Rows()[1].id ~= 13446 and Shown(13446) == 1
+    and not ShownText("Favorites"))
+
+-- The search box keeps the rows whose name holds what is typed, any case, without picking again.
+local search
+for _, f in ipairs(frames) do if f.onSearch then search = f end end
+check("a search box with its hint", search and search.hint == "Search consumables")
+picks = 0
+search.onSearch("ITEM1344")
+check("search: a matching name shows", Shown(13446) == 1 and Shown(13445) == 1)
+check("search: any other name is hidden", Shown(13453) == 0 and Shown(3391) == 0)
+check("search: lays out again with no new pick", picks == 0)
+search.onSearch("item3391")
+check("search: one item left", Shown(3391) == 1 and #Rows() > 1 and Shown(13446) == 0)
+search.onSearch("nothing like it")
+check("search: no match shows its message", Shown(3391) == 0
+    and ShownText("No consumable matches your search.") ~= nil)
+search.onSearch("")
+check("search cleared: every row back, no message", Shown(13453) == 1 and Shown(13446) == 1
+    and not ShownText("No consumable matches your search."))
+RowOf(13446).star.scripts.OnClick(RowOf(13446).star)
+search.onSearch("item3391")
+check("search: a favourite that does not match hides with its heading", Shown(13446) == 0
+    and not ShownText("Favorites"))
+search.onSearch("item1344")
+check("search: a favourite that matches stays first", Rows()[1].id == 13446 and ShownText("Favorites") ~= nil)
+
 -- Closed: nothing listens and a list change queues nothing.
 UP.Shopping.ToggleConsumables(owner)
 check("closed: no events", registry.BAG_UPDATE_DELAYED == nil and registry.PLAYER_LEVEL_UP == nil)
@@ -406,5 +468,10 @@ check("closed: a list change queues nothing", #timers == 0)
 account.profShopAllConsumables = true
 UP.Shopping.ToggleConsumables(owner)
 check("reopened: the saved choice is used", RowOf(9179) ~= nil and RowOf(9179):IsShown())
+check("reopened: the search is cleared", search:GetText() == "" and Shown(13453) == 1)
+check("reopened: the favourite is still first", Rows()[1].id == 13446 and ShownText("Favorites") ~= nil)
+UP.Shopping.ToggleConsumables(owner)
+search.onSearch("item")
+check("closed: typing lays nothing out", #timers == 0 and Rows()[1].id == 13446)
 
 print(("test-shopping-consumables: %d checks passed"):format(checks))

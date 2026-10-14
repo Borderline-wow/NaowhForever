@@ -58,7 +58,7 @@ NaowhForever_Professions/
     Takeover.lua       showing it over Blizzard's window, docking Blizzard's tabs and cards, dragging, events
     ShoppingAdd.lua    Add to List under a recipe, and the button that opens the shopping list
     ShoppingWindow.lua the Shopping List window: crafts, other items, materials (ns.ToggleShoppingList)
-    ShoppingConsumables.lua the Consumables picker beside the Shopping List
+    ShoppingConsumables.lua the Consumables picker beside the Shopping List: search and favourites
     ShoppingList.lua   the shopping list beside the auction house: check and buy
     TrainFavorites.lua Train Favorites beside the trainer
     FavoritePatterns.lua Search Favorites AH beside the auction house
@@ -189,6 +189,12 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   listens to bag changes and level ups only while it shows. The plan tells it of every list change
   (`Shopping.OnChange`); changes and bag updates redraw at most once a frame and only rewrite the rows'
   amounts and counts, while opening, a level up, the toggle and items loading pick the rows again.
+- A starred pick is a favourite: it moves out of its kind into Favorites at the top, in kind order. Favourites
+  are kept in the profile by item ID (`shopFavorites`), like the favourite recipes. Only what the picker
+  offers can show there, so a favourite the class filter or your level leaves out stays hidden until it is
+  offered again.
+- The search box above the list keeps the rows whose name holds what is typed, any case. Typing and a star
+  only lay out the rows already picked again, with no new pick; reopening the picker clears the search.
 - The shopping list makes a material from its parts, up to 4 levels down, only when whole crafts cost
   less than buying what is needed, and never from a recipe with a cooldown (it makes a few a day; a
   shared cooldown can read 0 on the spell). What was bought counts at every level, and a craft taken

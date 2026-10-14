@@ -1,4 +1,4 @@
--- ShoppingConsumables.lua: the Consumables picker beside the Shopping List: food, flasks, elixirs and more that suit you, put on the list by the amount.
+-- ShoppingConsumables.lua: the Consumables picker beside the Shopping List: food, flasks, elixirs and more that suit you, searched by name, favourites first, put on the list by the amount.
 local ns = _G.NaowhForever
 
 local T = ns.THEME
@@ -6,6 +6,7 @@ local Shared = ns.Shared
 local Parts, Items = Shared.Parts, Shared.Items
 
 local P = ns.Professions
+local S = P.Settings
 local Shopping = P.Shopping
 local Consumables = P.Consumables
 local Text = P.Text
@@ -22,6 +23,8 @@ local QTY_LETTERS = #tostring(P.C.MAX_ITEMS)
 local STEP_GAP, NOTE_GAP = 2, 6
 local HEAD_X, HEAD_STEP, GROUP_GAP, TOP_GAP = 4, 18, 8, 2
 local CHECK_GAP, TITLE_GAP = 6, 8
+local STAR_GAP, SEARCH_GAP = 2, 4
+local SEARCH_TOP = Style.PANEL_HEADER + Style.PANEL_INSET
 local FULL_OPACITY = 1
 local SEPARATOR = "  "
 local LATER_CODE, BEST_CODE, END_CODE = Text.Hex(Style.RED_RGB), Text.Hex(Style.READY_RGB), "|r"
@@ -29,6 +32,9 @@ local EVENTS = { "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP" }
 local TEXT_TITLE = ns.L("Consumables")
 local TEXT_MINE = ns.L("Only for my class")
 local TEXT_EMPTY = ns.L("No consumables to show yet.")
+local TEXT_NO_MATCH = ns.L("No consumable matches your search.")
+local TEXT_SEARCH = ns.L("Search consumables")
+local TEXT_FAVORITES = ns.L("Favorites")
 local TEXT_BEST = ns.L("Best")
 local TEXT_LEVEL = ns.L("Lv %d")
 local TEXT_OWNED = ns.L("(%d owned)")
@@ -41,10 +47,16 @@ local TIP_MINE, TIP_MINE_HELP = ns.L("Only for My Class"),
 local TIP_MORE, TIP_MORE_HELP = ns.L("One More"), ns.L("Puts one more on the shopping list.")
 local TIP_FEWER, TIP_FEWER_HELP = ns.L("One Fewer"), ns.L("Takes one off the shopping list.")
 local TIP_QTY, TIP_QTY_HELP = ns.L("How Many"), ns.L("How many the shopping list buys.")
+local TIP_FAVORITE, TIP_FAVORITE_HELP = ns.L("Favorite"),
+    ns.L("Adds it to Favorites at the top of the list, or takes it off.")
 
-local panel, body, empty, only, events
+local panel, body, empty, only, search, events
 local rows, heads = {}, {}
+local picked = {}
 local shownRows = 0
+local query = ""
+local favorites, heading
+local at, shownHeads = 0, 0
 local queued, repick, newLevel = false, false, nil
 
 local function Opacity()
@@ -70,6 +82,16 @@ local function OnlyMine()
     return not ns.AccountSettings().profShopAllConsumables
 end
 
+local function Favorites()
+    local db = S.DB()
+    if type(db.shopFavorites) ~= "table" then db.shopFavorites = {} end
+    return db.shopFavorites
+end
+
+local function Matches(name)
+    return query == "" or ns.Lower(name):find(query, 1, true) ~= nil
+end
+
 local function OnQtyEnter(box)
     local id = box:GetParent().id
     box:ClearFocus()
@@ -82,13 +104,26 @@ local function OnQtyEscape(box)
     box:ClearFocus()
 end
 
+local Layout
+
+local function OnStar(star)
+    local id = star:GetParent().id
+    local list = Favorites()
+    list[id] = not list[id] or nil
+    Layout()
+end
+
 local function NewRow()
     local row = CreateFrame("Frame", nil, body)
     row:SetHeight(ROW_H - ROW_SHRINK)
     row:EnableMouse(true)
+    row.star = Widgets.StarButton(row)
+    row.star:SetPoint("LEFT")
+    row.star:SetScript("OnClick", OnStar)
+    ns.Tooltip(row.star, TIP_FAVORITE, TIP_FAVORITE_HELP)
     row.icon = Widgets.Crop(row:CreateTexture(nil, "ARTWORK"))
     row.icon:SetSize(ROW_H - ICON_SHRINK, ROW_H - ICON_SHRINK)
-    row.icon:SetPoint("LEFT")
+    row.icon:SetPoint("LEFT", row.star, "RIGHT", STAR_GAP, 0)
     row.plus = ns.Button(row, "+", SMALL_BUTTON, SMALL_BUTTON, function() Shopping.AddItem(row.id, 1) end)
     row.plus:SetPoint("RIGHT")
     ns.Tooltip(row.plus, TIP_MORE, TIP_MORE_HELP)
@@ -143,6 +178,7 @@ end
 
 local function FillRow(row, e)
     row.id, row.entry = e.id, e
+    Widgets.Star(row.star.tex, favorites[e.id] == true)
     row.icon:SetTexture(C_Item.GetItemIconByID(e.id))
     row.name:SetText(Items.QualityHex(e.id) .. Items.Name(e.id) .. END_CODE)
     FillCounts(row)
@@ -163,29 +199,49 @@ local function PlaceRow(row, y)
     return y - ROW_H
 end
 
-local function Repick()
-    local _, class = UnitClass("player")
-    local groups = Consumables.Pick(newLevel or UnitLevel("player"), class, OnlyMine(), ns.UsesMana())
-    newLevel = nil
-    local y, n = -TOP_GAP, 0
-    for i, group in ipairs(groups) do
-        if i > 1 then y = y - GROUP_GAP end
-        local head = Head(i)
-        head:SetText(GROUP_NAMES[group.key])
-        y = PlaceHead(head, y)
-        for _, e in ipairs(group.rows) do
-            n = n + 1
-            rows[n] = rows[n] or NewRow()
-            local row = rows[n]
+local function AddHead()
+    shownHeads = shownHeads + 1
+    if shownHeads > 1 then at = at - GROUP_GAP end
+    local head = Head(shownHeads)
+    head:SetText(heading)
+    at = PlaceHead(head, at)
+    heading = nil
+end
+
+local function AddRows(list, favorite)
+    for _, e in ipairs(list) do
+        if (favorites[e.id] == true) == favorite and Matches(e.name) then
+            if heading then AddHead() end
+            shownRows = shownRows + 1
+            rows[shownRows] = rows[shownRows] or NewRow()
+            local row = rows[shownRows]
             FillRow(row, e)
-            y = PlaceRow(row, y)
+            at = PlaceRow(row, at)
         end
     end
-    for i = #groups + 1, #heads do heads[i]:Hide() end
-    for i = n + 1, #rows do rows[i]:Hide() end
-    shownRows = n
-    body:SetHeight(math.max(1, -y))
-    empty:SetShown(n == 0)
+end
+
+function Layout()
+    favorites = Favorites()
+    at, shownRows, shownHeads = -TOP_GAP, 0, 0
+    heading = TEXT_FAVORITES
+    for _, group in ipairs(picked) do AddRows(group.rows, true) end
+    for _, group in ipairs(picked) do
+        heading = GROUP_NAMES[group.key]
+        AddRows(group.rows, false)
+    end
+    for i = shownHeads + 1, #heads do heads[i]:Hide() end
+    for i = shownRows + 1, #rows do rows[i]:Hide() end
+    body:SetHeight(math.max(1, -at))
+    empty:SetText(query == "" and TEXT_EMPTY or TEXT_NO_MATCH)
+    empty:SetShown(shownRows == 0)
+end
+
+local function Repick()
+    local _, class = UnitClass("player")
+    picked = Consumables.Pick(newLevel or UnitLevel("player"), class, OnlyMine(), ns.UsesMana())
+    newLevel = nil
+    Layout()
 end
 
 local function Refresh()
@@ -233,6 +289,13 @@ local function OnMine(box)
     Repick()
 end
 
+local function OnSearch(text)
+    query = ns.Lower(text)
+    if not (panel and panel:IsShown()) then return end
+    panel.scroll:SetVerticalScroll(0)
+    Layout()
+end
+
 local function OnShow()
     for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
 end
@@ -253,6 +316,11 @@ local function Build()
     ns.Tooltip(only, TIP_MINE, TIP_MINE_HELP)
     panel.title:SetText(TEXT_TITLE)
     panel.title:SetPoint("RIGHT", only, "LEFT", -TITLE_GAP, 0)
+    search = Parts.SearchBox(panel, TEXT_SEARCH, OnSearch)
+    search:SetHeight(Style.SEARCH_H)
+    search:SetPoint("TOPLEFT", Style.PANEL_PAD, -SEARCH_TOP)
+    search:SetPoint("TOPRIGHT", -Style.PANEL_PAD, -SEARCH_TOP)
+    panel.scroll:SetPoint("TOPLEFT", search, "BOTTOMLEFT", 0, -SEARCH_GAP)
     empty = ns.Font(panel, Style.FONT, nil, T.muted)
     empty:SetPoint("CENTER", panel.scroll, "CENTER")
     empty:SetText(TEXT_EMPTY)
@@ -267,6 +335,8 @@ end
 function Shopping.ToggleConsumables(from)
     if panel and panel:IsShown() then return panel:Hide() end
     if not panel then Build() end
+    query = ""
+    search:SetText("")
     Parts.ShowBeside(panel, from)
     repick = false
     Repick()
