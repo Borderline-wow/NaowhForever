@@ -80,6 +80,7 @@ NaowhForever_QoL/
                         ns.InviteAll, ns.ShowInviteEditor)
     GroupButtons.lua    On-Screen Buttons (Invite, your invite buttons, Invite All, Disband)
     FreeForAll.lua      Always Free for All, the party loot method while you lead
+    FinderRoles.lua     Group Finder Roles, the role buttons on the Group Finder
     TalentPoints.lua    the unspent talent points reminder
     QuestAutomation.lua accept, hand in and share quests, saved reward picks (ns.QuestRewards)
     RewardList.lua      the Saved Quest Rewards window (ns.OpenQuestRewards)
@@ -379,6 +380,20 @@ NaowhForever_QoL/
   wide (155, 2 in). Forever's rows differ from Classic Era's, so the zone takes the activity
   line's font and stops short of the role icons, measured on screen (the icons are scaled).
   The game sends only the leader's zone; other members show one if it is known elsewhere.
+- Group Finder Roles never writes the Group Finder's results or calls its refresh: its list, totals,
+  selection and right-click menu stay Blizzard's own, untainted. It hooks
+  `LFGBrowseSearchEntry_Update` (after `Blizzard_GroupFinder_VanillaStyle` loads) and fades a row
+  that does not match to alpha 0 with its mouse off, so a hidden row keeps its place and the list
+  can show gaps; Blizzard's sort puts solo players by tank, healer, then damage and groups with
+  room for your own roles first, so matches mostly sit together at the top. A pick change repaints
+  the rows on screen. A solo lister's roles are the `lfgRoles` they signed up with; a group has
+  only each member's assigned role, which says nothing about who you can invite, so the player
+  buttons match solo listers only. The Groups need buttons read `GetSearchResultMemberCounts`'
+  `*_REMAINING` counts, the open spots Blizzard's own sort uses, and match groups only. Your own
+  listing always stays. When every listing is faded, a line where the game's "No results" sits
+  says the picks did it. The search results are secret in chat messaging lockdown
+  (`SecretInChatMessagingLockdown`), so while `C_ChatInfo.InChatMessagingLockdown()` is true
+  nothing is filtered.
 - A guildmate's zone may have changed since the last roster, so guild chat from one not fresh
   asks for the roster again (the game throttles that).
 - The Co-Tank Frame's debuffs go through Blizzard's aura container (`CustomAuraContainerTemplate`),

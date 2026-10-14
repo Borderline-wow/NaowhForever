@@ -3,6 +3,13 @@ if NaowhForever.LOCALE ~= "deDE" then return end
 local L = {}
 NaowhForeverTranslation = L
 
+L["Group Finder Roles"] = "Rollen in der Gruppensuche"
+L["Groups need:"] = "Gruppen brauchen:"
+L["Players:"] = "Spieler:"
+L["Role buttons on the Group Finder that show only the players and groups you want."] = "Rollenknöpfe in der Gruppensuche, die nur die gewünschten Spieler und Gruppen zeigen."
+L["Show groups that still have room for a %s."] = "Zeigt Gruppen, die noch Platz für die Rolle %s haben."
+L["Show players who signed up as %s."] = "Zeigt Spieler, die sich als %s angemeldet haben."
+L["Your Group Finder Roles picks hide every listing."] = "Deine Auswahl bei Rollen in der Gruppensuche blendet jeden Eintrag aus."
 L["Threat Meter"] = "Bedrohungsanzeige"
 L["Meter"] = "Anzeige"
 L["Profiles"] = "Profile"

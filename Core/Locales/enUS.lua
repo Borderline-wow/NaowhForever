@@ -2,6 +2,13 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["Group Finder Roles"] = true
+L["Groups need:"] = true
+L["Players:"] = true
+L["Role buttons on the Group Finder that show only the players and groups you want."] = true
+L["Show groups that still have room for a %s."] = true
+L["Show players who signed up as %s."] = true
+L["Your Group Finder Roles picks hide every listing."] = true
 L["Mana Efficiency Report"] = true
 L["Every rank of your mana spells with its numbers, the best one starred."] = true
 L["Every rank of your mana spells. The star marks the most per mana."] = true

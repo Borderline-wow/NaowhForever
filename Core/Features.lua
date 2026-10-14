@@ -92,6 +92,7 @@ ns.FEATURES = {
         crosshair = false,
         petTracker = false,
         chatZones = false,
+        finderRoles = false,
         mouseRing = false,
         gcdTracker = false,
         focusCastBar = false,
