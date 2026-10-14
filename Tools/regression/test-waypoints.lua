@@ -67,6 +67,7 @@ local tracked, mapOpen, mapHide = {}, false, nil
 local parents = { [1500] = 88 }   -- a leaf zone inside the waypoint's map
 local timers, played, printed = {}, {}, {}
 local speed = 0
+local now = 0
 local tracking = 1   -- Enum.SuperTrackingType.UserWaypoint
 
 local gameMarker = {}
@@ -141,7 +142,7 @@ local env = setmetatable({
     SuperTrackedFrame = gameMarker,
     GetUnitSpeed = function() return speed end,
     issecretvalue = function(v) return v == "secret" end,
-    GetTime = function() return 0 end,
+    GetTime = function() return now end,
     BreakUpLargeNumbers = function(n)
         local s = tostring(n)
         while true do
@@ -207,7 +208,35 @@ Check(pin.card.time.text == "about 0:22", "moving, at your own speed")
 speed = "secret"
 driver.scripts.OnUpdate(driver, 0)
 Check(pin.card.time.text == "about 0:22", "a speed that reads secret keeps the last readable one")
+-- On an epic mount with the speed secret, the last readable speed is the run on foot: the
+-- time comes from how fast the distance shrinks instead.
+speed = 7
+driver.scripts.OnUpdate(driver, 0)
+speed = "secret"
+now = now + 1
+nav.distance = 298
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:21", "closing 14 yards a second: the time at that pace")
+now = now + 0.5
+nav.distance = 291
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:21", "between samples the pace is kept")
+now = now + 0.5
+nav.distance = 284
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:20", "and the time follows the distance")
+now = now + 1
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:41", "stopped: back to the last readable speed")
+now = now + 1
+nav.distance = 1300
+driver.scripts.OnUpdate(driver, 0)
+now = now + 1
+nav.distance = 312
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.time.text == "about 0:45", "a jump in the distance (a new spot) is not a pace")
 speed = 14
+nav.distance = 312
 Check(navBar:IsShown() and navBar.name.text == "Mage Trainer" and navBar.sub.text == "Thunder Bluff",
     "the navigator names it and its zone")
 Check(navBar.dist.text == "312 yd" and pin.scale < 1 and pin.scale > 0.65, "and shrinks the pin with distance")

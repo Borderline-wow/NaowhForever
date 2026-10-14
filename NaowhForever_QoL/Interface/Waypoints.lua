@@ -28,6 +28,7 @@ local BEHIND_Y, BEHIND_SIZE = 60, 13
 local FAR, FAR_SCALE = 400, 0.65
 local FADE_FLOOR = 0.25
 local RUN_SPEED = 7
+local SAMPLE_EVERY, SMOOTH, MIN_CLOSING, MAX_CLOSING = 1, 0.5, 1, 60
 local NAV_W, NAV_H, NAV_PAD, NAV_ICON, NAV_ARROW = 320, 40, 10, 20, 14
 local NAV_NAME, NAV_SUB, NAV_DIST = 14, 11, 16
 local NAV_Y = -70
@@ -266,6 +267,7 @@ local shown = {}
 local dirty = true
 local paintedMode, paintedSide, paintedYards, paintedSeconds
 local knownSpeed = 0
+local sampleYards, sampleAt, closing
 local NavSample = { name = ns.L("Mage Trainer"), sub = "Thunder Bluff", yards = 312, mode = "world", angle = math.pi / 2 }
 local events = CreateFrame("Frame")
 
@@ -397,10 +399,27 @@ local function CheckReached(yards)
     end
 end
 
+local function Sample(yards)
+    local now = GetTime()
+    if sampleAt and now - sampleAt < SAMPLE_EVERY then return end
+    if sampleAt then
+        local rate = (sampleYards - yards) / (now - sampleAt)
+        if rate < MIN_CLOSING or rate > MAX_CLOSING then
+            closing = nil
+        else
+            closing = closing and closing + (rate - closing) * SMOOTH or rate
+        end
+    end
+    sampleYards, sampleAt = yards, now
+end
+
 local function WalkSeconds(yards)
+    if not S.Get("waypointTime") then return nil end
+    Sample(yards)
+    if closing then return yards / closing end
     local speed = GetUnitSpeed("player")
     if not (issecretvalue and issecretvalue(speed)) then knownSpeed = speed end
-    return S.Get("waypointTime") and yards / (knownSpeed > 0 and knownSpeed or RUN_SPEED) or nil
+    return yards / (knownSpeed > 0 and knownSpeed or RUN_SPEED)
 end
 
 local function Changed(mode, side, yards, seconds)
@@ -461,6 +480,7 @@ end
 
 local function Retitle()
     dirty = true
+    sampleAt, closing = nil, nil
     local where, placed
     local kind, types = C_SuperTrack.GetHighestPrioritySuperTrackingType(), Enum.SuperTrackingType
     shown.name, where, shown.note, shown.icon, placed = Target(kind)
