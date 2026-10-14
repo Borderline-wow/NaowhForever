@@ -117,6 +117,13 @@ NaowhForever_AuraBuffs/
   with that use spell, else the spell's own texture), else Well Fed's. Weapon Enhancement Reminder (off by default) asks for a stone or
   oil (`D.WEAPON_ITEMS`) on each equipped weapon, an off hand only when it is a weapon, and defers to a class's
   own poison or imbue reminder.
+- Icon (Default or Last Used): Last Used shows the icon of the flask, elixir, scroll or weapon item
+  used last (`lastIcons` in the account settings, food's is `lastFoodIcon`), taken from the item whose
+  use spell `UNIT_SPELLCAST_SUCCEEDED` reports; a spell no listed or default item uses is ignored, and
+  nothing is read in combat. The cast event is listened for only while Last Used is chosen or food
+  needs it (Only If I Carry One off). Icon Size defaults to 48 and goes to 96; a profile that saved a
+  size keeps it. The row is sized to its icons and anchored by its centre, so reminders spread left
+  and right of the saved spot, and one sits on it.
 - Warn With Minutes Left covers personal buffs too, except a buff no longer than the warning
   (Battle Shout's 2 minutes), which would otherwise show the moment it is cast. Poisons last 30
   minutes and Forever's imbues 60, past the slider's 10.

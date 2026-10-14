@@ -109,7 +109,18 @@ local function FoodItemIcon(spellID)
     end
 end
 
-local function Consumable(list, buffs, group, item, icon)
+local function LastUsed()
+    return S.Get("buffIconMode") == "last"
+end
+
+local function LastIcon(category)
+    if not LastUsed() then return nil end
+    if category == "food" then return ns.AccountSettings().lastFoodIcon end
+    local icons = ns.AccountSettings().lastIcons
+    return icons and icons[category]
+end
+
+local function Consumable(list, buffs, group, item, icon, last)
     local aura = Find(buffs, group.auras) or group.wellFed and WellFed(buffs)
     local left = aura and Left(aura)
     local warn = S.Get("consumablesMinutes") * SECONDS
@@ -118,7 +129,7 @@ local function Consumable(list, buffs, group, item, icon)
         return
     end
     if not item and S.Get("onlyIfCarried") then return end
-    list[#list + 1] = { icon = item and C_Item.GetItemIconByID(item) or icon, aura = aura }
+    list[#list + 1] = { icon = last or item and C_Item.GetItemIconByID(item) or icon, aura = aura }
 end
 
 local function Groups()
@@ -154,7 +165,7 @@ local function Consumables(list, buffs)
             if category == "food" then
                 icon = ns.AccountSettings().lastFoodIcon or icon or C_Spell.GetSpellTexture(D.WELL_FED[1])
             end
-            Consumable(list, buffs, group, FirstCarried(group.items), icon)
+            Consumable(list, buffs, group, FirstCarried(group.items), icon, LastIcon(category))
             if #list > before then list[#list].items = group.items end
         end
     end
@@ -279,7 +290,8 @@ local function WeaponEnhancement(list)
     if #slots == 0 or Enchanted(slots, S.Get("consumablesMinutes") * SECONDS) then return end
     local item = FirstCarried(D.WEAPON_ITEMS)
     if not item and S.Get("onlyIfCarried") then return end
-    list[#list + 1] = { icon = C_Item.GetItemIconByID(item or D.WEAPON_ITEMS[1]), items = D.WEAPON_ITEMS }
+    list[#list + 1] = { icon = LastIcon("weapon") or C_Item.GetItemIconByID(item or D.WEAPON_ITEMS[1]),
+        items = D.WEAPON_ITEMS }
 end
 
 local function TargetHas(spells)
@@ -387,6 +399,35 @@ function Reminders.NoteFoodCast(spellID)
     local account = ns.AccountSettings()
     if not icon or account.lastFoodIcon == icon then return false end
     account.lastFoodIcon = icon
+    return true
+end
+
+local function UsedIcon(items, spellID)
+    for _, id in ipairs(items) do
+        local _, spell = C_Item.GetItemSpell(id)
+        if spell == spellID then return C_Item.GetItemIconByID(id) end
+    end
+end
+
+function Reminders.NoteUseCast(spellID)
+    if not LastUsed() or InCombatLockdown() then return false end
+    local category, icon = "weapon", UsedIcon(D.WEAPON_ITEMS, spellID)
+    if not icon then
+        local groups = Groups()
+        for _, name in ipairs(CATEGORY_ORDER) do
+            local group = groups[name] or not (name == "battle" and groups.guardian) and D.DEFAULT_GROUPS[name]
+            icon = group and not group.wellFed and UsedIcon(group.items, spellID)
+            if icon then
+                category = name
+                break
+            end
+        end
+    end
+    local account = ns.AccountSettings()
+    local icons = account.lastIcons or {}
+    if not icon or icons[category] == icon then return false end
+    icons[category] = icon
+    account.lastIcons = icons
     return true
 end
 

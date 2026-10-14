@@ -11,7 +11,7 @@ local S = ns.UI.ModuleSettings("auraBuffs", {
     raidBuffs = F.raidBuffs, raidBuffsOwn = true,
     raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
     personalBuffs = F.personalBuffs, personalBuffPicks = {}, weaponEnhancements = F.weaponEnhancements,
-    iconSize = 36, buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
+    iconSize = 48, buffIconMode = "default", buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
     buffsPos = { point = "TOP", relPoint = "TOP", x = 0, y = -232 },
 
     campfire = F.campfire, campTimer = true, campBuffs = true,

@@ -86,7 +86,7 @@ local function Fixture(opts)
         enabled = true,
         consumablesWhere = "instance", consumablesMinutes = 2,
         onlyIfCarried = true, hideResting = true,
-        raidBuffs = false, raidBuffsOwn = true, iconSize = 36,
+        raidBuffs = false, raidBuffsOwn = true, iconSize = 36, buffIconMode = "default",
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
         personalBuffs = true, personalBuffPicks = {}, weaponEnhancements = false,
@@ -829,6 +829,29 @@ do
     t.Fire("UNIT_INVENTORY_CHANGED", "player")
     t.Advance(0.5)
     Check("off hand weapon bare", t.Shown(), "item:13931 item:13510 item:13452 item:20750")
+end
+
+-- Icon: Last Used shows the flask, elixir or weapon item used last, and only listens while it is chosen.
+do
+    local t = Fixture({ instance = "raid", units = { player = "MAGE" }, weapons = { [16] = false },
+        itemSpells = { [13511] = 17627, [20749] = 28898 },
+        settings = { consumableEntries = {}, onlyIfCarried = false, weaponEnhancements = true, personalBuffs = false } })
+    t.Login()
+    Check("default icons", t.Shown(), "spell:1248406 item:13510 item:13452 item:20750")
+    Check("off-mode listens for the food icon", t.Listening("UNIT_SPELLCAST_SUCCEEDED"), true)
+    t.Set("onlyIfCarried", true)
+    Check("not listening for casts", t.Listening("UNIT_SPELLCAST_SUCCEEDED"), false)
+    t.Set("buffIconMode", "last")
+    Check("listening once Last Used is chosen", t.Listening("UNIT_SPELLCAST_SUCCEEDED"), true)
+    t.Set("onlyIfCarried", false)
+    t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast1", 17627)
+    t.Advance(0.5)
+    Check("a flask used", t.Shown(), "spell:1248406 item:13511 item:13452 item:20750")
+    t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast2", 28898)
+    t.Advance(0.5)
+    Check("a weapon oil used", t.Shown(), "spell:1248406 item:13511 item:13452 item:20749")
+    t.Set("buffIconMode", "default")
+    Check("Default again", t.Shown(), "spell:1248406 item:13510 item:13452 item:20750")
 end
 
 -- A class with its own poison reminder does not get the generic one.

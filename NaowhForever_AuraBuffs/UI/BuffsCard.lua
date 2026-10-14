@@ -12,7 +12,8 @@ if not Settings then return end
 local Group = Settings.Group
 
 local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN = 120, A.Style.STAGE_NOTE_Y, A.Style.STAGE_NOTE_SIZE, A.Style.STAGE_MARGIN
-local MINUTES_RANGE, ICON_RANGE, TEXT_RANGE = { 0, 10, 1 }, { 20, 64, 1 }, ns.Shared.Style.HUD_TEXT_RANGE
+local MINUTES_RANGE, ICON_RANGE, TEXT_RANGE = { 0, 10, 1 }, { 20, 96, 1 }, ns.Shared.Style.HUD_TEXT_RANGE
+local ICON_MODES = { { default = "Default", last = "Last Used" }, { "default", "last" } }
 local ORDER_BUFFS = 10
 local PREVIEW = A.BuffPreview
 local RAID_SAMPLE = #PREVIEW
@@ -201,6 +202,9 @@ rows[#rows + 1] = { key = "personalBuffs", label = "Personal Buff Reminders", to
 for _, family in ipairs(ALL_PERSONAL) do rows[#rows + 1] = PersonalRow(family) end
 rows[#rows + 1] = Group("Size")
 rows[#rows + 1] = { key = "iconSize", label = "Icon Size", slider = ICON_RANGE, needs = Enabled, why = OFF }
+rows[#rows + 1] = { key = "buffIconMode", label = "Icon", choice = ICON_MODES, needs = Enabled, why = OFF,
+    help = "Default: the item you carry, or the kind's usual icon. Last Used: the icon of the food, flask, "
+        .. "elixir, scroll or weapon item you used last." }
 rows[#rows + 1] = Settings.Look("buffs", { text = true, size = TEXT_RANGE, needs = Enabled, why = OFF })
 
 Settings.Page(A.PAGE, S):Card({
