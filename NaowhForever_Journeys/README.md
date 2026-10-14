@@ -67,6 +67,12 @@ NaowhForever_Journeys/
   the funnel algorithm. The game's waypoint goes where the walk ends (the dock, the flight master, the goal)
   with Waypoint Only Where Steps End on, the default; off, the guide puts it on each corner in turn, at
   least `CORNER_GAP` yards apart, and plans again at the last.
+- A crossing is the middle of its run along a tile side, so a walk traced through the crossings bends
+  toward each middle. The traced corners are then cut where a straight line stays on the walking map: the
+  line steps polygon to polygon, and across a tile side by the tile's links (`l` in the data), so it never
+  changes level. A shortcut never crosses water, which can be slower than walking round. A point within
+  `RAY_EDGE` yards of a polygon counts as on it: corners sit on polygon edges, and rounding would otherwise
+  refuse the walk's own lines.
 - Once the next thing to do is a boat, the plan holds while you stand on the sea (`Walk.Ashore`): aboard,
   the planner cannot tell you are already on it and would weigh a fresh wait against swimming off. The game
   reaching the far dock's waypoint, or stepping onto land, plans again.

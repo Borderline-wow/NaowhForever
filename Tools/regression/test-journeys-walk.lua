@@ -106,6 +106,15 @@ local onPier = Walk.From({ c = EK, x = (DOCK.x + dock.x) / 2, y = (DOCK.y + dock
 Check(onPier and onPier.poly == dock.poly and onPier.tx == dock.tx, "halfway along the pier walks from its root too")
 Check(Walk.From({ c = EK, x = -10500, y = 2600 }) == false, "the open sea is off the walking maps: no walk, not a straight line")
 
+-- Goldshire to Eastvale crosses tile sides through the middles of their runs; the traced corners are cut
+-- where a straight line stays on the walking map, so the walk comes out close to the line.
+local GOLDSHIRE, EASTVALE = { c = EK, x = -9460, y = 60 }, { c = EK, x = -9450, y = -1380 }
+local across = Walk.Path(Walk.From(GOLDSHIRE), Walk.From(EASTVALE))
+local walked = 0
+for i = 3, #across, 2 do walked = walked + math.sqrt((across[i] - across[i - 2]) ^ 2 + (across[i + 1] - across[i - 1]) ^ 2) end
+local line = math.sqrt((GOLDSHIRE.x - EASTVALE.x) ^ 2 + (GOLDSHIRE.y - EASTVALE.y) ^ 2)
+Check(walked >= line and walked <= line * 1.17, ("a walk across tiles is cut straight: %.0f yards for %.0f"):format(walked, line))
+
 -- Idle for a minute, the built tiles, crossings and walks are let go: a journey or estimate builds them again.
 local before = Walk.Tile(EK, Walk.TileOf(CITY.x, CITY.y))
 now = now + 30

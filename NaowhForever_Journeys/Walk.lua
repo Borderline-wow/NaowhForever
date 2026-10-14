@@ -16,6 +16,10 @@ local EDGE_KEY = 65536
 local SIDE = 8
 local OCEAN = 2
 local PIER_WIDTH = 30
+local NUDGE = 0.5
+local RAY_HOPS = 4000
+local RAY_SLACK = 1e-6
+local RAY_EDGE = 0.05
 local BOAT = "Boat"
 local FACTOR = { [0] = 1, [1] = C.SWIM, [OCEAN] = C.SEA }
 
@@ -122,8 +126,16 @@ local function Build(tx, ty, data)
     local cross = {}
     local x = data.x or {}
     for k = 1, #x, 2 do cross[#cross + 1] = { x[k], x[k + 1] } end
+    local links = {}
+    local l = data.l or {}
+    for k = 1, #l, 5 do
+        local key = l[k] * SIDE + l[k + 1] - 1
+        local list = links[key] or {}
+        links[key] = list
+        list[#list + 1], list[#list + 2], list[#list + 3] = l[k + 2], l[k + 3], l[k + 4]
+    end
     return { vx = vx, vy = vy, vz = vz, polys = polys, nbr = Neighbours(polys), cx = cx, cy = cy, cz = cz,
-        area = data.a, cross = cross }
+        area = data.a, cross = cross, links = links }
 end
 
 local function Forget()
@@ -507,13 +519,119 @@ local function Ends(b, out)
     return out
 end
 
+local function Side(tile, p, k, x, y)
+    local poly = tile.polys[p]
+    local i, j = poly[k], poly[k % #poly + 1]
+    local ax, ay, bx, by = tile.vx[i], tile.vy[i], tile.vx[j], tile.vy[j]
+    local side = Area2(ax, ay, bx, by, x, y) / sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
+    if Area2(ax, ay, bx, by, tile.cx[p], tile.cy[p]) < 0 then side = -side end
+    return side, ax, ay, bx, by
+end
+
+local function Within(tile, p, x, y)
+    for k = 1, #tile.polys[p] do
+        if Side(tile, p, k, x, y) < -RAY_EDGE then return false end
+    end
+    return true
+end
+
+local function Exit(tile, p, sx, sy, ex, ey, after)
+    local dx, dy = ex - sx, ey - sy
+    local edge, at, outside
+    for k = 1, #tile.polys[p] do
+        local side, ax, ay, bx, by = Side(tile, p, k, ex, ey)
+        if side < -RAY_EDGE then
+            outside = true
+            local denom = dx * (by - ay) - dy * (bx - ax)
+            if denom ~= 0 then
+                local t = ((ax - sx) * (by - ay) - (ay - sy) * (bx - ax)) / denom
+                if t >= after - RAY_SLACK and (not at or t < at) then edge, at = k, t end
+            end
+        end
+    end
+    return outside, edge, at
+end
+
+local function Around(tile, p, x, y)
+    local best, bestHeight
+    for q = 1, #tile.polys do
+        if q ~= p and Within(tile, q, x, y) then
+            local height = math.abs(tile.cz[q] - tile.cz[p])
+            if not best or height < bestHeight then best, bestHeight = q, height end
+        end
+    end
+    return best
+end
+
+local function Clear(map, tile, tx, ty, p, sx, sy, ex, ey, wet)
+    local length = sqrt((ex - sx) ^ 2 + (ey - sy) ^ 2)
+    if length == 0 then return tile, tx, ty, p end
+    local ux, uy = (ex - sx) / length, (ey - sy) / length
+    local after, turned = 0, false
+    for _ = 1, RAY_HOPS do
+        if not wet and tile.area and tile.area[p] ~= 0 then return nil end
+        local outside, k, t = Exit(tile, p, sx, sy, ex, ey, after)
+        if not outside then return tile, tx, ty, p end
+        if not k then return nil end
+        local q = tile.nbr[p][k]
+        local list = not q and tile.links[p * SIDE + k - 1]
+        if not q and not list and not turned and t * length < NUDGE then
+            q = Around(tile, p, sx + ux * NUDGE, sy + uy * NUDGE)
+            turned = true
+            t = after
+        end
+        after = t
+        if q then
+            p = q
+        else
+            if not list then return nil end
+            local x, y = sx + (ex - sx) * t, sy + (ey - sy) * t
+            local found
+            for i = 1, #list, 3 do
+                local nextTile = Walk.Tile(map, tx + list[i], ty + list[i + 1])
+                if nextTile and Within(nextTile, list[i + 2], x - list[i + 1] * NUDGE, y - list[i] * NUDGE) then
+                    tile, tx, ty, p, found = nextTile, tx + list[i], ty + list[i + 1], list[i + 2], true
+                    break
+                end
+            end
+            if not found then return nil end
+        end
+    end
+end
+
+local function Straight(a, points, start)
+    local out = {}
+    for i = 1, start + 1 do out[i] = points[i] end
+    local tile, tx, ty, p = Walk.Tile(a.map, a.tx, a.ty), a.tx, a.ty, a.poly
+    local last = #points - 1
+    local i = start
+    while i < last do
+        local reached, rTile, rtx, rty, rp
+        for j = i + 2, last, 2 do
+            local t2, tx2, ty2, p2 = Clear(a.map, tile, tx, ty, p, points[i], points[i + 1], points[j], points[j + 1],
+                j == i + 2)
+            Pause()
+            if not t2 then break end
+            reached, rTile, rtx, rty, rp = j, t2, tx2, ty2, p2
+        end
+        if not reached then
+            for k = i + 2, #points do out[#out + 1] = points[k] end
+            return out
+        end
+        out[#out + 1], out[#out + 2] = points[reached], points[reached + 1]
+        tile, tx, ty, p, i = rTile, rtx, rty, rp, reached
+    end
+    return out
+end
+
 function Walk.Path(a, b)
     local _, via = Between(a, b)
     local out = a.off and { a.off[1], a.off[2], a.x, a.y } or { a.x, a.y }
+    local start = #out - 1
     if not via then
         if a.tx ~= b.tx or a.ty ~= b.ty or not a.near[b.poly] then return nil end
         local tile = Walk.Tile(a.map, a.tx, a.ty)
-        return Segment(tile, a.poly, a.x, a.y, b.poly, b.x, b.y, out) and Ends(b, out) or nil
+        return Segment(tile, a.poly, a.x, a.y, b.poly, b.x, b.y, out) and Ends(b, Straight(a, out, start)) or nil
     end
     local g = Graph(a.map)
     local chain, c = {}, via
@@ -540,7 +658,8 @@ function Walk.Path(a, b)
         if not fromPoly then return nil end
         fromX, fromY = g.px[id], g.py[id]
     end
-    return Segment(tile, fromPoly, fromX, fromY, b.poly, b.x, b.y, out) and Ends(b, out) or nil
+    if not Segment(tile, fromPoly, fromX, fromY, b.poly, b.x, b.y, out) then return nil end
+    return Ends(b, Straight(a, out, start))
 end
 
 function Walk.Cost(map, a, b)
