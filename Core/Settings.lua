@@ -138,7 +138,7 @@ local S = UI.ModuleSettings("qol", {
     townVendors = false, townMail = true, townPinSize = 20, townMinimap = true, townMinimapSpirit = true,
     townTravel = false,
     mapUnexplored = F.mapUnexplored, mapUnexploredDark = 0.5,
-    zoneLevels = F.zoneLevels,
+    zoneLevels = F.zoneLevels, mapFishing = F.mapFishing,
     mapSkyborne = F.mapSkyborne, mapSkyborneSize = 20,
     mapSizePercent = 100, mapSizePos = false,
     gearSets = F.gearSets, gearBarVisible = F.gearBarVisible, trinketBar = F.trinketBar, trinketSize = 36, trinketSpacing = 4, trinketGrow = "RIGHT", gearBarSize = 32, gearBarGrow = "RIGHT", gearMounted = "", gearResting = "",

@@ -68,6 +68,7 @@ ns.FEATURES = {
         townMap = true,
         mapUnexplored = true,
         zoneLevels = false,
+        mapFishing = false,
         mapSkyborne = false,
         gearSets = true,
         gearBarVisible = true,

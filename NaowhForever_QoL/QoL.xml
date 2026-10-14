@@ -58,6 +58,7 @@
     <Script file="Interface\MapOverlays.lua"/>
     <Include file="Interface\Unexplored.xml"/>
     <Script file="Interface\ZoneLevelsData.lua"/>
+    <Script file="Interface\FishingLevelsData.lua"/>
     <Script file="Interface\ZoneLevels.lua"/>
     <Script file="Interface\SkyborneData.lua"/>
     <Include file="Interface\SkyborneSpots.xml"/>
