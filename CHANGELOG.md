@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.1.15
+
+### Fixed
+- Training Planner: resetting your talents while following a build asks whether to learn it again,
+  instead of spending the points straight away.
 
 ## 1.1.14
 
