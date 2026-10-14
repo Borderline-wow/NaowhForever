@@ -40,7 +40,6 @@ local OPTIONS_WINDOW = "NaowhForeverOptions"
 local EDITOR_INSET = 6
 local COOLDOWN_RANGE = { 1, 60, 1 }
 local EDGE = ns.Shared.Style.BORDER_RGB
-local EMOTE_KEY = "?"
 local THANK_EMOTE = "THANK"
 local WHISPER_KEY = "buffThanksText"
 local TEXT_SAVE, TEXT_CANCEL = "Save", "Cancel"
@@ -89,18 +88,17 @@ local function Send(text, channel, to)
     C_ChatInfo.SendChatMessage(text, channel, nil, to)
 end
 
-local function ThankStranger()
-    if not (S.Get("buffThanksEmote") and Due(EMOTE_KEY)) then return end
-    sentCount = sentCount + 1
-    C_ChatInfo.PerformEmote(THANK_EMOTE)
-end
-
 local function ThankCaster(unit, id, buff)
     if UnitIsUnit(unit, "player") or not UnitIsPlayer(unit) then return end
     if not S.Get("buffThanksGroup") and (UnitInParty(unit) or UnitInRaid(unit)) then return end
-    if not S.Get("buffThanksWhisper") then return ThankStranger() end
+    if not S.Get("buffThanksWhisper") and not S.Get("buffThanksEmote") then return end
     local name, guid = GetUnitName(unit, true), UnitGUID(unit)
     if not name or not Due(guid and not Secret(guid) and guid or name) then return end
+    if not S.Get("buffThanksWhisper") then
+        sentCount = sentCount + 1
+        C_ChatInfo.PerformEmote(THANK_EMOTE, unit)
+        return
+    end
     local short, family = Ambiguate(name, "short"), buffs[id]
     local text = S.Get("buffThanksPerBuff") and family ~= true and Line(family, buff, short)
         or Line(WHISPER_KEY, buff, short)
@@ -110,11 +108,7 @@ end
 local function Thank(aura)
     local unit, id = aura.sourceUnit, aura.spellId
     if Secret(unit) or Secret(id) or not buffs[id] or not Room(GetTime()) then return end
-    if unit then
-        ThankCaster(unit, id, aura.name)
-    else
-        ThankStranger()
-    end
+    if unit then ThankCaster(unit, id, aura.name) end
 end
 
 local function OnAura(_, _, _, info)
@@ -229,8 +223,6 @@ local function EditLines(key, title)
     editor.view.box:SetFocus()
 end
 
-local Group = ns.Shared.Settings.Group
-
 local function PerBuffOff()
     return not S.Get("buffThanksPerBuff")
 end
@@ -240,7 +232,9 @@ local rows = {
       button = function() EditLines("buffThanksText", ns.L("Whisper Lines")) end,
       help = "One whisper per line, picked at random; {buff} and {name} are filled in." },
     { key = "buffThanksWhisper", label = "Whisper Named Players", toggle = true,
-      help = "Off thanks every caster with the /thank emote instead; needs Thank With an Emote." },
+      help = "Whispers the player who buffed you instead of using an emote." },
+    { key = "buffThanksEmote", label = "Thank With an Emote", toggle = true,
+      help = "Thanks the player who buffed you with an emote when whispers are off." },
     { key = "buffThanksCooldown", label = "Once Per Player Every", slider = COOLDOWN_RANGE, unit = "m",
       help = "The shortest time between two thanks to the same player." },
     { key = "buffThanksGroup", label = "Thank Group Members", toggle = true,
@@ -253,9 +247,6 @@ for _, family in ipairs(FAMILIES) do
         button = function() EditLines(family.key, family.label) end,
         help = ns.L("Whispers for ") .. family.what .. "." }
 end
-rows[#rows + 1] = Group("Unknown Casters")
-rows[#rows + 1] = { key = "buffThanksEmote", label = "Thank With an Emote", toggle = true,
-    help = "A /thank to everyone around you when the game cannot name the caster." }
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "buffThanks", name = "Buff Thank You Message", order = 40, switch = "buffThanks",

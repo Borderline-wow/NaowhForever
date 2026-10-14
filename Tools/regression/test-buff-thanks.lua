@@ -1,6 +1,7 @@
 -- Run with Lua 5.1 from the repository root: Buff Thank You Message whispers a player who
 -- gives you a class buff, once per cooldown, in the open world and out of combat only; a
--- caster the game cannot name gets the optional built-in /thank; and nothing is registered
+-- named caster gets a targeted built-in /thank when whispers are off; unknown casters are skipped,
+-- your current target is untouched, and nothing is registered
 -- while it is off.
 local settings = {
     enabled = true, buffThanks = false, buffThanksCooldown = 10, buffThanksGroup = false,
@@ -40,6 +41,7 @@ local units = {
 -- A crowd for the cap, and a second Mumford: Forever's first names are not unique.
 for i = 1, 5 do units["nameplate" .. (100 + i)] = { name = "Crowd" .. i, guid = "Player-1-1" .. i, player = true } end
 units.nameplate40 = { name = "Mumford", guid = "Player-1-40", player = true }
+local currentTarget = "nameplate9"
 local sent, now, combat, instance, secretAuras, lockdown, secret = {}, 1000, false, false, false, false, nil
 local env = setmetatable({
     NaowhForever = ns,
@@ -53,12 +55,18 @@ local env = setmetatable({
     C_ChatInfo = {
         SendChatMessage = function(text, channel, _, to) sent[#sent + 1] = { text = text, channel = channel, to = to } end,
         InChatMessagingLockdown = function() return lockdown end,
-        PerformEmote = function(emote) sent[#sent + 1] = { emote = emote } end,
+        PerformEmote = function(emote, unit) sent[#sent + 1] = { emote = emote, unit = unit } end,
     },
+    TargetUnit = function() error("Buff Thanks must not change your target") end,
+    ClearTarget = function() error("Buff Thanks must not clear your target") end,
     GetTime = function() return now end,
     UnitAffectingCombat = function() return combat end,
     IsInInstance = function() return instance end,
-    UnitIsUnit = function(a, b) return a == b end,
+    UnitIsUnit = function(a, b)
+        if a == "target" then a = currentTarget end
+        if b == "target" then b = currentTarget end
+        return a == b
+    end,
     UnitIsPlayer = function(u) return units[u].player end,
     UnitInParty = function(u) return units[u].party end,
     UnitInRaid = function() return nil end,
@@ -160,7 +168,7 @@ Case("a secret caster or spell ID: nothing", function()
     secret = nil
     assert(#sent == 0, #sent)
 end)
-Case("an unnamed caster: nothing unless Thank With an Emote is on", function()
+Case("an unnamed caster with the emote off: nothing", function()
     Gain(20217, "Blessing of Kings", nil)
     assert(#sent == 0)
 end)
@@ -173,24 +181,54 @@ Case("every class: Arcane Intellect, Fortitude, Mark of the Wild, Unending Breat
     assert(#sent == 4, #sent)
     settings.buffThanksEmote = true
 end)
-Case("unnamed casters with the emote on: one built-in /thank per cooldown", function()
+Case("unnamed casters with the emote on: nothing in either whisper mode", function()
+    now = now + 3600
     Gain(9885, "Mark of the Wild", nil)
-    Gain(467, "Thorns", nil)
-    assert(#sent == 1 and sent[1].emote == "THANK" and sent[1].channel == nil, #sent)
-    now = now + 3600
-    Gain(20217, "Blessing of Kings", nil)
-    assert(#sent == 2 and sent[2].emote == "THANK", #sent)
-end)
-Case("whispers off with the emote on: a named caster gets the one /thank, group and self still skipped", function()
-    now = now + 3600
     settings.buffThanksWhisper = false
-    Gain(9885, "Mark of the Wild", "nameplate38")
-    assert(#sent == 1 and sent[1].emote == "THANK" and sent[1].channel == nil, #sent)
-    Gain(467, "Thorns", "party1")
-    assert(#sent == 1, #sent)
+    Gain(467, "Thorns", nil)
+    assert(#sent == 0, #sent)
+end)
+Case("whispers off: thank the caster while another unit is targeted, once per player", function()
     now = now + 3600
-    Gain(467, "Thorns", "player")
+    Gain(9885, "Mark of the Wild", "nameplate38")
+    assert(#sent == 1 and sent[1].emote == "THANK" and sent[1].unit == "nameplate38", #sent)
+    assert(sent[1].channel == nil and currentTarget == "nameplate9")
+    Gain(467, "Thorns", "nameplate38")
     assert(#sent == 1, #sent)
+    Gain(467, "Thorns", "nameplate40")
+    assert(#sent == 2 and sent[2].unit == "nameplate40", #sent)
+    Gain(467, "Thorns", "nameplate2")
+    assert(#sent == 3 and sent[3].unit == "nameplate2", #sent)
+    now = now + 3600
+    Gain(467, "Thorns", "nameplate38")
+    assert(#sent == 4 and sent[4].unit == "nameplate38", #sent)
+    currentTarget = nil
+    Gain(467, "Thorns", "nameplate2")
+    assert(#sent == 5 and sent[5].unit == "nameplate2" and currentTarget == nil, #sent)
+    currentTarget = "nameplate9"
+end)
+Case("emotes still skip self, NPCs and excluded group members", function()
+    now = now + 3600
+    settings.buffThanksGroup = false
+    Gain(467, "Thorns", "party1")
+    Gain(467, "Thorns", "player")
+    Gain(467, "Thorns", "nameplate9")
+    assert(#sent == 0, #sent)
+    settings.buffThanksGroup = true
+    Gain(467, "Thorns", "party1")
+    assert(#sent == 1 and sent[1].unit == "party1", #sent)
+end)
+Case("a caster without a readable name: no general emote", function()
+    units.nameplate38.name = nil
+    Gain(467, "Thorns", "nameplate38")
+    units.nameplate38.name = "Mumford"
+    assert(#sent == 0, #sent)
+end)
+Case("whispers and emotes both off: nothing", function()
+    now = now + 3600
+    settings.buffThanksEmote = false
+    Gain(467, "Thorns", "nameplate38")
+    assert(#sent == 0, #sent)
     settings.buffThanksWhisper = true
 end)
 Case("several lines: one is picked, trimmed, placeholders filled in", function()

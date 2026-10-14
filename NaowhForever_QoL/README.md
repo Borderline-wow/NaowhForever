@@ -260,8 +260,9 @@ NaowhForever_QoL/
   it, and its `isOnGCD` flag stays readable in combat. A press and a cooldown error within 0.3s
   (`MATCH_WINDOW`) are one.
 - Buff Thank You Message: the game only names a caster who has a nameplate, is your target or
-  mouseover, or is in your group; for anyone else it can send the built-in /thank instead. An
-  addon's custom /emote, like /say, is blocked outside instances without a key press, but
+  mouseover, or is in your group; unknown casters are skipped. With whispers off, the built-in
+  /thank receives the caster's unit token, without changing your current target. An addon's
+  custom /emote, like /say, is blocked outside instances without a key press, but
   `C_ChatInfo.PerformEmote` is not (tested on Forever from a `C_Timer` callback).
 - Its buff lists hold every rank and group version of each class buff another player can give
   you (Wowhead Forever). They are kept in the file, not read from Auras & Buffs, because that
