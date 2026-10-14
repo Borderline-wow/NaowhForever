@@ -82,9 +82,6 @@ local T = { fg = { r = 1, g = 1, b = 1 }, muted = { r = 0.5, g = 0.5, b = 0.5 },
 local EDITABLE = { "bg", "panel", "line", "fg", "muted", "accent" }
 local NAOWH_PALETTE = { { r = 0.01, g = 0.02, b = 0.03 }, { r = 0.11, g = 0.12, b = 0.13 }, { r = 0.21, g = 0.22, b = 0.23 },
     { r = 0.91, g = 0.92, b = 0.93 }, { r = 0.51, g = 0.52, b = 0.53 }, { r = 0, g = 0.57, b = 0.93 } }
-local CLASSIC_PLUS = { bg = { r = 0.04, g = 0.04, b = 0.03 }, panel = { r = 0.09, g = 0.07, b = 0.04 },
-    line = { r = 0.37, g = 0.29, b = 0.11 }, fg = { r = 0.93, g = 0.89, b = 0.8 }, muted = { r = 0.66, g = 0.6, b = 0.49 },
-    accent = { r = 1, g = 0.82, b = 0 } }
 local FOREVER = { bg = { r = 0.07, g = 0.06, b = 0.05 }, panel = { r = 0.11, g = 0.1, b = 0.09 },
     line = { r = 0.43, g = 0.32, b = 0.15 }, fg = { r = 0.91, g = 0.85, b = 0.71 }, muted = { r = 0.6, g = 0.56, b = 0.48 },
     accent = { r = 1, g = 0.82, b = 0 } }
@@ -95,11 +92,11 @@ local buttons, fonts = {}, {}
 local Parts = { ForeverButtonArt = function(f) f.redButton = true; return true end }
 local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"), THEME = T, UI = {},
     Shared = { Style = St, Parts = Parts },
-    THEME_EDITABLE = EDITABLE, CLASSIC_PLUS = CLASSIC_PLUS, FOREVER_SKIN = FOREVER,
+    THEME_EDITABLE = EDITABLE, FOREVER_SKIN = FOREVER,
     ThemePresetKey = function() return "" end,
     ThemePalette = function(key) s.paletteKey = key; return NAOWH_PALETTE end,
-    AddonFontPath = function(classic) return classic and "arial" or "naowh" end,
-    HeadingFontPath = function(classic) return classic and "friz" or "naowh" end,
+    AddonFontPath = function(game) return game and "arial" or "naowh" end,
+    HeadingFontPath = function(game) return game and "friz" or "naowh" end,
     Font = function(parent, size, _, color)
         local f = Frame()
         f.parent, f.size, f.fontColor = parent, size, color
@@ -112,7 +109,6 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.up
         return t
     end,
     Hairline = Noop,
-    GameButtonArt = function(f) f.gameArt = true end,
     Border = function(f, color)
         local edge = { color = color }
         f.border = color
@@ -334,37 +330,30 @@ Find("Next").Click()
 check("each new step fades in", skinPage.fadeIn.plays == fades + 1)
 check("step 2: the skin", window.subtitle.text == "Step 2 of 4" and Said("How should Naowh Forever look?") ~= nil
     and Said("For every character on this computer.") ~= nil)
-local naowh, classic, forever = Tile("Naowh"), Tile("Classic+"), Tile("Forever")
-check("three skins, the one in use picked", #Tiles() == 3 and naowh and classic and forever and Picked() == "Naowh")
-check("each tile shows a small window, not an icon", naowh.preview and classic.preview and forever.preview
+local naowh, forever = Tile("Naowh"), Tile("Forever")
+check("two skins, the one in use picked", #Tiles() == 2 and naowh and forever and Tile("Classic+") == nil
+    and Picked() == "Naowh")
+check("each tile shows a small window, not an icon", naowh.preview and forever.preview
     and not naowh.icon.shown and not forever.icon.shown
     and naowh.preview.title.text == "Naowh Forever" and naowh.preview.body.text == "Every window looks like this."
     and naowh.preview.button.label.text == "Start")
-local np, cp = naowh.preview, classic.preview
+local np = naowh.preview
 check("Naowh's preview: the theme's own colors", s.paletteKey == "" and np.bg.solid == NAOWH_PALETTE[1]
     and np.bar.solid == NAOWH_PALETTE[2] and np.rule.solid == NAOWH_PALETTE[3] and np.title.fontColor == NAOWH_PALETTE[4]
     and np.body.fontColor == NAOWH_PALETTE[5] and np.button.border == NAOWH_PALETTE[6])
 check("its black edge, its font, its accent-edged button", np.border == St.BORDER_RGB and np.title.fontPath == "naowh"
     and np.body.fontPath == "naowh" and np.button.label.fontColor == NAOWH_PALETTE[4]
     and np.button.fill.gradient[1].r == NAOWH_PALETTE[2].r)
-check("Classic+'s preview: its own palette", cp.bg.solid == CLASSIC_PLUS.bg and cp.bar.solid == CLASSIC_PLUS.panel
-    and cp.rule.solid == CLASSIC_PLUS.line and cp.body.fontColor == CLASSIC_PLUS.muted
-    and cp.title.fontColor == CLASSIC_PLUS.accent)
-check("its gold edge, the game's fonts, the game's own button", cp.border == St.CLASSIC_GOLD_RGB
-    and cp.title.fontPath == "friz" and cp.body.fontPath == "arial" and cp.button.gameArt
-    and cp.button.fill == nil and cp.button.border == nil and cp.button.label.fontColor == CLASSIC_PLUS.accent)
 local fp = forever.preview
 check("Forever's preview: its own palette", fp.bg.solid == FOREVER.bg and fp.rule.solid == FOREVER.line
     and fp.body.fontColor == FOREVER.muted and fp.title.fontColor == FOREVER.accent)
 check("its bronze edge, its dark title bar, the game's fonts", fp.border == St.FOREVER_BRONZE_RGB
     and fp.bar.gradient[2].r == St.FOREVER_TITLE_BAR_RGB[1].r and fp.title.fontPath == "friz" and fp.body.fontPath == "arial")
-check("its button the game's red one, not the Classic+ art", fp.button.redButton and not fp.button.gameArt
-    and fp.button.fill == nil and fp.button.label.fontColor == FOREVER.accent)
-check("Classic+'s preview keeps its plain title bar", cp.bar.gradient == nil)
+check("its button the game's red one", fp.button.redButton and fp.button.fill == nil
+    and fp.button.label.fontColor == FOREVER.accent)
+check("Naowh's preview keeps its plain title bar", np.bar.gradient == nil)
 Clicked(forever)
 check("Forever picked", Picked() == "Forever")
-Clicked(classic)
-check("Classic+ picked", Picked() == "Classic+")
 Find("Next").Click()
 check("step 3: the modules", window.subtitle.text == "Step 3 of 4" and Said("Which modules do you want?") ~= nil
     and Said("Click a module to turn it on or off.") ~= nil)
@@ -400,7 +389,7 @@ Find("Back").Click()
 Find("Back").Click()
 check("Back goes a step back, the pick kept", window.subtitle.text == "Step 1 of 4" and Picked() == "Minimalist")
 Find("Next").Click()
-check("the skin kept too", Picked() == "Classic+")
+check("the skin kept too", Picked() == "Forever")
 Find("Next").Click()
 check("the same profile: the module flips kept", Tile("Discovery").on and Tile("Professions").on)
 Find("Back").Click()
@@ -413,7 +402,7 @@ check("another profile picked: its modules again", Picked() == MINIMALIST)
 Find("Next").Click()
 check("step 4: the summary", window.subtitle.text == "Step 4 of 4" and Said("Here's your setup") ~= nil
     and Said("Nothing changes until you apply it.") ~= nil)
-check("it names the profile and the new skin", Said("Profile") and Said("Minimalist") and Said("Skin") and Said("Classic+"))
+check("it names the profile and the new skin", Said("Profile") and Said("Minimalist") and Said("Skin") and Said("Forever"))
 local off = Saying("Discovery")
 check("and the modules it turns off, in red", Said("Turns off") and off and off.color[1] == St.RED_RGB.r
     and not off.text:find("BiS List", 1, true))
@@ -429,11 +418,11 @@ window.events.scripts.OnEvent(window.events, "PLAYER_REGEN_ENABLED")
 check("after the fight it is ready again", Said("Apply after your fight.") == nil and Find("Apply").alpha == 1)
 Find("Apply").Click()
 check("applied: the window closes and the reload is offered", not window.shown and s.reloadAsked ~= nil)
-check("its modules on, the rest off, Classic+, Minimalist", w.enabled.NaowhForever_QoL and w.enabled.NaowhForever_BiS
+check("its modules on, the rest off, Forever, Minimalist", w.enabled.NaowhForever_QoL and w.enabled.NaowhForever_BiS
     and w.enabled.NaowhForever_ThreatMeter and w.enabled.NaowhForever_PvP and not w.enabled.NaowhForever_Discovery
     and not w.enabled.NaowhForever_GroupInspect
     and not w.enabled.NaowhForever_SwingTimer and not w.enabled.NaowhForever_ConsumableBar
-    and w.account.skin == "classic" and w.root.qol.preset == "minimalist" and w.account.setupBefore ~= nil)
+    and w.account.skin == "forever" and w.root.qol.preset == "minimalist" and w.account.setupBefore ~= nil)
 check("closed: the onboarding is seen, so it never opens by itself again", w.account.onboardingSeen == true
     and w.account.welcomeSeen == true)
 w.ns.Setup.Restore()

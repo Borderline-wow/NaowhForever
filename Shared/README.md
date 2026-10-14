@@ -63,9 +63,7 @@ Shared/
   UI/Panels.lua    a window's backdrop and its cards (Parts.Backdrop), the panel a view sits in, and the
                    side panel that opens beside a window
   UI/Window.lua    a window: the frame, its size grip, the title bar with its logo, icons and opacity
-                   slider, the link back to the window it was opened from, and the footer; on the
-                   Classic+ skin its trim (Parts.ClassicTrim), title plate (Parts.TitlePlate) and a
-                   box's bronze line (Parts.ClassicBox)
+                   slider, the link back to the window it was opened from, and the footer
   UI/Forever.lua   the Forever skin's parts, each on the game's own art with a drawn fallback: the window
                    frame with its title bar, portrait and red close (Parts.ForeverFrame), insets, buttons,
                    fields, the search box, tabs, side tabs, check boxes, dropdowns, sliders, swatches, the
@@ -507,33 +505,13 @@ What a comment in the code used to say, in short. The house rules behind it are 
 - A settings view changed while hidden is marked stale and drawn again as it shows, so it never
   shows an old value (an options window that stepped aside for a picker, a page another changed).
 
-### The Classic+ skin
-
-- The skin is read once per load (`ns.classicSkin`), with the theme's colors, so every part asks it
-  as it is made; a change takes a reload.
-- A window's frame steps out from its own black edge: a gold line, `CLASSIC_TRIM_BODY` pixels of
-  bronze and a black rim, with a gem on each corner. The options window's name sits on a plate
-  over its top edge, in the game's title face.
-- A window's background is the game's own rock tiled over the backdrop, darkened
-  (`CLASSIC_PATTERN_SHADE`) and partly see-through (`CLASSIC_PATTERN_ALPHA`), so text on it stays
-  readable.
-- Cards and settings heads get a bronze line inside their black edge, the way the game draws its
-  option groups (`Parts.ClassicBox`).
-- The picked tab is lit bronze under a gold line along its top; the others read in gold.
-- The help card is drawn as the game draws its tooltips: dark blue inside a grey-blue line.
-- The picked sidebar row is the game's blue list glow, fading to the right
-  (`CLASSIC_PICK_ALPHA` to `CLASSIC_PICK_FADE`), with a lit line along its top.
-- A button's colors are each state's `{ top, bottom }`; pressed turns them over. A slider is
-  filled `{ top, bottom }` too, with a gem to drag on a black edge (`CLASSIC_KNOB_EDGE`).
-- The game's tick in a check box is drawn a little larger than the box (`CLASSIC_CHECK_SCALE`), as
-  the game draws it.
-- Headings stand out as the game's titles do: a size up (`CLASSIC_HEADING_STEP`), on a black drop
-  shadow.
-
 ### The Forever skin
 
-- The skin is read once per load with the theme's colors, like Classic+: `ns.Skin()` is `""`,
-  `"classic"` or `"forever"`, and `ns.foreverSkin` is true on Forever. A change takes a reload.
+- The skin is read once per load with the theme's colors, so every part asks it as it is made:
+  `ns.Skin()` is `""` or `"forever"`, and `ns.foreverSkin` is true on Forever. A change takes a
+  reload. It replaced the Classic+ skin, and the parts it kept from it keep their `CLASSIC_` names:
+  the full-color icons (`CLASSIC_ICONS`, `Parts.ClassicIcon`), the Top Bar's highlight and the
+  heading step.
 - It dresses the windows as WoW Forever's own (Talents, Spellbook, Character, Professions) and is
   built on their art. Every atlas is asked for with `C_Texture.GetAtlasInfo` first (once, then
   remembered), and a whole frame only through `NineSliceUtil` when all of its pieces exist; when one
@@ -615,8 +593,9 @@ What a comment in the code used to say, in short. The house rules behind it are 
 - Settings, Profiles, Patch Notes and Credits are the game's side tabs (`common-sidetab`), hung on
   the frame's outer right edge (`FOREVER_SIDE` out, where the metal ends), outside the content. The
   window clips nothing, so none of them is cut off.
-- Fonts are the game's, as on Classic+: Friz Quadrata for text and headings, Arial Narrow for
-  numbers, unless an Addon Font is picked.
+- Fonts are the game's: Friz Quadrata for text and headings, Arial Narrow for numbers, unless an
+  Addon Font is picked. Headings stand out as the game's titles do: a size up
+  (`CLASSIC_HEADING_STEP`), on a black drop shadow.
 
 #### The HUD Editor on Forever
 
@@ -681,11 +660,11 @@ lists every file the parts it uses are made in: `Parts.lua` with `Marks.lua`, `T
 `SettingsCard.lua`; `Items.lua` with `Gear.lua`.
 
 `lua Tools/regression/test-forever-skin.lua` builds every Forever part twice, on a client with all of
-the game's art and on one with none of it, and checks Naowh and Classic+ make none of it. It draws a
+the game's art and on one with none of it, and checks Naowh makes none of it. It draws a
 settings page (bare bars that reflow as a card opens and closes) and builds the options window on
 Forever: its header band and rails, the buttons on the band, no sidebar logo and no boxed content.
 
 `lua Tools/regression/test-forever-unlock.lua` opens the HUD Editor on Forever, with all of the art
 and with none of it: both frames, the close buttons, the disabled and pressed buttons, the Layouts
 dropdown, Edit Mode's selection on a mover (not made before the editor opens), the folding list bars
-and the lighter guides; and checks Naowh and Classic+ keep their HUD Editor.
+and the lighter guides; and checks Naowh keeps its HUD Editor.

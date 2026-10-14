@@ -72,11 +72,9 @@ do
     w.account.welcomeSeen, w.account.setupBefore = nil, {}
     check("and one with a backup from an earlier Apply", Setup.DefaultProfile() == Setup.KEEP)
     check("the skin starts as the one in use", Setup.Fresh().skin == "")
-    w.account.skin = "classic"
-    check("Classic+ in use: Classic+", Setup.Fresh().skin == "classic")
     w.account.skin = "forever"
     check("Forever in use: Forever", Setup.Fresh().skin == "forever")
-    check("three skins to pick from", #Setup.SKINS == 3 and Setup.SKINS[3] == "forever")
+    check("two skins to pick from", #Setup.SKINS == 2 and Setup.SKINS[2] == "forever")
     w.account.skin = "nonsense"
     check("anything else: Naowh", Setup.Fresh().skin == "")
 end
@@ -157,9 +155,9 @@ do
     plan = Setup.Plan(picks)
     check("a loaded module turned off: listed, with a reload", Names(plan.off) == "Swing Timer" and plan.reload)
     Setup.Toggle(picks, "swingTimer", true)
-    picks.skin = "classic"
+    picks.skin = "forever"
     plan = Setup.Plan(picks)
-    check("a new skin: listed and reloads", plan.changes and plan.skinChanged and plan.reload and plan.skin == "classic")
+    check("a new skin: listed and reloads", plan.changes and plan.skinChanged and plan.reload and plan.skin == "forever")
     picks.skin = ""
     Setup.PickProfile(picks, "recommended")
     plan = Setup.Plan(picks)
@@ -284,15 +282,15 @@ do
     local w = Game({ account = { welcomeSeen = true } })
     local Setup = w.ns.Setup
     local picks = Setup.Fresh()
-    picks.skin = "classic"
-    check("a new skin: applied, with a reload", select(2, Applied(w, picks)) and w.account.skin == "classic")
+    picks.skin = "forever"
+    check("a new skin: applied, with a reload", select(2, Applied(w, picks)) and w.account.skin == "forever")
     check("only the skin changed: the setup's name stays", w.root.qol == nil or w.root.qol.preset == nil)
     Setup.Restore()
     check("restored: back to Naowh", w.account.skin == nil)
-    w.account.skin = "classic"
+    w.account.skin = "forever"
     w.account.setupBefore = { profile = "Default", root = {}, addons = {} }
     Setup.Restore()
-    check("a backup from before skins were saved leaves the skin alone", w.account.skin == "classic")
+    check("a backup from before skins were saved leaves the skin alone", w.account.skin == "forever")
     w.account.setupBefore = { profile = "Other", root = {}, addons = {} }
     check("a backup of another profile is not restored here", not Setup.CanRestore() and not Setup.Restore())
 end

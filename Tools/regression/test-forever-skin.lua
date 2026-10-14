@@ -1,7 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the Forever skin. Every part is built on the game's
 -- own art when the client has it (atlases asked through C_Texture.GetAtlasInfo, frames through
 -- NineSliceUtil) and drawn from Style.lua's tokens when it does not, so nothing ever shows a
--- missing texture. On Naowh and Classic+ nothing of it is made, and Classic+ keeps its own look.
+-- missing texture. On Naowh nothing of it is made, and a saved Classic+ skin is moved to it.
 -- Every Forever button is the game's one red button, a card's +/- is the Friends list header's at
 -- its own size, and an off card's check boxes keep the game's dimmed box and disabled tick.
 -- The options window is built for real on Forever: its header band, rails and bar navigation.
@@ -228,7 +228,7 @@ local ALL = AllAtlases(St)
 do
     local ns, made = Load({}, ALL)
     check("Forever's file makes nothing at load", made["Shared/UI/Forever.lua"] == 0 and #atlasCalls == 0)
-    check("Naowh: the skin is read as the default", ns.Skin() == "" and not ns.foreverSkin and not ns.classicSkin)
+    check("Naowh: the skin is read as the default", ns.Skin() == "" and not ns.foreverSkin)
     local window = ns.Shared.Parts.Window(400, 300, "test")
     ns.Shared.Parts.TitleBar(window, "Title", "Sub")
     local btn = ns.Button(New("Frame"), "Go", 80, 20)
@@ -239,29 +239,19 @@ do
     check("Naowh: the game's art is never asked for", #atlasCalls == 0 and #layouts == 0 and window.backdrop.pattern == nil)
 end
 
--- Classic+: its own look exactly, and nothing of Forever.
+-- Classic+ is retired: a player who had it gets Forever's frame.
 do
     local ns = Load({ skin = "classic" }, ALL)
     local window = ns.Shared.Parts.Window(400, 300, "test")
-    local btn = ns.Button(New("Frame"), "Go", 80, 20)
-    local tabs = ns.Shared.Parts.Tabs(New("Frame"), 300, { { key = "a", label = "A" } }, function() end)
-    ns.Shared.Parts.PaintTabs(tabs, "a")
-    local c = Controls(ns)
-    check("Classic+: the skin read as classic", ns.Skin() == "classic" and ns.classicSkin and not ns.foreverSkin)
-    check("Classic+: its rock pattern and the game's red button", window.backdrop.pattern.texture == St.CLASSIC_PATTERN
-        and window.backdrop.patternShade == St.CLASSIC_PATTERN_SHADE and btn._art ~= nil and not btn._forever)
-    check("Classic+: its bronze tab under a gold line", tabs.buttons[1].line.points[1][1] == "TOPLEFT"
-        and tabs.buttons[1].line.color[1] == St.CLASSIC_GOLD_RGB.r and tabs.buttons[1].idleArt == nil)
-    local tick = Holds(c.toggle, function(x) return x.texture == St.CLASSIC_CHECK end)
-    check("Classic+: its sunken check, as wide as before", tick ~= nil and c.toggle.w == 40)
-    check("Classic+: no Forever frame, and no atlas asked for", window.forever == nil and #atlasCalls == 0 and #layouts == 0)
+    check("Classic+: saved as Forever and read as it", ns.AccountSettings().skin == "forever" and ns.Skin() == "forever"
+        and ns.foreverSkin and window.forever ~= nil)
 end
 
 -- Forever, on a client with every atlas and file.
 do
     local ns = Load({ skin = "forever" }, ALL)
     local Parts = ns.Shared.Parts
-    check("Forever: the skin read as forever", ns.Skin() == "forever" and ns.foreverSkin and not ns.classicSkin)
+    check("Forever: the skin read as forever", ns.Skin() == "forever" and ns.foreverSkin)
     check("Forever: its own palette over any theme", ns.THEME.accent.r == ns.FOREVER_SKIN.accent.r
         and ns.THEME.panel.g == ns.FOREVER_SKIN.panel.g)
     local window = Parts.Window(400, 300, "test")

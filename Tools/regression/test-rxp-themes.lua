@@ -239,13 +239,14 @@ do
         "while the fixed themes are what they were")
 
     for _, account in ipairs({
-        { rxpThemes = true, skin = "classic", themePreset = "crimson" },
-        { rxpThemes = true, skin = "classic" },
-        { rxpThemes = true, skin = "classic", themePreset = "custom", themeColors = { accent = { r = 0, g = 1, b = 0 } } } }) do
+        { rxpThemes = true, skin = "forever", themePreset = "crimson" },
+        { rxpThemes = true, skin = "forever" },
+        { rxpThemes = true, skin = "forever", themePreset = "custom", themeColors = { accent = { r = 0, g = 1, b = 0 } } },
+        { rxpThemes = true, skin = "classic", themePreset = "crimson" } }) do
         theme, list = Current(account)
-        Check(Hex(theme.background) == "17110b" and Hex(theme.bottomFrameBG) == "17110b" and Hex(theme.mapPins) == "ffd100"
-            and Hex(theme.dividerColor) == "5e4a1c" and Hex(theme.chromeColor) == "a89a7c" and Hex(theme.textColor) == "ece3cc",
-            "with the Classic+ skin on: Classic+'s colors, whatever theme was picked")
+        Check(Hex(theme.background) == "1b1916" and Hex(theme.bottomFrameBG) == "1b1916" and Hex(theme.mapPins) == "ffd100"
+            and Hex(theme.dividerColor) == "6e5126" and Hex(theme.chromeColor) == "9a8f7a" and Hex(theme.textColor) == "e8dab4",
+            "with the Forever skin on (or the Classic+ it replaced): Forever's colors, whatever theme was picked")
         Check(theme.tooltip == "|cffffd100" and Same(theme.bottomFrameHighlight, { 1, 0xd1 / 255, 0, 0.5 }),
             "and its Accent in the tooltip and the highlight")
         Check(Hex(list["NaowhForever:crimson"].mapPins) == "ef4b56" and Hex(list["NaowhForever:default"].mapPins) == "0091ed",

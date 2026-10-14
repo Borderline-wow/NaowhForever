@@ -166,34 +166,22 @@ do
     Check(a.themePreset == nil and #e.notes == 1, "the default is stored as nothing, and the hint stays")
 end
 
--- Skin: the default or Classic+, stored for a reload; Classic+ has its own colors, so the
--- Theme dropdown is greyed out under it.
+-- Skin: the default or Forever, stored for a reload; Forever has its own colors, so the Theme
+-- dropdown is greyed out under it, and the help is one sentence.
 do
     local a = {}
     local e = Page(a)
     local k = e.skin
-    Check(k and k.type == "dropdown" and k.order[1] == "" and k.values.classic == "Classic+", "a Skin dropdown, default first")
+    Check(k and k.type == "dropdown" and #k.order == 2 and k.order[1] == "" and k.order[2] == "forever"
+        and k.values.forever == "Forever" and k.values.classic == nil, "a Skin dropdown: Naowh first, then Forever")
+    Check(#k.tooltip < 100 and not k.tooltip:find("%. ") and not k.tooltip:find("|n", 1, true), "its help is one short sentence")
     Check(k.getValue() == "" and not e.theme.disabled(), "nothing saved: the default, and Theme can be picked")
-    k.setValue("classic")
-    Check(a.skin == "classic" and e.refreshes == 1, "Classic+ is stored and the page redraws")
+    k.setValue("forever")
+    Check(a.skin == "forever" and e.refreshes == 1, "Forever is stored and the page redraws")
     e.build()
     Check(#e.notes == 1 and e.notes[1] == HINT and e.theme.disabled(), "the hint shows, and Theme is greyed out")
     e.skin.setValue("")
     Check(a.skin == nil, "the default is stored as nothing")
-end
-
--- Forever is the third skin, after Classic+; it has its own colors too, and the help is one sentence.
-do
-    local a = {}
-    local e = Page(a)
-    local k = e.skin
-    Check(#k.order == 3 and k.order[2] == "classic" and k.order[3] == "forever" and k.values.forever == "Forever",
-        "three skins: Naowh, Classic+, Forever")
-    Check(#k.tooltip < 100 and not k.tooltip:find("%. ") and not k.tooltip:find("|n", 1, true), "its help is one short sentence")
-    k.setValue("forever")
-    Check(a.skin == "forever" and e.refreshes == 1, "Forever is stored and the page redraws")
-    e.build()
-    Check(e.theme.disabled(), "Theme is greyed out under Forever")
 end
 
 -- Custom starts from the palette the player was looking at, and only then shows swatches.

@@ -40,15 +40,6 @@ local function NewTab(bar)
     button.line:SetPoint("BOTTOMLEFT")
     button.line:SetPoint("BOTTOMRIGHT")
     button.line:SetHeight(TAB_LINE)
-    if ns.classicSkin then
-        local top, bottom = St.CLASSIC_TAB_RGB[1], St.CLASSIC_TAB_RGB[2]
-        button.fill:SetColorTexture(1, 1, 1, 1)
-        button.fill:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
-        button.line:SetColorTexture(St.CLASSIC_GOLD_RGB.r, St.CLASSIC_GOLD_RGB.g, St.CLASSIC_GOLD_RGB.b, 1)
-        button.line:ClearAllPoints()
-        button.line:SetPoint("TOPLEFT")
-        button.line:SetPoint("TOPRIGHT")
-    end
     if ns.foreverSkin then Parts.ForeverTab(button) end
     button:SetScript("OnClick", TabClicked)
     button:SetScript("OnEnter", TabEnter)
@@ -96,7 +87,7 @@ function Parts.PaintTabs(bar, shown)
     bar.shown = shown
     for _, button in ipairs(bar.buttons) do
         local on = button.key == shown
-        local color = on and T.fg or (ns.classicSkin and T.accent or T.muted)
+        local color = on and T.fg or T.muted
         button.text:SetTextColor(color.r, color.g, color.b)
         button.fill:SetShown(on)
         button.line:SetShown(on)

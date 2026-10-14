@@ -46,7 +46,7 @@ NaowhForever_Locales/        load on demand, one addon for every language
   to be one addon per language, which put ten entries in the AddOn list.
 - Korean and Chinese text needs the game's own fonts (`ns.LocaleFont`): no font the addon ships
   or offers has those characters, so every font path turns into the language's. Naowh covers
-  Cyrillic; only Friz Quadrata (the Classic+ skin) swaps to its Cyrillic cut for Russian.
+  Cyrillic; only Friz Quadrata (the Forever skin's font) swaps to its Cyrillic cut for Russian.
   `ns.LocaleFont` takes the font's requested name as well as its resolved path, and keys the
   Russian swap off the name (`FONT_CLASSIC`), not the resolved path: LibSharedMedia controls that
   path, not this addon, so matching the request is the stable half of the comparison.

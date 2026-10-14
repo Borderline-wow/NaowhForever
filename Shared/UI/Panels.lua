@@ -123,10 +123,7 @@ function Parts.Backdrop(frame)
     backdrop.gradient:SetAllPoints()
     backdrop.gradient:SetColorTexture(1, 1, 1, 1)
     backdrop.bottom, backdrop.top = CreateColor(0, 0, 0, 1), CreateColor(0, 0, 0, 1)
-    if ns.classicSkin then
-        backdrop.pattern = Pattern(frame, St.CLASSIC_PATTERN)
-        backdrop.patternShade, backdrop.patternAlpha = St.CLASSIC_PATTERN_SHADE, St.CLASSIC_PATTERN_ALPHA
-    elseif ns.foreverSkin then
+    if ns.foreverSkin then
         backdrop.pattern = Pattern(frame, St.FOREVER_ROCK)
         backdrop.patternShade, backdrop.patternAlpha = St.FOREVER_ROCK_SHADE, St.FOREVER_ROCK_ALPHA
     end

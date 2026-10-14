@@ -22,9 +22,8 @@ local STEM_INSET = 0.075
 local MAX_FRAME_LEVEL = 9999
 local OFFSCREEN = 0.9
 local BUTTON_TEXT_SIZE, BUTTON_REST_ALPHA = 12, 0.9
-local BUTTON_SHADOW = 1
 local SKIN_CLASSIC, SKIN_FOREVER = "classic", "forever"
--- The Classic+ skin sets text as the game does: Friz Quadrata, and Arial Narrow for compact numbers.
+-- The Forever skin sets text as the game does: Friz Quadrata, and Arial Narrow for compact numbers.
 local FONT_NAOWH, FONT_CLASSIC, FONT_DATA = "Naowh", "Friz Quadrata TT", "Arial Narrow"
 local FONT_HEADING = FONT_CLASSIC
 local LOCALE_ADDON, ENGLISH = "NaowhForever_Locales", "enUS"
@@ -199,15 +198,6 @@ ns.THEME_PRESETS = {
         accent = { r = 0xd6 / 255, g = 0x8e / 255, b = 0x35 / 255 } },
 }
 
-ns.CLASSIC_PLUS = {
-    bg     = { r = 0x0b / 255, g = 0x0a / 255, b = 0x08 / 255 },
-    panel  = { r = 0x17 / 255, g = 0x11 / 255, b = 0x0b / 255 },
-    line   = { r = 0x5e / 255, g = 0x4a / 255, b = 0x1c / 255 },
-    fg     = { r = 0xec / 255, g = 0xe3 / 255, b = 0xcc / 255 },
-    muted  = { r = 0xa8 / 255, g = 0x9a / 255, b = 0x7c / 255 },
-    accent = { r = 0xff / 255, g = 0xd1 / 255, b = 0x00 / 255 },
-}
-
 ns.FOREVER_SKIN = {
     bg     = { r = 0x11 / 255, g = 0x10 / 255, b = 0x0e / 255 },
     panel  = { r = 0x1b / 255, g = 0x19 / 255, b = 0x16 / 255 },
@@ -256,7 +246,6 @@ local function Pick(source, key)
 end
 
 local function ThemeSource()
-    if ns.classicSkin then return ns.CLASSIC_PLUS end
     if ns.foreverSkin then return ns.FOREVER_SKIN end
     local account = ns.AccountSettings()
     local preset = account.themePreset
@@ -286,9 +275,9 @@ local function ShippedColor(key)
 end
 
 function ns.ApplyThemeColors()
-    local skin = ns.AccountSettings().skin
-    ns.skin = (skin == SKIN_CLASSIC or skin == SKIN_FOREVER) and skin or ""
-    ns.classicSkin = ns.skin == SKIN_CLASSIC
+    local account = ns.AccountSettings()
+    if account.skin == SKIN_CLASSIC then account.skin = SKIN_FOREVER end
+    ns.skin = account.skin == SKIN_FOREVER and SKIN_FOREVER or ""
     ns.foreverSkin = ns.skin == SKIN_FOREVER
     local source = ThemeSource()
     if not source then return end
@@ -489,7 +478,7 @@ function ns.FontInset(size)
 end
 
 function ns.AddonFontPath(classic)
-    if classic == nil then classic = ns.classicSkin or ns.foreverSkin end
+    if classic == nil then classic = ns.foreverSkin end
     local default = classic and FONT_CLASSIC or FONT_NAOWH
     return FontPath(ns.AccountSettings().uiFont or default) or ns.LocaleFont(default, STANDARD_TEXT_FONT)
 end
@@ -499,19 +488,14 @@ function ns.HeadingFontPath(classic)
         if not classic or ns.AccountSettings().uiFont then return ns.AddonFontPath(classic) end
         return FontPath(FONT_HEADING) or ns.AddonFontPath(classic)
     end
-    if not (ns.classicSkin or ns.foreverSkin) or ns.AccountSettings().uiFont then return ns.UIFontPath() end
+    if not ns.foreverSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_HEADING) or ns.UIFontPath()
 end
 
--- Compact numbers (a slider's value): Arial Narrow on the Classic+ skin, else the Addon Font.
+-- Compact numbers (a slider's value): Arial Narrow on the Forever skin, else the Addon Font.
 function ns.DataFontPath()
-    if not (ns.classicSkin or ns.foreverSkin) or ns.AccountSettings().uiFont then return ns.UIFontPath() end
+    if not ns.foreverSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_DATA) or ns.UIFontPath()
-end
-
--- The title plate is the one place the Classic+ skin keeps the Naowh face.
-function ns.TitleFontPath()
-    return ns.LocaleFont(FONT_NAOWH, NAOWH_FONT)
 end
 
 function ns.UIFontPath()
@@ -565,7 +549,7 @@ gameFontEvents:SetScript("OnEvent", OnGameFontEvent)
 function ns.Font(parent, size, flags, color, heading)
     local c = color or ns.THEME.fg
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    if heading and (ns.classicSkin or ns.foreverSkin) then
+    if heading and ns.foreverSkin then
         local St = ns.Shared.Style
         size = size + St.CLASSIC_HEADING_STEP
         fs:SetShadowColor(0, 0, 0, 1)
@@ -650,19 +634,6 @@ function ns.Border(frame, color, alpha)
     }
 end
 
-function ns.Sunken(frame)
-    local c = ns.Shared.Style.CLASSIC_BEVEL_RGB
-    local edge = CreateFrame("Frame", nil, frame)
-    ns.PixelInset(edge, -1, frame)
-    local bottom = edge:CreateTexture(nil, "OVERLAY")
-    bottom:SetColorTexture(c.r, c.g, c.b, 1)
-    bottom:SetPoint("BOTTOMLEFT"); bottom:SetPoint("BOTTOMRIGHT"); ns.Hairline(bottom, "h")
-    local right = edge:CreateTexture(nil, "OVERLAY")
-    right:SetColorTexture(c.r, c.g, c.b, 1)
-    right:SetPoint("TOPRIGHT"); right:SetPoint("BOTTOMRIGHT"); ns.Hairline(right, "v")
-    return edge
-end
-
 function ns.Solid(parent, layer, color, alpha)
     local c = color or ns.THEME.panel
     local t = parent:CreateTexture(nil, layer or "BACKGROUND")
@@ -677,91 +648,6 @@ end
 function ns.AllowOffscreen(frame)
     ClampOffscreen(frame, frame:GetWidth(), frame:GetHeight())
     frame:HookScript("OnSizeChanged", ClampOffscreen)
-end
-
-local function SetArt(btn, file)
-    for _, piece in ipairs(btn._art) do piece:SetTexture(file) end
-end
-
-local function ArtPiece(btn, coords)
-    local piece = btn:CreateTexture(nil, "BACKGROUND")
-    piece:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-    return piece
-end
-
--- A button narrower than both caps would leave the middle no room.
-local function FitCaps(btn, width)
-    local cap = math.min(ns.Shared.Style.CLASSIC_BUTTON_CAP, width / 2)
-    btn._art[1]:SetWidth(cap)
-    btn._art[3]:SetWidth(cap)
-end
-
--- The game's panel button art on frame, in three pieces; the onboarding's Classic+ preview uses it too.
-function ns.GameButtonArt(frame)
-    local St = ns.Shared.Style
-    local coords = St.CLASSIC_BUTTON_COORDS
-    local left, middle, right = ArtPiece(frame, coords.left), ArtPiece(frame, coords.middle), ArtPiece(frame, coords.right)
-    left:SetPoint("TOPLEFT"); left:SetPoint("BOTTOMLEFT")
-    right:SetPoint("TOPRIGHT"); right:SetPoint("BOTTOMRIGHT")
-    middle:SetPoint("TOPLEFT", left, "TOPRIGHT"); middle:SetPoint("BOTTOMRIGHT", right, "BOTTOMLEFT")
-    frame._art = { left, middle, right }
-    FitCaps(frame, frame:GetWidth())
-    frame:HookScript("OnSizeChanged", FitCaps)
-    SetArt(frame, St.CLASSIC_BUTTON_ART.up)
-end
-
--- Callers colour the label themselves (a picked choice, a quiz answer), so hover lends it white and
--- gives back whatever it was.
-local function Unlight(btn)
-    local c = btn._litFrom
-    if not c then return end
-    btn._litFrom = nil
-    btn.label:SetTextColor(c[1], c[2], c[3], c[4])
-end
-
--- The edge only shows for a picked button, in the colour its caller gives it.
-local function ClassicButton(btn, bg, border, lbl)
-    local T, St = ns.THEME, ns.Shared.Style
-    local art, coords = St.CLASSIC_BUTTON_ART, St.CLASSIC_BUTTON_COORDS
-    bg:Hide()
-    local setColor = border.SetColor
-    border.SetColor = function(self, r, g, b, a)
-        setColor(self, r, g, b, a)
-        self._frame:SetShown(r ~= BLACK.r or g ~= BLACK.g or b ~= BLACK.b)
-    end
-    border._frame:Hide()
-    ns.GameButtonArt(btn)
-    btn:SetHighlightTexture(art.highlight, "ADD")
-    local glow = coords.glow
-    btn:GetHighlightTexture():SetTexCoord(glow[1], glow[2], glow[3], glow[4])
-    lbl:SetTextColor(T.accent.r, T.accent.g, T.accent.b, 1)
-    lbl:SetShadowColor(BLACK.r, BLACK.g, BLACK.b, 1)
-    lbl:SetShadowOffset(BUTTON_SHADOW, -BUTTON_SHADOW)
-    btn:SetScript("OnEnter", function(self)
-        if not self:IsEnabled() or self._litFrom then return end
-        self._litFrom = { lbl:GetTextColor() }
-        lbl:SetTextColor(1, 1, 1, 1)
-    end)
-    btn:SetScript("OnLeave", Unlight)
-    btn:SetScript("OnMouseDown", function(self)
-        if self:IsEnabled() then SetArt(self, art.down) end
-    end)
-    btn:SetScript("OnMouseUp", function(self)
-        if self:IsEnabled() then SetArt(self, art.up) end
-    end)
-    -- Hidden mid-press, the release never reaches it.
-    btn:HookScript("OnHide", function(self)
-        if self:IsEnabled() then SetArt(self, art.up) end
-    end)
-    btn:SetScript("OnDisable", function(self)
-        Unlight(self)
-        SetArt(self, art.disabled)
-        lbl:SetAlpha(St.CLASSIC_DISABLED_ALPHA)
-    end)
-    btn:SetScript("OnEnable", function(self)
-        SetArt(self, art.up)
-        lbl:SetAlpha(1)
-    end)
 end
 
 function ns.Button(parent, text, w, h, onClick, template)
@@ -779,10 +665,6 @@ function ns.Button(parent, text, w, h, onClick, template)
     btn.label = lbl
     btn._onClick = onClick
     if not template then btn:SetScript("OnClick", function() if btn._onClick then btn._onClick() end end) end
-    if ns.classicSkin then
-        ClassicButton(btn, bg, border, lbl)
-        return btn
-    end
     if ns.foreverSkin then
         ns.Shared.Parts.ForeverButton(btn, bg, border, lbl)
         return btn
@@ -949,7 +831,6 @@ function ns.NewEditBox(parent, opts)
         end)
         box:HookScript("OnLeave", function() box._border:SetColor(edge.r, edge.g, edge.b, 1) end)
     end
-    if ns.classicSkin and opts.sunken ~= false then ns.Sunken(box) end
     if ns.foreverSkin and opts.sunken ~= false then ns.Shared.Parts.ForeverField(box) end
     return box
 end

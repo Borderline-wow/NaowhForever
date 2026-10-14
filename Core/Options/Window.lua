@@ -183,15 +183,11 @@ local function PaintNavButton(btn, hover)
     local active = btn.fill:IsShown()
     local found = UI.filter and btn.found
     local off = btn.mod ~= nil and not ModuleOn(btn.mod)
-    local c = (active or hover) and T.fg or ((ns.classicSkin or ns.foreverSkin) and T.accent or T.muted)
+    local c = (active or hover) and T.fg or (ns.foreverSkin and T.accent or T.muted)
     local a = (off and not active and not hover) and NAV_OFF_ALPHA or 1
     if found == false and not active and not hover then a = MISS_ALPHA end
     btn.label:SetTextColor(c.r, c.g, c.b, a)
-    if btn.fullColor then
-        btn.icon:SetAlpha(a)
-    elseif btn.icon then
-        btn.icon:SetVertexColor(c.r, c.g, c.b, a)
-    end
+    if btn.icon then btn.icon:SetVertexColor(c.r, c.g, c.b, a) end
     if btn.open then btn.open:SetAlpha((active or hover) and 1 or NAV_OPEN_DIM) end
     if btn.forever then ns.Shared.Parts.PaintForeverNav(btn, active) end
     if btn.dot then btn.dot:SetShown(off and not UI.filter) end
@@ -556,11 +552,8 @@ local function NavIcon(btn, icon)
     btn.icon = btn:CreateTexture(nil, "ARTWORK")
     btn.icon:SetSize(NAV_ICON_SIZE, NAV_ICON_SIZE)
     btn.icon:SetPoint("LEFT", NAV_ICON_X, 0)
-    btn.fullColor = ns.Shared.Parts.ClassicIcon(btn.icon, icon)
-    if not btn.fullColor then
-        btn.icon:SetTexture(NAV_ICONS .. icon .. ".tga")
-        btn.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
-    end
+    btn.icon:SetTexture(NAV_ICONS .. icon .. ".tga")
+    btn.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
 end
 
 local function NavigationButton(parent, label, y, onClick, icon)
@@ -575,18 +568,6 @@ local function NavigationButton(parent, label, y, onClick, icon)
     btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
     btn.marker:SetPoint("TOPLEFT"); btn.marker:SetPoint("BOTTOMLEFT"); btn.marker:SetWidth(NAV_MARKER_W)
     btn.marker:Hide()
-    if ns.classicSkin then
-        local St = ns.Shared.Style
-        local c = St.CLASSIC_PICK_RGB
-        btn.fill:SetColorTexture(1, 1, 1, 1)
-        btn.fill:SetGradient("HORIZONTAL", CreateColor(c.r, c.g, c.b, St.CLASSIC_PICK_ALPHA),
-            CreateColor(c.r, c.g, c.b, St.CLASSIC_PICK_FADE))
-        local line = St.CLASSIC_PICK_LINE_RGB
-        btn.marker:SetColorTexture(line.r, line.g, line.b, St.CLASSIC_PICK_LINE_ALPHA)
-        btn.marker:ClearAllPoints()
-        btn.marker:SetPoint("TOPLEFT"); btn.marker:SetPoint("TOPRIGHT")
-        ns.Hairline(btn.marker, "h")
-    end
     if ns.foreverSkin then ns.Shared.Parts.ForeverNavButton(btn) end
     btn.label = ns.Font(btn, ns.foreverSkin and Forever.navText or NAV_TEXT_SIZE, nil, T.muted, true)
     btn.label:SetPoint("LEFT", icon and NAV_LABEL_X or NAV_TEXT_X, 0)
@@ -678,10 +659,6 @@ local function WindowFrame()
     ns.Shared.Parts.Backdrop(window):Paint(1)
     ns.Shared.Parts.Shadow(window)
     local border = ns.Border(window, ns.Shared.Style.BORDER_RGB)
-    if ns.classicSkin then
-        ns.Shared.Parts.ClassicTrim(window)
-        ns.Shared.Parts.TitlePlate(window, TEXT_BRAND)
-    end
     if ns.foreverSkin then ns.Shared.Parts.ForeverFrame(window) end
     window:SetScript("OnKeyDown", OnWindowKeyDown)
     return border
@@ -854,7 +831,7 @@ local function ContentHeader()
     contentHeader:SetHeight(PAGE_HEADER_H)
     breadcrumb = ns.Font(contentHeader, HEAD.crumbSize, nil, T.muted)
     breadcrumb:SetPoint("TOPLEFT", CONTENT_X, -HEAD.crumbY)
-    headerTitle = ns.Font(contentHeader, HEAD.titleSize, nil, (ns.classicSkin or ns.foreverSkin) and T.accent or nil, true)
+    headerTitle = ns.Font(contentHeader, HEAD.titleSize, nil, ns.foreverSkin and T.accent or nil, true)
     headerTitle:SetPoint("TOPLEFT", CONTENT_X, -HEAD.titleY)
     headerTitle:SetPoint("TOPRIGHT", contentHeader, "TOPRIGHT", -HEAD.titleRoom, -HEAD.titleY)
     headerTitle:SetJustifyH("LEFT"); headerTitle:SetWordWrap(false)
@@ -1017,7 +994,6 @@ local function ModuleWindowFrame()
     win:EnableMouse(true)
     ns.Shared.Parts.Backdrop(win):Paint(1)
     ns.Border(win, ns.Shared.Style.BORDER_RGB)
-    if ns.classicSkin then ns.Shared.Parts.ClassicTrim(win) end
     if ns.foreverSkin then ns.Shared.Parts.ForeverFrame(win) end
     win:SetScript("OnKeyDown", CloseOnEscape)
     return win
@@ -1033,7 +1009,7 @@ local function ModuleHeader(win, mod)
     header:SetPoint("TOPRIGHT")
     header:SetHeight(HEADER_H)
     DragRegion(header, win)
-    local title = ns.Font(header, MW.titleSize, nil, (ns.classicSkin or ns.foreverSkin) and T.accent or nil, true)
+    local title = ns.Font(header, MW.titleSize, nil, ns.foreverSkin and T.accent or nil, true)
     title:SetPoint("TOPLEFT", header, "TOPLEFT", win.forever and ns.Shared.Style.FOREVER_PORTRAIT_ROOM or MW.titleX,
         -MW.titleY)
     title:SetText(ns.L(mod.name))

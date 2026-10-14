@@ -17,7 +17,7 @@ local ALPHA_RANGE = ns.Shared.Style.ALPHA_RANGE
 local TEXT_NO_CLOCK, TEXT_24H, TEXT_12H = ns.L("No clock"), ns.L("24-hour clock"), ns.L("12-hour clock")
 local TEXT_SUMMARY = ns.L("%s, %d buttons%s")
 local TEXT_FADES = ns.L(", fades until hovered")
-local TEXT_CLASSIC_ICONS = ns.L("Classic+ and Forever icons are in full color")
+local TEXT_FOREVER_ICONS = ns.L("Forever icons are in full color")
 
 local STATES = {
     { key = "normal", label = "Normal", tip = "The bar as it sits on your screen." },
@@ -33,8 +33,8 @@ local function Summary(store)
     return TEXT_SUMMARY:format(clock, #layout.left + #layout.right, store.Get("mouseover") and TEXT_FADES or "")
 end
 
-local function NotClassic()
-    return not (ns.classicSkin or ns.foreverSkin)
+local function NotForever()
+    return not ns.foreverSkin
 end
 
 local ROWS = {
@@ -67,7 +67,7 @@ local ROWS = {
     Group("Background"),
     { key = "bgAlpha", label = "Bar Opacity", slider = ALPHA_RANGE, unit = "%" },
     Group("Colors"),
-    { key = "iconColor", label = "Icon Color", colour = true, needs = NotClassic, why = TEXT_CLASSIC_ICONS,
+    { key = "iconColor", label = "Icon Color", colour = true, needs = NotForever, why = TEXT_FOREVER_ICONS,
       help = "The tint on every button's icon: Naowh's own and any addon's." },
     { key = "clockColor", label = "Clock Color", colour = true, needs = "showClock" },
     Group("Visibility"),

@@ -98,7 +98,7 @@ local function Random()
         preset = ({ "minimalist", "recommended", "custom" })[math.random(3)], questRewards = { [7] = 9 } },
         tankReminder = { leadTime = 3 } }
     local w = World({ enabled = enabled, others = character and others or enabled, loaded = loaded, root = root,
-        character = character, account = { welcomeSeen = Chance(0.5) or nil, skin = Chance(0.3) and "classic" or nil } })
+        character = character, account = { welcomeSeen = Chance(0.5) or nil, skin = Chance(0.3) and "forever" or nil } })
     for _, item in pairs(w.ns.Setup.ITEMS) do
         if Chance(0.4) then
             if type(w.root[item.db]) ~= "table" then w.root[item.db] = {} end
@@ -155,7 +155,7 @@ for i = 1, RUNS do
     local keys = { Setup.KEEP }
     for _, key in ipairs(w.ns.PRESETS.order) do keys[#keys + 1] = key end
     Setup.PickProfile(picks, keys[math.random(#keys)])
-    if Chance(0.5) then picks.skin = Chance(0.5) and "classic" or "" end
+    if Chance(0.5) then picks.skin = Chance(0.5) and "forever" or "" end
     local items = {}
     for id in pairs(Setup.ITEMS) do items[#items + 1] = id end
     table.sort(items)
@@ -181,7 +181,7 @@ for i = 1, RUNS do
     check("the summary lists exactly what turns on", Same(SetOf(plan.on), NamesOf(w, wantOn)))
     check("and exactly what turns off", Same(SetOf(plan.off), NamesOf(w, wantOff)))
     check("it names the profile, or keeps yours", plan.profile == (preset and w.ns.PRESETS[picks.profile].name or nil))
-    local skinNow = w.account.skin == "classic" and "classic" or ""
+    local skinNow = w.account.skin == "forever" and "forever" or ""
     check("it says whether the skin changes", plan.skinChanged == (picks.skin ~= skinNow))
     local reload = preset or plan.skinChanged
     for _, id in ipairs(items) do
@@ -202,7 +202,7 @@ for i = 1, RUNS do
         local okCalls, whyCalls = Calls(w, from)
         check("C_AddOns calls name this character exactly in its mode: " .. tostring(whyCalls), okCalls)
         if w.character then check("other characters' addons untouched", Same(w.others, snap.others)) end
-        check("the skin is the one picked", (w.account.skin == "classic" and "classic" or "") == picks.skin)
+        check("the skin is the one picked", (w.account.skin == "forever" and "forever" or "") == picks.skin)
         local custom = not Same(picks.modules, base)
         local marker = w.root.qol and w.root.qol.preset
         if custom then

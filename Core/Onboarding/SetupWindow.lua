@@ -78,9 +78,8 @@ local TEXT_PROFILE = { title = ns.L("Where do you want to start?"), hint = ns.L(
     keepName = ns.L("Keep mine"), keepBlurb = ns.L("Your settings stay as they are.") }
 local TEXT_SKIN = { title = ns.L("How should Naowh Forever look?"), hint = ns.L("For every character on this computer."),
     previewTitle = "Naowh Forever", previewBody = ns.L("Every window looks like this."), previewButton = ns.L("Start") }
-local SKIN_NAMES = { [Setup.SKIN_NAOWH] = "Naowh", [Setup.SKIN_CLASSIC] = "Classic+", [Setup.SKIN_FOREVER] = "Forever" }
+local SKIN_NAMES = { [Setup.SKIN_NAOWH] = "Naowh", [Setup.SKIN_FOREVER] = "Forever" }
 local SKIN_BLURBS = { [Setup.SKIN_NAOWH] = ns.L("Naowh's dark look, with his blue."),
-    [Setup.SKIN_CLASSIC] = ns.L("The game's own look, in gold and bronze."),
     [Setup.SKIN_FOREVER] = ns.L("WoW Forever's own windows, in metal and stone.") }
 local TEXT_MODULES = { title = ns.L("Which modules do you want?"), hint = ns.L("Click a module to turn it on or off."),
     hintFor = ns.L("Click a module to turn it on or off, for %s only."), count = ns.L("%d of %d on") }
@@ -553,7 +552,6 @@ local function PaintProfile()
 end
 
 local function Palette(skin)
-    if skin == Setup.SKIN_CLASSIC then return ns.CLASSIC_PLUS end
     if skin == Setup.SKIN_FOREVER then return ns.FOREVER_SKIN end
     local out = {}
     for i, c in ipairs(ns.ThemePalette(ns.ThemePresetKey())) do out[ns.THEME_EDITABLE[i]] = c end
@@ -567,12 +565,10 @@ local function ForeverLook(c)
 end
 
 local function SkinLook(skin)
-    local classic = skin == Setup.SKIN_CLASSIC
     local c = Palette(skin)
     if skin == Setup.SKIN_FOREVER then return ForeverLook(c) end
-    return { colors = c, edge = classic and St.CLASSIC_GOLD_RGB or BLACK, title = classic and c.accent or c.fg,
-        gameArt = classic, fill = { c.panel, c.panel }, rim = c.accent, label = classic and c.accent or c.fg,
-        body = ns.AddonFontPath(classic), heading = ns.HeadingFontPath(classic) }
+    return { colors = c, edge = BLACK, title = c.fg, fill = { c.panel, c.panel }, rim = c.accent, label = c.fg,
+        body = ns.AddonFontPath(false), heading = ns.HeadingFontPath(false) }
 end
 
 local function PreviewText(parent, path, size, color)
@@ -587,8 +583,6 @@ local function PreviewButton(preview, look)
     button:SetPoint("BOTTOMRIGHT", -PREVIEW.pad, PREVIEW.pad)
     if look.redButton then
         Parts.ForeverButtonArt(button)
-    elseif look.gameArt then
-        ns.GameButtonArt(button)
     else
         local top, bottom = look.fill[1], look.fill[2]
         button.fill = ns.Solid(button, "BACKGROUND", WHITE, 1)

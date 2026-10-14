@@ -316,33 +316,30 @@ do
     Check(#Load(nil).ThemePalette("custom") == 6, "custom with no account table still gives six")
 end
 
--- The Classic+ skin: its own colors over any saved theme, and the game's fonts unless an
--- Addon Font is picked.
+-- The retired Classic+ skin is saved as Forever on load, with Forever's colors over the saved theme.
 do
     local ns, handler = Load({ skin = "classic", themePreset = "midnight" })
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.classicSkin == true, "the skin is read on load")
+    Check(ns.AccountSettings().skin == "forever" and ns.foreverSkin == true and ns.Skin() == "forever",
+        "Classic+ is moved to Forever on load")
     for _, key in ipairs(ns.THEME_EDITABLE) do
-        local c = ns.CLASSIC_PLUS[key]
+        local c = ns.FOREVER_SKIN[key]
         Check(ns.THEME[key].r == c.r and ns.THEME[key].g == c.g and ns.THEME[key].b == c.b,
-            "Classic+ " .. key .. " over the saved theme")
+            "Forever " .. key .. " for a Classic+ player")
     end
-    Check(Ratio(ns.THEME.fg, ns.THEME.bg) >= 4.5 and Ratio(ns.THEME.fg, ns.THEME.panel) >= 4.5, "its text is readable")
-    Check(Ratio(ns.THEME.muted, ns.THEME.panel) >= 3 and Ratio(ns.THEME.accent, ns.THEME.panel) >= 3,
-        "and its secondary text and accent")
 end
 do
     local ns, handler = Load({})
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.classicSkin == false, "no skin saved: the default")
-    Check(ns.foreverSkin == false and ns.Skin() == "", "and not Forever")
+    Check(ns.foreverSkin == false and ns.Skin() == "", "no skin saved: the default")
+    Check(ns.AccountSettings().skin == nil, "and none is saved for it")
 end
 
 -- The Forever skin: its own colors over any saved theme, readable, and an unknown skin is the default.
 do
     local ns, handler = Load({ skin = "forever", themePreset = "crimson" })
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.foreverSkin == true and ns.classicSkin == false and ns.Skin() == "forever", "Forever is read on load")
+    Check(ns.foreverSkin == true and ns.Skin() == "forever", "Forever is read on load")
     for _, key in ipairs(ns.THEME_EDITABLE) do
         local c = ns.FOREVER_SKIN[key]
         Check(ns.THEME[key].r == c.r and ns.THEME[key].g == c.g and ns.THEME[key].b == c.b,
@@ -353,7 +350,7 @@ do
         "and its secondary text and accent")
     ns, handler = Load({ skin = "nonsense" })
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.Skin() == "" and not ns.classicSkin and not ns.foreverSkin, "an unknown skin is the default")
+    Check(ns.Skin() == "" and not ns.foreverSkin, "an unknown skin is the default")
 end
 do
     local fonts = { ["Friz Quadrata TT"] = "friz", ["Arial Narrow"] = "arial", Naowh = "naowh", Morpheus = "morpheus",
@@ -362,13 +359,12 @@ do
     function lsm:Register() end
     function lsm:Fetch(_, name) return fonts[name] end
     local function Stub() return lsm end
-    local ns, handler = Load({ skin = "classic" }, Stub)
+    local ns, handler = Load({ skin = "forever" }, Stub)
     Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.AddonFontPath() == "friz" and ns.HeadingFontPath() == "friz" and ns.DataFontPath() == "arial"
-        and ns.TitleFontPath():find("Naowh.ttf", 1, true),
-        "Classic+: Friz Quadrata text and headings, Arial Narrow numbers, the Naowh face on the title plate")
+    Check(ns.AddonFontPath() == "friz" and ns.HeadingFontPath() == "friz" and ns.DataFontPath() == "arial",
+        "Forever: Friz Quadrata text and headings, Arial Narrow numbers, as Forever's own windows set them")
     Check(ns.AddonFontPath(false) == "naowh" and ns.HeadingFontPath(false) == "naowh",
-        "asked for Naowh's fonts on Classic+ (the onboarding's preview): Naowh")
+        "asked for Naowh's fonts on Forever (the onboarding's preview): Naowh")
     ns.AccountSettings().uiFont = "Expressway"
     Check(ns.AddonFontPath() == "expressway" and ns.HeadingFontPath() == "expressway" and ns.DataFontPath() == "expressway",
         "a picked Addon Font is used for all of it")
@@ -377,12 +373,8 @@ do
     Check(ns.AddonFontPath() == "naowh" and ns.HeadingFontPath() == "naowh" and ns.DataFontPath() == "naowh",
         "the default skin keeps Naowh for all of it")
     Check(ns.AddonFontPath(true) == "friz" and ns.HeadingFontPath(true) == "friz",
-        "asked for Classic+'s fonts on the default skin (the onboarding's preview): the game's")
+        "asked for Forever's fonts on the default skin (the onboarding's preview): the game's")
     Check(ns.AddonFontPath(false) == "naowh" and ns.HeadingFontPath(false) == "naowh", "and Naowh's: Naowh")
-    ns, handler = Load({ skin = "forever" }, Stub)
-    Fire(handler, "ADDON_LOADED", "NaowhForever")
-    Check(ns.AddonFontPath() == "friz" and ns.HeadingFontPath() == "friz" and ns.DataFontPath() == "arial",
-        "Forever: the game's fonts, as Forever's own windows set them")
 end
 
 print("PASS custom colors: " .. cases .. " checks")

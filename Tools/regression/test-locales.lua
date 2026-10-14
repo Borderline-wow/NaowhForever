@@ -79,8 +79,7 @@ check("an unknown pick follows the client", ns.LOCALE == "frFR")
 check("only the picked language's strings are active", Load("enUS", "frFR").L("Language") ~= Load("enUS", "deDE").L("Language"))
 
 ns = Load("enUS", "koKR")
-check("Korean uses the game's Korean font everywhere", ns.LocaleFont("Naowh", "Interface\\naowh.ttf") == "Fonts\\2002.TTF"
-    and ns.TitleFontPath() == "Fonts\\2002.TTF")
+check("Korean uses the game's Korean font everywhere", ns.LocaleFont("Naowh", "Interface\\naowh.ttf") == "Fonts\\2002.TTF")
 ns = Load("enUS", "zhTW")
 check("Traditional Chinese has its own font", ns.LocaleFont("Naowh", "x") == "Fonts\\bLEI00D.ttf")
 ns = Load("enUS", "ruRU")

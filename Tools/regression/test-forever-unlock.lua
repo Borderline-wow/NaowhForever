@@ -5,7 +5,7 @@
 -- on Elements while the list is open; Layouts is a dropdown with the layouts and their actions;
 -- each mover wears Edit Mode's selection (blue highlight, yellow when picked, the highlight again
 -- under the mouse), made only once the HUD Editor opens; the list's groups are list bars that
--- fold; guides are lighter. Without the art every part is drawn, and Naowh and Classic+ are as before.
+-- fold; guides are lighter. Without the art every part is drawn, and Naowh is as before.
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -453,13 +453,13 @@ do
     ns.HideUnlockMode()
 end
 
--- Naowh and Classic+: the HUD Editor as before, nothing of Forever.
-for _, skin in ipairs({ "", "classic" }) do
-    local ns = Load({ skin = skin }, ALL)
+-- Naowh: the HUD Editor as before, nothing of Forever.
+do
+    local ns = Load({}, ALL)
     local mover = Element(ns, "Combat Timer")
     mover:Show()
     local bar, panel = Open(ns)
-    local name = skin == "" and "Naowh" or "Classic+"
+    local name = "Naowh"
     check(name .. ": no Forever frame, the Exit Config button and the logo", bar.forever == nil and panel.forever == nil
         and Find(frames, function(f) return f.label and f.label.text == "Exit Config" end)
         and Holds(bar, function(x) return x.texture == St.LOGO end))

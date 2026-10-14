@@ -28,8 +28,6 @@ local ICON_BUTTON, DEFAULT_ICON = 32, 134400
 local ROW_BUTTON_W, ROW_BUTTON_H = 90, 24
 local PLAY_SIZE, PLAY_GAP, PLAY_ICON = 24, 4, 14
 local SLIDER_TRACK_W, SLIDER_TRACK_H, SLIDER_THUMB = 120, 4, 12
-local KNOB_EDGE_SUBLEVEL = -1
-local KNOB_RAISE = 2           -- the groove's edge and bevel frames are one level above it
 local SLIDER_BOX_W, SLIDER_BOX_H, SLIDER_MAX = 40, 22, 100
 local PALETTE_SIZE, PALETTE_GAP, PALETTE_EDGE_ALPHA = 22, 4, 0.6
 local DIM_ALPHA = 0.3
@@ -91,14 +89,7 @@ local function Card()
     card = CreateFrame("Frame", nil, UIParent)
     card:SetFrameStrata("TOOLTIP")
     card:SetClampedToScreen(true)
-    if ns.classicSkin then
-        local St = ns.Shared.Style
-        ns.Solid(card, "BACKGROUND", St.CLASSIC_TIP_RGB, St.CLASSIC_TIP_ALPHA):SetAllPoints()
-        ns.Border(card, BLACK)
-        local inside = CreateFrame("Frame", nil, card)
-        ns.PixelInset(inside, 1, card)
-        ns.Border(inside, St.CLASSIC_TIP_EDGE_RGB)
-    elseif ns.foreverSkin then
+    if ns.foreverSkin then
         ns.Shared.Parts.ForeverTip(card)
     else
         ns.Solid(card, "BACKGROUND", T.panel, TIP.alpha):SetAllPoints()
@@ -154,28 +145,8 @@ end
 
 local function Truthy(v) return v and true or false end
 
-local function ClassicTick(t, size)
-    local St = ns.Shared.Style
-    local box = CreateFrame("Frame", nil, t)
-    box:SetSize(size, size)
-    box:SetPoint("RIGHT")
-    ns.Solid(box, "BACKGROUND", T.bg, 1):SetAllPoints()
-    local border = ns.Border(box, BLACK)
-    ns.Sunken(box)
-    local tick = box:CreateTexture(nil, "OVERLAY")
-    tick:SetTexture(St.CLASSIC_CHECK)
-    tick:SetSize(size * St.CLASSIC_CHECK_SCALE, size * St.CLASSIC_CHECK_SCALE)
-    tick:SetPoint("CENTER")
-    return tick, border, BLACK
-end
-
-local function ClassicCheck(t, size)
-    local tick, border, rest
-    if ns.foreverSkin then
-        tick, border, rest = ns.Shared.Parts.ForeverCheck(t)
-    else
-        tick, border, rest = ClassicTick(t, size)
-    end
+local function ForeverCheck(t)
+    local tick, border, rest = ns.Shared.Parts.ForeverCheck(t)
     local function Paint(state) tick:SetShown(Truthy(state)) end
     if border then
         t:SetScript("OnEnter", function() border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
@@ -199,7 +170,7 @@ function UI.BuildToggleControl(parent, frameLevel, get, set, w, h, knobSize)
     t:SetSize(W, H)
     if frameLevel then t:SetFrameLevel(frameLevel) end
     t._get, t._set = get, set
-    if ns.classicSkin or ns.foreverSkin then return ClassicCheck(t, H) end
+    if ns.foreverSkin then return ForeverCheck(t) end
 
     local track = t:CreateTexture(nil, "BACKGROUND")
     track:SetTexture(TRACK_TEX)
@@ -329,11 +300,6 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
     local arrow = DropdownArrow(btn)
-    if ns.classicSkin then
-        bg:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 1)
-        arrow:SetVertexColor(T.accent.r, T.accent.g, T.accent.b, 1)
-        ns.Sunken(btn)
-    end
     if ns.foreverSkin then ns.Shared.Parts.ForeverDropdown(btn, bg, lbl, arrow) end
     btn._values, btn._order, btn._get, btn._set = values, order, get, set
     btn._refreshLabel = function()
@@ -403,30 +369,6 @@ function UI.BuildSliderCore(parent, trackW, trackH, thumbSz, inputW, inputH, inp
     thumb:SetSize(thumbSz, thumbSz)
 
     local valBox, boxBg, boxBorder = SliderValueBox(parent, inputW, inputH, inputFontSz, inputAlpha)
-    if ns.classicSkin then
-        local St = ns.Shared.Style
-        rail:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, 1)
-        local groove = CreateFrame("Frame", nil, track)
-        groove:SetAllPoints(rail)
-        ns.Border(groove, BLACK)
-        ns.Sunken(groove)
-        local top, bottom = St.CLASSIC_FILL_RGB[1], St.CLASSIC_FILL_RGB[2]
-        fill:SetColorTexture(1, 1, 1, 1)
-        fill:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
-        -- The groove's edges are frames, drawn over the track's own textures, so the gem gets a frame above them.
-        local knob = CreateFrame("Frame", nil, track)
-        knob:SetAllPoints()
-        knob:SetFrameLevel(groove:GetFrameLevel() + KNOB_RAISE)
-        thumb:SetParent(knob)
-        thumb:SetTexture(St.GEM, nil, nil, "TRILINEAR")
-        thumb:SetVertexColor(St.CLASSIC_GOLD_RGB.r, St.CLASSIC_GOLD_RGB.g, St.CLASSIC_GOLD_RGB.b, 1)
-        local edge = knob:CreateTexture(nil, "ARTWORK", nil, KNOB_EDGE_SUBLEVEL)
-        edge:SetTexture(St.GEM, nil, nil, "TRILINEAR")
-        edge:SetVertexColor(BLACK.r, BLACK.g, BLACK.b, 1)
-        edge:SetSize(thumbSz + 2 * St.CLASSIC_KNOB_EDGE, thumbSz + 2 * St.CLASSIC_KNOB_EDGE)
-        edge:SetPoint("CENTER", thumb)
-        ns.Sunken(valBox)
-    end
     if ns.foreverSkin then ns.Shared.Parts.ForeverSlider(track, rail, fill, thumb, valBox, thumbSz) end
 
     local function Paint()
@@ -960,19 +902,6 @@ function W:SectionHeader(parent, text, yOffset, inset)
     sep:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
     sep:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
     ns.Hairline(sep, "h")
-    if ns.classicSkin then
-        local St = ns.Shared.Style
-        local gold = St.CLASSIC_GOLD_RGB
-        local gem = f:CreateTexture(nil, "ARTWORK")
-        gem:SetTexture(St.GEM, nil, nil, "TRILINEAR")
-        gem:SetVertexColor(gold.r, gold.g, gold.b, 1)
-        gem:SetSize(St.CLASSIC_SECTION_GEM, St.CLASSIC_SECTION_GEM)
-        lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", inset + St.CLASSIC_SECTION_GEM + St.CLASSIC_SECTION_GEM_GAP, HEADER_TEXT_Y)
-        gem:SetPoint("RIGHT", lbl, "LEFT", -St.CLASSIC_SECTION_GEM_GAP, 0)
-        lbl:SetTextColor(T.accent.r, T.accent.g, T.accent.b, 1)
-        sep:SetColorTexture(1, 1, 1, 1)
-        sep:SetGradient("HORIZONTAL", CreateColor(gold.r, gold.g, gold.b, 1), CreateColor(gold.r, gold.g, gold.b, 0))
-    end
     if ns.foreverSkin then
         local pill = ns.Shared.Parts.ForeverPill(f, LABEL_SIZE)
         pill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, ns.Shared.Style.FOREVER_PILL_PAD)

@@ -143,12 +143,12 @@ Theme
 - The lighter accent and the selection fill follow the accent and the line. A pick equal to the
   shipped color is not a change: Custom starts as a copy, and the color picker hands back what it
   opened with.
-- The Classic+ skin (Settings > Skin) has its own colors, `ns.CLASSIC_PLUS`, in force whatever the
-  Theme setting says. It is read with the colors, once per load, so a change to it waits for a
-  reload too.
-- The Forever skin, the third choice, has its own colors the same way (`ns.FOREVER_SKIN`): parchment
-  text on charcoal stone, bronze lines and the game's gold. `ns.Skin()` says which skin is in force;
-  a saved skin it does not know is Naowh's. The Theme dropdown is greyed out under either game skin.
+- The Forever skin (Settings > Skin) has its own colors, `ns.FOREVER_SKIN`, in force whatever the
+  Theme setting says: parchment text on charcoal stone, bronze lines and the game's gold. It is read
+  with the colors, once per load, so a change to it waits for a reload too. `ns.Skin()` says which
+  skin is in force; a saved skin it does not know is Naowh's. The Theme dropdown is greyed out under it.
+- The Classic+ skin is gone: a saved `skin = "classic"` is saved as `"forever"` when the colors are
+  read, so a Classic+ player gets the other game skin rather than Naowh's.
 - A secret-tainted message is dropped silently by the chat display, and `tostring` on a secret
   returns a secret string, so `ns.Print` asks `issecretvalue` before coercing anything.
 
@@ -158,10 +158,9 @@ Fonts and pixels
   and its Asia variant covers CJK clients.
 - The Naowh font starts a straight-sided capital 75/1000 of its size in (`STEM_INSET`), so lines of
   different sizes set at one x look ragged; `ns.FontInset` moves each line left by its inset.
-- Unpicked, the Addon Font is Naowh, or the game's Arial Narrow on Classic+ and Forever. Headings (`ns.Font`'s
+- Unpicked, the Addon Font is Naowh, or the game's Arial Narrow on Forever. Headings (`ns.Font`'s
   `heading`: buttons, tabs, titles, card and section names) are the game's Friz Quadrata on
-  Classic+ and Forever unless an Addon Font is picked. A window's title plate is always the bundled Naowh face
-  (`Core/Media/Fonts/Naowh.ttf`), on every skin and client language.
+  Forever unless an Addon Font is picked.
 - Game Font and Combat Text Font touch only font objects and the three path globals, never a frame:
   taint-free, but with no undo, so a change takes a reload. The path globals are read when the
   world loads, so they are set on ADDON_LOADED and again at login; combat text inherits
@@ -243,7 +242,7 @@ Widgets
 - The color picker saves nothing until the color moves off the one it opened with.
 - `ns.NewEditBox(parent, opts)` is every input box. `opts` is optional: `inset` (the text inset),
   `border` (its edge color, black by default), `hover = false` (no accent edge under the mouse) and
-  `sunken = false` (no Classic+ cut, no Forever rim). A settings row's text box is one with no hover.
+  `sunken = false` (no Forever rim). A settings row's text box is one with no hover.
 - The Slider's own thumb drag runs against the cursor on Forever, so the slim scroll bar's grip
   takes the mouse and drags itself.
 - Sound and font choice tables are fresh per call: the SharedMedia appender mutates in place and
@@ -251,14 +250,9 @@ Widgets
   mods do after login); a missing optional provider is not a cached miss.
 - Every module's defaults are saved to the account at login, so a module whose addon is off still
   has its settings checked, exported and imported.
-- On Classic+ a field (an input, dropdown, check box or slider groove) is cut into the panel
-  (`ns.Sunken`): a lit edge one pixel outside its black one, along the bottom and right. A switch
-  is a check box with the game's own tick. A button is red in a gold rim, brighter under the mouse
-  and turned over while pressed; its outer edge still marks a picked button, and its `_rim` and
-  `_shine` are kept so the Flight Timer can fade them with the rest.
 - On Forever a field has a bronze rim one pixel outside its black edge (`Parts.ForeverField`), and
   a button is the game's red `128-RedButton` (`Parts.ForeverButton`, see Shared/README.md); its
-  pieces are its `_art` as on Classic+, and drawn, its bronze rim hangs off the edge's frame, so the
+  pieces are its `_art`, and drawn, its bronze rim hangs off the edge's frame, so the
   Flight Timer fades them with the rest.
 - `UI.KeyField` takes a binding command, or functions for its action and label, for one field
   pointed at another binding each time its panel opens; its `_refreshValue` shows the new one.
@@ -405,10 +399,10 @@ Onboarding
 - Restore puts back the profile, the module addons for the character the backup was made for, and
   the skin; a backup from before skins were saved leaves the skin alone.
 - The skin step's previews are drawn, not pictures: a small window in each skin's own colors
-  (`ns.ThemePalette` for Naowh's, with the player's theme; `ns.CLASSIC_PLUS`; `ns.FOREVER_SKIN`), edge,
+  (`ns.ThemePalette` for Naowh's, with the player's theme; `ns.FOREVER_SKIN`), edge,
   fonts (`ns.AddonFontPath` and `ns.HeadingFontPath` take whether to preview the game's) and button:
   Forever's has its dark title bar, a bronze edge and the game's red button (`Parts.ForeverButtonArt`).
-  The step has a tile per skin in `Setup.SKINS` (Naowh, Classic+, Forever), side by side.
+  The step has a tile per skin in `Setup.SKINS` (Naowh, Forever), side by side.
 - A character new to the account gets its own page in the onboarding window, after the onboarding has
   been seen: two tiles, Same as its main or Set Up on its own, with the welcome's bottom row and no
   Back or Next. A new character starts on the account's profile, usually the main's, so the main no

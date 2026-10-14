@@ -1500,7 +1500,6 @@ L["Class Labels"] = true
 L["Class Reagents"] = true
 L["Class Trainer"] = true
 L["Class Trainers"] = true
-L["Classic+ and Forever icons are in full color"] = true
 L["Clear filters"] = true
 L["Clear Leaderboard"] = true
 L["Clear note"] = true
@@ -1801,7 +1800,7 @@ L["Drag to resize. Turn off Lock Window first; resizing is available outside com
 L["Drag to turn"] = true
 L["Drag up or down to change the gap between your aura and the class buttons."] = true
 L["Dress Up"] = true
-L["Dresses the addon's windows as Naowh's own, the classic game's, or WoW Forever's, after a reload."] = true
+L["Dresses the addon's windows as Naowh's own or WoW Forever's, after a reload."] = true
 L["Drink"] = true
 L["Drink  %d left"] = true
 L["Drinks the drink on the bar."] = true
@@ -2050,6 +2049,7 @@ L["For paladins, a button per class in your group. Left-click blesses the next m
 L["For Skyborne characters: ley lines (Alliance, for Read Ley Line) or Elemental Convergences (Horde, for Skysight) pinned on the world map. The game does not mark them: the addon knows the ones players have found, and saves each new one you cast your racial on. Other races see no pins."] = true
 L["For your class: imports this set once on a new character, at level 1 with no experience yet."] = true
 L["For your level"] = true
+L["Forever icons are in full color"] = true
 L["Forget %s on %s? It comes back the next time you log in on it with a Mail & Alts option on."] = true
 L["Forget a Character"] = true
 L["Forget a character"] = true
@@ -4550,7 +4550,6 @@ L["The game is not passing addon messages right now (in an encounter): ask again
 L["The game lists no rank rewards for this season yet."] = true
 L["The game would not disenchant this (skill too low?). Skipped until you reload."] = true
 L["The game's own alert sounds first, then the addon's. Each plays as you pick it."] = true
-L["The game's own look, in gold and bronze."] = true
 L["The gap between the two."] = true
 L["The gap between two buttons."] = true
 L["The Gear Sets window, with every set and what you can do with it."] = true

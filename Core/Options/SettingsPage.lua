@@ -13,7 +13,7 @@ local SCALE_VALUES = { [200] = "200%", [190] = "190%", [180] = "180%", [170] = "
     [80] = "80%", [70] = "70%", [60] = "60%", [50] = "50%" }
 local SCALE_ORDER = { 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70, 60, 50 }
 local CUSTOM = "custom"
-local SKIN_CLASSIC, SKIN_FOREVER = "classic", "forever"
+local SKIN_FOREVER = "forever"
 local DEFAULT_START = "default"
 local AUTO = "auto"
 local MINIMAP_NAME = "NaowhForever"
@@ -30,11 +30,10 @@ local TEXT_REPLACE = ns.L("Replace your custom colors with %s?")
 local TEXT_COLORS_RELOAD = ns.L("Reload UI to apply your color changes.")
 local TEXT_RXP_RELOAD = ns.L("Reload UI to apply your RestedXP changes.")
 local TEXT_RXP_PICK_RELOAD = "Reload UI to pick a theme."
-local TEXT_SKIN_TIP = ns.L("Dresses the addon's windows as Naowh's own, the classic game's, or WoW Forever's, after a reload.")
-local TEXT_CLASSIC_PLUS = "Classic+"
+local TEXT_SKIN_TIP = ns.L("Dresses the addon's windows as Naowh's own or WoW Forever's, after a reload.")
 local TEXT_FOREVER = "Forever"
-local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_CLASSIC] = TEXT_CLASSIC_PLUS, [SKIN_FOREVER] = TEXT_FOREVER }
-local SKIN_ORDER = { "", SKIN_CLASSIC, SKIN_FOREVER }
+local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_FOREVER] = TEXT_FOREVER }
+local SKIN_ORDER = { "", SKIN_FOREVER }
 local TEXT_MINIMAP_TIP = ns.L("A minimap button that opens %s. /nf%s does the same, "
     .. "and the Top Bar can carry it too. Saved for this computer.")
 local TEXT_FEATURE_TIP = ns.L("A minimap button that opens %s. Saved for this computer.")
@@ -313,8 +312,7 @@ local function CustomRows(W, parent, y)
 end
 
 local function SkinColors()
-    local skin = ns.AccountSettings().skin
-    return skin == SKIN_CLASSIC or skin == SKIN_FOREVER
+    return ns.AccountSettings().skin == SKIN_FOREVER
 end
 
 local function SkinRow()
