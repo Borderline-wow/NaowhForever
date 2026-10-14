@@ -326,23 +326,26 @@ local function SkinRow()
         end }
 end
 
+local function ThemeRow(themes, themeOrder)
+    return { type = "dropdown", text = "Theme", values = themes, order = themeOrder,
+        tooltip = "Theme presets for the addon's windows and HUD frames, plus a Custom "
+        .. "option for your own colors. If text gets hard to read, pick Naowh (default). "
+        .. "Saved for this computer.|n|nTakes effect after a /reload.",
+        getValue = ns.ThemePresetKey,
+        disabled = ClassicSkin,
+        palette = function()
+            local colors = ns.ThemePalette(ns.ThemePresetKey())
+            return { colors[1], colors[math.floor(#colors / 2) + 1], colors[#colors] }
+        end,
+        setValue = function(v)
+            ns.SetThemePreset(v)
+            ColorsChanged()
+        end }
+end
+
 local function ColorsSection(W, parent, y)
     local _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
-    _, h = W:DualRow(parent, y, SkinRow(), Empty()); y = y - h
-    local themes, themeOrder = ThemeChoices()
-    _, h = W:DualRow(parent, y,
-        { type = "dropdown", text = "Theme", values = themes, order = themeOrder,
-          tooltip = "Theme presets for the addon's windows and HUD frames, plus a Custom "
-          .. "option for your own colors. If text gets hard to read, pick Naowh (default). "
-          .. "Saved for this computer.|n|nTakes effect after a /reload.",
-          getValue = ns.ThemePresetKey,
-          disabled = ClassicSkin,
-          setValue = function(v)
-              ns.SetThemePreset(v)
-              ColorsChanged()
-          end },
-        { type = "palette", text = "", colors = function() return ns.ThemePalette(ns.ThemePresetKey()) end }
-    ); y = y - h
+    _, h = W:DualRow(parent, y, SkinRow(), ThemeRow(ThemeChoices())); y = y - h
     if ns.ThemePresetKey() == CUSTOM and not ClassicSkin() then y = CustomRows(W, parent, y) end
     if colorsPending then
         _, h = W:Note(parent, TEXT_COLORS_RELOAD, y); y = y - h

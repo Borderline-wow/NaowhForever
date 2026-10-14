@@ -75,9 +75,9 @@ local function Page(account, rxp, up)
         return nil, 0
     end
     function env.W:DualRow(_, _, left, right)
-        -- The Skin row is checked on its own below; the Theme rows keep their places.
+        -- The Skin row carries the Theme dropdown; the rows after it keep their places.
         if left.text == "Skin" then
-            e.skin = left
+            e.skin, e.theme = left, right
             return nil, 0
         end
         e.rows[#e.rows + 1] = { left, right }
@@ -92,14 +92,13 @@ local function Page(account, rxp, up)
     function e.build()
         e.rows, e.notes, e.headers = {}, {}, {}
         chunk({}, 0)
-        e.theme = e.rows[1][1]
     end
     e.build()
     return e
 end
 local function Texts(e)
     local out = {}
-    for i = 3, #e.rows do
+    for i = 2, #e.rows do
         for _, cfg in ipairs(e.rows[i]) do if cfg.text ~= "" then out[#out + 1] = cfg.text end end
     end
     return out
@@ -122,27 +121,31 @@ do
     for _, word in ipairs({ "Theme presets", "windows and HUD frames", "Custom", "Naowh (default)", "/reload" }) do
         Check(t.tooltip:find(word, 1, true), "tooltip mentions " .. word)
     end
-    Check(e.rows[1][2].type == "palette" and #e.rows[1][2].colors() == 6, "a six-chip preview beside the Theme dropdown")
+    local chips = t.palette()
+    Check(#chips == 3, "a three-chip preview beside the Theme dropdown")
+    local all = e.ns.ThemePalette("")
+    local function Same(x, y) return x.r == y.r and x.g == y.g and x.b == y.b end
+    Check(Same(chips[1], all[1]) and Same(chips[2], all[4]) and Same(chips[3], all[6]), "the first, middle and last colors")
     Check(not t.tooltip:find("Reset", 1, true), "no reset any more")
 end
 
 -- Swatches show for Custom and for nothing else.
 do
-    Check(#Page({}).rows == 1, "no swatches for the default theme")
+    Check(#Page({}).rows == 0, "no swatches for the default theme")
     for _, key in ipairs(Page({}).ns.THEME_PRESET_ORDER) do
         local e = Page({ themePreset = key })
-        Check(#e.rows == 1 and e.theme.getValue() == key, "no swatches for " .. key)
+        Check(#e.rows == 0 and e.theme.getValue() == key, "no swatches for " .. key)
     end
     for _, bad in ipairs({ "bogus", "order", 5 }) do
         local e = Page({ themePreset = bad })
-        Check(#e.rows == 1 and e.theme.getValue() == "", "an invalid preset reads as the default, no swatches")
+        Check(#e.rows == 0 and e.theme.getValue() == "", "an invalid preset reads as the default, no swatches")
     end
     local e = Page({ themePreset = "custom" })
-    Check(#e.rows == 5, "Custom shows the Start From row and three swatch rows")
-    Check(e.rows[2][1].text == "Start From" and e.rows[2][1].type == "dropdown", "the Start From dropdown")
+    Check(#e.rows == 4, "Custom shows the Start From row and three swatch rows")
+    Check(e.rows[1][1].text == "Start From" and e.rows[1][1].type == "dropdown", "the Start From dropdown")
     Check(table.concat(Texts(e), ",") == "Background,Panels,Borders & Lines,Text,Secondary Text,Accent",
         "the six swatches, in order")
-    for i = 3, 5 do
+    for i = 2, 4 do
         for _, cfg in ipairs(e.rows[i]) do
             if cfg.text ~= "" then Check(cfg.type == "colorpicker" and cfg.hasAlpha == false, cfg.text .. " is a swatch") end
         end
@@ -157,7 +160,7 @@ do
     e.theme.setValue("midnight")
     Check(a.themePreset == "midnight" and e.refreshes == 1 and #e.confirms == 0, "a preset is stored and the page redraws")
     e.build()
-    Check(#e.notes == 1 and e.notes[1] == HINT and #e.rows == 1, "the hint shows, still no swatches")
+    Check(#e.notes == 1 and e.notes[1] == HINT and #e.rows == 0, "the hint shows, still no swatches")
     e.theme.setValue("")
     e.build()
     Check(a.themePreset == nil and #e.notes == 1, "the default is stored as nothing, and the hint stays")
@@ -186,8 +189,8 @@ do
     e.theme.setValue("custom")
     Check(a.themePreset == "custom" and a.themeColors.bg.r == 0x12 / 255, "Custom is prefilled from the selected preset")
     e.build()
-    Check(#e.rows == 5 and #e.notes == 1, "the swatches appear once Custom is selected")
-    local bg = e.rows[3][1]
+    Check(#e.rows == 4 and #e.notes == 1, "the swatches appear once Custom is selected")
+    local bg = e.rows[2][1]
     local r = bg.getValue()
     Check(r == 0x12 / 255, "the swatch shows the prefilled color")
 end
@@ -196,7 +199,7 @@ end
 do
     local a = { themePreset = "custom", themeColors = { bg = { r = 0.1, g = 0.1, b = 0.1 } } }
     local e = Page(a)
-    local swatch = e.rows[3][1]
+    local swatch = e.rows[2][1]
     Check(#e.notes == 0, "no hint before a swatch changes")
     for i = 1, 50 do swatch.setValue(i / 50, 0, 0) end
     Check(e.refreshes == 1, "only the first tick redraws the page")
@@ -210,7 +213,7 @@ end
 do
     local a = { themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } }
     local e = Page(a)
-    local start = e.rows[2][1]
+    local start = e.rows[1][1]
     Check(start.order[1] == "" and start.values[""] == "Choose a theme...", "the placeholder comes first")
     Check(start.order[2] == "default" and start.values.default == "Naowh (default)", "the default is offered")
     Check(#start.order == #e.ns.THEME_PRESET_ORDER + 2 and start.values.custom == nil, "every preset, and not Custom itself")
@@ -235,16 +238,16 @@ end
 
 -- The preview follows the selection.
 do
-    local function Chips(account) return Page(account).rows[1][2].colors() end
+    local function Chips(account) return Page(account).theme.palette() end
     local function Hex(c)
         return ("%02x%02x%02x"):format(math.floor(c.r * 255 + 0.5), math.floor(c.g * 255 + 0.5), math.floor(c.b * 255 + 0.5))
     end
     local default, midnight = Chips({}), Chips({ themePreset = "midnight" })
-    Check(Hex(default[1]) == "0e0f11" and Hex(default[6]) == "0091ed", "default: the shipped background and accent")
-    Check(Hex(midnight[1]) == "0b1020" and Hex(midnight[4]) == "eef2ff" and Hex(midnight[6]) == "5b8cff",
+    Check(Hex(default[1]) == "0e0f11" and Hex(default[3]) == "0091ed", "default: the shipped background and accent")
+    Check(Hex(midnight[1]) == "0b1020" and Hex(midnight[2]) == "eef2ff" and Hex(midnight[3]) == "5b8cff",
         "a preset: its own background, text and accent")
     local custom = Chips({ themePreset = "custom", themeColors = { bg = { r = 1, g = 0, b = 0 } } })
-    Check(Hex(custom[1]) == "ff0000" and Hex(custom[2]) == "1a1c1f", "custom: the saved pick, the shipped color for the rest")
+    Check(Hex(custom[1]) == "ff0000" and Hex(custom[2]) == Hex(default[2]), "custom: the saved pick, the shipped color for the rest")
     local invalid = Chips({ themePreset = "bogus" })
     Check(Hex(invalid[1]) == "0e0f11", "an invalid preset previews the default")
 end
@@ -255,7 +258,7 @@ do
     local widgetConstants = assert(widgets:match("\n(local MEDIA = .-\n)\nlocal UI = {}\n"), "Widgets constants")
     local atEnd = assert(widgets:match("\n(local function AtRowEnd%(.-\nend\n)"), "AtRowEnd")
     local from = assert(widgets:find("local function PaletteChip(", 1, true))
-    local upTo = assert(widgets:find("local function ColorPickerControl(", from, true))
+    local upTo = assert(widgets:find("local function DropdownControl(", from, true))
     local code = widgetConstants .. atEnd .. widgets:sub(from, upTo - 1)
         .. "local cfg, rgn = ...\nreturn PaletteControl(rgn, cfg)\n"
     local paletteChunk = assert(loadstring(code))

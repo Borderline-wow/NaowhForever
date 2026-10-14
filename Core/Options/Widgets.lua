@@ -698,25 +698,6 @@ local function PlayButton(dd, cfg, Get)
     return play
 end
 
-local function DropdownControl(rgn, cfg, Get, Set)
-    local dd = UI.BuildDropdownControl(rgn, cfg.width or DROPDOWN_W, rgn:GetFrameLevel() + CONTROL_RAISE,
-        cfg.values, cfg.order, Get, Set)
-    AtRowEnd(dd, rgn)
-    if cfg.preview then dd._buttons = { PlayButton(dd, cfg, Get) } end
-    return dd
-end
-
-local function SliderControl(rgn, cfg, Get, Set)
-    local track, valBox = UI.BuildSliderCore(rgn, cfg.trackWidth or SLIDER_TRACK_W, SLIDER_TRACK_H, SLIDER_THUMB,
-        cfg.boxWidth or SLIDER_BOX_W, SLIDER_BOX_H, SLIDER_TEXT_SIZE, 1, cfg.min or 0, cfg.max or SLIDER_MAX,
-        cfg.step or 1, Get, Set)
-    track._format = function(v) return cfg.format and cfg.format(v) or tostring(v) end
-    track._refreshValue()
-    AtRowEnd(valBox, rgn)
-    track:SetPoint("RIGHT", valBox, "LEFT", -LABEL_GAP, 0)
-    return track
-end
-
 local function PaletteChip(chips, i)
     local chip = CreateFrame("Frame", nil, chips)
     chip:SetSize(PALETTE_SIZE, PALETTE_SIZE)
@@ -727,10 +708,10 @@ local function PaletteChip(chips, i)
     return chip
 end
 
-local function PaletteControl(rgn, cfg)
+local function PaletteControl(rgn, cfg, beside)
     local chips = CreateFrame("Frame", nil, rgn)
     chips:SetHeight(PALETTE_SIZE)
-    AtRowEnd(chips, rgn)
+    if beside then chips:SetPoint("RIGHT", beside, "LEFT", -LABEL_GAP, 0) else AtRowEnd(chips, rgn) end
     local made = {}
     local function Paint()
         local colors = cfg.colors()
@@ -747,6 +728,31 @@ local function PaletteControl(rgn, cfg)
     chips._refreshValue = Paint
     Paint()
     return chips
+end
+
+local function DropdownControl(rgn, cfg, Get, Set)
+    local dd = UI.BuildDropdownControl(rgn, cfg.width or DROPDOWN_W, rgn:GetFrameLevel() + CONTROL_RAISE,
+        cfg.values, cfg.order, Get, Set)
+    AtRowEnd(dd, rgn)
+    if cfg.preview then dd._buttons = { PlayButton(dd, cfg, Get) } end
+    if cfg.palette then
+        local chips = PaletteControl(rgn, { colors = cfg.palette }, dd)
+        local refreshLabel = dd._refreshValue
+        dd._labelEdge = chips
+        dd._refreshValue = function() refreshLabel(); chips._refreshValue() end
+    end
+    return dd
+end
+
+local function SliderControl(rgn, cfg, Get, Set)
+    local track, valBox = UI.BuildSliderCore(rgn, cfg.trackWidth or SLIDER_TRACK_W, SLIDER_TRACK_H, SLIDER_THUMB,
+        cfg.boxWidth or SLIDER_BOX_W, SLIDER_BOX_H, SLIDER_TEXT_SIZE, 1, cfg.min or 0, cfg.max or SLIDER_MAX,
+        cfg.step or 1, Get, Set)
+    track._format = function(v) return cfg.format and cfg.format(v) or tostring(v) end
+    track._refreshValue()
+    AtRowEnd(valBox, rgn)
+    track:SetPoint("RIGHT", valBox, "LEFT", -LABEL_GAP, 0)
+    return track
 end
 
 local function ColorPickerControl(rgn, cfg, Get, Set)
@@ -801,7 +807,7 @@ local function RegionLabel(rgn, control, cfg)
     local lbl = ns.Font(rgn, LABEL_SIZE, nil)
     lbl:SetPoint("LEFT", rgn, "LEFT", ROW_INSET, 0)
     if control then
-        lbl:SetPoint("RIGHT", control, "LEFT", -LABEL_GAP, 0)
+        lbl:SetPoint("RIGHT", control._labelEdge or control, "LEFT", -LABEL_GAP, 0)
     else
         lbl:SetPoint("RIGHT", rgn, "RIGHT", -ROW_INSET, 0)
     end
