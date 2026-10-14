@@ -424,7 +424,7 @@ local function SetGroup(row, title)
     end
     local label = groupLabels[title]
     if not label then
-        label = ns.Upper(ns.L(title))
+        label = ns.Upper(ns.L(title)):gsub("|C(%x%x%x%x%x%x%x%x)", "|c%1"):gsub("|R", "|r")
         groupLabels[title] = label
     end
     row.text:SetText(label)

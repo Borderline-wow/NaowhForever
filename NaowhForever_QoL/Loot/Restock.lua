@@ -40,7 +40,9 @@ local TARGETS = {
     [5140] = 20,
 }
 
-local AMMO_SLOT = 0
+local AMMO_SLOT, RANGED_SLOT = 0, 18
+local WEAPON_CLASS, THROWN_SUBCLASS = 2, 16
+local THROWN_CLASSES = { ROGUE = true, WARRIOR = true }
 local PLAYER_CLASS = select(2, UnitClass("player"))
 local FOOD_CLASS, FOOD_SUBCLASS = 0, 5
 local DRINK_ITEM = 159
@@ -119,6 +121,17 @@ local function KnownReagent(family)
     return item
 end
 
+local function CarriedAmmo()
+    if THROWN_CLASSES[PLAYER_CLASS] then
+        local item = GetInventoryItemID("player", RANGED_SLOT)
+        if item then
+            local _, _, _, _, _, classID, subclassID = C_Item.GetItemInfoInstant(item)
+            if classID == WEAPON_CLASS and subclassID == THROWN_SUBCLASS then return item end
+        end
+    end
+    return GetInventoryItemID("player", AMMO_SLOT)
+end
+
 local function Wanted()
     local want = {}
     if S.Get("restockReagents") then
@@ -127,7 +140,7 @@ local function Wanted()
             if item and Target(item) > 0 then want[item] = Target(item) end
         end
     end
-    local ammo = S.Get("restockAmmo") and GetInventoryItemID("player", AMMO_SLOT)
+    local ammo = S.Get("restockAmmo") and CarriedAmmo()
     if ammo and ammo > 0 then want[ammo] = S.Get("restockAmmoTarget") end
     return want
 end
@@ -412,7 +425,9 @@ local function Apply()
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
     events:RegisterEvent("MERCHANT_CLOSED")
     events:RegisterEvent("BAG_UPDATE_DELAYED")
-    if HunterAmmoOn() then events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player") end
+    if S.Get("restockAmmo") or HunterAmmoOn() then
+        events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player")
+    end
     pendingItems[DRINK_ITEM] = true
     events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     C_Item.RequestLoadItemDataByID(DRINK_ITEM)
@@ -454,15 +469,20 @@ loot:Card({
 })
 
 local FIXED = {
-    Group("Reagents & Ammo"),
+    Group("Class Reagents"),
     { key = "restockReagents", label = "Class Reagents", toggle = true,
       help = "The reagents your known spells use, such as Arcane Powder, candles, seeds, Symbols "
           .. "of Kings and Flash Powder, matched to the highest rank you know." },
     { key = "restockBuy", label = "Buy at Vendors", toggle = true,
       help = "At a vendor who sells them, tops your class reagents and ammo up to what you carry, "
           .. "and prints what it spent. Off by default: it spends gold for you." },
-    { key = "restockAmmo", label = "Ammo", toggle = true, help = "The arrows or shot in your ammo slot." },
+}
+local AMMO = {
+    { key = "restockAmmo", label = "Ammo", toggle = true,
+      help = "Restocks equipped thrown weapons, or the arrows or shot in your ammo slot." },
     { key = "restockAmmoTarget", label = "Ammo to Carry", slider = AMMO_RANGE, needs = "restockAmmo" },
+}
+local OTHER = {
     Group("Food & Drink"),
     { key = "restockFood", label = "Food & Drink", toggle = true,
       help = "Counts food and drink separately across all stacks. Warriors and rogues do not need drink." },
@@ -477,7 +497,6 @@ local FIXED = {
     { key = "restockBagsBelow", label = "Free Slots Below", slider = BAGS_BELOW_RANGE, needs = "restockVendor" },
 }
 local HUNTER = {
-    Group("Hunter Ammo"),
     { key = "restockHunterAmmo", label = "Hunter Ammo Reminder", toggle = true,
       help = "Reminds you about your equipped ammo at its own amount, not the carry target." },
     { key = "restockHunterAmmoBelow", label = "Remind Me When Ammo Falls To", slider = AMMO_RANGE,
@@ -515,16 +534,25 @@ local function AddReagentRows(family, grouped)
     return grouped
 end
 
+local function ClassName(class)
+    return C_ClassColor.GetClassColor(class):WrapTextInColorCode(LOCALIZED_CLASS_NAMES_MALE[class])
+end
+
 local function RestockRows()
     wipe(restockRows)
     wipe(seenReagents)
     for i = 1, #FIXED do restockRows[i] = FIXED[i] end
     local class = select(2, UnitClass("player"))
-    for _, row in ipairs(HUNTER) do restockRows[#restockRows + 1] = row end
     local grouped = false
     for _, family in ipairs(FAMILIES) do
         if family.class == class then grouped = AddReagentRows(family, grouped) end
     end
+    restockRows[#restockRows + 1] = Group(ns.L("Ammo: %s, %s and %s", ClassName("ROGUE"), ClassName("WARRIOR"),
+        ClassName("HUNTER")))
+    for _, row in ipairs(AMMO) do restockRows[#restockRows + 1] = row end
+    restockRows[#restockRows + 1] = Group(ns.L("Ammo: %s", ClassName("HUNTER")))
+    for _, row in ipairs(HUNTER) do restockRows[#restockRows + 1] = row end
+    for _, row in ipairs(OTHER) do restockRows[#restockRows + 1] = row end
     restockRows[#restockRows + 1] = LOOK
     return restockRows
 end

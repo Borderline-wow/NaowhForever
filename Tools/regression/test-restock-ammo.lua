@@ -48,4 +48,39 @@ Case("off, or not a hunter, adds nothing", function()
     assert(Fixture("HUNTER", { restockHunterAmmo = false, restockHunterAmmoBelow = 500 }, 10) == "")
     assert(Fixture("WARRIOR", ON, 10) == "")
 end)
-print(count .. " restock ammo regressions passed")
+
+-- Synthetic item IDs exercise subclass detection without assuming a Forever item catalog.
+local THROWN, BOW = 900001, 900002
+local function WantedFor(class, settings, inventory)
+    local env = setmetatable({
+        PLAYER_CLASS = class, AMMO_SLOT = 0, RANGED_SLOT = 18,
+        WEAPON_CLASS = 2, THROWN_SUBCLASS = 16, THROWN_CLASSES = { ROGUE = true, WARRIOR = true },
+        FAMILIES = {}, S = { Get = function(key) return settings[key] end },
+        GetInventoryItemID = function(_, slot) return inventory[slot] end,
+        C_Item = { GetItemInfoInstant = function(id)
+            return id, nil, nil, nil, nil, 2, id == THROWN and 16 or 2
+        end },
+    }, { __index = _G })
+    local start = source:find("local function CarriedAmmo()", 1, true) and "local function CarriedAmmo()"
+        or "local function Wanted()"
+    local chunk = assert(loadstring(Slice(start, "\nlocal function FoodLevel(")
+        .. "\nreturn Wanted()"))
+    setfenv(chunk, env)
+    return chunk()
+end
+local saved = { restockAmmo = true, restockAmmoTarget = 700 }
+Case("rogue and warrior count their equipped thrown weapon using the saved carry target", function()
+    for _, class in ipairs({ "ROGUE", "WARRIOR" }) do
+        local want = WantedFor(class, saved, { [18] = THROWN, [0] = ARROWS })
+        assert(want[THROWN] == 700 and want[ARROWS] == nil)
+    end
+end)
+Case("a bow keeps legacy ammo-slot behavior; an empty slot contributes nothing", function()
+    assert(WantedFor("ROGUE", saved, { [18] = BOW, [0] = ARROWS })[ARROWS] == 700)
+    assert(next(WantedFor("WARRIOR", saved, {})) == nil)
+end)
+Case("hunters retain ammo-slot targets; thrown restocking respects the existing toggle", function()
+    assert(WantedFor("HUNTER", saved, { [18] = BOW, [0] = ARROWS })[ARROWS] == 700)
+    assert(next(WantedFor("ROGUE", { restockAmmo = false }, { [18] = THROWN })) == nil)
+end)
+print(count .. " total restock ammo regressions passed")
