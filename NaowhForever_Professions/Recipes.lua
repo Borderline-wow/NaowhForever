@@ -75,9 +75,9 @@ local function Reagents(recipeID)
     if cached then return cached end
     local ok, schematic = pcall(C_TradeSkillUI.GetRecipeSchematic, recipeID, false)
     if ok and schematic and schematic.reagentSlotSchematics then
-        local out = SchematicReagents(schematic)
+        local out = SchematicReagents(schematic) or EMPTY
         reagentCache[recipeID] = out
-        return out or EMPTY
+        return out
     end
     if not C_TradeSkillUI.GetRecipeNumReagents then return EMPTY end
     return OldReagents(recipeID) or EMPTY
@@ -111,7 +111,7 @@ end
 
 local function ItemName(itemID)
     local name = itemID and C_Item.GetItemNameByID(itemID)
-    if itemID and not name then Request(itemID) end
+    if itemID and not name and not waiting[itemID] then Request(itemID) end
     return name
 end
 

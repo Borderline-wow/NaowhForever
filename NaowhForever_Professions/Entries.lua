@@ -2,6 +2,7 @@
 local ns = _G.NaowhForever
 
 local P = ns.Professions
+local R = P.Recipes
 local S = P.Settings
 local W = P.State
 local Filters = P.Filters
@@ -91,7 +92,12 @@ local function Toggle(cat)
 end
 
 local function Matches(info)
-    return W.query == "" or (info.name and info.name:lower():find(W.query, 1, true) ~= nil)
+    if W.query == "" or (info.name and info.name:lower():find(W.query, 1, true)) then return true end
+    for _, r in ipairs(R.Reagents(info.recipeID)) do
+        local name = R.ItemName(r.itemID)
+        if name and name:lower():find(W.query, 1, true) then return true end
+    end
+    return false
 end
 
 local function MatchesUnlearned(r)
