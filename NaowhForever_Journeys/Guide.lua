@@ -141,6 +141,17 @@ local function Reach(spot)
     return spot
 end
 
+local function FixedReach(spot)
+    local key = ("%d:%.1f,%.1f"):format(spot.c, spot.x, spot.y)
+    local reach = journey.reaches[key]
+    if reach == nil then
+        reach = Walk.From(spot)
+        journey.reaches[key] = reach
+    end
+    spot.reach = reach
+    return spot
+end
+
 local function Planned(plan)
     if not journey then return end
     if not plan then
@@ -190,13 +201,13 @@ local function LaterWalks(plan, from)
 end
 
 local function Work(here, to)
-    local ctx = Context(Reach(here), Reach(to))
-    for _, jump in ipairs(ctx.jumps) do Reach(jump) end
+    local ctx = Context(Reach(here), FixedReach(to))
+    for _, jump in ipairs(ctx.jumps) do FixedReach(jump) end
     if journey.plan and journey.planAt == journey.at then ctx.keep = journey.plan end
     local plan = Planner.Plan(ctx)
     local first = plan and plan.legs[1]
     if first and first.mode == "walk" and here.reach then
-        local there = Walk.From({ c = first.c, x = first.x, y = first.y, z = first.z })
+        local there = FixedReach({ c = first.c, x = first.x, y = first.y, z = first.z }).reach
         plan.corners = there and Thin(Walk.Path(here.reach, there))
     end
     if plan then LaterWalks(plan, here) end
@@ -322,7 +333,7 @@ function Guide.Start(title, stops, quest)
         if not spot then return false end
         own[i] = { stop[1], stop[2], stop[3], stop[4], stop[5], stop[6], spot = spot }
     end
-    journey, step = { title = title, stops = own, at = 1, done = 0, quest = quest, paths = {} }, nil
+    journey, step = { title = title, stops = own, at = 1, done = 0, quest = quest, paths = {}, reaches = {} }, nil
     if not hinted and next((World.Known())) == nil then
         hinted = true
         ns.Print(TEXT_NO_FLIGHTS)

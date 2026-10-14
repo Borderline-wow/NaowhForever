@@ -60,6 +60,8 @@ NaowhForever_Journeys/
 - A walk between two spots is two searches over the crossings between tiles, from each end, run a few
   milliseconds a frame (`WALK_BUDGET`) in a coroutine: the guide's plan waits for them. Between two of
   the network's places the bake has the answer already.
+- Only your own end of a walk moves between plans, so a journey keeps the searches from its stops,
+  jumps and first places: each is a search over the whole continent's walking graph.
 - A walk's path is the crossings it passes, then each tile's polygons between them, pulled tight by
   the funnel algorithm. The game's waypoint goes where the walk ends (the dock, the flight master, the goal)
   with Waypoint Only Where Steps End on, the default; off, the guide puts it on each corner in turn, at

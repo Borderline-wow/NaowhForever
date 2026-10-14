@@ -409,7 +409,12 @@ local realPath, realCost = Jy.Walk.Path, Jy.Walk.Cost
 local WALK_START_X, WALK_START_Y = -4821.8, -1155.4
 local WALK_MID_X, WALK_MID_Y = WALK_START_X - 30, WALK_START_Y
 local WALK_END_X, WALK_END_Y = WALK_START_X - 60, WALK_START_Y
-Jy.Walk.From = function(spot) return { c = spot.c, x = spot.x, y = spot.y } end
+local reachesFor = {}
+Jy.Walk.From = function(spot)
+    local key = spot.x .. "," .. spot.y
+    reachesFor[key] = (reachesFor[key] or 0) + 1
+    return { c = spot.c, x = spot.x, y = spot.y }
+end
 Jy.Walk.Path = function(a, b) return { a.x, a.y, WALK_MID_X, WALK_MID_Y, b.x, b.y } end
 Jy.Walk.Cost = function(_, a, b)
     if type(a) ~= "table" or type(b) ~= "table" then return nil end
@@ -425,6 +430,8 @@ here = { x = WALK_MID_X, y = WALK_MID_Y, c = 0 }
 Fire("NAVIGATION_DESTINATION_REACHED", false)
 RunTimers()
 Check(Jy.Guide.Current() ~= nil, "not there yet, at the walk's middle corner")
+Check(reachesFor[WALK_END_X .. "," .. WALK_END_Y] == 1 and reachesFor[WALK_MID_X .. "," .. WALK_MID_Y] == 1,
+    "planning again walks out from where you stand, keeping the journey's own reach for where it ends")
 here = { x = WALK_END_X, y = WALK_END_Y, c = 0 }
 Fire("NAVIGATION_DESTINATION_REACHED", false)
 RunTimers()
