@@ -18,6 +18,7 @@ local function Frame()
     function fr:Hide() self.shown = false; self:Fire("OnHide") end
     function fr:IsShown() return self.shown end
     function fr:GetHeight() return self.height end
+    function fr:SetHeight(h) self.setHeight = h end
     function fr:GetVerticalScrollRange() return self.range end
     function fr:SetMinMaxValues(lo, hi) self.min, self.max = lo, hi end
     function fr:GetMinMaxValues() return self.min, self.max end
@@ -65,5 +66,12 @@ books.range = 0
 books:Hide()
 books:Show()
 check("a scroll with no room shows no bar", not books.bar.shown)
+
+-- Forever's Lua raises on 0 / 0, which is what a scroll shown before it has a height used to compute.
+local fresh = env.UI.SlimScroll(window)
+fresh.height, fresh.range, fresh.bar.setHeight = 0, 0, false
+fresh:Hide()
+fresh:Show()
+check("a scroll shown before it has a height leaves its thumb alone", fresh.bar.setHeight == false and not fresh.bar.shown)
 
 print(("test-slim-scroll: %d checks passed"):format(checks))

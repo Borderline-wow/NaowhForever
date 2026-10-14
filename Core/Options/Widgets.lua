@@ -1327,7 +1327,9 @@ function UI.SlimScroll(parent, width, gap)
         local shown = self:GetHeight()
         bar:SetMinMaxValues(0, range)
         bar:SetShown(range > 0)
-        thumb:SetHeight(math.max(SCROLL.minThumb, bar:GetHeight() * shown / (shown + range)))
+        if range > 0 then
+            thumb:SetHeight(math.max(SCROLL.minThumb, bar:GetHeight() * shown / (shown + range)))
+        end
         if bar:GetValue() > range then bar:SetValue(range) end
     end
     scroll:SetScript("OnScrollRangeChanged", Sync)
