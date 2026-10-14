@@ -522,4 +522,22 @@ do
         source:find('ns.Font(b.around, S.Get("xpBarFontSize"), "OUTLINE")', 1, true) ~= nil)
 end
 
+-- Keep Blizzard XP Bar: off, the bar fades Blizzard's experience bar out; on, it stays up and
+-- keeps its space between the action bars.
+do
+    local source = Read("NaowhForever_QoL/XP/XPBar.lua")
+    local chunk = 'local BLIZZARD_BARS = { "MainMenuExpBar" }\n'
+        .. assert(source:match("(local hideBlizzard = false\n.-\nlocal function SetBlizzardHidden%(hide%).-\nend)\n"))
+    local exp = { alpha = 1, SetAlpha = function(self, a) self.alpha = a end, HookScript = function() end }
+    local env = { MainMenuExpBar = exp, hooksecurefunc = function() end }
+    env._G = env
+    local SetBlizzardHidden = Load(chunk .. "\nreturn SetBlizzardHidden", env)
+    SetBlizzardHidden(true)
+    check("the XP Bar fades Blizzard's out", exp.alpha == 0)
+    SetBlizzardHidden(false)
+    check("Keep Blizzard XP Bar brings it back", exp.alpha == 1)
+    check("Apply hides it only while the setting is off",
+        source:find('SetBlizzardHidden(not S.Get("xpBarKeepBlizzard"))', 1, true) ~= nil)
+end
+
 print(("test-xp-bar: %d checks passed"):format(checks))

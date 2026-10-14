@@ -94,7 +94,7 @@ local S = UI.ModuleSettings("qol", {
     xpBar = F.xpBar, xpBarLeftText = "level", xpBarCenterText = "xp", xpBarRightText = "percent",
     xpBarTopLeft = "played", xpBarTopRight = "none", xpBarBottomLeft = "pace",
     xpBarBottom = "none", xpBarBottomRight = "none", xpBarTop = "none", xpBarLeft = "none",
-    xpBarRight = "none", xpBarIncomplete = false, xpBarMaxLevel = false,
+    xpBarRight = "none", xpBarIncomplete = false, xpBarMaxLevel = false, xpBarKeepBlizzard = false,
     xpBarResetOnReload = false, xpBarTextsHover = "around", xpBarShine = true, xpBarNotches = true,
     xpBarRestedStripes = false, xpBarGainPulse = false, xpBarReadyGlow = false, xpBarLevelFlash = false,
     xpBarBreakdown = false, xpBarWidth = 520, xpBarHeight = 26,

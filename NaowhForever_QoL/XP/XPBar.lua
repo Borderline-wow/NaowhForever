@@ -869,7 +869,7 @@ local function Apply()
     if ShowsText("played") then Played.Want("xpBar") else Played.Drop("xpBar") end
     if not clock then clock = C_Timer.NewTicker(CLOCK_TICK, Update) end
 
-    SetBlizzardHidden(true)
+    SetBlizzardHidden(not S.Get("xpBarKeepBlizzard"))
     ScanQuests()
     bar.mover:SetShown(unlocked == true)
     Hover.Mouse()
@@ -1276,6 +1276,8 @@ local ROWS = {
     Group("Show"),
     { key = "xpBarMaxLevel", label = "Show at Max Level", toggle = true,
       help = "Keeps the bar up at max level, with your played time and session." },
+    { key = "xpBarKeepBlizzard", label = "Keep Blizzard XP Bar", toggle = true,
+      help = "Leaves Blizzard's experience bar up as well, so your action bars keep their spacing." },
     { key = "xpBarTextsHover", label = "Show Texts On Mouseover", choice = HOVER_TEXTS,
       help = "Hides the texts until you hover the bar: the ones around it, or those on it too." },
     { key = "xpBarIncomplete", label = "Incomplete Quests", toggle = true,
