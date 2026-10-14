@@ -18,6 +18,7 @@ local ROW_HIDDEN_ALPHA = 0.45
 local ROW_FILL = 0.16
 local TITLE_SIZE, GROUP_SIZE, ROW_TEXT_SIZE = 14, 10, 12
 local GROUP_TITLE_DROP = 6
+local FOREVER = { groupH = 26, groupGap = 2, groupSize = 12, icon = 16, iconOff = 0.75, countRoom = 76 }
 local PANEL_NAME = "NaowhForeverHudElements"
 local OTHER_GROUP = "Other"
 local TEXT_TITLE = ns.L("Elements")
@@ -27,6 +28,7 @@ local TEXT_LOCK, TEXT_UNLOCK = ns.L("Lock in place"), ns.L("Unlock")
 local TEXT_HIDE, TEXT_SHOW = ns.L("Hide while editing"), ns.L("Show while editing")
 
 local panel, panelQueued
+local folded = {}
 local RefreshPanel
 
 local function GroupOf(item)
@@ -89,9 +91,10 @@ local function RowClicked(row)
 end
 
 local function RowIcon(row, texture, tip, onClick)
+    local size = ns.foreverSkin and FOREVER.icon or ROW_ICON
     local icon = ns.Shared.Parts.IconButton(row, onClick, texture, nil, tip)
-    icon:SetSize(ROW_ICON, ROW_ICON)
-    icon.icon:SetSize(ROW_ICON, ROW_ICON)
+    icon:SetSize(size, size)
+    icon.icon:SetSize(size, size)
     return icon
 end
 
@@ -99,8 +102,12 @@ local function NewRow(child)
     local St = ns.Shared.Style
     local row = CreateFrame("Button", nil, child)
     row:SetHeight(ROW_H)
-    row.fill = ns.Solid(row, "BACKGROUND", T.accent, ROW_FILL)
-    row.fill:SetAllPoints()
+    if ns.foreverSkin then
+        row.fill = ns.Shared.Parts.ForeverPick(row)
+    else
+        row.fill = ns.Solid(row, "BACKGROUND", T.accent, ROW_FILL)
+        row.fill:SetAllPoints()
+    end
     row.mark = ns.Solid(row, "ARTWORK", T.accent, 1)
     row.mark:SetPoint("TOPLEFT")
     row.mark:SetPoint("BOTTOMLEFT")
@@ -126,15 +133,49 @@ local function PaintRow(row, item)
     row.item = item
     row.label:SetText(ns.L(item.label))
     row.label:SetTextColor(T.fg.r, T.fg.g, T.fg.b, hidden and ROW_HIDDEN_ALPHA or 1)
+    local off = ns.foreverSkin and FOREVER.iconOff or ROW_HIDDEN_ALPHA
     row.fill:SetShown(picked)
-    row.mark:SetShown(picked)
+    row.mark:SetShown(picked and not ns.foreverSkin)
     row.eye.icon:SetTexture(hidden and St.EYE_OFF or St.EYE, nil, nil, "TRILINEAR")
     row.eye.tip = hidden and TEXT_SHOW or TEXT_HIDE
     local eye = hidden and T.fg or T.muted
     row.eye.icon:SetVertexColor(eye.r, eye.g, eye.b, 1)
     row.lock.tip = locked and TEXT_UNLOCK or TEXT_LOCK
     local lock = locked and T.accent or T.muted
-    row.lock.icon:SetVertexColor(lock.r, lock.g, lock.b, locked and 1 or ROW_HIDDEN_ALPHA)
+    row.lock.icon:SetVertexColor(lock.r, lock.g, lock.b, locked and 1 or off)
+end
+
+local function GroupClicked(bar)
+    folded[bar.group] = not folded[bar.group] or nil
+    RefreshPanel()
+end
+
+local function NewBar(child)
+    local Parts, St = ns.Shared.Parts, ns.Shared.Style
+    local bar = CreateFrame("Button", nil, child)
+    bar:SetHeight(FOREVER.groupH)
+    Parts.ForeverBar(bar)
+    bar.name = ns.Font(bar, FOREVER.groupSize, nil, T.accent, true)
+    bar.name:SetPoint("LEFT", PANEL_PAD, 0)
+    bar.sign:SetPoint("CENTER", bar, "RIGHT", -St.FOREVER_SIGN_RIGHT, 0)
+    bar:SetScript("OnClick", GroupClicked)
+    return bar
+end
+
+local function GroupBar(g, name, y, open, foldable)
+    local bar = panel.titles[g]
+    if not bar then
+        bar = NewBar(panel.child)
+        panel.titles[g] = bar
+    end
+    bar:ClearAllPoints()
+    bar:SetPoint("TOPLEFT", 0, -y)
+    bar:SetPoint("TOPRIGHT", 0, -y)
+    bar.group = name
+    bar.name:SetText(name)
+    ns.Shared.Parts.PaintForeverBar(bar, open, foldable)
+    bar:Show()
+    return y + FOREVER.groupH + FOREVER.groupGap
 end
 
 local function GroupTitle(g, name, y)
@@ -173,14 +214,22 @@ local function DrawPanel()
     panelQueued = false
     if not (panel and panel:IsShown()) then return end
     local y, r, g, shown, hidden = 0, 0, 0, 0, 0
+    local foldable = ns.foreverSkin and panel.search:GetText() == ""
     for _, group in ipairs(PanelList()) do
         g = g + 1
-        GroupTitle(g, group.name, y)
-        y = y + GROUP_H
+        local open = not (foldable and folded[group.name])
+        if ns.foreverSkin then
+            y = GroupBar(g, group.name, y, open, foldable)
+        else
+            GroupTitle(g, group.name, y)
+            y = y + GROUP_H
+        end
         for _, item in ipairs(group) do
-            r = r + 1
-            PanelRow(r, item, y)
-            y = y + ROW_H
+            if open then
+                r = r + 1
+                PanelRow(r, item, y)
+                y = y + ROW_H
+            end
             shown = shown + 1
             if IsHidden(item) then hidden = hidden + 1 end
         end
@@ -199,10 +248,18 @@ end
 local function StartMoving(self) self:StartMoving() end
 local function StopMoving(self) self:StopMovingOrSizing() end
 
+local function Head() return ns.foreverSkin and PANEL_PAD or PANEL_HEAD end
+
+local function ClosePanel()
+    ns.UnlockModeSettings.Set("elementsPanel", false)
+    panel:Hide()
+    H.PaintHistory()
+end
+
 local function PanelFrame()
     local St = ns.Shared.Style
     local f = CreateFrame("Frame", PANEL_NAME, UIParent)
-    f:SetSize(PANEL_W, PANEL_HEAD + St.SEARCH_H + PANEL_PAD + PANEL_LIST_H + PANEL_PAD)
+    f:SetSize(PANEL_W, Head() + St.SEARCH_H + PANEL_PAD + PANEL_LIST_H + PANEL_PAD)
     f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", PANEL_X, PANEL_Y)
     f:SetFrameStrata("FULLSCREEN_DIALOG")
     f:SetFrameLevel(PANEL_LEVEL)
@@ -215,26 +272,33 @@ local function PanelFrame()
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", StartMoving)
     f:SetScript("OnDragStop", StopMoving)
+    if ns.foreverSkin then ns.Shared.Parts.ForeverFrame(f, { title = TEXT_TITLE, bare = true, onClose = ClosePanel }) end
     return f
 end
 
 local function PanelHead(f)
     local St = ns.Shared.Style
+    local head = Head()
+    f.count = ns.Font(f, C.LABEL_SIZE, nil, T.muted)
+    f.search = ns.Shared.Parts.SearchBox(f, TEXT_FIND, function() RefreshPanel() end)
+    f.search:SetPoint("TOPLEFT", PANEL_PAD, -head)
+    f.search:SetHeight(St.SEARCH_H)
+    if ns.foreverSkin then
+        f.search:SetPoint("TOPRIGHT", -(PANEL_PAD + FOREVER.countRoom), -head)
+        f.count:SetPoint("RIGHT", f, "TOPRIGHT", -PANEL_PAD, -(head + St.SEARCH_H / 2))
+        return
+    end
     local title = ns.Font(f, TITLE_SIZE)
     title:SetPoint("LEFT", f, "TOPLEFT", PANEL_PAD, -PANEL_HEAD / 2)
     title:SetText(TEXT_TITLE)
-    f.count = ns.Font(f, C.LABEL_SIZE, nil, T.muted)
     f.count:SetPoint("RIGHT", f, "TOPRIGHT", -PANEL_PAD, -PANEL_HEAD / 2)
-    f.search = ns.Shared.Parts.SearchBox(f, TEXT_FIND, function() RefreshPanel() end)
-    f.search:SetPoint("TOPLEFT", PANEL_PAD, -PANEL_HEAD)
     f.search:SetPoint("TOPRIGHT", -PANEL_PAD, -PANEL_HEAD)
-    f.search:SetHeight(St.SEARCH_H)
 end
 
 local function PanelScroll(f)
     local St = ns.Shared.Style
     local scroll = UI.SlimScroll(f)
-    scroll:SetPoint("TOPLEFT", 0, -(PANEL_HEAD + St.SEARCH_H + PANEL_PAD))
+    scroll:SetPoint("TOPLEFT", 0, -(Head() + St.SEARCH_H + PANEL_PAD))
     scroll:SetPoint("BOTTOMRIGHT", -PANEL_PAD, PANEL_PAD)
     local child = CreateFrame("Frame", nil, scroll)
     child:SetSize(PANEL_W - PANEL_PAD, 1)

@@ -33,8 +33,9 @@ function Parts.SettingsCardFrame(parent)
     card.icon:SetTexture(St.LOGO, nil, nil, "TRILINEAR")
     card.open = OpenButton(card)
     card.open:SetPoint("RIGHT", -CARD_PAD, 0)
-    card.headline = Line(card, HEADLINE_SIZE, ns.classicSkin and T.accent or T.fg, true)
+    card.headline = Line(card, HEADLINE_SIZE, (ns.classicSkin or ns.foreverSkin) and T.accent or T.fg, true)
     if ns.classicSkin then Parts.ClassicBox(card) end
+    if ns.foreverSkin then Parts.ForeverBox(card) end
     card.detail = Line(card, DETAIL_SIZE, T.muted)
     return card
 end

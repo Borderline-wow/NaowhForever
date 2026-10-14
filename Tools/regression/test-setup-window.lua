@@ -85,14 +85,17 @@ local NAOWH_PALETTE = { { r = 0.01, g = 0.02, b = 0.03 }, { r = 0.11, g = 0.12, 
 local CLASSIC_PLUS = { bg = { r = 0.04, g = 0.04, b = 0.03 }, panel = { r = 0.09, g = 0.07, b = 0.04 },
     line = { r = 0.37, g = 0.29, b = 0.11 }, fg = { r = 0.93, g = 0.89, b = 0.8 }, muted = { r = 0.66, g = 0.6, b = 0.49 },
     accent = { r = 1, g = 0.82, b = 0 } }
+local FOREVER = { bg = { r = 0.07, g = 0.06, b = 0.05 }, panel = { r = 0.11, g = 0.1, b = 0.09 },
+    line = { r = 0.43, g = 0.32, b = 0.15 }, fg = { r = 0.91, g = 0.85, b = 0.71 }, muted = { r = 0.6, g = 0.56, b = 0.48 },
+    accent = { r = 1, g = 0.82, b = 0 } }
 local ME = "Die Dudu"
 local s = { combat = false, profiles = { Default = {} }, charActive = { [ME] = "Default" } }
 local buttons, fonts = {}, {}
 
-local Parts = {}
+local Parts = { ForeverButtonArt = function(f) f.redButton = true; return true end }
 local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"), THEME = T, UI = {},
     Shared = { Style = St, Parts = Parts },
-    THEME_EDITABLE = EDITABLE, CLASSIC_PLUS = CLASSIC_PLUS,
+    THEME_EDITABLE = EDITABLE, CLASSIC_PLUS = CLASSIC_PLUS, FOREVER_SKIN = FOREVER,
     ThemePresetKey = function() return "" end,
     ThemePalette = function(key) s.paletteKey = key; return NAOWH_PALETTE end,
     AddonFontPath = function(classic) return classic and "arial" or "naowh" end,
@@ -331,9 +334,10 @@ Find("Next").Click()
 check("each new step fades in", skinPage.fadeIn.plays == fades + 1)
 check("step 2: the skin", window.subtitle.text == "Step 2 of 4" and Said("How should Naowh Forever look?") ~= nil
     and Said("For every character on this computer.") ~= nil)
-local naowh, classic = Tile("Naowh"), Tile("Classic+")
-check("two skins, the one in use picked", #Tiles() == 2 and naowh and classic and Picked() == "Naowh")
-check("each tile shows a small window, not an icon", naowh.preview and classic.preview and not naowh.icon.shown
+local naowh, classic, forever = Tile("Naowh"), Tile("Classic+"), Tile("Forever")
+check("three skins, the one in use picked", #Tiles() == 3 and naowh and classic and forever and Picked() == "Naowh")
+check("each tile shows a small window, not an icon", naowh.preview and classic.preview and forever.preview
+    and not naowh.icon.shown and not forever.icon.shown
     and naowh.preview.title.text == "Naowh Forever" and naowh.preview.body.text == "Every window looks like this."
     and naowh.preview.button.label.text == "Start")
 local np, cp = naowh.preview, classic.preview
@@ -349,6 +353,16 @@ check("Classic+'s preview: its own palette", cp.bg.solid == CLASSIC_PLUS.bg and 
 check("its gold edge, the game's fonts, the game's own button", cp.border == St.CLASSIC_GOLD_RGB
     and cp.title.fontPath == "friz" and cp.body.fontPath == "arial" and cp.button.gameArt
     and cp.button.fill == nil and cp.button.border == nil and cp.button.label.fontColor == CLASSIC_PLUS.accent)
+local fp = forever.preview
+check("Forever's preview: its own palette", fp.bg.solid == FOREVER.bg and fp.rule.solid == FOREVER.line
+    and fp.body.fontColor == FOREVER.muted and fp.title.fontColor == FOREVER.accent)
+check("its bronze edge, its dark title bar, the game's fonts", fp.border == St.FOREVER_BRONZE_RGB
+    and fp.bar.gradient[2].r == St.FOREVER_TITLE_BAR_RGB[1].r and fp.title.fontPath == "friz" and fp.body.fontPath == "arial")
+check("its button the game's red one, not the Classic+ art", fp.button.redButton and not fp.button.gameArt
+    and fp.button.fill == nil and fp.button.label.fontColor == FOREVER.accent)
+check("Classic+'s preview keeps its plain title bar", cp.bar.gradient == nil)
+Clicked(forever)
+check("Forever picked", Picked() == "Forever")
 Clicked(classic)
 check("Classic+ picked", Picked() == "Classic+")
 Find("Next").Click()

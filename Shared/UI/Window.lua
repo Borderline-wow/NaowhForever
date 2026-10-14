@@ -1,4 +1,4 @@
--- Window.lua: a window in the house look (ns.Shared.Parts): the frame, its size grip, the title bar with its logo, icons and opacity slider, the footer, and the Classic+ trim and title plate.
+-- Window.lua: a window in the house look (ns.Shared.Parts): the frame, its size grip, the title bar with its logo, icons and opacity slider, the footer, the Classic+ trim and title plate, and the Forever frame's place for the title bar.
 local ns = _G.NaowhForever
 local T = ns.THEME
 local Parts = ns.Shared.Parts
@@ -265,6 +265,7 @@ function Parts.Window(width, height, positionKey)
     window.backdrop = Parts.Backdrop(window)
     ns.Border(window, BORDER_RGB)
     if ns.classicSkin then Parts.ClassicTrim(window) end
+    if ns.foreverSkin then Parts.ForeverFrame(window) end
     window:SetScript("OnKeyDown", ns.UI.CloseOnEscape)
     window:SetScript("OnShow", OnShow)
     window:SetScript("OnHide", OnHide)
@@ -292,7 +293,7 @@ end
 
 -- False when the name has no icon or this client lacks its file; the caller keeps its glyph.
 function Parts.ClassicIcon(texture, name)
-    local icon = ns.classicSkin and St.CLASSIC_ICONS[name]
+    local icon = (ns.classicSkin or ns.foreverSkin) and St.CLASSIC_ICONS[name]
     if not (icon and texture:SetTexture(St.CLASSIC_ICON_PATH .. icon)) then return false end
     local crop = St.CLASSIC_ICON_CROP
     texture:SetTexCoord(crop, 1 - crop, crop, 1 - crop)
@@ -348,10 +349,20 @@ end
 
 Parts.Logo = Logo
 
+local function ForeverTitleBar(window, close, middle)
+    local portrait = window.forever.portrait
+    window.logo:ClearAllPoints()
+    window.logo:SetAllPoints(portrait)
+    window.logo.icon:Hide()
+    window.title:ClearAllPoints()
+    window.title:SetPoint("TOPLEFT", window, "TOPLEFT", St.FOREVER_PORTRAIT_ROOM, middle + LOGO_SIZE / 2 + TITLE_RISE)
+    close:Hide()
+end
+
 function Parts.TitleBar(window, title, subtitle, page)
     local middle = -HEADER / 2
     window.logo = Logo(window, page, middle)
-    window.title = ns.Font(window, TITLE_SIZE, nil, ns.classicSkin and T.accent or T.fg, true)
+    window.title = ns.Font(window, TITLE_SIZE, nil, (ns.classicSkin or ns.foreverSkin) and T.accent or T.fg, true)
     window.title:SetPoint("TOPLEFT", window.logo, "TOPRIGHT", TITLE_GAP, TITLE_RISE)
     window.title:SetText(ns.L(title))
     window.subtitle = ns.Font(window, SMALL_SIZE, nil, T.muted)
@@ -362,6 +373,7 @@ function Parts.TitleBar(window, title, subtitle, page)
     window.backLink:Hide()
     local close = ns.Button(window, TEXT_CLOSE, CLOSE_SIZE, CLOSE_SIZE, function() window:Hide() end)
     close:SetPoint("RIGHT", window, "TOPRIGHT", -CLOSE_IN, middle)
+    if window.forever then ForeverTitleBar(window, close, middle) end
     return close
 end
 

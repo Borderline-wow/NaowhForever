@@ -245,7 +245,7 @@ local function GroupKeys()
         local b = name and Buttons.Broker(name, rightGroup, UpdateHover) or buttons[key]
         if name and not ns.Shared.Parts.ClassicIcon(b.icon, name) then
             b.icon:SetTexture(texture)
-            b.icon:SetDesaturated(not (glyph or ns.classicSkin))
+            b.icon:SetDesaturated(not (glyph or ns.classicSkin or ns.foreverSkin))
             b.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
         end
         b:SetParent(side == "left" and leftGroup or rightGroup)

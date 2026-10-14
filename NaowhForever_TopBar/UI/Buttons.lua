@@ -64,7 +64,7 @@ local function NewButton(key, parent, template, onHover)
     b:RegisterForClicks("AnyUp")
     b.icon = b:CreateTexture(nil, "ARTWORK")
     b.icon:SetPoint("CENTER")
-    if ns.classicSkin then b:SetHighlightTexture(ns.Shared.Style.CLASSIC_HIGHLIGHT, "ADD") end
+    if ns.classicSkin or ns.foreverSkin then b:SetHighlightTexture(ns.Shared.Style.CLASSIC_HIGHLIGHT, "ADD") end
     b.key = key
     b.onHover = onHover
     b:SetScript("OnLeave", Leave)

@@ -53,8 +53,8 @@ function Backdrop:Paint(alpha)
     self.gradient:SetGradient("VERTICAL", self.bottom, self.top)
     local pattern = self.pattern
     if pattern then
-        local shade = St.CLASSIC_PATTERN_SHADE
-        pattern:SetVertexColor(shade, shade, shade, St.CLASSIC_PATTERN_ALPHA * alpha)
+        local shade = self.patternShade
+        pattern:SetVertexColor(shade, shade, shade, self.patternAlpha * alpha)
     end
     local flat = self.flat
     for i = 1, #flat do
@@ -108,6 +108,15 @@ local function PlaceBeside(panel, owner)
     end
 end
 
+local function Pattern(frame, file)
+    local pattern = frame:CreateTexture(nil, "BACKGROUND", nil, PATTERN_SUBLEVEL)
+    pattern:SetAllPoints()
+    pattern:SetTexture(file, "REPEAT", "REPEAT")
+    pattern:SetHorizTile(true)
+    pattern:SetVertTile(true)
+    return pattern
+end
+
 function Parts.Backdrop(frame)
     local backdrop = setmetatable({ frame = frame, flat = {} }, Backdrop)
     backdrop.gradient = frame:CreateTexture(nil, "BACKGROUND", nil, GRADIENT_SUBLEVEL)
@@ -115,12 +124,11 @@ function Parts.Backdrop(frame)
     backdrop.gradient:SetColorTexture(1, 1, 1, 1)
     backdrop.bottom, backdrop.top = CreateColor(0, 0, 0, 1), CreateColor(0, 0, 0, 1)
     if ns.classicSkin then
-        local pattern = frame:CreateTexture(nil, "BACKGROUND", nil, PATTERN_SUBLEVEL)
-        pattern:SetAllPoints()
-        pattern:SetTexture(St.CLASSIC_PATTERN, "REPEAT", "REPEAT")
-        pattern:SetHorizTile(true)
-        pattern:SetVertTile(true)
-        backdrop.pattern = pattern
+        backdrop.pattern = Pattern(frame, St.CLASSIC_PATTERN)
+        backdrop.patternShade, backdrop.patternAlpha = St.CLASSIC_PATTERN_SHADE, St.CLASSIC_PATTERN_ALPHA
+    elseif ns.foreverSkin then
+        backdrop.pattern = Pattern(frame, St.FOREVER_ROCK)
+        backdrop.patternShade, backdrop.patternAlpha = St.FOREVER_ROCK_SHADE, St.FOREVER_ROCK_ALPHA
     end
     return backdrop
 end

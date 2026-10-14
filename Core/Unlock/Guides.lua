@@ -178,28 +178,28 @@ local function OnOne(near, a1, a2, a3, b1, b2, b3)
     end
 end
 
-local function DrawEdgeGuides(l, r, t, b, ol, oright, ot, ob, c, near)
+local function DrawEdgeGuides(l, r, t, b, ol, oright, ot, ob, c, near, alpha)
     local cx, cy = (l + r) / 2, (t + b) / 2
     local x = OnOne(near, l, cx, r, ol, (ol + oright) / 2, oright)
     if x then
-        DrawLine(dragLayer, x, math.min(b, ob), x, math.max(t, ot), c)
+        DrawLine(dragLayer, x, math.min(b, ob), x, math.max(t, ot), c, alpha)
         if ob - t > near then DrawLabel(dragLayer, x, (t + ob) / 2, ob - t, c, T.bg)
         elseif b - ot > near then DrawLabel(dragLayer, x, (ot + b) / 2, b - ot, c, T.bg) end
     end
     local y = OnOne(near, b, cy, t, ob, (ot + ob) / 2, ot)
     if y then
-        DrawLine(dragLayer, math.min(l, ol), y, math.max(r, oright), y, c)
+        DrawLine(dragLayer, math.min(l, ol), y, math.max(r, oright), y, c, alpha)
         if ol - r > near then DrawLabel(dragLayer, (r + ol) / 2, y, ol - r, c, T.bg)
         elseif l - oright > near then DrawLabel(dragLayer, (oright + l) / 2, y, l - oright, c, T.bg) end
     end
 end
 
-local function DrawSpacing(item, l, r, t, b, c, near)
+local function DrawSpacing(item, l, r, t, b, c, near, alpha)
     for _, spot in ipairs(EvenSpots(item, l, r, b, t, true)) do
         if math.abs(spot.at - l) <= near then
             for i = EDGE_PAIRS_FIRST, EDGE_PAIRS_LAST, EDGE_PAIRS_STEP do
                 local from, to, y = spot[i], spot[i + 1], spot[i + 2]
-                DrawLine(dragLayer, from, y, to, y, c)
+                DrawLine(dragLayer, from, y, to, y, c, alpha)
                 DrawLabel(dragLayer, (from + to) / 2, y, to - from, c, T.bg)
             end
             break
@@ -209,7 +209,7 @@ local function DrawSpacing(item, l, r, t, b, c, near)
         if math.abs(spot.at - b) <= near then
             for i = EDGE_PAIRS_FIRST, EDGE_PAIRS_LAST, EDGE_PAIRS_STEP do
                 local from, to, x = spot[i], spot[i + 1], spot[i + 2]
-                DrawLine(dragLayer, x, from, x, to, c)
+                DrawLine(dragLayer, x, from, x, to, c, alpha)
                 DrawLabel(dragLayer, x, (from + to) / 2, to - from, c, T.bg)
             end
             break
@@ -222,17 +222,19 @@ local function DrawGuides(item)
     if not l then return end
     local St, px = ns.Shared.Style, Pixel()
     local c, near = St.GUIDE_RGB, px / 2
+    local alpha = 1
+    if ns.foreverSkin then c, alpha = St.FOREVER_GUIDE_RGB, St.FOREVER_GUIDE_ALPHA end
     local w, h = UIParent:GetWidth(), UIParent:GetHeight()
     local cx, cy = (l + r) / 2, (t + b) / 2
-    if math.abs(cx - w / 2) <= near then DrawLine(dragLayer, w / 2, 0, w / 2, h, c) end
-    if math.abs(cy - h / 2) <= near then DrawLine(dragLayer, 0, h / 2, w, h / 2, c) end
+    if math.abs(cx - w / 2) <= near then DrawLine(dragLayer, w / 2, 0, w / 2, h, c, alpha) end
+    if math.abs(cy - h / 2) <= near then DrawLine(dragLayer, 0, h / 2, w, h / 2, c, alpha) end
     for _, other in ipairs(placement.items) do
         if Guiding(item, other) then
             local ol, oright, ot, ob = Box(other)
-            if ol then DrawEdgeGuides(l, r, t, b, ol, oright, ot, ob, c, near) end
+            if ol then DrawEdgeGuides(l, r, t, b, ol, oright, ot, ob, c, near, alpha) end
         end
     end
-    DrawSpacing(item, l, r, t, b, c, near)
+    DrawSpacing(item, l, r, t, b, c, near, alpha)
 end
 
 local function DrawBox(layer, l, r, t, b, c, alpha)

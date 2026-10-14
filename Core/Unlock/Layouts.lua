@@ -103,22 +103,23 @@ local function LayoutNames()
     return names
 end
 
-local function LayoutMenu(owner)
-    local names = LayoutNames()
+local function IsCurrent(name) return name == CurrentLayout() end
+
+local function LayoutEntries(root)
     local current = CurrentLayout()
-    MenuUtil.CreateContextMenu(owner, function(_, root)
-        root:CreateTitle(TEXT_LAYOUTS)
-        for _, name in ipairs(names) do
-            root:CreateRadio(name, function() return name == CurrentLayout() end, LoadLayout, name)
-        end
-        root:CreateDivider()
-        if current then root:CreateButton(TEXT_SAVE_TO .. current, function() SaveLayout(current) end) end
-        root:CreateButton(TEXT_SAVE_NEW, NewLayout)
-        if current then
-            root:CreateButton(TEXT_RENAME_ITEM .. current, RenameLayout)
-            root:CreateButton(TEXT_DELETE_ITEM .. current, DeleteLayout)
-        end
-    end)
+    root:CreateTitle(TEXT_LAYOUTS)
+    for _, name in ipairs(LayoutNames()) do root:CreateRadio(name, IsCurrent, LoadLayout, name) end
+    root:CreateDivider()
+    if current then root:CreateButton(TEXT_SAVE_TO .. current, function() SaveLayout(current) end) end
+    root:CreateButton(TEXT_SAVE_NEW, NewLayout)
+    if current then
+        root:CreateButton(TEXT_RENAME_ITEM .. current, RenameLayout)
+        root:CreateButton(TEXT_DELETE_ITEM .. current, DeleteLayout)
+    end
 end
 
-H.CurrentLayout, H.LayoutMenu = CurrentLayout, LayoutMenu
+local function LayoutMenu(owner)
+    MenuUtil.CreateContextMenu(owner, function(_, root) LayoutEntries(root) end)
+end
+
+H.CurrentLayout, H.LayoutMenu, H.LayoutEntries = CurrentLayout, LayoutMenu, LayoutEntries

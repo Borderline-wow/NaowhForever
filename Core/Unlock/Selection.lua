@@ -108,9 +108,13 @@ local function Refresh(item)
     local h = item.handle
     local picked = item.selected or item.dragging
     local lit = picked or item.hovered
-    local edge = picked and T.accent or item.hovered and T.muted or C.BLACK
-    h._border:SetColor(edge.r, edge.g, edge.b, 1)
-    h._fill:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, lit and C.MOVER_FILL_LIT or C.MOVER_FILL)
+    if ns.foreverSkin then
+        H.PaintEditMode(item)
+    else
+        local edge = picked and T.accent or item.hovered and T.muted or C.BLACK
+        h._border:SetColor(edge.r, edge.g, edge.b, 1)
+        h._fill:SetColorTexture(T.bg.r, T.bg.g, T.bg.b, lit and C.MOVER_FILL_LIT or C.MOVER_FILL)
+    end
     h:SetFrameLevel(item.baseLevel + (lit and LIT_RAISE or 0))
     if item == placement.selected then H.ShowTag() end
     H.RefreshPanel()

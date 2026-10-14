@@ -182,6 +182,20 @@ do
     Check(a.skin == nil, "the default is stored as nothing")
 end
 
+-- Forever is the third skin, after Classic+; it has its own colors too, and the help is one sentence.
+do
+    local a = {}
+    local e = Page(a)
+    local k = e.skin
+    Check(#k.order == 3 and k.order[2] == "classic" and k.order[3] == "forever" and k.values.forever == "Forever",
+        "three skins: Naowh, Classic+, Forever")
+    Check(#k.tooltip < 100 and not k.tooltip:find("%. ") and not k.tooltip:find("|n", 1, true), "its help is one short sentence")
+    k.setValue("forever")
+    Check(a.skin == "forever" and e.refreshes == 1, "Forever is stored and the page redraws")
+    e.build()
+    Check(e.theme.disabled(), "Theme is greyed out under Forever")
+end
+
 -- Custom starts from the palette the player was looking at, and only then shows swatches.
 do
     local a = { themePreset = "slate" }

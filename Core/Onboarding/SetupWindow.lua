@@ -40,7 +40,7 @@ local ANIM = { fadeIn = 0.18, glowOut = 0.45, glowAlpha = 0.5, popIn = 0.18, pop
 local SEG = { w = 26, h = 4, gap = 4, right = 44 }
 local TILE_LAYOUT = { checkInset = 6, markInset = 4, iconTop = 20, nameGap = 14, textRoom = 20, blurbGap = 5,
     hintGap = 6 }
-local SKIN_LAYOUT = { columns = 2, tileH = 220, nameGap = 14 }
+local SKIN_LAYOUT = { columns = #Setup.SKINS, tileH = 220, nameGap = 14 }
 local PREVIEW = { w = 190, h = 112, bar = 22, pad = 8, titleSize = 12, bodySize = 11, labelSize = 10,
     buttonW = 64, buttonH = 20 }
 local MODULE_LAYOUT = { columns = 3, tileH = 56, gap = 8, plate = 36, glyph = 22, iconX = 10, textGap = 10,
@@ -78,9 +78,10 @@ local TEXT_PROFILE = { title = ns.L("Where do you want to start?"), hint = ns.L(
     keepName = ns.L("Keep mine"), keepBlurb = ns.L("Your settings stay as they are.") }
 local TEXT_SKIN = { title = ns.L("How should Naowh Forever look?"), hint = ns.L("For every character on this computer."),
     previewTitle = "Naowh Forever", previewBody = ns.L("Every window looks like this."), previewButton = ns.L("Start") }
-local SKIN_NAMES = { [Setup.SKIN_NAOWH] = "Naowh", [Setup.SKIN_CLASSIC] = "Classic+" }
+local SKIN_NAMES = { [Setup.SKIN_NAOWH] = "Naowh", [Setup.SKIN_CLASSIC] = "Classic+", [Setup.SKIN_FOREVER] = "Forever" }
 local SKIN_BLURBS = { [Setup.SKIN_NAOWH] = ns.L("Naowh's dark look, with his blue."),
-    [Setup.SKIN_CLASSIC] = ns.L("The game's own look, in gold and bronze.") }
+    [Setup.SKIN_CLASSIC] = ns.L("The game's own look, in gold and bronze."),
+    [Setup.SKIN_FOREVER] = ns.L("WoW Forever's own windows, in metal and stone.") }
 local TEXT_MODULES = { title = ns.L("Which modules do you want?"), hint = ns.L("Click a module to turn it on or off."),
     hintFor = ns.L("Click a module to turn it on or off, for %s only."), count = ns.L("%d of %d on") }
 local TEXT_SUMMARY = { title = ns.L("Here's your setup"), hint = ns.L("Nothing changes until you apply it."),
@@ -553,14 +554,22 @@ end
 
 local function Palette(skin)
     if skin == Setup.SKIN_CLASSIC then return ns.CLASSIC_PLUS end
+    if skin == Setup.SKIN_FOREVER then return ns.FOREVER_SKIN end
     local out = {}
     for i, c in ipairs(ns.ThemePalette(ns.ThemePresetKey())) do out[ns.THEME_EDITABLE[i]] = c end
     return out
 end
 
+local function ForeverLook(c)
+    return { colors = c, edge = St.FOREVER_BRONZE_RGB, title = c.accent, bar = St.FOREVER_TITLE_BAR_RGB,
+        redButton = true, label = c.accent,
+        body = ns.AddonFontPath(true), heading = ns.HeadingFontPath(true) }
+end
+
 local function SkinLook(skin)
     local classic = skin == Setup.SKIN_CLASSIC
     local c = Palette(skin)
+    if skin == Setup.SKIN_FOREVER then return ForeverLook(c) end
     return { colors = c, edge = classic and St.CLASSIC_GOLD_RGB or BLACK, title = classic and c.accent or c.fg,
         gameArt = classic, fill = { c.panel, c.panel }, rim = c.accent, label = classic and c.accent or c.fg,
         body = ns.AddonFontPath(classic), heading = ns.HeadingFontPath(classic) }
@@ -576,7 +585,9 @@ local function PreviewButton(preview, look)
     local button = CreateFrame("Frame", nil, preview)
     button:SetSize(PREVIEW.buttonW, PREVIEW.buttonH)
     button:SetPoint("BOTTOMRIGHT", -PREVIEW.pad, PREVIEW.pad)
-    if look.gameArt then
+    if look.redButton then
+        Parts.ForeverButtonArt(button)
+    elseif look.gameArt then
         ns.GameButtonArt(button)
     else
         local top, bottom = look.fill[1], look.fill[2]
@@ -604,6 +615,11 @@ local function Preview(tile, skin)
     preview.bar:SetPoint("TOPLEFT")
     preview.bar:SetPoint("TOPRIGHT")
     preview.bar:SetHeight(PREVIEW.bar)
+    if look.bar then
+        local top, bottom = look.bar[1], look.bar[2]
+        preview.bar:SetColorTexture(1, 1, 1, 1)
+        preview.bar:SetGradient("VERTICAL", CreateColor(bottom.r, bottom.g, bottom.b, 1), CreateColor(top.r, top.g, top.b, 1))
+    end
     preview.rule = ns.Solid(preview, "ARTWORK", c.line, 1)
     preview.rule:SetPoint("TOPLEFT", preview.bar, "BOTTOMLEFT")
     preview.rule:SetPoint("TOPRIGHT", preview.bar, "BOTTOMRIGHT")

@@ -185,7 +185,7 @@ end
 function Control.Dim(row, control, off)
     local alpha = off and SS.DIM_ALPHA or 1
     row.label:SetAlpha(alpha)
-    control:SetAlpha(alpha)
+    if control._dim then control._dim(control, off) else control:SetAlpha(alpha) end
     control:EnableMouse(not off)
     local box = control._valBox
     if box then

@@ -335,6 +335,25 @@ do
     local ns, handler = Load({})
     Fire(handler, "ADDON_LOADED", "NaowhForever")
     Check(ns.classicSkin == false, "no skin saved: the default")
+    Check(ns.foreverSkin == false and ns.Skin() == "", "and not Forever")
+end
+
+-- The Forever skin: its own colors over any saved theme, readable, and an unknown skin is the default.
+do
+    local ns, handler = Load({ skin = "forever", themePreset = "crimson" })
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.foreverSkin == true and ns.classicSkin == false and ns.Skin() == "forever", "Forever is read on load")
+    for _, key in ipairs(ns.THEME_EDITABLE) do
+        local c = ns.FOREVER_SKIN[key]
+        Check(ns.THEME[key].r == c.r and ns.THEME[key].g == c.g and ns.THEME[key].b == c.b,
+            "Forever " .. key .. " over the saved theme")
+    end
+    Check(Ratio(ns.THEME.fg, ns.THEME.bg) >= 4.5 and Ratio(ns.THEME.fg, ns.THEME.panel) >= 4.5, "its text is readable")
+    Check(Ratio(ns.THEME.muted, ns.THEME.panel) >= 3 and Ratio(ns.THEME.accent, ns.THEME.panel) >= 3,
+        "and its secondary text and accent")
+    ns, handler = Load({ skin = "nonsense" })
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.Skin() == "" and not ns.classicSkin and not ns.foreverSkin, "an unknown skin is the default")
 end
 do
     local fonts = { ["Friz Quadrata TT"] = "friz", ["Arial Narrow"] = "arial", Naowh = "naowh", Morpheus = "morpheus",
@@ -360,6 +379,10 @@ do
     Check(ns.AddonFontPath(true) == "friz" and ns.HeadingFontPath(true) == "friz",
         "asked for Classic+'s fonts on the default skin (the onboarding's preview): the game's")
     Check(ns.AddonFontPath(false) == "naowh" and ns.HeadingFontPath(false) == "naowh", "and Naowh's: Naowh")
+    ns, handler = Load({ skin = "forever" }, Stub)
+    Fire(handler, "ADDON_LOADED", "NaowhForever")
+    Check(ns.AddonFontPath() == "friz" and ns.HeadingFontPath() == "friz" and ns.DataFontPath() == "arial",
+        "Forever: the game's fonts, as Forever's own windows set them")
 end
 
 print("PASS custom colors: " .. cases .. " checks")

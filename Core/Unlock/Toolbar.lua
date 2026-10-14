@@ -6,7 +6,7 @@ local H = ns.HudEditor
 
 local placement = H.placement
 local GuidesOn, CanUndo, CanRedo, PaintMarks = H.GuidesOn, H.CanUndo, H.CanRedo, H.PaintMarks
-local ShowPanel, CurrentLayout, LayoutMenu = H.ShowPanel, H.CurrentLayout, H.LayoutMenu
+local ShowPanel, CurrentLayout, LayoutMenu, LayoutEntries = H.ShowPanel, H.CurrentLayout, H.LayoutMenu, H.LayoutEntries
 
 local C = H.C
 local BAR_W, BAR_PAD, BAR_GAP = 352, 14, 10
@@ -17,6 +17,7 @@ local TITLE_SIZE = 14
 local EXIT_W, EXIT_H = 96, 22
 local SWITCH_W, SWITCH_H = 28, 14
 local SWITCH_ROW = 22
+local FOREVER_ROW_GAP = 4
 local SWITCH_COLUMNS = 2
 local SWITCH_COL = (BAR_W - 2 * BAR_PAD) / SWITCH_COLUMNS
 local LABEL_GAP = 8
@@ -34,6 +35,7 @@ local TEXT_GUIDES = ns.L("Guides")
 local TEXT_GUIDES_HELP = ns.L("Lines a dragged element up with the others and the screen centre. Hold Alt to drag freely.")
 local TEXT_LAYOUTS = ns.L("Layouts")
 local TEXT_LAYOUTS_HELP = ns.L("Saves where everything is under a name, to load again later.")
+local NO_LAYOUT_VALUES = {}
 
 local configActive, reopenWindowOnExit = false, false
 local configToolbar
@@ -51,6 +53,11 @@ local function BarRule(f, y)
     ns.Hairline(rule, "h")
 end
 
+local function SwitchRow()
+    if ns.foreverSkin then return ns.Shared.Style.FOREVER_CHECK_SIZE + FOREVER_ROW_GAP end
+    return SWITCH_ROW
+end
+
 local function BarSwitch(f, text, col, y, get, set)
     local switch = UI.BuildToggleControl(f, nil, get, set, SWITCH_W, SWITCH_H)
     switch:SetPoint("TOPLEFT", f, "TOPLEFT", BAR_PAD + col * SWITCH_COL, -y)
@@ -61,6 +68,7 @@ local function BarSwitch(f, text, col, y, get, set)
 end
 
 local function Usable(button, on)
+    if button._forever then return button:SetEnabled(on) end
     button:SetAlpha(on and 1 or OFF_ALPHA)
     button:EnableMouse(on)
 end
@@ -72,6 +80,7 @@ local function PaintHistory()
     Usable(f._redo, CanRedo())
     Usable(f._revert, CanUndo())
     local on = ns.UnlockModeSettings.Get("elementsPanel") ~= false
+    if f._elements._forever then return ns.Shared.Parts.SetForeverLatched(f._elements, on) end
     local edge = on and T.accent or C.BLACK
     f._elements._rest = edge
     f._elements._border:SetColor(edge.r, edge.g, edge.b, 1)
@@ -83,6 +92,9 @@ end
 
 local function StartMoving(self) self:StartMoving() end
 local function StopMoving(self) self:StopMovingOrSizing() end
+local function Exit() ns.HideUnlockMode() end
+local function LayoutName() return CurrentLayout() or ns.L(TEXT_LAYOUTS) end
+local function Unused() end
 
 local function ToolbarFrame()
     local St = ns.Shared.Style
@@ -112,7 +124,7 @@ local function ToolbarHead(f)
     local title = ns.Font(f, TITLE_SIZE)
     title:SetPoint("LEFT", logo, "RIGHT", LABEL_GAP, 0)
     title:SetText(TEXT_TITLE)
-    local exit = ns.AccentBorder(ns.Button(f, TEXT_EXIT, EXIT_W, EXIT_H, function() ns.HideUnlockMode() end))
+    local exit = ns.AccentBorder(ns.Button(f, TEXT_EXIT, EXIT_W, EXIT_H, Exit))
     exit:SetPoint("RIGHT", f, "TOPRIGHT", -BAR_PAD, -BAR_HEAD / 2)
     BarRule(f, BAR_HEAD)
 end
@@ -124,29 +136,48 @@ local function ToggleElements()
     PaintHistory()
 end
 
+local function ToolButton(f, text, w, onClick)
+    local btn = ns.Button(f, text, w, EXIT_H, onClick)
+    if btn._forever then btn:SetMotionScriptsWhileDisabled(true) end
+    return btn
+end
+
 local function HistoryButtons(f, y)
-    f._undo = ns.Button(f, TEXT_UNDO, HISTORY_W, EXIT_H, function() UI.UndoMove() end)
+    f._undo = ToolButton(f, TEXT_UNDO, HISTORY_W, function() UI.UndoMove() end)
     f._undo:SetPoint("TOPLEFT", BAR_PAD, -y)
     ns.Tooltip(f._undo, TEXT_UNDO, TEXT_UNDO_HELP)
-    f._redo = ns.Button(f, TEXT_REDO, HISTORY_W, EXIT_H, function() UI.RedoMove() end)
+    f._redo = ToolButton(f, TEXT_REDO, HISTORY_W, function() UI.RedoMove() end)
     f._redo:SetPoint("LEFT", f._undo, "RIGHT", BAR_GAP / 2, 0)
     ns.Tooltip(f._redo, TEXT_REDO, TEXT_REDO_HELP)
-    f._revert = ns.Button(f, TEXT_REVERT, HISTORY_W, EXIT_H, function() UI.RevertMoves() end)
+    f._revert = ToolButton(f, TEXT_REVERT, HISTORY_W, function() UI.RevertMoves() end)
     f._revert:SetPoint("LEFT", f._redo, "RIGHT", BAR_GAP / 2, 0)
     ns.Tooltip(f._revert, TEXT_REVERT, TEXT_REVERT_HELP)
-    f._elements = ns.Button(f, TEXT_ELEMENTS, ELEMENTS_W, EXIT_H, ToggleElements)
+    f._elements = ToolButton(f, TEXT_ELEMENTS, ELEMENTS_W, ToggleElements)
     f._elements:SetPoint("TOPRIGHT", -BAR_PAD, -y)
     ns.Tooltip(f._elements, TEXT_ELEMENTS, TEXT_ELEMENTS_HELP)
     return y + EXIT_H + BAR_GAP
 end
 
+local function LayoutPicker(f)
+    local picker, label = UI.BuildDropdownControl(f, SWITCH_COL, nil, NO_LAYOUT_VALUES, nil, LayoutName, Unused)
+    picker:SetHeight(EXIT_H)
+    picker.label = label
+    picker._menuFill = LayoutEntries
+    return picker
+end
+
 local function GuidesRow(f, y)
     f._guides = BarSwitch(f, TEXT_GUIDES, 0, y, GuidesOn, function(v) ns.UnlockModeSettings.Set("guides", v) end)
     ns.Tooltip(f._guides, TEXT_GUIDES, TEXT_GUIDES_HELP)
-    f._layout = ns.Button(f, TEXT_LAYOUTS, SWITCH_COL, EXIT_H, function() LayoutMenu(f._layout) end)
-    f._layout:SetPoint("TOPRIGHT", -BAR_PAD, -(y + (SWITCH_H - EXIT_H) / 2))
+    if ns.foreverSkin then
+        f._layout = LayoutPicker(f)
+    else
+        f._layout = ns.Button(f, TEXT_LAYOUTS, SWITCH_COL, EXIT_H, function() LayoutMenu(f._layout) end)
+    end
+    local rowH = math.max(f._guides:GetHeight(), SWITCH_H)
+    f._layout:SetPoint("TOPRIGHT", -BAR_PAD, -(y + (rowH - EXIT_H) / 2))
     ns.Tooltip(f._layout, TEXT_LAYOUTS, TEXT_LAYOUTS_HELP)
-    return y + SWITCH_ROW
+    return y + math.max(rowH, SwitchRow())
 end
 
 local function ModuleSwitches(f, y)
@@ -157,18 +188,25 @@ local function ModuleSwitches(f, y)
     f._section = ns.Font(f, C.LABEL_SIZE, nil, T.muted)
     f._section:SetPoint("TOPLEFT", BAR_PAD, -y)
     y = y + SECTION_H
+    local step = SwitchRow()
     for i, c in ipairs(toolbarChecks) do
         local col, row = (i - 1) % SWITCH_COLUMNS, math.floor((i - 1) / SWITCH_COLUMNS)
-        switches[i] = BarSwitch(f, c.label, col, y + row * SWITCH_ROW, c.get, c.set)
+        switches[i] = BarSwitch(f, c.label, col, y + row * step, c.get, c.set)
     end
-    return y + math.ceil(#toolbarChecks / SWITCH_COLUMNS) * SWITCH_ROW + BAR_GAP / 2
+    return y + math.ceil(#toolbarChecks / SWITCH_COLUMNS) * step + BAR_GAP / 2
 end
 
 local function BuildConfigToolbar()
     if configToolbar then return configToolbar end
     local f = ToolbarFrame()
-    ToolbarHead(f)
-    local y = HistoryButtons(f, BAR_HEAD + BAR_GAP)
+    local top = BAR_GAP
+    if ns.foreverSkin then
+        ns.Shared.Parts.ForeverFrame(f, { title = TEXT_TITLE, bare = true, onClose = Exit })
+    else
+        ToolbarHead(f)
+        top = BAR_HEAD + BAR_GAP
+    end
+    local y = HistoryButtons(f, top)
     y = GuidesRow(f, y)
     f:SetHeight(ModuleSwitches(f, y))
     configToolbar = f

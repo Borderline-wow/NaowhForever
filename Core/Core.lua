@@ -23,7 +23,7 @@ local MAX_FRAME_LEVEL = 9999
 local OFFSCREEN = 0.9
 local BUTTON_TEXT_SIZE, BUTTON_REST_ALPHA = 12, 0.9
 local BUTTON_SHADOW = 1
-local SKIN_CLASSIC = "classic"
+local SKIN_CLASSIC, SKIN_FOREVER = "classic", "forever"
 -- The Classic+ skin sets text as the game does: Friz Quadrata, and Arial Narrow for compact numbers.
 local FONT_NAOWH, FONT_CLASSIC, FONT_DATA = "Naowh", "Friz Quadrata TT", "Arial Narrow"
 local FONT_HEADING = FONT_CLASSIC
@@ -208,6 +208,15 @@ ns.CLASSIC_PLUS = {
     accent = { r = 0xff / 255, g = 0xd1 / 255, b = 0x00 / 255 },
 }
 
+ns.FOREVER_SKIN = {
+    bg     = { r = 0x11 / 255, g = 0x10 / 255, b = 0x0e / 255 },
+    panel  = { r = 0x1b / 255, g = 0x19 / 255, b = 0x16 / 255 },
+    line   = { r = 0x6e / 255, g = 0x51 / 255, b = 0x26 / 255 },
+    fg     = { r = 0xe8 / 255, g = 0xda / 255, b = 0xb4 / 255 },
+    muted  = { r = 0x9a / 255, g = 0x8f / 255, b = 0x7a / 255 },
+    accent = { r = 0xff / 255, g = 0xd1 / 255, b = 0x00 / 255 },
+}
+
 local colorPrefix = {}
 
 local function Byte(v)
@@ -248,6 +257,7 @@ end
 
 local function ThemeSource()
     if ns.classicSkin then return ns.CLASSIC_PLUS end
+    if ns.foreverSkin then return ns.FOREVER_SKIN end
     local account = ns.AccountSettings()
     local preset = account.themePreset
     if preset == CUSTOM then return account.themeColors end
@@ -276,7 +286,10 @@ local function ShippedColor(key)
 end
 
 function ns.ApplyThemeColors()
-    ns.classicSkin = ns.AccountSettings().skin == SKIN_CLASSIC
+    local skin = ns.AccountSettings().skin
+    ns.skin = (skin == SKIN_CLASSIC or skin == SKIN_FOREVER) and skin or ""
+    ns.classicSkin = ns.skin == SKIN_CLASSIC
+    ns.foreverSkin = ns.skin == SKIN_FOREVER
     local source = ThemeSource()
     if not source then return end
     for _, key in ipairs(ns.THEME_EDITABLE) do
@@ -286,6 +299,10 @@ function ns.ApplyThemeColors()
     if themeShipped.accent then Paint("accentSoft", Lightened(ns.THEME.accent, ACCENT_SOFT_STEP)) end
     if themeShipped.line then Paint("grey", Lightened(ns.THEME.line, GREY_STEP)) end
     for key in pairs(colorPrefix) do colorPrefix[key] = nil end
+end
+
+function ns.Skin()
+    return ns.skin or ""
 end
 
 function ns.ThemePresetKey()
@@ -472,7 +489,7 @@ function ns.FontInset(size)
 end
 
 function ns.AddonFontPath(classic)
-    if classic == nil then classic = ns.classicSkin end
+    if classic == nil then classic = ns.classicSkin or ns.foreverSkin end
     local default = classic and FONT_CLASSIC or FONT_NAOWH
     return FontPath(ns.AccountSettings().uiFont or default) or ns.LocaleFont(default, STANDARD_TEXT_FONT)
 end
@@ -482,13 +499,13 @@ function ns.HeadingFontPath(classic)
         if not classic or ns.AccountSettings().uiFont then return ns.AddonFontPath(classic) end
         return FontPath(FONT_HEADING) or ns.AddonFontPath(classic)
     end
-    if not ns.classicSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
+    if not (ns.classicSkin or ns.foreverSkin) or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_HEADING) or ns.UIFontPath()
 end
 
 -- Compact numbers (a slider's value): Arial Narrow on the Classic+ skin, else the Addon Font.
 function ns.DataFontPath()
-    if not ns.classicSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
+    if not (ns.classicSkin or ns.foreverSkin) or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_DATA) or ns.UIFontPath()
 end
 
@@ -548,7 +565,7 @@ gameFontEvents:SetScript("OnEvent", OnGameFontEvent)
 function ns.Font(parent, size, flags, color, heading)
     local c = color or ns.THEME.fg
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    if heading and ns.classicSkin then
+    if heading and (ns.classicSkin or ns.foreverSkin) then
         local St = ns.Shared.Style
         size = size + St.CLASSIC_HEADING_STEP
         fs:SetShadowColor(0, 0, 0, 1)
@@ -766,6 +783,10 @@ function ns.Button(parent, text, w, h, onClick, template)
         ClassicButton(btn, bg, border, lbl)
         return btn
     end
+    if ns.foreverSkin then
+        ns.Shared.Parts.ForeverButton(btn, bg, border, lbl)
+        return btn
+    end
     btn:SetScript("OnEnter", function()
         bg:SetColorTexture(T.panel.r, T.panel.g, T.panel.b, 1)
         border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
@@ -779,6 +800,7 @@ end
 
 -- The game marks no button as the main one.
 function ns.AccentBorder(frame)
+    if frame and frame._forever then return frame end
     if not (frame and frame._border) or frame._art then return frame end
     local accent = ns.THEME.accent
     frame._rest = accent
@@ -915,7 +937,8 @@ function ns.NewEditBox(parent, opts)
     box:SetFontObject("GameFontHighlight")
     local inset = opts.inset or EDIT_INSET
     box:SetTextInsets(inset, inset, 0, 0)
-    ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1):SetAllPoints()
+    box._fill = ns.Solid(box, "BACKGROUND", ns.THEME.bg, 1)
+    box._fill:SetAllPoints()
     local edge = opts.border or BLACK
     box._border = ns.Border(box, edge)
     box.border = box._border
@@ -927,6 +950,7 @@ function ns.NewEditBox(parent, opts)
         box:HookScript("OnLeave", function() box._border:SetColor(edge.r, edge.g, edge.b, 1) end)
     end
     if ns.classicSkin and opts.sunken ~= false then ns.Sunken(box) end
+    if ns.foreverSkin and opts.sunken ~= false then ns.Shared.Parts.ForeverField(box) end
     return box
 end
 

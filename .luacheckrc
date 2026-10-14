@@ -65,7 +65,7 @@ read_globals = {
     "C_Item", "C_KeyBindings", "C_LFGList", "C_LootHistory", "C_MajorFactions", "C_Map", "C_Navigation", "C_MountJournal", "C_Transmog", "C_MerchantFrame", "C_NamePlate", "C_PaperDollInfo",
     "C_PartyInfo", "C_QuestLog", "C_Reputation", "C_SeasonInfo",
     "C_Secrets", "C_SpecializationInfo", "C_Spell", "C_SpellBook",
-    "C_StringUtil", "C_SuperTrack", "SuperTrackedFrame", "C_SwingTimer", "C_TaxiMap", "C_Texture", "C_Timer",
+    "C_StringUtil", "C_SuperTrack", "SuperTrackedFrame", "C_SwingTimer", "C_TaxiMap", "C_Texture", "NineSliceUtil", "C_Timer",
     "C_TooltipInfo", "C_TradeSkillUI", "C_Traits", "C_TransmogCollection",
     "C_UnitAuras", "C_VoiceChat", "date", "DEFAULT_CHAT_FRAME",
     "DeleteCursorItem", "DeleteMacro", "DELETE_GOOD_ITEM", "DELETE_ITEM_CONFIRM_STRING",

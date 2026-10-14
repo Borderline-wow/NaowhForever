@@ -13,7 +13,7 @@ local SCALE_VALUES = { [200] = "200%", [190] = "190%", [180] = "180%", [170] = "
     [80] = "80%", [70] = "70%", [60] = "60%", [50] = "50%" }
 local SCALE_ORDER = { 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70, 60, 50 }
 local CUSTOM = "custom"
-local SKIN_CLASSIC = "classic"
+local SKIN_CLASSIC, SKIN_FOREVER = "classic", "forever"
 local DEFAULT_START = "default"
 local AUTO = "auto"
 local MINIMAP_NAME = "NaowhForever"
@@ -30,12 +30,11 @@ local TEXT_REPLACE = ns.L("Replace your custom colors with %s?")
 local TEXT_COLORS_RELOAD = ns.L("Reload UI to apply your color changes.")
 local TEXT_RXP_RELOAD = ns.L("Reload UI to apply your RestedXP changes.")
 local TEXT_RXP_PICK_RELOAD = "Reload UI to pick a theme."
-local TEXT_SKIN_TIP = ns.L("Classic+ dresses the addon's windows like the game's own, in gold and bronze. "
-    .. "It has its own colors and uses the game's fonts unless you pick an Addon Font. Saved "
-    .. "for this computer.|n|nTakes effect after a /reload.")
+local TEXT_SKIN_TIP = ns.L("Dresses the addon's windows as Naowh's own, the classic game's, or WoW Forever's, after a reload.")
 local TEXT_CLASSIC_PLUS = "Classic+"
-local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_CLASSIC] = TEXT_CLASSIC_PLUS }
-local SKIN_ORDER = { "", SKIN_CLASSIC }
+local TEXT_FOREVER = "Forever"
+local SKINS = { [""] = TEXT_NAOWH_DEFAULT, [SKIN_CLASSIC] = TEXT_CLASSIC_PLUS, [SKIN_FOREVER] = TEXT_FOREVER }
+local SKIN_ORDER = { "", SKIN_CLASSIC, SKIN_FOREVER }
 local TEXT_MINIMAP_TIP = ns.L("A minimap button that opens %s. /nf%s does the same, "
     .. "and the Top Bar can carry it too. Saved for this computer.")
 local TEXT_FEATURE_TIP = ns.L("A minimap button that opens %s. Saved for this computer.")
@@ -313,8 +312,9 @@ local function CustomRows(W, parent, y)
     return y
 end
 
-local function ClassicSkin()
-    return ns.AccountSettings().skin == SKIN_CLASSIC
+local function SkinColors()
+    local skin = ns.AccountSettings().skin
+    return skin == SKIN_CLASSIC or skin == SKIN_FOREVER
 end
 
 local function SkinRow()
@@ -332,7 +332,7 @@ local function ThemeRow(themes, themeOrder)
         .. "option for your own colors. If text gets hard to read, pick Naowh (default). "
         .. "Saved for this computer.|n|nTakes effect after a /reload.",
         getValue = ns.ThemePresetKey,
-        disabled = ClassicSkin,
+        disabled = SkinColors,
         palette = function()
             local colors = ns.ThemePalette(ns.ThemePresetKey())
             return { colors[1], colors[math.floor(#colors / 2) + 1], colors[#colors] }
@@ -346,7 +346,7 @@ end
 local function ColorsSection(W, parent, y)
     local _, h = W:SectionHeader(parent, "COLORS", y); y = y - h
     _, h = W:DualRow(parent, y, SkinRow(), ThemeRow(ThemeChoices())); y = y - h
-    if ns.ThemePresetKey() == CUSTOM and not ClassicSkin() then y = CustomRows(W, parent, y) end
+    if ns.ThemePresetKey() == CUSTOM and not SkinColors() then y = CustomRows(W, parent, y) end
     if colorsPending then
         _, h = W:Note(parent, TEXT_COLORS_RELOAD, y); y = y - h
     end

@@ -218,11 +218,23 @@ function Draw:CardBody(card, found)
     if changed > 0 and not only then self:Add("cardFoot", card, changed) end
 end
 
+local function BarCard(view, card, found, isOpen)
+    view.left, view.width = 0, view:GetWidth()
+    view:Add("cardHead", card, isOpen, found ~= nil)
+    if isOpen then
+        view:Space(SS.FOREVER_BODY_GAP)
+        view:CardBody(card, found)
+        view:Space(SS.FOREVER_BODY_GAP)
+    end
+    view:Space(SS.FOREVER_CARD_GAP)
+end
+
 function Draw:Card(card, found)
-    local top = self.cursor
-    local frame = OpenCardFrame(self)
     local isOpen = (found ~= nil or Settings.IsOpen(card)) and Settings.Openable(card)
     if not isOpen and cog and cog:IsShown() and cog.card == card then cog:Hide() end
+    if ns.foreverSkin then return BarCard(self, card, found, isOpen) end
+    local top = self.cursor
+    local frame = OpenCardFrame(self)
     self:Add("cardHead", card, isOpen, found ~= nil)
     if isOpen then self:CardBody(card, found) end
     frame:SetHeight(self.cursor - top)

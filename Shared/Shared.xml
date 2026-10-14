@@ -24,6 +24,7 @@
     <Script file="UI\CopyCard.lua"/>
     <Script file="UI\Panels.lua"/>
     <Script file="UI\Window.lua"/>
+    <Script file="UI\Forever.lua"/>
     <Script file="UI\Tabs.lua"/>
     <Script file="UI\SettingsCard.lua"/>
     <Script file="UI\Tracker.lua"/>

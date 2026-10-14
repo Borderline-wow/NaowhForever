@@ -74,6 +74,9 @@ do
     check("the skin starts as the one in use", Setup.Fresh().skin == "")
     w.account.skin = "classic"
     check("Classic+ in use: Classic+", Setup.Fresh().skin == "classic")
+    w.account.skin = "forever"
+    check("Forever in use: Forever", Setup.Fresh().skin == "forever")
+    check("three skins to pick from", #Setup.SKINS == 3 and Setup.SKINS[3] == "forever")
     w.account.skin = "nonsense"
     check("anything else: Naowh", Setup.Fresh().skin == "")
 end
