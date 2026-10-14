@@ -1,7 +1,7 @@
 -- Style.lua: the Top Bar's own look: its glyphs, the pills, the badges, the readout's bands and its tooltips' colors (ns.TopBar.Style).
 local ns = _G.NaowhForever
 
-local MEDIA = "Interface\\AddOns\\NaowhForever_TopBar\\Media\\"
+local MEDIA = "Interface\\AddOns\\NaowhForever_QoL\\Media\\TopBar\\"
 
 ns.TopBar.Style = setmetatable({
     MEDIA = MEDIA,

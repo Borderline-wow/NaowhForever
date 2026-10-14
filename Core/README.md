@@ -485,9 +485,7 @@ Module state
   what was turned off. A module whose switch is only its default is not written to.
 - A module on without what it needs is turned off (`Setup.Settle`), and turning a module on or off
   from Settings brings or takes the linked ones (`ns.LinkedAddons`), as before.
-- The Top Bar is part of QoL and has no item, so it has no switch here: `ns.SetModuleState` changes only
-  its list entry (turning it on switches its own store on, when loaded), and `ns.ReconcileModules`
-  leaves it alone.
+- The Top Bar is part of QoL, with no item and no AddOn list entry of its own: its switch is its card's.
 - A change to the list takes a reload: one prompt (`ns.ConfirmReload`) after a pass that changed
   something, held until combat ends. Settings > Modules and the module windows read this character's
   list together with the switch, so they agree with the game's AddOn list.

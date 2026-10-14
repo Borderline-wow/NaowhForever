@@ -1,7 +1,7 @@
--- Top Bar Show On Mouseover: UpdateHover cut out of NaowhForever_TopBar/UI/Bar.lua and run against stub frames.
+-- Top Bar Show On Mouseover: UpdateHover cut out of NaowhForever_QoL/TopBar/UI/Bar.lua and run against stub frames.
 -- The Top Bar's files as TopBar.xml lists them, read as one source.
 local parts = {}
-for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_QoL/TopBar/.*%.lua$")) do
     local f = assert(io.open(path, "rb"))
     parts[#parts + 1] = f:read("*a"):gsub("\r\n", "\n")
     f:close()

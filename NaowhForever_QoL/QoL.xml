@@ -77,4 +77,5 @@
     <Script file="Travel\Quiz.lua"/>
     <Script file="Travel\AimTrainer.lua"/>
     <Script file="Travel\AimBoard.lua"/>
+    <Include file="TopBar\TopBar.xml"/>
 </Ui>

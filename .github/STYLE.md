@@ -88,7 +88,7 @@ edits it**: a file is added to its area's XML.
   `Tools/media/make_media.py` draws, the fonts, links, navigation glyphs and voice clips. Art
   only one area uses sits in that area's `Media/` (`Core/Badges/Media`, `Core/Onboarding/Media`,
   `Core/Integrations/RestedXP/Media`, `NaowhForever_AuraBuffs/Media`, `NaowhForever_DungeonJournal/Media`,
-  `NaowhForever_QoL/Media`, `NaowhForever_TopBar/Media`), so a module's art travels with its folder,
+  `NaowhForever_QoL/Media`), so a module's art travels with its folder,
   and its README's Layout lists it.
 
 ## 2. File anatomy

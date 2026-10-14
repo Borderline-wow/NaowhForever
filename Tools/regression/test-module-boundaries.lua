@@ -430,10 +430,6 @@ else
     if hard ~= CORE then
         failures[#failures + 1] = QOL .. " must depend on the core alone, not: " .. hard
     end
-    local topBar = byName.NaowhForever_TopBar
-    if not (topBar and Closure(topBar)[QOL]) then
-        failures[#failures + 1] = "the Top Bar's card is on QoL > Interface, so NaowhForever_TopBar must depend on " .. QOL
-    end
 end
 
 for _, w in ipairs(warnings) do print("WARNING " .. w) end

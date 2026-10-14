@@ -1,4 +1,4 @@
--- The Top Bar's saved instances (NaowhForever_TopBar/Info.lua), loaded against stubbed instance APIs.
+-- The Top Bar's saved instances (NaowhForever_QoL/TopBar/Info.lua), loaded against stubbed instance APIs.
 
 -- Saved instances as GetSavedInstanceInfo returns them: name, reset, locked, extended, total, done.
 -- The list is read at `now`, its resets having last been reported at `updatedAt`.
@@ -16,7 +16,7 @@ local function Fixture(saved, now, updatedAt)
     }
     env._G = env
     setmetatable(env, { __index = _G })
-    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/Info.lua" }) do
+    for _, path in ipairs({ "NaowhForever_QoL/TopBar/Constants.lua", "NaowhForever_QoL/TopBar/Info.lua" }) do
         local chunk = assert(loadfile(path)); setfenv(chunk, env); chunk()
     end
     ns.TopBar.Info.InstanceInfoUpdated()

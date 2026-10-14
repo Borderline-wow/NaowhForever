@@ -34,7 +34,7 @@ check("the spots ship as one ASCII string in QoL", type(packed) == "string" and 
     and #packed < PACKED_MAX)
 check("NaowhForever_GlimmerData is gone", io.open("NaowhForever_GlimmerData/NaowhForever_GlimmerData.toc") == nil)
 check("an old Glimmer Data folder is switched off at login",
-    Read("Core/Core.lua"):find('RETIRED_ADDONS = { "NaowhForever_Glimmer", "NaowhForever_GlimmerData" }', 1, true))
+    Read("Core/Core.lua"):match("RETIRED_ADDONS = (%b{})"):find('"NaowhForever_GlimmerData"', 1, true))
 
 local source = Read("NaowhForever_QoL/Glimmer/Spots.lua")
 local Load = assert(source:match("\n(function Spots%.Load%(%).-\nend)\n"))

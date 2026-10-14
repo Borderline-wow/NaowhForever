@@ -178,10 +178,11 @@ do
     check("with its name", t.env.BINDING_NAME_NAOWHFOREVER_TOPBAR == "Open Top Bar")
     local page
     t.ns.OpenOptionsWindow = function(name) page = name end
-    t.env.C_AddOns = { IsAddOnLoaded = function() return false end }
+    t.ns.TopBar = nil
     t.env.NaowhForever_OpenTopBar()
-    check("which says so while the Top Bar is not loaded", page == nil and t.printed[#t.printed]:find("Top Bar", 1, true))
-    t.env.C_AddOns = { IsAddOnLoaded = function() return true end }
+    check("which says so while QoL, and the Top Bar in it, is not loaded", page == nil
+        and t.printed[#t.printed]:find("Top Bar", 1, true))
+    t.ns.TopBar = {}
     t.env.NaowhForever_OpenTopBar()
     check("and otherwise opens QoL > Interface", page == "QoL/Interface")
 end

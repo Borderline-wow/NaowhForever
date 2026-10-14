@@ -2,6 +2,7 @@
 local ns = _G.NaowhForever
 
 local F = ns.FEATURES.topBar
+local OLD_ADDON = "NaowhForever_TopBar"
 
 local S = ns.UI.ModuleSettings("topBar", {
     enabled = F.enabled,
@@ -16,11 +17,11 @@ local S = ns.UI.ModuleSettings("topBar", {
 })
 ns.TopBarSettings = S
 
-local TB = { Settings = S }
+local TB = { Settings = S, OLD_ADDON = OLD_ADDON }
 ns.TopBar = TB
 
 function TB.On()
-    return S.Get("enabled")
+    return S.Get("enabled") and not C_AddOns.IsAddOnLoaded(OLD_ADDON)
 end
 
 function TB.LDB()

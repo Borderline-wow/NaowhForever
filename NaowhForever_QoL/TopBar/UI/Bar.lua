@@ -25,7 +25,8 @@ local ROUND = C.ROUND
 local HOME_LATENCY = 3
 local COMBAT_DRIVER = "[combat] hide; show"
 
-local BAR_EVENTS = { "PLAYER_UPDATE_RESTING", "FRIENDLIST_UPDATE", "BN_FRIEND_INFO_CHANGED", "GUILD_ROSTER_UPDATE" }
+local BAR_EVENTS = { "PLAYER_UPDATE_RESTING", "FRIENDLIST_UPDATE", "BN_FRIEND_INFO_CHANGED", "GUILD_ROSTER_UPDATE",
+    "PLAYER_ENTERING_WORLD" }
 
 local buttons = Buttons.list
 local bar, clockText, leftGroup, rightGroup, ticker, unlocked, fitPending
@@ -389,6 +390,5 @@ hooksecurefunc(ns, "ShowUnlockMode", Unlocked)
 hooksecurefunc(ns, "HideUnlockMode", Locked)
 
 events:RegisterEvent("PLAYER_LOGIN")
-events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("UPDATE_INSTANCE_INFO")
 events:SetScript("OnEvent", OnEvent)

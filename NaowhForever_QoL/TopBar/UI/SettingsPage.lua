@@ -80,6 +80,8 @@ local ROWS = {
           .. "are invisible." },
 }
 
+if C_AddOns.DoesAddOnExist(TB.OLD_ADDON) and C_AddOns.GetAddOnEnableState(TB.OLD_ADDON) > 0 then return end
+
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
     id = "topBar", name = "Top Bar", order = 10, switch = "enabled", open = true,
     help = "Your buttons on either side of an optional clock, with FPS and latency underneath. Arrange the "

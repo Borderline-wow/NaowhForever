@@ -198,7 +198,7 @@ function _G.NaowhForever_ToggleModule(command)
 end
 
 function _G.NaowhForever_OpenTopBar()
-    if not C_AddOns.IsAddOnLoaded("NaowhForever_TopBar") then
+    if not ns.TopBar then
         return ns.Print(TEXT_SWITCHED_OFF:format(ns.L("Top Bar")))
     end
     ns.OpenOptionsWindow("QoL/Interface")

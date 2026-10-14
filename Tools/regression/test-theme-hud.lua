@@ -57,13 +57,13 @@ local PICKS = { themePreset = "custom", themeColors = {
 -- The Top Bar's files as TopBar.xml lists them, read as one source.
 local function ReadTopBar()
     local parts = {}
-    for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do parts[#parts + 1] = Read(path) end
+    for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_QoL/TopBar/.*%.lua$")) do parts[#parts + 1] = Read(path) end
     return table.concat(parts, "\n")
 end
 
 -- Every ThemeTint call is inside a function, so it is read when a frame is built or
 -- refreshed and never at file load.
-local files = { "NaowhForever_ThreatMeter/View/Meter.lua", "NaowhForever_TopBar/View/Look.lua", "NaowhForever_TopBar/UI/Tooltips.lua",
+local files = { "NaowhForever_ThreatMeter/View/Meter.lua", "NaowhForever_QoL/TopBar/View/Look.lua", "NaowhForever_QoL/TopBar/UI/Tooltips.lua",
     "NaowhForever_AuraBuffs/View/CampIcon.lua", "NaowhForever_QoL/Loot/LootFeed.lua",
     "NaowhForever_Discovery/UI/BookTracker.lua", "NaowhForever_Discovery/UI/BookPins.lua",
     "NaowhForever_QoL/Interface/TownMap.lua", "NaowhForever_QoL/Combat/CombatTimer.lua" }
@@ -104,10 +104,10 @@ end
 
 -- TopBar pills, with the player's opacity on top.
 do
-    local source = Read("NaowhForever_TopBar/View/Look.lua")
-    local PILL_BG = assert(loadstring("return " .. assert(Read("NaowhForever_TopBar/View/Style.lua"):match("\n    PILL_BG = (%b{})"),
+    local source = Read("NaowhForever_QoL/TopBar/View/Look.lua")
+    local PILL_BG = assert(loadstring("return " .. assert(Read("NaowhForever_QoL/TopBar/View/Style.lua"):match("\n    PILL_BG = (%b{})"),
         "PILL_BG is missing")))()
-    local PERCENT = tonumber((assert(Read("NaowhForever_TopBar/Constants.lua"):match("\n    PERCENT = (%d+),"), "PERCENT is missing")))
+    local PERCENT = tonumber((assert(Read("NaowhForever_QoL/TopBar/Constants.lua"):match("\n    PERCENT = (%d+),"), "PERCENT is missing")))
     Check(IsRGB(PILL_BG, 0.03, 0.03, 0.04), "pill literal is the original")
     local stmt = assert(source:match(
         '(local pill = ns%.ThemeTint%("bg", PILL_BG%)\n[^\n]*ipairs%(segs%)[^\n]*end)'))
@@ -306,7 +306,7 @@ do
     local function Grey(account)
         local chunk = assert(loadstring(greyLine .. "\nreturn grey"))
         local core = LoadCore(account)
-        local away = assert(Read("NaowhForever_TopBar/View/Style.lua"):match('\n    AWAY_GREY = "([^"]+)"'), "AWAY_GREY is missing")
+        local away = assert(Read("NaowhForever_QoL/TopBar/View/Style.lua"):match('\n    AWAY_GREY = "([^"]+)"'), "AWAY_GREY is missing")
         setfenv(chunk, setmetatable({ ns = core, St = { AWAY_GREY = away } }, { __index = _G }))
         return chunk(), core
     end

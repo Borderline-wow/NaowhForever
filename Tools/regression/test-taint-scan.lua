@@ -18,9 +18,9 @@ local FRAME_ALLOWED = {
     ["NaowhForever_BiS/CharacterPanel/Chrome.lua"] = {
         why = "the level line, not protected, put on the badge row while the panel is on and back on the game's strip when off",
         calls = { ["PaperDollLevelInfo:ClearAllPoints"] = 1, ["PaperDollLevelInfo:SetPoint"] = 2 } },
-    ["NaowhForever_TopBar/UI/Tooltips.lua"] = { why = "the bar's own tooltip size, put back on hide",
+    ["NaowhForever_QoL/TopBar/UI/Tooltips.lua"] = { why = "the bar's own tooltip size, put back on hide",
         calls = { ["GameTooltip:SetScale"] = 1 } },
-    ["NaowhForever_TopBar/UI/Widgets.lua"] = {
+    ["NaowhForever_QoL/TopBar/UI/Widgets.lua"] = {
         why = "the top-centre scores (no secure frames, only GhostFrame hangs from them) moved below the bar, put back when it goes",
         calls = { ["UIWidgetTopCenterContainerFrame:ClearAllPoints"] = 1, ["UIWidgetTopCenterContainerFrame:SetPoint"] = 1 } },
     ["NaowhForever_BiS/CharacterPanel/Badge.lua"] = { why = "places the tooltip it owns",

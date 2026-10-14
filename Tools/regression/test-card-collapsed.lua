@@ -37,7 +37,7 @@ Check(Settings.IsOpen(second), "and a card someone opened stays open")
 
 local declared = {}
 for _, file in ipairs({ "NaowhForever_QoL/Combat/DamageMeterSkin.lua", "NaowhForever_QoL/Glimmer/UI/SettingsPage.lua",
-    "NaowhForever_TopBar/UI/SettingsPage.lua", "NaowhForever_QoL/Cursor/Crosshair.lua" }) do
+    "NaowhForever_QoL/TopBar/UI/SettingsPage.lua", "NaowhForever_QoL/Cursor/Crosshair.lua" }) do
     local handle = assert(io.open(file, "rb"))
     local text = handle:read("*a")
     handle:close()

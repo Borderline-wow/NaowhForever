@@ -8,7 +8,7 @@ local function check(label, ok) assert(ok, label); checks = checks + 1 end
 local World = dofile("Tools/regression/setup_world.lua")
 local MACROS, GEAR, BLESS = "NaowhForever_Macros", "NaowhForever_GearSets", "NaowhForever_Blessings"
 local BIS, INSPECT, DISC = "NaowhForever_BiS", "NaowhForever_GroupInspect", "NaowhForever_Discovery"
-local QOL, TOPBAR = "NaowhForever_QoL", "NaowhForever_TopBar"
+local QOL = "NaowhForever_QoL"
 
 local function All(value)
     local out = {}
@@ -146,10 +146,8 @@ end
 do
     local w = Game()
     for _, addon in ipairs(w.ns.LinkedAddons(QOL, false)) do w.ns.SetModuleState(addon, false) end
-    check("QoL off takes the Top Bar, which has no onboarding item, out of the list", not w.enabled[QOL]
-        and not w.enabled[TOPBAR] and w.root.qol.enabled == false)
-    w.ns.SetModuleState(TOPBAR, true)
-    check("and its Settings > Modules row puts it back", w.enabled[TOPBAR])
+    check("QoL off takes only its own addon out of the list: the Top Bar is part of it", not w.enabled[QOL]
+        and #w.ns.LinkedAddons(QOL, false) == 1 and w.root.qol.enabled == false)
 end
 
 do

@@ -1,4 +1,4 @@
--- Top Bar and Blizzard's top-centre display (battleground scores): NaowhForever_TopBar/UI/Widgets.lua loaded
+-- Top Bar and Blizzard's top-centre display (battleground scores): NaowhForever_QoL/TopBar/UI/Widgets.lua loaded
 -- and run against stub frames. Run from the repo root.
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
@@ -34,7 +34,7 @@ local function Load(container)
     local env = setmetatable({ NaowhForever = ns, UIParent = UIParent, UIWidgetTopCenterContainerFrame = container },
         { __index = _G })
     env._G = env
-    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/UI/Widgets.lua" }) do
+    for _, path in ipairs({ "NaowhForever_QoL/TopBar/Constants.lua", "NaowhForever_QoL/TopBar/UI/Widgets.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()

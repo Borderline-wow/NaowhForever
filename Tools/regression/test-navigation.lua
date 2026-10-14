@@ -133,8 +133,9 @@ env.UIParent = New("Frame"); env.UIParent:SetSize(1920, 1080)
 env.C_Timer = { After = function(_, f) timers[#timers + 1] = f end,
     NewTicker = function() return { Cancel = function() end } end }
 -- missingAddOns: not loaded this session. disabled: switched off for the next reload.
-local missingAddOns, disabled = {}, {}
+local missingAddOns, disabled = { NaowhForever_TopBar = true }, {}
 env.C_AddOns = { GetAddOnMetadata = function() return "test" end,
+    DoesAddOnExist = function(name) return not missingAddOns[name] end,
     IsAddOnLoaded = function(name) return not missingAddOns[name] end,
     GetAddOnEnableState = function(name) return (missingAddOns[name] or disabled[name]) and 0 or 2 end,
     DisableAddOn = function(name) disabled[name] = true end,
@@ -211,7 +212,7 @@ env.hooksecurefunc = function(target, key, fn)
         target[key] = function(...) if prior then prior(...) end; fn(...) end
     end
 end
-for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do Load(path) end
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_QoL/TopBar/.*%.lua$")) do Load(path) end
 for _, path in ipairs({ "NaowhForever_QoL/Combat/StealthReminder.lua", "NaowhForever_QoL/Combat/CoTank.lua" }) do Load(path) end
 local UI = ns.UI
 ns.BuildQoLInterfacePage = function(parent, y) return y end
@@ -473,9 +474,9 @@ for _, child in ipairs(header.children) do if child._get then switch = child end
 Check(switch and switch._get() == true, "header switch reads the current module")
 ns.QoLSettings.Set("coTankWidth", 222)
 switch.scripts.OnClick(); Flush()
-Check(Text("Disable Quality of Life? Top Bar needs it, so both will be disabled.") ~= nil
+Check(Text("Disable Quality of Life?") ~= nil
     and ns.QoLSettings.Get("enabled") == true and ns.QoLSettings.Get("coTankWidth") == 222,
-    "switching QoL off asks to turn its addon off, with the Top Bar, and its settings are kept")
+    "switching QoL off asks to turn its addon off, and its settings are kept")
 Click(Button("Cancel")); Flush()
 Check(not disabled.NaowhForever_QoL and switch._get() == true, "Cancel keeps QoL on")
 Click(Button("Threat Meter")); Flush()
@@ -820,12 +821,7 @@ local function TextCount(text)
 end
 ns.OpenOptionsWindow("Settings"); Flush()
 Click(Text("MODULES").parent.hit); Flush()
-local topBarRows = TextCount("Top Bar")
-missingAddOns.NaowhForever_TopBar = true
-ns.OpenOptionsWindow("Settings"); Flush()
-Click(Text("MODULES").parent.hit); Flush()
-Check(TextCount("Top Bar") == topBarRows + 1, "a Top Bar that is off keeps a row under Settings > Modules to turn it back on")
-missingAddOns.NaowhForever_TopBar = nil
+Check(TextCount("Top Bar") == 0, "the Top Bar is part of QoL, so Settings > Modules has no row for it")
 ns.OpenOptionsWindow("Group Inspect/Settings"); Flush()
 Check(Text("Group Inspect / Settings") ~= nil, "Group Inspect has a settings page of its own")
 ns.OpenOptionsWindow("Blessings/Settings"); Flush()
@@ -879,9 +875,8 @@ Check(not trackerNav, "Instance Tracker is left out of the sidebar while its add
 missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = nil, nil
 missingAddOns.NaowhForever_InstanceTracker = nil
 
--- Quality of Life is its own addon. The Top Bar needs it (its card sits on QoL > Interface), so
--- switching QoL off takes the Top Bar with it; while QoL is not loaded, the sidebar drops it and
--- its pages land on Settings.
+-- Quality of Life is its own addon, with the Top Bar inside it (its card sits on QoL > Interface);
+-- while QoL is not loaded, the sidebar drops it and its pages land on Settings.
 local qolMod
 for _, mod in ipairs(ns.Options.MODULES) do
     if mod.addon == "NaowhForever_QoL" then qolMod = mod end
@@ -892,17 +887,15 @@ for _, mod in ipairs(ns.ModuleAddons()) do
     if mod.addon == "NaowhForever_QoL" and mod.store == ns.QoLSettings and mod.key == "enabled" then qolRow = true end
 end
 Check(qolRow, "and has its own switch under Settings > Modules, on the core's QoL store")
-Check(ns.LinkedAddons("NaowhForever_TopBar", true)[2] == "NaowhForever_QoL", "turning the Top Bar on brings QoL")
-Check(ns.LinkedAddons("NaowhForever_QoL", false)[2] == "NaowhForever_TopBar", "turning QoL off takes the Top Bar")
+Check(#ns.LinkedAddons("NaowhForever_QoL", false) == 1, "turning QoL off takes no other addon: the Top Bar is part of it")
 confirmText, confirmYes = nil, nil
 for addon in pairs(disabled) do disabled[addon] = nil end
 ns.Options.SwitchModuleAddon(qolMod, false)
-Check(confirmText and confirmText:find("Quality of Life", 1, true) and confirmText:find("Top Bar", 1, true),
-    "switching Quality of Life off names the Top Bar in its confirm")
+Check(confirmText and confirmText:find("Quality of Life", 1, true), "switching Quality of Life off asks first")
 confirmYes()
-Check(disabled.NaowhForever_QoL and disabled.NaowhForever_TopBar, "confirming disables QoL and the Top Bar together")
-disabled.NaowhForever_QoL, disabled.NaowhForever_TopBar = nil, nil
-missingAddOns.NaowhForever_QoL, missingAddOns.NaowhForever_TopBar = true, true
+Check(disabled.NaowhForever_QoL, "confirming disables QoL")
+disabled.NaowhForever_QoL = nil
+missingAddOns.NaowhForever_QoL = true
 for _, page in ipairs(UI.SearchPages()) do
     Check(not (page.module and page.module.name == "QoL"), "Quality of Life off is not searched")
 end
@@ -916,7 +909,7 @@ for i = built + 1, #frames do
 end
 Check(not qolShown, "with QoL not loaded, Quality of Life leaves the sidebar")
 Check(Text("MODULES") ~= nil, "and the window opens on Settings instead of QoL > Interface")
-missingAddOns.NaowhForever_QoL, missingAddOns.NaowhForever_TopBar = nil, nil
+missingAddOns.NaowhForever_QoL = nil
 
 print(cases .. " navigation checks passed")
 -- Available only to an offline renderer that loads this test environment.

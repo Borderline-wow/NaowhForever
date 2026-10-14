@@ -1,11 +1,11 @@
 -- Top Bar text: the clock keeps its own font with no outline, the FPS / MS readout and the online
 -- counts keep the outlined Addon Font, until Font, Outline or Clock Outline is picked; and the card's
--- rows in the standard groups. Its look (NaowhForever_TopBar/View/Look.lua) is loaded and the card's rows cut out
--- of NaowhForever_TopBar/UI/SettingsPage.lua, run on stubs. Run from the repo root.
+-- rows in the standard groups. Its look (NaowhForever_QoL/TopBar/View/Look.lua) is loaded and the card's rows cut out
+-- of NaowhForever_QoL/TopBar/UI/SettingsPage.lua, run on stubs. Run from the repo root.
 
 -- The Top Bar's files as TopBar.xml lists them, read as one source.
 local parts = {}
-for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_TopBar/.*%.lua$")) do
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_QoL/TopBar/.*%.lua$")) do
     local f = assert(io.open(path, "rb"))
     parts[#parts + 1] = f:read("*a"):gsub("\r\n", "\n")
     f:close()
@@ -21,7 +21,7 @@ end
 
 local code = table.concat({
     "local S, Parts, UI, ns, Group, ResetLayout = ...",
-    Slice("local ROWS = {", "\nns.Shared.Settings.Page("),
+    Slice("local ROWS = {", "\nif C_AddOns.DoesAddOnExist("),
     "return { ROWS = ROWS }",
 }, "\n")
 
@@ -75,7 +75,7 @@ ns.UI = UI
 do
     local env = setmetatable({ NaowhForever = ns }, { __index = _G })
     env._G = env
-    for _, path in ipairs({ "NaowhForever_TopBar/Constants.lua", "NaowhForever_TopBar/View/Style.lua", "NaowhForever_TopBar/View/Look.lua" }) do
+    for _, path in ipairs({ "NaowhForever_QoL/TopBar/Constants.lua", "NaowhForever_QoL/TopBar/View/Style.lua", "NaowhForever_QoL/TopBar/View/Look.lua" }) do
         local fileChunk = assert(loadfile(path))
         setfenv(fileChunk, env)
         fileChunk()
