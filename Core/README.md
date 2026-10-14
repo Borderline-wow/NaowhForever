@@ -407,6 +407,9 @@ Onboarding
   fonts (`ns.AddonFontPath` and `ns.HeadingFontPath` take whether to preview the game's) and button:
   Forever's has its dark title bar, a bronze edge and the game's red button (`Parts.ForeverButtonArt`).
   The step has a tile per skin in `Setup.SKINS` (Naowh, Forever), side by side.
+- The modules step lists the modules that are on first and the ones off under a line, each group in
+  the options' order; a flip moves its tile across at once, laid out again from the same tiles. Four
+  tiles a row keep up to 21 modules above the footer, with both groups shown.
 - A character new to the account gets its own page in the onboarding window, after the onboarding has
   been seen: two tiles, Same as its main or Set Up on its own, with the welcome's bottom row and no
   Back or Next. A new character starts on the account's profile, usually the main's, so the main no

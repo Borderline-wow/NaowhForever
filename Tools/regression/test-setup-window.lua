@@ -193,7 +193,8 @@ local env = setmetatable({ _G = { NaowhForever = ns }, CreateFrame = function(_,
         f.parent = parent
         return f
     end, InCombatLockdown = function() return s.combat end, UnitName = function() return ME end,
-    CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end },
+    CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end,
+    wipe = function(t) for k in pairs(t) do t[k] = nil end return t end },
     { __index = _G })
 local chunk = assert(loadfile("Core/Onboarding/SetupWindow.lua"))
 setfenv(chunk, env)
@@ -315,7 +316,7 @@ end
 check("each draws our own icon", Ours(minimal.icon.tex.texture, "essentials")
     and Ours(recommended.icon.tex.texture, "everything") and Ours(keep.icon.tex.texture, "purist"))
 check("one row of cards, centred in the window", minimal.point[5] == keep.point[5]
-    and math.abs(minimal.point[4] - (780 - (keep.point[4] + keep.w))) < 0.01)
+    and math.abs(minimal.point[4] - (960 - (keep.point[4] + keep.w))) < 0.01)
 check("an account never set up starts on Minimalist, with its check", Picked() == "Minimalist"
     and minimal.check.shown and not recommended.check.shown)
 check("Back and Next carry arrows", Find("Back").arrow.texture:find("back.tga", 1, true)
@@ -373,13 +374,67 @@ local MINIMALIST = "Quality of Life,Dungeon Journal,BiS List"
 local MINIMALIST_ON = #LISTED - #w.ns.PRESETS.minimalist.modulesOff
 check("Minimalist: Quality of Life, the Dungeon Journal and the BiS List", Picked() == MINIMALIST
     and Said(MINIMALIST_ON .. " of " .. #LISTED .. " on") ~= nil)
-check("three to a row", tiles[1].point[5] == tiles[3].point[5] and tiles[4].point[5] ~= tiles[1].point[5])
+local modulesPage = window.modules
+local function Reading()
+    local placed = {}
+    for _, tile in ipairs(Tiles()) do placed[#placed + 1] = tile end
+    table.sort(placed, function(a, b)
+        if a.point[5] ~= b.point[5] then return a.point[5] > b.point[5] end
+        return a.point[4] < b.point[4]
+    end)
+    return placed
+end
+local function Sorted()
+    local want = {}
+    for _, tile in ipairs(Tiles()) do if tile.on then want[#want + 1] = tile end end
+    for _, tile in ipairs(Tiles()) do if not tile.on then want[#want + 1] = tile end end
+    for i, tile in ipairs(Reading()) do
+        if tile ~= want[i] then return false end
+    end
+    return true
+end
+local function InGroup(tile)
+    local line = modulesPage.offSection.point[5]
+    return tile.on == (tile.point[5] > line)
+end
+local function Grouped()
+    for _, tile in ipairs(Tiles()) do
+        if not InGroup(tile) then return false end
+    end
+    return true
+end
+local page3H = 660 - St.WINDOW_HEADER - (26 + St.WINDOW_PAD * 2)
+local function AboveFooter()
+    for _, tile in ipairs(Tiles()) do
+        if -tile.point[5] + tile.h > page3H then return false end
+    end
+    return true
+end
+check("the ones on first, then the ones off, each in the options' order", Sorted())
+check("a labelled line between them", modulesPage.onSection.shown and modulesPage.offSection.shown
+    and modulesPage.onSection.label.text == "Enabled" and modulesPage.offSection.label.text == "Disabled"
+    and modulesPage.offSection.rule.parent == modulesPage.offSection and Grouped())
+local offTiles = {}
+for _, tile in ipairs(Reading()) do if not tile.on then offTiles[#offTiles + 1] = tile end end
+check("four to a row", offTiles[1].point[5] == offTiles[4].point[5] and offTiles[5].point[5] ~= offTiles[1].point[5]
+    and offTiles[1].point[4] == Reading()[1].point[4])
+check("every tile above the footer", AboveFooter())
 local completo, qol = Tile("Discovery"), Tile("Quality of Life")
 Clicked(completo)
 check("a click flips it, glowing", completo.on and completo.glow.plays == 1
     and Said(MINIMALIST_ON + 1 .. " of " .. #LISTED .. " on") ~= nil)
+check("and moves it up to the ones on, in its place, the same tile", InGroup(completo) and Sorted()
+    and Tile("Discovery") == completo and #Tiles() == #LISTED)
 Clicked(qol)
 check("Quality of Life off", not qol.on)
+local firstOff
+for _, tile in ipairs(Reading()) do if not firstOff and not tile.on then firstOff = tile end end
+check("moves down to the ones off, at their head", InGroup(qol) and Sorted() and firstOff == qol)
+local frames = #made
+Clicked(qol)
+check("on again: back at the top, with no new frames", qol.on and InGroup(qol) and Reading()[1] == qol
+    and #made == frames)
+Clicked(qol)
 Clicked(qol)
 check("and on again", qol.on)
 Clicked(Tile("Professions"))
@@ -437,6 +492,9 @@ Clicked(Tile("Naowh"))
 Find("Next").Click()
 Clicked(Tile("PvP"))
 Clicked(Tile("Threat Meter"))
+for _, tile in ipairs(Tiles()) do if not tile.on then Clicked(tile) end end
+check("all on: one group, no line, still above the footer", modulesPage.onSection.shown
+    and not modulesPage.offSection.shown and Sorted() and AboveFooter())
 window:Hide()
 check("X or Escape partway: nothing changes", Snapshot() == kept)
 
