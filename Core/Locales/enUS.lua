@@ -2,6 +2,8 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["Recipe Availability Marks"] = true
+L["Shows small markers on recipe rows when the result is in your bags or bank, or the recipe is already on the Shopping List. Hover a marker for its exact count. Equipped items do not count as bag contents."] = true
 L["Worn Gear Reminder"] = true
 L["An icon while you wear Cloak of Hermitic Bliss in Wailing Caverns, so you remember to swap it."] = true
 L["You are wearing this."] = true

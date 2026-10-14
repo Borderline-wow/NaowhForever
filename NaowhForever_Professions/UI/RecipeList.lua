@@ -31,6 +31,9 @@ local ICON_SHRINK = Style.ROW_ICON_SHRINK
 local TEXT_GAP = 6
 local STAR_GAP = 4
 local STAR_SIZE = 12
+local MARK_GAP = 4
+local BAG_ICON = "Interface\\Icons\\INV_Misc_Bag_08"
+local LIST_ICON = "Interface\\Icons\\INV_Misc_Note_01"
 local HEAD_X, SUB_HEAD_X = 4, 14
 local COUNT_X, COUNT_GAP, ICON_X = 4, 6, 24
 local TEXT_HEAD = "%s (%d)"
@@ -38,6 +41,9 @@ local TEXT_OPEN, TEXT_CLOSED = "-  ", "+  "
 local TEXT_RECIPE = ns.L("Recipe ")
 local TEXT_SEPARATOR = " | "
 local TEXT_REQUIRED = ns.L("Required skill: %d  (%s)")
+local TEXT_BAGS = ns.L("In bags")
+local TEXT_BANK = ns.L("In Bank")
+local TEXT_SHOPPING = ns.L("Shopping List")
 
 local win
 local rows = {}
@@ -149,6 +155,29 @@ local function OnRowEnter(self)
     GameTooltip:Show()
 end
 
+local function MarkerTooltip(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(self.title, 1, 1, 1)
+    if self.bags ~= nil then
+        GameTooltip:AddDoubleLine(TEXT_BAGS, tostring(self.bags), T.fg.r, T.fg.g, T.fg.b,
+            T.accent.r, T.accent.g, T.accent.b)
+        GameTooltip:AddDoubleLine(TEXT_BANK, tostring(self.bank), T.fg.r, T.fg.g, T.fg.b,
+            T.accent.r, T.accent.g, T.accent.b)
+    else
+        GameTooltip:AddDoubleLine(TEXT_SHOPPING, tostring(self.count), T.fg.r, T.fg.g, T.fg.b,
+            T.accent.r, T.accent.g, T.accent.b)
+    end
+    GameTooltip:Show()
+end
+
+local function EnsureMarkers(row)
+    if row.bag then return end
+    row.bag = Widgets.Marker(row, BAG_ICON)
+    row.bag:SetScript("OnEnter", MarkerTooltip)
+    row.shopping = Widgets.Marker(row, LIST_ICON)
+    row.shopping:SetScript("OnEnter", MarkerTooltip)
+end
+
 local function NewRow(i)
     local row = CreateFrame("Button", nil, win.list)
     row:SetSize(Style.LEFT_W - ROW_RIGHT_ROOM, ROW_H)
@@ -183,9 +212,38 @@ local function NewRow(i)
     return row
 end
 
-local function TextBeforeStar(row, fav)
+local function TextBeforeStatus(row, fav, shopping, bags, bank)
     row.fav:SetShown(fav)
-    row.text:SetPoint("RIGHT", fav and row.fav or row.profit, "LEFT", fav and -STAR_GAP or -TEXT_GAP, 0)
+    local anchor = row.profit
+    if fav then
+        row.fav:ClearAllPoints()
+        row.fav:SetPoint("RIGHT", anchor, "LEFT", -STAR_GAP, 0)
+        anchor = row.fav
+    end
+    local status = S.Get("recipeAvailability") and not W.linked
+    if status then
+        EnsureMarkers(row)
+        row.shopping:SetShown(shopping > 0)
+        row.bag:SetShown(bags > 0 or bank > 0)
+        row.shopping.title, row.shopping.count = TEXT_SHOPPING, shopping
+        row.bag.title = row.entry.recipe and row.entry.recipe.name or row.text:GetText()
+        row.bag.bags, row.bag.bank = bags, bank
+        if shopping > 0 then
+            row.shopping:ClearAllPoints()
+            row.shopping:SetPoint("RIGHT", anchor, "LEFT", -MARK_GAP, 0)
+            anchor = row.shopping
+        end
+        if bags > 0 or bank > 0 then
+            row.bag:ClearAllPoints()
+            row.bag:SetPoint("RIGHT", anchor, "LEFT", -MARK_GAP, 0)
+            anchor = row.bag
+        end
+    elseif row.bag then
+        row.bag:Hide()
+        row.shopping:Hide()
+    end
+    local marked = fav or (status and (shopping > 0 or bags > 0 or bank > 0))
+    row.text:SetPoint("RIGHT", anchor, "LEFT", marked and -MARK_GAP or -TEXT_GAP, 0)
 end
 
 local function FillHeader(row, cat)
@@ -197,6 +255,8 @@ local function FillHeader(row, cat)
     row.profit:SetText("")
     row.icon:Hide()
     row.fav:Hide()
+    if row.bag then row.bag:Hide() end
+    if row.shopping then row.shopping:Hide() end
     row.text:SetPoint("RIGHT", row.profit, "LEFT", -TEXT_GAP, 0)
     row.head:Show()
     row.sel:Hide()
@@ -215,7 +275,7 @@ local function FillUnlearned(row, r)
     local profit, color = ListProfit(r.spell, r.item or read, made)
     row.profit:SetText(profit)
     SetColor(row.profit, color)
-    TextBeforeStar(row, Favorites.Is(r))
+    TextBeforeStatus(row, Favorites.Is(r), 0, 0, 0)
     row.head:Hide()
     row.sel:SetShown(r == W.selectedUnlearned)
 end
@@ -228,7 +288,15 @@ local function FillRecipe(row, info)
     row.text:SetText(info.name)
     SetColor(row.text, Style.DIFFICULTY_RGB[info.relativeDifficulty] or T.fg)
     row.count:SetText(W.linked and Orders.Count(info.recipeID) or FormatCraftCount(info))
-    TextBeforeStar(row, not W.linked and Favorites.Is(info))
+    local shoppingCount, bags, bank = 0, 0, 0
+    if S.Get("recipeAvailability") and not W.linked then
+        local shopping = P.Shopping.List()[info.recipeID]
+        local output = R.OutputItem(info.recipeID)
+        shoppingCount = type(shopping) == "table" and math.max(0, tonumber(shopping.count) or 0) or 0
+        bags = output and R.BagCount(output) or 0
+        bank = output and R.BankCount(output) or 0
+    end
+    TextBeforeStatus(row, not W.linked and Favorites.Is(info), shoppingCount, bags, bank)
     local profit, color = ListProfit(info.recipeID, R.OutputItem(info.recipeID))
     row.profit:SetText(profit)
     SetColor(row.profit, color)
@@ -311,3 +379,7 @@ function List.Build(frame, below)
 end
 
 List.RedrawAll = RedrawAll
+
+P.Shopping.OnChange(function()
+    if win and win:IsShown() and S.Get("recipeAvailability") then List.Render() end
+end)

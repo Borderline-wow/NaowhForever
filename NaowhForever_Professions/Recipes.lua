@@ -7,12 +7,14 @@ local W = P.State
 local Links = P.Links
 
 local NO_ITEM = 0
+local DEFAULT_BAGS = 4
 local TEXT_CRAFT_FAILED = ns.L("Could not craft: ")
 local TEXT_ITEM = ns.L("Item ")
 
 local EMPTY = {}
 local prof = {}
-local reagentCache, outputCache = {}, {}
+local reagentCache, outputCache, bagCounts = {}, {}, {}
+local bagCountChanges = -1
 local waiting = {}
 
 local function IsNPCCrafting()
@@ -119,6 +121,27 @@ local function ItemCount(itemID)
     return C_Item.GetItemCount(itemID, false, false, true) or 0
 end
 
+local function ReadBagCounts()
+    local changes = ns.ProfBagChanges or 0
+    if bagCountChanges == changes then return end
+    wipe(bagCounts)
+    local lastBag = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or DEFAULT_BAGS
+    for bag = 0, lastBag do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+            local info = C_Container.GetContainerItemInfo(bag, slot)
+            if info and info.itemID then
+                bagCounts[info.itemID] = (bagCounts[info.itemID] or 0) + (info.stackCount or 1)
+            end
+        end
+    end
+    bagCountChanges = changes
+end
+
+local function BagCount(itemID)
+    ReadBagCounts()
+    return bagCounts[itemID] or 0
+end
+
 local function BankCount(itemID)
     return math.max(0, (C_Item.GetItemCount(itemID, true, false, true) or 0) - ItemCount(itemID))
 end
@@ -170,6 +193,7 @@ P.Recipes = {
     Request = Request,
     ItemName = ItemName,
     ItemCount = ItemCount,
+    BagCount = BagCount,
     BankCount = BankCount,
     Craftable = Craftable,
     Owned = Owned,

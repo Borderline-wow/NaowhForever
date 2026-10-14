@@ -16,6 +16,7 @@ local HALF = 0.5
 local STAR_BUTTON = 18
 local SEARCH_GAP = 8
 local SEARCH_EDGE = 12
+local MARK_SIZE = 12
 
 local Widgets = {}
 P.Widgets = Widgets
@@ -84,6 +85,16 @@ function Widgets.StarButton(parent)
     button:SetSize(STAR_BUTTON, STAR_BUTTON)
     button.tex = button:CreateTexture(nil, "ARTWORK")
     button.tex:SetAllPoints()
+    return button
+end
+
+function Widgets.Marker(parent, texture)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(MARK_SIZE, MARK_SIZE)
+    button.icon = Widgets.Crop(button:CreateTexture(nil, "OVERLAY"))
+    button.icon:SetAllPoints()
+    button.icon:SetTexture(texture)
+    button:SetScript("OnLeave", GameTooltip_Hide)
     return button
 end
 

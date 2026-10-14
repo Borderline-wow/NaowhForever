@@ -179,6 +179,11 @@ page:Card({
           why = "Needs Crafting Profit",
           help = "Also shows each recipe's profit at the right of its row in the list, green or red. Recipes "
               .. "whose profit is not known show none." },
+        { key = "recipeAvailability", label = "Recipe Availability Marks", toggle = true, needs = On,
+          why = TEXT_OFF,
+          help = "Shows small markers on recipe rows when the result is in your bags or bank, or the recipe "
+              .. "is already on the Shopping List. Hover a marker for its exact count. Equipped items do not "
+              .. "count as bag contents." },
         Group("Auction House"),
         { key = "ahShiftClick", label = "Shift-Click Searches AH", toggle = true, needs = On,
           why = TEXT_OFF,
