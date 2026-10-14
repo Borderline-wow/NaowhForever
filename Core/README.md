@@ -407,8 +407,17 @@ Onboarding
   the skin; a backup from before skins were saved leaves the skin alone.
 - The skin step's previews are drawn, not pictures: a small window in each skin's own colors
   (`ns.ThemePalette` for Naowh's, with the player's theme; `ns.FOREVER_SKIN`), edge,
-  fonts (`ns.AddonFontPath` and `ns.HeadingFontPath` take whether to preview the game's) and button:
-  Forever's has its dark title bar, a bronze edge and the game's red button (`Parts.ForeverButtonArt`).
+  fonts (`ns.AddonFontPath` and `ns.HeadingFontPath` take whether to preview the game's) and button.
+  Forever's is a small Forever window built from the skin's own parts whichever skin is on: the rock
+  backdrop in Forever's palette (`Parts.Backdrop(frame, true)`, `Paint(1, ns.FOREVER_SKIN)`), the
+  portrait frame with its gold title and red close (`Parts.ForeverFrame` with `preview`, so it
+  neither drags nor closes) and the game's red button (`Parts.ForeverButtonArt`). The game's frame art
+  cannot be sized down, so the little window is a frame at `FOREVER_PREVIEW.scale` of real size, its
+  text and button sized up by the same amount to match the Naowh preview's on screen. It is inset in
+  the preview's box by the room the frame's art takes outside the window: `FOREVER_SIDE` plus the
+  portrait corner's 13 to the left, `FOREVER_TITLE_H` plus its 16 above (`PortraitFrameTemplate` in
+  `NineSliceLayouts.lua`), and `FOREVER_SIDE` plus the drawn rim's 5 to the right and below. The text
+  starts under the header band (`WINDOW_HEADER`), clear of the portrait, as in a real window.
   The step has a tile per skin in `Setup.SKINS` (Naowh, Forever), side by side.
 - The modules step lists the modules that are on first and the ones off under a line, each group in
   the options' order; a flip moves its tile across at once, laid out again from the same tiles. Four

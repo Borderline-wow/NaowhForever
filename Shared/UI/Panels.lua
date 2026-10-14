@@ -46,8 +46,9 @@ function Backdrop:Card(left, top, right, bottom)
     return parts
 end
 
-function Backdrop:Paint(alpha)
-    local top, bg = T.panel, T.bg
+function Backdrop:Paint(alpha, colors)
+    local palette = colors or T
+    local top, bg = palette.panel, palette.bg
     self.bottom:SetRGBA((top.r + bg.r) / 2, (top.g + bg.g) / 2, (top.b + bg.b) / 2, alpha)
     self.top:SetRGBA(top.r, top.g, top.b, alpha)
     self.gradient:SetGradient("VERTICAL", self.bottom, self.top)
@@ -117,13 +118,13 @@ local function Pattern(frame, file)
     return pattern
 end
 
-function Parts.Backdrop(frame)
+function Parts.Backdrop(frame, forever)
     local backdrop = setmetatable({ frame = frame, flat = {} }, Backdrop)
     backdrop.gradient = frame:CreateTexture(nil, "BACKGROUND", nil, GRADIENT_SUBLEVEL)
     backdrop.gradient:SetAllPoints()
     backdrop.gradient:SetColorTexture(1, 1, 1, 1)
     backdrop.bottom, backdrop.top = CreateColor(0, 0, 0, 1), CreateColor(0, 0, 0, 1)
-    if ns.foreverSkin then
+    if forever or ns.foreverSkin then
         backdrop.pattern = Pattern(frame, St.FOREVER_ROCK)
         backdrop.patternShade, backdrop.patternAlpha = St.FOREVER_ROCK_SHADE, St.FOREVER_ROCK_ALPHA
     end

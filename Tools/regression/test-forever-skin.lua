@@ -69,6 +69,7 @@ local function New(kind, parent)
             elseif k == "SetFont" then self.font = args[1]
             elseif k == "GetTextColor" then return 1, 1, 1, 1
             elseif k == "SetAlpha" then self.alpha = args[1]
+            elseif k == "EnableMouse" then self.mouse = args[1]
             elseif k == "SetFrameStrata" then self.strata = args[1]
             elseif k == "GetFrameLevel" then return rawget(self, "level") or 1
             elseif k == "GetPoint" then local p = self.points[1]; if p then return unpack(p) end
@@ -239,6 +240,24 @@ do
     check("Naowh: the game's art is never asked for", #atlasCalls == 0 and #layouts == 0 and window.backdrop.pattern == nil)
 end
 
+-- A picture of a Forever window (the onboarding's skin step) on the Naowh skin: the rock in the palette
+-- it is given, the portrait frame, no drag strip and a close button that takes no clicks.
+do
+    local ns = Load({}, ALL)
+    local Parts = ns.Shared.Parts
+    local mini = New("Frame")
+    local backdrop = Parts.Backdrop(mini, true)
+    backdrop:Paint(1, ns.FOREVER_SKIN)
+    local chrome = Parts.ForeverFrame(mini, { title = "Naowh Forever", preview = true })
+    check("preview: the rock, painted in the palette it is given", backdrop.pattern.texture == St.FOREVER_ROCK
+        and backdrop.top.r == ns.FOREVER_SKIN.panel.r and backdrop.top.g ~= ns.THEME.panel.g)
+    check("preview: the portrait frame and its title", chrome.layout == St.FOREVER_FRAME_LAYOUT and chrome.portrait
+        and chrome.title.text == "Naowh Forever")
+    check("preview: it neither drags nor closes", chrome.strip == nil and chrome.close.mouse == false)
+    local window = Parts.Window(400, 300, "test")
+    check("Naowh: a real window still gets no rock", window.backdrop.pattern == nil)
+end
+
 -- Classic+ is retired: a player who had it gets Forever's frame.
 do
     local ns = Load({ skin = "classic" }, ALL)
@@ -268,6 +287,8 @@ do
         and not close.shown and not window.logo.icon.shown and window.title.points[1][4] == St.FOREVER_PORTRAIT_ROOM)
     check("the logo fills the portrait, on a soft glow under the ring's shade", chrome.portrait.glow and chrome.portrait.glow.texture == St.ROUND
         and chrome.portrait.shade and chrome.portrait.shade.texture == St.RING)
+    check("its title bar drags it, its close takes clicks", chrome.strip and chrome.strip.window == window
+        and chrome.close.mouse == nil)
     chrome.close.scripts.OnClick(chrome.close)
     check("the red close button closes the window", window.shown == false)
     check("the game's rock behind it", window.backdrop.pattern.texture == St.FOREVER_ROCK

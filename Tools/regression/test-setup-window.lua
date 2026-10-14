@@ -52,6 +52,7 @@ local function Frame()
     function f:GetStringHeight() return 14 end
     function f:GetStringWidth() return 100 end
     function f:SetAlpha(a) self.alpha = a end
+    function f:SetScale(v) self.scale = v end
     function f:SetScript(k, fn) self.scripts[k] = fn end
     function f:HookScript(k, fn)
         local old = self.scripts[k]
@@ -90,6 +91,19 @@ local s = { combat = false, profiles = { Default = {} }, charActive = { [ME] = "
 local buttons, fonts = {}, {}
 
 local Parts = { ForeverButtonArt = function(f) f.redButton = true; return true end }
+function Parts.Backdrop(f, forever)
+    local backdrop = { frame = f, forever = forever }
+    function backdrop.Paint(_, alpha, colors) backdrop.alpha, backdrop.colors = alpha, colors end
+    return backdrop
+end
+function Parts.ForeverFrame(window, opts)
+    local chrome = Frame()
+    chrome.parent, chrome.opts = window, opts
+    chrome.title = Frame()
+    chrome.title.parent, chrome.title.text = chrome, opts.title
+    window.forever = chrome
+    return chrome
+end
 local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, MEDIA = dofile("Tools/regression/core_media.lua"), THEME = T, UI = {},
     Shared = { Style = St, Parts = Parts },
     THEME_EDITABLE = EDITABLE, FOREVER_SKIN = FOREVER,
@@ -348,12 +362,22 @@ check("its black edge, its font, its accent-edged button", np.border == St.BORDE
     and np.body.fontPath == "naowh" and np.button.label.fontColor == NAOWH_PALETTE[4]
     and np.button.fill.gradient[1].r == NAOWH_PALETTE[2].r)
 local fp = forever.preview
-check("Forever's preview: its own palette", fp.bg.solid == FOREVER.bg and fp.rule.solid == FOREVER.line
-    and fp.body.fontColor == FOREVER.muted and fp.title.fontColor == FOREVER.accent)
-check("its bronze edge, its dark title bar, the game's fonts", fp.border == St.FOREVER_BRONZE_RGB
-    and fp.bar.gradient[2].r == St.FOREVER_TITLE_BAR_RGB[1].r and fp.title.fontPath == "friz" and fp.body.fontPath == "arial")
-check("its button the game's red one", fp.button.redButton and fp.button.fill == nil
-    and fp.button.label.fontColor == FOREVER.accent)
+local mini = fp.window
+check("Forever's preview: a small window in the skin's own frame, a picture that neither drags nor closes",
+    mini and mini.parent == fp and fp.frame.parent == mini and mini.forever == fp.frame and fp.frame.opts.preview
+    and fp.title == fp.frame.title and fp.title.text == "Naowh Forever" and fp.bg == nil and fp.bar == nil)
+check("on the game's rock in Forever's palette, on either skin", mini.backdrop.forever == true
+    and mini.backdrop.colors == FOREVER and mini.backdrop.alpha == 1 and mini.border == St.BORDER_RGB)
+check("scaled down to fit the tile", mini.scale > 0 and mini.scale < 1 and fp.w == np.w and fp.h == np.h
+    and fp.w < forever.w and fp.h < 220)
+check("the game's fonts, the title in its heading", fp.title.fontPath == "friz"
+    and fp.title.fontSize == St.FOREVER_TITLE_SIZE + St.CLASSIC_HEADING_STEP
+    and fp.body.fontPath == "arial" and fp.body.fontColor == FOREVER.muted)
+check("its text and button as big on screen as Naowh's", math.abs(fp.body.fontSize * mini.scale - np.body.fontSize) < 1e-9
+    and math.abs(fp.button.w * mini.scale - np.button.w) < 1e-9
+    and math.abs(fp.button.label.fontSize * mini.scale - np.button.label.fontSize) < 1e-9)
+check("its button the game's red one, inside the little window", fp.button.redButton and fp.button.fill == nil
+    and fp.button.parent == mini and fp.button.label.fontColor == FOREVER.accent)
 check("Naowh's preview keeps its plain title bar", np.bar.gradient == nil)
 Clicked(forever)
 check("Forever picked", Picked() == "Forever")

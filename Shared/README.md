@@ -541,6 +541,10 @@ What a comment in the code used to say, in short. The house rules behind it are 
   drawn over the content's edge as the game draws it.
 - A window's backdrop is the game's rock (`UI-Background-Rock`), darkened (`FOREVER_ROCK_SHADE`) and
   partly see-through (`FOREVER_ROCK_ALPHA`), fading with the window's opacity.
+- A picture of a Forever window on any skin (the onboarding's skin step) asks for it:
+  `Parts.Backdrop(frame, true)` lays the rock, `backdrop:Paint(alpha, colors)` takes a palette other
+  than the theme's, and `Parts.ForeverFrame(window, { preview })` leaves out the drag strip and keeps
+  the close button off the mouse, so the picture neither moves nor closes.
 - Every button is the game's one red button, the Friends list's Add Friend
   (`SharedButtonTemplate`, `Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml` on the
   `forever` branch): the `128-RedButton` three-slice (`128-RedButton-Left`, `_128-RedButton-Center`,

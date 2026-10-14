@@ -258,6 +258,7 @@ end
 
 function Parts.ForeverFrame(window, opts)
     local bare = opts and opts.bare
+    local preview = opts and opts.preview
     local chrome = CreateFrame("Frame", nil, window)
     chrome:SetPoint("TOPLEFT", window, "TOPLEFT", -St.FOREVER_SIDE, St.FOREVER_TITLE_H)
     chrome:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", St.FOREVER_SIDE, -St.FOREVER_SIDE)
@@ -281,8 +282,9 @@ function Parts.ForeverFrame(window, opts)
     end
     chrome.title = Title(chrome, opts and opts.title, bare and St.FOREVER_TITLE_RIGHT or St.FOREVER_TITLE_LEFT)
     if not bare then chrome.portrait = Portrait(chrome, not chrome.art) end
-    chrome.strip = Strip(chrome, window)
+    if not preview then chrome.strip = Strip(chrome, window) end
     chrome.close = Close(chrome, window, opts and opts.onClose)
+    if preview then chrome.close:EnableMouse(false) end
     window.forever = chrome
     return chrome
 end
