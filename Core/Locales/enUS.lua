@@ -5681,6 +5681,7 @@ L["Its size, background, picture and fade, and the font every text has unless it
 L["Journey Card"] = true
 L["Journey settings"] = true
 L["Journeys"] = true
+L["Journeys knows none of your flight points yet. Open a flight master's map once and it will plan with your flights."] = true
 L["Journeys to Map Pins"] = true
 L["Journeys to Tracked Quests"] = true
 L["Keep Both"] = true
