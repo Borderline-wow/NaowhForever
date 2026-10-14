@@ -411,17 +411,9 @@ function Guide.Step()
     return journey.title, journey.done + 1, journey.done + math.max(#legs, 1), nextLeg and Guide.LegText(nextLeg)
 end
 
-function Guide.Estimate(map, x, y)
-    if not Jy.On() or InCombatLockdown() then return nil end
-    local here, there = World.Player(), World.FromMap(map, x, y)
-    if not here or not there then return nil end
-    return Planner.Plan(Context(here, { c = there.c, x = there.x, y = there.y }))
-end
-
 ns.JourneyTo = Guide.Start
 ns.JourneyCancel = Guide.Cancel
 ns.JourneyStep = Guide.Step
-ns.JourneyEstimate = Guide.Estimate
 
 local function Apply()
     World.Apply()

@@ -13,6 +13,7 @@ import paths  # noqa: E402
 
 OUT = os.path.join(paths.ROOT, "Core", "Media")
 RXP_OUT = os.path.join(paths.ROOT, "Core", "Integrations", "RestedXP", "Media")
+ONBOARDING_OUT = os.path.join(paths.ROOT, "Core", "Onboarding", "Media")
 
 NAOWH_BLUE = (0x00, 0x91, 0xED)
 
@@ -45,25 +46,6 @@ def disc(x, y, size):
     a = smooth(c - 0.5, d)
     v = int(round(255 * a))
     return (255, 255, 255, v)
-
-
-def half_disc(x, y, size):
-    # Right half of a disc: the sweep piece. Two of these, each clipped to one half of
-    # the ring and rotated, draw any arc without per-frame geometry.
-    c = size / 2.0
-    d = math.hypot(x - c, y - c)
-    a = smooth(c - 0.5, d) if x >= c else 0.0
-    return (255, 255, 255, int(round(255 * a)))
-
-
-def hole(x, y, size):
-    # Thickness mask: transparent inside the inscribed disc, opaque outside it. Drawn
-    # smaller than the ring and wrapped CLAMPTOWHITE, so it punches the centre out and
-    # leaves everything beyond its own rect visible.
-    c = size / 2.0
-    d = math.hypot(x - c, y - c)
-    a = 1.0 - smooth(c - 0.5, d)
-    return (255, 255, 255, int(round(255 * a)))
 
 
 def gear(x, y, size):
@@ -707,8 +689,6 @@ write_tga(os.path.join(OUT, "cross.tga"), 64, lambda x, y, s: max(
     stroke(64, [(0.26, 0.74), (0.74, 0.26)], 0.11)(x, y, s), key=lambda p: p[3]))
 write_tga(os.path.join(OUT, "check.tga"), 64, stroke(64, [(0.18, 0.5), (0.4, 0.72), (0.82, 0.28)], 0.13))
 write_tga(os.path.join(OUT, "circle_mask.tga"), 128, disc)
-write_tga(os.path.join(OUT, "circle_half.tga"), 256, half_disc)
-write_tga(os.path.join(OUT, "circle_hole.tga"), 256, hole)
 write_tga(os.path.join(OUT, "cog.tga"), 64, gear)
 write_tga(os.path.join(OUT, "icon.tga"), 64, icon)
 write_tga(os.path.join(OUT, "chevron.tga"), 64, chevron)
@@ -740,8 +720,8 @@ write_tga(os.path.join(OUT, "wand.tga"), 64, wand)
 write_tga(os.path.join(OUT, "scales.tga"), 64, scales)
 write_wide_tga(os.path.join(OUT, "infinity.tga"), 32, 16, infinity)
 write_wide_tga(os.path.join(OUT, "infinity_outlined.tga"), 32, 16, infinity_outlined)
-write_wide_tga(os.path.join(OUT, "Welcome", "infinity_track.tga"), 256, 128, infinity_track(256, 128), samples=2)
-write_tga(os.path.join(OUT, "Welcome", "glow_dot.tga"), 64, glow_dot)
+write_wide_tga(os.path.join(ONBOARDING_OUT, "infinity_track.tga"), 256, 128, infinity_track(256, 128), samples=2)
+write_tga(os.path.join(ONBOARDING_OUT, "glow_dot.tga"), 64, glow_dot)
 write_wide_tga(os.path.join(OUT, "elbow.tga"), 8, 8, elbow)
 write_tga(os.path.join(OUT, "speaker.tga"), 64, speaker)
 write_tga(os.path.join(OUT, "play.tga"), 64, play)
@@ -870,7 +850,7 @@ SETUP_ICONS = {
     "back": line_icon(path([(0.82, 0.5), (0.2, 0.5)]), arrow_head((0.2, 0.5), (0.82, 0.5), 0.3, 42), width=0.13),
 }
 
-SETUP_OUT = os.path.join(OUT, "Setup")
+SETUP_OUT = os.path.join(ONBOARDING_OUT, "Setup")
 os.makedirs(SETUP_OUT, exist_ok=True)
 for name, pixel in SETUP_ICONS.items():
     write_tga(os.path.join(SETUP_OUT, name + ".tga"), 64, pixel)

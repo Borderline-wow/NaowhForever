@@ -2,13 +2,12 @@
 local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
+local F = ns.FEATURES.instanceTracker
 
 local S = UI.ModuleSettings("instanceTracker", {
-    enabled = false,
+    enabled = F.enabled,
     showFrame = false,
     enterChat = false,
-    -- Party, raid, or instance chat when this character leads a reset. Off still
-    -- tells Nova Instance Tracker users in the group, and sends no chat line.
     resetChat = false,
     leaveChat = false,
     leaveWhere = "self",
@@ -20,16 +19,11 @@ local S = UI.ModuleSettings("instanceTracker", {
     leaveAverage = false,
     leaveRunsLevel = false,
     leaveRunsToLevel = false,
-    -- Skip the leave summary when the visit gained nothing.
     leaveActivity = false,
-    -- Dungeons only until this is on. Raid chat is a separate choice.
     leaveRaids = false,
     leavePrintRaid = false,
-    -- Other characters' visits, and the rest and durability sheet. Not the hourly cap.
     trackAlts = false,
-    -- How many entries short of the account's 10-per-hour cap to warn. 1 warns at 9 of 10.
     hourlyWarn = 1,
-    -- The module window, 0 to 1. The slider shows it as a percent.
     windowAlpha = 1,
 })
 ns.InstanceTrackerSettings = S
@@ -38,15 +32,14 @@ local MAX_RUNS = 80
 local HOUR = 3600
 local HOURLY_CAP = 10
 
--- Run timer. Sizes are pixels at the addon's UI scale.
-local TIME_GAP = 2           -- between the clock and the lines under it
-local LINE_GAP = 1           -- between the loot and hour lines
+local TIME_GAP = 2
+local LINE_GAP = 1
 local TIME_SIZE = 16
-local BODY_SIZE = 12         -- the loot and hour lines
-local TIME_LINE = 20         -- the clock's line, taller than its font
-local BODY_LINE = 16         -- a stat line
-local DEFAULT_Y = -180       -- where the timer first sits, under the top of the screen
-local COIN_ICON = 12         -- the coin textures beside a loot amount
+local BODY_SIZE = 12
+local TIME_LINE = 20
+local BODY_LINE = 16
+local DEFAULT_Y = -180
+local COIN_ICON = 12
 local BODY_H = TIME_LINE + TIME_GAP + BODY_LINE + LINE_GAP + BODY_LINE
 local SETTINGS_PAGE = "Instance Tracker/Settings"
 local TIMER_CARD = "timer"
@@ -55,7 +48,7 @@ local CAP_RGB = ns.Shared.Style.RED_RGB
 local WARN_RGB = ns.Shared.Style.WARN_RGB
 
 local frame, clock, unlocked
-local dismissedAt             -- the visit whose X hid the timer, until the next one
+local dismissedAt
 local goldPattern, silverPattern, copperPattern, repPattern
 local events
 
@@ -69,8 +62,6 @@ local function Secret(v)
     return issecretvalue and issecretvalue(v)
 end
 
--- Each character is account.instanceTrackerChars[UnitGUID]. The old name-keyed
--- instanceTracker blob is left unread: a name cannot tell two alts apart.
 local CHARS_KEY = "instanceTrackerChars"
 local GUID_PREFIX = "Player-"
 
@@ -90,8 +81,6 @@ local function IsCharKey(key)
     return type(key) == "string" and key:find(GUID_PREFIX, 1, true) == 1
 end
 
--- This character's record. Nil before the game knows who you are, or when the
--- GUID comes back secret. create writes the record.
 local function Mine(create)
     if not PlayerGUID() then return end
     return ns.Shared.CharacterData(CHARS_KEY, create)
@@ -112,7 +101,6 @@ local function RealmKey()
     return realm .. "-" .. faction
 end
 
--- UnitName, and a "Name-Realm" glued into one string, both stop at the hyphen.
 local function BareName(name)
     if Secret(name) or type(name) ~= "string" or name == "" or name == UNKNOWNOBJECT then
         return ""
@@ -120,17 +108,14 @@ local function BareName(name)
     return name:match("^[^-]+") or name
 end
 
--- UnitName is the first name ("Glyadin"). Nova messages arrive under a name.
 local function FirstName()
     return BareName(UnitName("player"))
 end
 
--- UnitFullName is the whole name ("Glyadin Skywolf"). A realm glued on the end is stripped.
 local function FullName()
     return BareName(UnitFullName("player"))
 end
 
--- Shown on the sheet, the history line and the hourly warning. The GUID is the key.
 local function DisplayName()
     local full = FullName()
     if full ~= "" then return full end
@@ -142,7 +127,6 @@ local function WholeNumber(v)
     return v
 end
 
--- Equipped pieces that have durability, as one percentage. A secret read keeps the old one.
 local function DurabilityPct()
     if not GetInventoryItemDurability then return nil end
     local first = INVSLOT_FIRST_EQUIPPED or 1
@@ -159,8 +143,6 @@ local function DurabilityPct()
     return math.floor(current / full * 100 + 0.5)
 end
 
--- Experience, level and rest. Durability is a separate scan: it only changes on
--- UPDATE_INVENTORY_DURABILITY, so a kill does not walk every equipped slot.
 local function SnapshotXP(row)
     local level = WholeNumber(UnitLevel("player"))
     if level then row.level = level end
@@ -179,8 +161,6 @@ local function SnapshotXP(row)
     row.seen = time()
 end
 
--- Rest and durability from this login. A failed read leaves the previous number in
--- place, so a secret combat value does not wipe the sheet. Gold stays with Mail & Alts.
 local function SnapshotChar(row)
     SnapshotXP(row)
     local durability = DurabilityPct()
@@ -197,8 +177,6 @@ local function TouchChar()
     return row
 end
 
--- Experience and level-up. A record that does not exist yet still gets the full sheet,
--- durability included, so the first write is complete.
 local function TouchXP()
     local row = Mine(false)
     if type(row) ~= "table" then
@@ -218,9 +196,6 @@ local function FormatDuration(seconds)
     return string.format("%d:%02d", minutes, secs)
 end
 
--- Time inside the visit. skipped is the gap while logged out, reloading, or outside
--- this copy, so a resumed visit does not count the time spent away. seen is that
--- gap while it is still open, so the timer stays put at a graveyard.
 local function Elapsed(open, now)
     now = now or time()
     local skipped = tonumber(open.skipped) or 0
@@ -231,7 +206,6 @@ local function Elapsed(open, now)
     return elapsed
 end
 
--- Plain coins for a line sent to the group. Textures from the coin API are for this client.
 local function PlainCoins(copper)
     copper = math.floor(tonumber(copper) or 0)
     if copper < 0 then copper = 0 end
@@ -248,7 +222,6 @@ local function Coins(copper)
     return PlainCoins(copper)
 end
 
--- "%d Gold" and the silver and copper phrases, so a loot line can be summed in any locale.
 local function CoinPattern(phrase)
     return phrase:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%%%d", "(%%d+)")
 end
@@ -281,8 +254,6 @@ local function CurrentInstance()
     return name, "in", kind, difficultyName, mapID
 end
 
--- Dead or a ghost. nil when that read is secret, so the visit stays open
--- rather than being announced as a leave.
 local function PlayerGhost()
     if not UnitIsDeadOrGhost then return false end
     local dead = UnitIsDeadOrGhost("player")
@@ -308,26 +279,30 @@ local function LastRun(instance)
     end
 end
 
--- Experience and level stay registered while the module is on, so the alt sheet
--- keeps up outside a dungeon. These only matter during a visit.
 local RUN_EVENTS = {
     "CHAT_MSG_MONEY", "CHAT_MSG_COMBAT_FACTION_CHANGE", "PLAYER_DEAD",
     "PLAYER_ALIVE", "PLAYER_UNGHOST", "GROUP_ROSTER_UPDATE",
+}
+local ZONE_EVENTS = {
     "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
     "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_CHANNEL_START",
 }
 
-local function SetRunEvents(active)
-    for i = 1, #RUN_EVENTS do
+local function SetEvents(list, active)
+    for i = 1, #list do
         if active then
-            events:RegisterEvent(RUN_EVENTS[i])
+            events:RegisterEvent(list[i])
         else
-            events:UnregisterEvent(RUN_EVENTS[i])
+            events:UnregisterEvent(list[i])
         end
     end
 end
 
--- Baseline on enter; later calls add the gain, including the bar that a level-up clears.
+local function SetRunEvents(active)
+    SetEvents(RUN_EVENTS, active)
+    SetEvents(ZONE_EVENTS, active)
+end
+
 local function NoteXP(baseline)
     local open = OpenRun()
     if not open then return end
@@ -357,8 +332,6 @@ local function AddLoot(text)
     UpdateFrame()
 end
 
--- "Reputation with %s increased by %d." Recorded while a visit is open; printed only
--- when that line is turned on.
 local function NoteRep(text)
     local open = OpenRun()
     if not open or type(text) ~= "string" or Secret(text) then return end
@@ -374,7 +347,6 @@ local function NoteRep(text)
     open.rep[faction] = (open.rep[faction] or 0) + amount
 end
 
--- "Deadmines" or "Deadmines (Heroic)". The history page uses the same line.
 local function PlaceName(name, difficulty)
     if type(difficulty) == "string" and difficulty ~= "" then
         return (name or "") .. " (" .. difficulty .. ")"
@@ -412,8 +384,6 @@ local function VisitActive(open)
     return false
 end
 
--- Faction, then the amount, factions in order. Nil when none was gained. The history
--- page prints the same words.
 local function Reputation(rep)
     if type(rep) ~= "table" then return end
     local parts = {}
@@ -441,9 +411,6 @@ local function RunsFor(open, instanceOnly)
     return list
 end
 
--- Raid when raidChat is set, else nothing while in a raid, so a leave summary stays
--- out of raid chat unless that option is on. Then the instance group, then the party.
--- Alone, nothing is sent.
 local function GroupChannel(raidChat)
     if IsInRaid then
         local raid = IsInRaid()
@@ -462,8 +429,6 @@ local function GroupChannel(raidChat)
     end
 end
 
--- One chat message. Longer summaries become a second complete message, split between
--- facts, rather than cut in the middle of one.
 local CHAT_LIMIT = 255
 
 local function LeaveFacts(open, span, plain)
@@ -524,8 +489,6 @@ local function SendAccepted(ok, result, success)
     return result == success
 end
 
--- A secret answer is treated as locked, so a leave summary is printed here instead of
--- erroring after the visit has already been closed.
 local function ChatLocked()
     local locked = C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
     if Secret(locked) or locked then return true end
@@ -539,7 +502,6 @@ local function SendLine(text, channel)
     return SendAccepted(ok, result, success)
 end
 
--- Complete facts, joined by commas, with a period on each message.
 local function SendFacts(channel, facts, fallback)
     local chunk = ""
     local function flush()
@@ -598,8 +560,6 @@ local function AnnounceLeave(open, span)
     Deliver(shown, place, LeaveFacts(open, span, true))
 end
 
--- A group member, as a short name, or Name-Realm when they are from somewhere else.
--- Forever has been seen to hand back "Name-Realm" in the first return.
 local function MemberName(unit)
     local name, realm = UnitFullName(unit)
     if Secret(name) or Secret(realm) or type(name) ~= "string" then return end
@@ -613,8 +573,6 @@ local function MemberName(unit)
     return name
 end
 
--- Unit prefix and how many, or nothing when the group is secret or we are alone.
--- count can be 0. Callers decide whether that is an empty roster.
 local function GroupShape()
     if not IsInGroup then return end
     local grouped = IsInGroup()
@@ -629,7 +587,6 @@ local function GroupShape()
     return (raid and "raid" or "party"), count
 end
 
--- Everyone else currently in the group. The visit already names this character.
 local function CurrentGroup()
     local list = {}
     local prefix, count = GroupShape()
@@ -645,9 +602,6 @@ local function CurrentGroup()
     return list
 end
 
--- Write the group onto the visit, names only. Someone who leaves before the end
--- stays, so a later return can tell this group from a new one. A name that has
--- not loaded yet is filled in later. The Journal lists who was there on a kill.
 local function NoteGroup(open)
     if type(open) ~= "table" then return false end
     local members = CurrentGroup()
@@ -682,13 +636,10 @@ local function NoteGroup(open)
     return changed
 end
 
--- This character keeps MAX_RUNS of their own.
 local function TrimRuns(runs)
     for i = #runs, MAX_RUNS + 1, -1 do runs[i] = nil end
 end
 
--- at is a logout stamp, used when the leave itself was not seen live. quiet skips the
--- display refresh when the caller is about to start another visit immediately.
 CloseRun = function(announce, at, quiet)
     local row = Mine(false)
     local open = row and row.open
@@ -732,10 +683,6 @@ CloseRun = function(announce, at, quiet)
     UI:RefreshPage(true)
 end
 
--- A new dungeon or raid counts toward one account cap of 10 in a rolling hour.
--- A ghost, or a death the client kept secret, does not close the visit. A reload
--- while still inside does not count. A different group does. A later matching
--- zone id can take that count back.
 local expiryGen = 0
 local hourSnap
 
@@ -746,7 +693,6 @@ local function CopyKey(mapID, difficulty, name)
     return tostring(mapID) .. ":" .. (difficulty or "")
 end
 
--- Copies this character has not reset, on their own record.
 local function LiveCopies(create)
     local row = Mine(create)
     if not row then return end
@@ -761,8 +707,6 @@ local function ByAt(a, b)
     return a.at < b.at
 end
 
--- Drops hour entries older than an hour. Oldest first. Any removal drops the
--- cached account count, because that count is the sum of every character.
 local function PruneHour(row)
     if type(row) ~= "table" then return {} end
     local list = row.hour
@@ -796,9 +740,6 @@ local function WarnDistance()
     return n
 end
 
--- Entries still inside the hour, across every character's list. A stamp an hour
--- old or older drops out. The next free time is the oldest stamp that remains.
--- The regression loads this function. Track Alts is not an input.
 local function AccountHour(lists, now, hour)
     local count, oldest = 0, nil
     if type(lists) ~= "table" or type(now) ~= "number" or type(hour) ~= "number" then
@@ -853,8 +794,6 @@ local function HourSnapshot()
     return count, HOURLY_CAP, frees
 end
 
--- The note sits on this character, so an alt already warned does not swallow it.
--- The numbers are the account's, and the line does not say who used one.
 local function WarnHour()
     if not On() then return end
     local row = Mine(false)
@@ -901,8 +840,6 @@ local function ScheduleExpiry()
     end)
 end
 
--- A stamp inside the hour is still this copy. An older stamp is not. A login
--- does not count. The block through CopyParts is loaded by the regression.
 local function CopyFresh(stored, now, hour)
     if type(stored) ~= "table" or type(stored.at) ~= "number" then return false end
     if type(now) ~= "number" or type(hour) ~= "number" then return false end
@@ -910,15 +847,11 @@ local function CopyFresh(stored, now, hour)
     return age >= 0 and age < hour
 end
 
--- True when this zone-in adds an hourly entry. A login or reload does not.
 local function CountsEntry(stored, now, hour, countIt)
     if not countIt then return false end
     return not CopyFresh(stored, now, hour)
 end
 
--- True when the people zoning in are not the visit's group. One shared name keeps
--- the visit. Two empty groups are the same solo copy. An empty roster while still
--- grouped has not loaded, so it does not split the visit.
 local function GroupsDiffer(saved, current, inGroup)
     local function names(group)
         local set, n = {}, 0
@@ -943,8 +876,6 @@ local function GroupsDiffer(saved, current, inGroup)
     return true
 end
 
--- A closed visit reopens only while the hour still treats the stamp as this copy,
--- and the saved run was left inside that same hour.
 local function CanResume(stored, left, now, hour)
     if not CopyFresh(stored, now, hour) then return false end
     if type(left) ~= "number" then return false end
@@ -952,15 +883,10 @@ local function CanResume(stored, left, now, hour)
     return away >= 0 and away < hour
 end
 
--- A ghost, or a death the client kept secret, is still this visit. A plain
--- false is a living player outside, and that leave can close it.
 local function KeepsVisit(ghost)
     return ghost ~= false
 end
 
--- unitType-0-server-instanceID-zoneUID-id-spawn. instanceID is the map and is
--- 0 outdoors, so it cannot tell one reset from the next. zoneUID is the copy.
--- A player GUID has neither. A secret value is not split and is not saved.
 local COPY_KINDS = {
     Creature = true, Pet = true, GameObject = true, Vehicle = true, Cast = true,
 }
@@ -983,8 +909,6 @@ local function CopyParts(guid)
 end
 -- end copy memory
 
--- countIt is false for a login or reload: that copy already existed. An existing
--- stamp stays put on that path, so a resume does not push the hour forward.
 local function NoteInstanceEntry(name, mapID, difficulty, countIt)
     local row = Mine(true)
     if not row then return end
@@ -1007,13 +931,6 @@ local function NoteInstanceEntry(name, mapID, difficulty, countIt)
     ScheduleExpiry()
 end
 
--- Nova Instance Tracker, prefix "NIT". A reset is "<command> <version> <instance>"
--- (the name keeps its spaces), then LibSerialize, LibDeflate at level 9, and the
--- addon-channel encoding. Version 1 is the oldest Nova still reads.
--- instanceReset rides with a "[NIT] " chat line, which is what the group sees.
--- instanceResetNoMsg leaves that line out, and Nova prints it. instanceResetOther
--- is that print from Nova World Buffs. The block through ClearNamedCopy is loaded
--- by the regression.
 local NIT_PREFIX = "NIT"
 local NIT_VERSION = "1"
 local NIT_STILL_INSIDE = "has been reset (Players still inside old instance can zone out and enter new)."
@@ -1031,8 +948,6 @@ local function NitCodec()
     return LS, LD
 end
 
--- One addon message. AceComm treats a leading control byte as its own framing, so a
--- reset that starts with one is sent with the escape byte in front.
 local function NitEncode(plain)
     if type(plain) ~= "string" or plain == "" then return end
     local LS, LD = NitCodec()
@@ -1077,7 +992,6 @@ local function NitDecode(payload)
     return value
 end
 
--- The first two words are the command and the version. The instance keeps its spaces.
 local function NitFields(text)
     if type(text) ~= "string" then return end
     local cmd, version, rest = text:match("^(%S+)%s+(%S+)%s*(.*)$")
@@ -1091,7 +1005,6 @@ local function NitVersionOk(version)
     return n ~= nil and n >= 1
 end
 
--- The name Nova prints: the sender, without a realm glued on the end.
 local function NitWho(sender)
     if type(sender) ~= "string" or sender == "" then return end
     local name = sender:match("^([^%-]+)")
@@ -1099,9 +1012,6 @@ local function NitWho(sender)
     return name
 end
 
--- A realm that is not ours is ignored. A roster match who is not the leader is
--- ignored. A name that matches no unit is still taken: Forever's addon sender is
--- often a full name no unit API returns, and Nova only sends this as the leader.
 local function NitSenderOk(sender, realm, normalized, roster)
     if type(sender) ~= "string" or sender == "" then return false end
     local _, theirs = sender:match("^([^%-]+)%-(.+)$")
@@ -1119,7 +1029,6 @@ local function NitSenderOk(sender, realm, normalized, roster)
     return true
 end
 
--- The instance to forget, and a line to print when Nova sent no chat line.
 local function NitIncoming(text, sender, realm, normalized, roster)
     local cmd, version, instance = NitFields(text)
     if not NIT_RESET[cmd] or not NitVersionOk(version) then return end
@@ -1132,9 +1041,6 @@ local function NitIncoming(text, sender, realm, normalized, roster)
     return instance, line
 end
 
--- kind is "success", "inside", "zoning" or "offline". chatOk is whether the group
--- line can go out. A failed chat send of a real reset uses instanceResetNoMsg, so
--- Nova still prints it. Zoning and offline are the chat line only.
 local function NitOutbound(kind, instance, systemText, chatOk)
     if type(instance) ~= "string" or instance == "" then return end
     local body
@@ -1152,17 +1058,12 @@ local function NitOutbound(kind, instance, systemText, chatOk)
     return chat, cmd .. " " .. NIT_VERSION .. " " .. instance
 end
 
--- "chat" is the group line plus instanceReset. "addon" is instanceResetNoMsg and no
--- line, so Nova still prints the reset. nil sends nothing: Nova Instance Tracker is
--- loaded and posts the same line itself.
 local function NitAnnounce(settingOn, nitLoaded, locked)
     if nitLoaded then return end
     if settingOn and not locked then return "chat" end
     return "addon"
 end
 
--- Drops every live copy stored under this instance name. The hour list is left as
--- it is: a reset does not give an entry back.
 local function ClearNamedCopy(lives, name)
     if type(lives) ~= "table" or type(name) ~= "string" or name == "" then return false end
     local cleared = false
@@ -1232,8 +1133,6 @@ local function SendResetAddon(plain, channel)
     return SendAccepted(ok, result, success)
 end
 
--- Nova posts the same reset line. A secret answer is treated as loaded, so this
--- addon does not add a second one.
 local function NitLoaded()
     if not C_AddOns or not C_AddOns.IsAddOnLoaded then return false end
     local loaded = C_AddOns.IsAddOnLoaded("NovaInstanceTracker")
@@ -1284,8 +1183,6 @@ local function IsOwnSender(sender)
     return false
 end
 
--- Names that match a group unit, and whether that unit leads. No match is absent,
--- which the incoming check treats as still worth taking.
 local function LeaderRoster()
     local roster = {}
     local prefix, count = GroupShape()
@@ -1321,20 +1218,14 @@ local function OnNovaReset(prefix, payload, channel, sender)
     if line then ns.Print(line) end
 end
 
--- ReadZone is filled in once the unit reads exist. The regression passes the
--- zone id into TakeSameCopy instead, so this stays unset there.
 local ReadZone
 
--- seen is the regression's zone id: a number to compare, or false when every
--- sample was secret, missing, or outdoors. Otherwise read one from the client.
 local function ObservedZone(seen)
     if seen == false then return nil end
     if type(seen) == "number" and seen ~= 0 then return seen end
     if ReadZone then return ReadZone() end
 end
 
--- The copy this zone-in replaced, so a plain zone id later in the visit can
--- take the hour entry back. Without a stored id there is nothing to match.
 local function RememberReentry(row, stored, run, key)
     if type(row) ~= "table" then return end
     if type(stored) ~= "table" or type(stored.copy) ~= "number" then return end
@@ -1351,8 +1242,6 @@ local function AddRep(prior, gained)
     end
 end
 
--- This zone-in was already counted, and the zone id now matches the visit it
--- replaced. Drop that hour entry and continue the earlier visit.
 local function TakeCountBack(row, open)
     local back = type(open) == "table" and open.reentry or nil
     if type(row) ~= "table" or type(back) ~= "table" then return false end
@@ -1422,21 +1311,16 @@ local function TakeSameCopy(name, mapID, difficulty, seen)
         local run = runs[i]
         if type(run) == "table" and SamePlace(run, name, mapID, difficulty) then
             if not CanResume(stored, run.left, now, HOUR) then return end
-            -- A different group is a new copy. Drop the stamp so this zone-in counts,
-            -- and leave the old visit in the history.
             if GroupsDiffer(run.group, current, grouped) then
                 mine[key] = nil
                 return
             end
             local zone = ObservedZone(seen)
             local saved = type(stored.copy) == "number" and stored.copy or nil
-            -- The same zone id is this copy. Resume it, and do not count again.
             if zone and saved and zone == saved then
                 table.remove(runs, i)
                 return run
             end
-            -- No readable zone id, or a different one. A real leave already closed
-            -- this visit, so the zone-in counts. A matching id later can undo it.
             RememberReentry(row, stored, run, key)
             mine[key] = nil
             return
@@ -1444,9 +1328,6 @@ local function TakeSameCopy(name, mapID, difficulty, seen)
     end
 end
 
--- A plain zone id learned while the visit is open. A match for the copy this
--- zone-in replaced takes that hour entry back. Anything else is recorded on
--- the stamp, so the next leave can tell this copy from the one after a reset.
 local function NoteZone(zone)
     if type(zone) ~= "number" or zone == 0 then return end
     local row = Mine(false)
@@ -1474,8 +1355,6 @@ BeginRun = function(name, kind, difficulty, mapID, announce)
     if not row then return end
     local open = row.open
     if type(open) == "table" and SamePlace(open, name, mapID, difficulty) then
-        -- Drop the time passed while logged out or reloading, then keep counting.
-        -- A long absence is still time away, so the timer does not count it.
         if open.seen then
             local away = time() - open.seen
             if away > 0 then
@@ -1552,7 +1431,6 @@ local function SyncZone(announce)
     if state == "secret" then return end
     if state ~= "in" then
         local open = OpenRun()
-        -- A ghost, or a death the client kept secret, is still this visit.
         if open and KeepsVisit(PlayerGhost()) then
             if not open.seen then open.seen = time() end
             SetRunEvents(true)
@@ -1566,8 +1444,6 @@ local function SyncZone(announce)
     BeginRun(name, kind, difficulty, mapID, announce)
 end
 
--- Target, mouseover, and nameplates. A cast GUID arrives on its own event.
--- Outdoor GUIDs and secrets return nothing, and this does not poll.
 local function UnitCopy(unit)
     if type(unit) ~= "string" or Secret(unit) then return end
     if unit == "" or not UnitGUID then return end
@@ -1590,13 +1466,11 @@ ReadZone = function()
     end
 end
 
--- Run timer. A shared tracker panel, shown while a visit is in progress.
 local function FrameWanted()
     if not On() or not S.Get("showFrame") then return false end
     if unlocked then return true end
     local open = OpenRun()
     if not open then return false end
-    -- The X hides this visit. The next one, with its own entered time, shows again.
     if dismissedAt and open.entered == dismissedAt then return false end
     return true
 end
@@ -1623,7 +1497,6 @@ local function OpenWindow()
     if ns.OpenInstanceTrackerWindow then ns.OpenInstanceTrackerWindow() end
 end
 
--- The X hides the timer for this visit and leaves Show Run Timer on.
 local function CloseTimer()
     local open = OpenRun()
     dismissedAt = open and open.entered or true
@@ -1681,8 +1554,6 @@ local function Paint()
     frame:Paint()
 end
 
--- The visit clock and the hour countdown move each second. Loot, experience, scale,
--- fit, and the backdrop stay on UpdateFrame, which runs when those actually change.
 local function Tick()
     local open = OpenRun()
     if not (open and frame and frame:IsShown()) then
@@ -1827,10 +1698,6 @@ function ns.InstanceTracker.EntryLeft(row)
     return left
 end
 
--- Events stay registered while the module is on. Loot, reputation, and deaths only
--- while a visit is open. Rest and durability update the whole time.
--- The sheet is written immediately. The open page follows a moment later, so a bag
--- update does not rebuild it on every slot.
 local sheetQueued
 local function QueueSheet(xpOnly)
     if xpOnly then TouchXP() else TouchChar() end
@@ -1840,6 +1707,12 @@ local function QueueSheet(xpOnly)
         sheetQueued = nil
         if On() then UI:RefreshPage(true) end
     end)
+end
+
+local function ZoneSeen(zone)
+    if not zone then return end
+    NoteZone(zone)
+    SetEvents(ZONE_EVENTS, false)
 end
 
 events = CreateFrame("Frame")
@@ -1876,18 +1749,18 @@ events:SetScript("OnEvent", function(_, event, ...)
         local open = OpenRun()
         if open then NoteGroup(open) end
     elseif event == "PLAYER_TARGET_CHANGED" or event == "UPDATE_MOUSEOVER_UNIT" then
-        if ReadZone then NoteZone(ReadZone()) end
+        ZoneSeen(ReadZone())
     elseif event == "NAME_PLATE_UNIT_ADDED" then
         local unit = ...
         if type(unit) == "string" and not Secret(unit) and UnitGUID then
-            NoteZone(CopyParts(UnitGUID(unit)))
+            ZoneSeen(CopyParts(UnitGUID(unit)))
         end
     elseif event == "UNIT_SPELLCAST_SENT" then
         local _, _, castGUID = ...
-        NoteZone(CopyParts(castGUID))
+        ZoneSeen(CopyParts(castGUID))
     elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
         local _, castGUID = ...
-        NoteZone(CopyParts(castGUID))
+        ZoneSeen(CopyParts(castGUID))
     elseif event == "UPDATE_INVENTORY_DURABILITY" then
         QueueSheet()
     elseif event == "PLAYER_XP_UPDATE" or event == "PLAYER_LEVEL_UP" then
@@ -1934,7 +1807,6 @@ S.OnChange(function(key)
     if key == "pos" then return end
     if key == "enabled" then Apply()
     elseif key == "showFrame" then
-        -- Turning it back on brings the timer back for the visit the X hid.
         if S.Get("showFrame") then dismissedAt = nil end
         UpdateFrame()
     elseif key == "hourlyWarn" then WarnHour() end

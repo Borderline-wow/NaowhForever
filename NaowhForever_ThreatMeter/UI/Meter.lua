@@ -34,7 +34,6 @@ local TEXT_IN_COMBAT = ns.L("Preview is available outside combat.")
 local frame, pendingUpdate, followTicker, unlocked
 local renderedTitle, renderedPlayer
 local offset, currentMob, mobGUID, preview = 0, nil, nil, false
-local updateGeneration = 0
 local previewGeneration = 0
 local listening = false
 local events = CreateFrame("Frame")
@@ -246,11 +245,14 @@ function Update()
     frame:Show()
 end
 
+local function DueUpdate()
+    if pendingUpdate then Update() end
+end
+
 local function RequestUpdate()
     if pendingUpdate or not TM.On() then return end
     pendingUpdate = true
-    local generation = updateGeneration
-    C_Timer.After(UPDATE_DELAY, function() if generation == updateGeneration then Update() end end)
+    C_Timer.After(UPDATE_DELAY, DueUpdate)
 end
 
 local function StopSizing()
@@ -292,7 +294,7 @@ local function Apply()
     TM.Rewatch()
     events:UnregisterAllEvents()
     listening = false
-    updateGeneration = updateGeneration + 1; pendingUpdate = false
+    pendingUpdate = false
     if not (TM.On() or unlocked) then
         SetFollow(false)
         TM.Rearm()

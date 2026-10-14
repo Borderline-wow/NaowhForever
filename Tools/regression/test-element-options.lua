@@ -1,6 +1,6 @@
 -- Run with Lua 5.1 from the repository root: Unlock Mode's Element Options. Every mover names
 -- the options page that sets it up, that page is one the options window has, and a section
--- it names is one that page declares.
+-- it names is a card that page declares.
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 
 local function Read(path)
@@ -48,14 +48,10 @@ do
     end
 end
 
--- Every addon file's source, and the body of each ns.Build... function.
-local sources, bodies = {}, {}
+-- Every addon file's source.
+local sources = {}
 for _, path in ipairs(TocFiles()) do
-    if path:find("%.lua$") then
-        local s = Read(path)
-        sources[path] = s
-        for name, body in s:gmatch("\nfunction ns%.(Build[%w_]+)%(.-\n(.-)\nend\n") do bodies[name] = body end
-    end
+    if path:find("%.lua$") then sources[path] = Read(path) end
 end
 
 local Eval
@@ -84,26 +80,6 @@ local function DeclaresCard(page, id)
                     if Eval(path, s, choice, 0) == page then return true end
                 end
             end
-        end
-    end
-    return false
-end
-
--- Whether a page's builder, or a section builder it calls, declares the feature.
-local function Declares(build, text, depth)
-    local body = bodies[build]
-    if not body then return false end
-    local i = 1
-    while true do
-        local s, e = body:find("W:Feature%(", i)
-        if not s then break end
-        local call = Call(body, e) or ""
-        if call:find('"' .. text .. '"', 1, true) then return true end
-        i = e + 1
-    end
-    if depth > 0 then
-        for inner in body:gmatch("ns%.(Build[%w_]+)%(") do
-            if inner ~= build and Declares(inner, text, depth - 1) then return true end
         end
     end
     return false
@@ -198,12 +174,7 @@ for path, s in pairs(sources) do
             Check(pages[page] ~= nil, "its page is in the options window: " .. tostring(page) .. " (" .. where .. ")")
             if feature then
                 Check(feature:sub(1, #page + 1) == page .. ":", "its section is on its page: " .. feature)
-                local id = feature:sub(#page + 2)
-                if pages[page] == false then
-                    Check(DeclaresCard(page, id), "a card on the declared page: " .. feature)
-                else
-                    Check(Declares(pages[page], id, 1), "the page declares the section: " .. feature)
-                end
+                Check(DeclaresCard(page, feature:sub(#page + 2)), "a card on the declared page: " .. feature)
             end
         end
     end

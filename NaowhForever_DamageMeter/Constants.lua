@@ -93,7 +93,7 @@ ns.DamageMeter.C = {
         { key = "borderColor", label = "Border Color", group = "Window", token = "line" },
     },
     OWN_LOOK = {},
-    MODES = MODES, MODE_BY_KEY = byKey, MODE_LABELS = labels, MODE_ORDER = order,
+    MODE_BY_KEY = byKey, MODE_LABELS = labels, MODE_ORDER = order,
     SESSION_LABELS = { current = "Current", overall = "Overall" },
     SESSION_ORDER = { "current", "overall" },
     GRIP_UP = "Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up",

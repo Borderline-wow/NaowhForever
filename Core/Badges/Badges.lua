@@ -946,14 +946,6 @@ function ns.ShowBadgeCode()
     ShowCode(BadgeCode())
 end
 
-function ns.ShowBadgeCard(tierKey, playerName)
-    ShowEntryCard(PreviewEntry(tierKey), playerName)
-end
-
-function ns.HideBadgeCard()
-    if card then card:Hide() end
-end
-
 ns._BadgesTest = { DecorateName = DecorateName, ListBadges = listBadges, OnLinkEnter = OnLinkEnter, TIERS = TIERS,
     guidByLine = guidByLine, CACHE_SIZE = CACHE_SIZE, SinceOf = SinceOf,
     BuildRoster = BuildRoster, BadgeCode = BadgeCode, BadgeStatus = BadgeStatus,

@@ -74,8 +74,9 @@ Fresh()
 Check(Q.State(6) == "open", "the other faction's quest is no requirement")
 Check(Q.State(1) == "open" and #Q.Blocking(1) == 0, "no requirements, nothing blocks")
 
-local real = setmetatable({ _G = { NaowhForever = { AccountSettings = ns.AccountSettings } } }, { __index = env })
-local data = assert(loadstring(Read("NaowhForever_Discovery/QuestList/Data/Quests.lua")))
+local real = setmetatable({ _G = { NaowhForever = { AccountSettings = ns.AccountSettings, CompletoQuestData = {} } } },
+    { __index = env })
+local data = assert(loadstring(Read("NaowhForever_DiscoveryData/Quests.lua")))
 setfenv(data, real)
 data()
 local D = real._G.NaowhForever.CompletoQuestData

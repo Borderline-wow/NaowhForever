@@ -40,7 +40,7 @@ local pendingUpdate, unlocked, hovered, tipRow
 local lastCombatEnd, override
 local lastInstance, wasGrouped
 local preview = false
-local updateGeneration, previewGeneration = 0, 0
+local previewGeneration = 0
 local events, fader
 local fadeElapsed = 0
 local Update
@@ -464,17 +464,20 @@ end
 
 local function StartFade()
     fader = fader or CreateFrame("Frame")
-    fader:SetScript("OnUpdate", OnFadeTick)
+    if fader:GetScript("OnUpdate") ~= OnFadeTick then fader:SetScript("OnUpdate", OnFadeTick) end
 end
 
 local function ApplyMouse(w)
     local frame, through = w.frame, PassesMouse()
     frame.header:EnableMouse(not through)
     frame.grip:SetShown(not unlocked and not through)
+    local rows = 0
+    for _, pane in ipairs(frame.panes) do rows = rows + #pane.rows end
+    if through == frame.passes and rows == frame.mouseRows then return end
     for _, pane in ipairs(frame.panes) do
         for _, row in ipairs(pane.rows) do row:EnableMouse(not through) end
     end
-    frame.passes = through
+    frame.passes, frame.mouseRows = through, rows
 end
 
 local function ApplyScale(w)
@@ -513,6 +516,7 @@ end
 function Update()
     pendingUpdate = false
     if not DM.On() and not unlocked then HideAll() return end
+    DM.HoldFights(true)
     local sample = unlocked or preview
     local visible = sample or ShownNow()
     for index = 1, DM.MAX_WINDOWS do
@@ -522,13 +526,17 @@ function Update()
         end
     end
     if hovered and hovered.w.frame:IsShown() then ShowBreakdown(hovered.w, hovered.row) else OnRowLeave() end
+    DM.HoldFights(false)
+end
+
+local function DueUpdate()
+    if pendingUpdate then Update() end
 end
 
 local function RequestUpdate()
     if pendingUpdate or not DM.On() then return end
     pendingUpdate = true
-    local generation = updateGeneration
-    C_Timer.After(UPDATE_DELAY, function() if generation == updateGeneration then Update() end end)
+    C_Timer.After(UPDATE_DELAY, DueUpdate)
 end
 
 DM.Refresh = RequestUpdate
@@ -624,7 +632,7 @@ end
 
 local function Apply()
     if events then events:UnregisterAllEvents() end
-    updateGeneration = updateGeneration + 1; pendingUpdate = false
+    pendingUpdate = false
     GameMeter(DM.On() and S.Get("hideGameMeter"))
     if not (DM.On() or unlocked) then HideAll() return end
     for index = 1, DM.MAX_WINDOWS do

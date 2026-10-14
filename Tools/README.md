@@ -68,8 +68,8 @@ purpose.
 
 | Tool | What it does | Why |
 | --- | --- | --- |
-| `completo_quests.py` | Builds `NaowhForever_Discovery/QuestList/Data/Quests.lua`: every quest of every zone, its chain and where its quest giver stands, from Wowhead Forever's zone and quest pages. Cached in `data/completo_zones.json`, `data/completo_quests.json`, `data/completo_requires.json` and `data/completo_items.json`; `--offline` writes from the caches only. | A zone's quests and what to do first. |
-| `completo_rares.py` | Builds `NaowhForever_Discovery/QuestList/Data/Rares.lua`: every rare of every zone, where it spawns and its special drops. Cached in `data/completo_rares.json`; `--offline` writes from the caches only. | The rares worth hunting, on the map. |
+| `completo_quests.py` | Builds `NaowhForever_DiscoveryData/Quests.lua`: every quest of every zone, its chain and where its quest giver stands, from Wowhead Forever's zone and quest pages. Cached in `data/completo_zones.json`, `data/completo_quests.json`, `data/completo_requires.json` and `data/completo_items.json`; `--offline` writes from the caches only. | A zone's quests and what to do first. |
+| `completo_rares.py` | Builds `NaowhForever_DiscoveryData/Rares.lua`: every rare of every zone, where it spawns and its special drops. Cached in `data/completo_rares.json`; `--offline` writes from the caches only. | The rares worth hunting, on the map. |
 
 ## build/: World and town map
 
@@ -80,7 +80,7 @@ purpose.
 | `spirit_healers.py` | Builds `NaowhForever_QoL/Interface/TownSpiritHealers.lua` from the Spirit Healer's Wowhead page. | The game won't list graveyards while you are alive. |
 | `travel.py` | Builds `NaowhForever_QoL/Interface/TownTravel.lua`: the boats' and zeppelins' docks, from the game's taxi paths (wago.tools). | The town map's boat and zeppelin pins. |
 | `journeys.py` | Builds `NaowhForever_Journeys/Data/Network.lua`: every flight point with who can use it, every direct flight's flown length, each boat's and zeppelin's docks with its stop and sailing distance, and the tram and the Darnassus portal, from the game's tables (wago.tools). Run it again when `wago.BUILD` moves on. Lifts are not in the client's tables: they go in `LIFTS` by hand, from what `/nf lifts` prints in game. | The Journeys planner's network. |
-| `journeys_quests.py` | Builds `NaowhForever_Journeys/Data/QuestSpots.lua`: where each Quest List quest is handed in, and the camps of its objectives, from the map on its Wowhead Forever page. Cached in `data/journeys_quest_spots.json`; `--offline` writes from the cache only. | A tracked quest the game marks nowhere still has somewhere to go. |
+| `journeys_quests.py` | Builds `NaowhForever_JourneysData/QuestSpots.lua`: where each Quest List quest is handed in, and the camps of its objectives, from the map on its Wowhead Forever page. Cached in `data/journeys_quest_spots.json`; `--offline` writes from the cache only. | A tracked quest the game marks nowhere still has somewhere to go. |
 | `zone_exits.py` | Builds `NaowhForever_QoL/Interface/ZoneExits.lua`: where the roads cross from one zone into the next, from Wowhead's zone grid and the game's map tables. | Forever has no map link data. |
 
 ## build/: the rest

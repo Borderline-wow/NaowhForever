@@ -60,7 +60,8 @@ local map = {
     dataProviders = { [{ Label = { Description = description } }] = true },
     GetCanvasContainer = function() return {} end,
     IsCanvasMouseFocus = function() return hovered ~= nil end,
-    GetNormalizedCursorPosition = function() return 0.5, 0.5 end,
+    -- Each zone sits under its own cursor spot: a still cursor is not looked up again.
+    GetNormalizedCursorPosition = function() return 0.5, (hovered or 0) / 10000 end,
     GetMapID = function() return 1414 end,
 }
 local added, onUpdate, label = 0, nil, nil

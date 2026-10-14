@@ -70,7 +70,14 @@ local function Newest(a, b)
     return a.id > b.id
 end
 
+local holding, held
+
+function DM.HoldFights(on)
+    holding, held = on, nil
+end
+
 function DM.Fights()
+    if held then return held end
     local fights = {}
     if not (DM.Available() and C_DamageMeter.GetAvailableCombatSessions) then return fights end
     local ok, sessions = pcall(C_DamageMeter.GetAvailableCombatSessions)
@@ -85,6 +92,7 @@ function DM.Fights()
     end
     table.sort(fights, Newest)
     for i = #fights, DM.Settings.Get("fightsShown") + 1, -1 do fights[i] = nil end
+    if holding then held = fights end
     return fights
 end
 

@@ -59,7 +59,6 @@ function Makers.slider(row)
         BOX_ALPHA, SLIDER_MIN, SLIDER_MAX, SLIDER_STEP, row.Get, row.Set)
     box:SetPoint("RIGHT", row, "RIGHT", -PAD, 0)
     track:SetPoint("RIGHT", box, "LEFT", -CONTROL_GAP, 0)
-    track.leftEdge = track
     return track
 end
 

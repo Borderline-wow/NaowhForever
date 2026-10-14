@@ -269,6 +269,9 @@ NaowhForever_DamageMeter/
 - The fight time in the title bar is the shown session's own length from the game
   (`GetSessionDurationSeconds`, or a past fight's from `GetAvailableCombatSessions`), read through
   `DM.Duration` and shown only as a plain number and only when the bar has room beside the title.
+- One window update reads the game's fight list once (`DM.HoldFights`): a past fight's title, length
+  and summary each look it up, and each used to rebuild it from every session the game keeps, every
+  quarter second in combat. Anything outside an update reads it fresh.
 - The title bar's right end is the buttons. The title starts at the left and the time sits beside the
   buttons, and each has an X and a Y offset to move it from there (`PaintTitleBar`, from the window's
   width and the title's measured width, so a resize or a longer title is allowed for). The time goes when

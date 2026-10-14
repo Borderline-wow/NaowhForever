@@ -360,5 +360,3 @@ function B.View.ScoreCard(parent, width)
     card.grid = Grid(card, width, COLUMNS)
     return card
 end
-
-B.View.SCORE_CARD_H = CARD_H

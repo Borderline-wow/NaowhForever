@@ -228,8 +228,6 @@ function R.ZoneList(zone)
     return list
 end
 
-R.ZoneFor = ZoneFor
-
 function R.CurrentZone()
     local map = C_Map.GetBestMapForUnit("player")
     while map do

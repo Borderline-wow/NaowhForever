@@ -542,7 +542,3 @@ function ns.OpenStatWeightsWindow()
     Paint()
     Draw()
 end
-
-function ns.ToggleStatWeightsWindow()
-    if window and window:IsShown() then window:Hide() else ns.OpenStatWeightsWindow() end
-end

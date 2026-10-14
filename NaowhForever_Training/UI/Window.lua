@@ -229,7 +229,6 @@ end
 local function OpacitySet(value)
     S.Set("windowAlpha", value / PERCENT)
 end
-Training.OpacityGet, Training.OpacitySet = OpacityGet, OpacitySet
 
 local function RedrawTop()
     Render()

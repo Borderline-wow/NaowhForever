@@ -39,7 +39,8 @@ Each layer uses only the ones above it. The bar hands its buttons the function t
 - The clock's font is EllesmereUI's ("Gotham Narrow Ultra"), found through SharedMedia; without
   it the clock falls back to the Addon Font.
 - Our own launchers have glyphs of their own (`GLYPH`); any other launcher's icon is desaturated
-  and tinted to match.
+  and tinted to match. On Forever the icons keep their full color and nothing tints them; the
+  game's highlight shows the hover.
 - Friends and Guild are secure buttons that click Blizzard's own button, the first of
   `CLICK_THROUGH` that exists, so the click opens its panel even in combat. They are made out of
   combat only.

@@ -79,7 +79,6 @@ function Look.Accent()
     return T.accent.r, T.accent.g, T.accent.b
 end
 
--- Forever icons are in full colour, so nothing tints them; the game's highlight shows the hover.
 function Look.IconColor()
     if ns.foreverSkin then return 1, 1, 1 end
     local c = S.Get("iconColor")

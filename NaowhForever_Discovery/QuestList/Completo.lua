@@ -4,6 +4,7 @@ local ns = _G.NaowhForever
 local F = ns.FEATURES.completo
 local D = ns.DiscoverySettings
 local OLD_ADDON = "NaowhForever_Completo"
+local DATA_ADDON = "NaowhForever_DiscoveryData"
 local TEXT_OLD_FOLDER = ns.L("Completo is part of Discovery now. Its old folder has been turned off; reload to finish.")
 
 local S = ns.UI.ModuleSettings("completo", {
@@ -19,6 +20,21 @@ ns.CompletoSettings = S
 
 local Completo = { Settings = S }
 ns.Completo = Completo
+
+local function LoadData(data, key)
+    local quests, rares = ns.CompletoQuestData, ns.CompletoRareData
+    setmetatable(quests, nil)
+    setmetatable(rares, nil)
+    if not C_AddOns.LoadAddOn(DATA_ADDON) then
+        quests.Zones, quests.Quests, quests.Requires, quests.Chains = {}, {}, {}, {}
+        rares.Zones, rares.Rares = {}, {}
+    end
+    return rawget(data, key)
+end
+
+local UNTIL_LOADED = { __index = LoadData }
+ns.CompletoQuestData = setmetatable({}, UNTIL_LOADED)
+ns.CompletoRareData = setmetatable({}, UNTIL_LOADED)
 
 local function FollowDiscovery()
     local on = D.Get("enabled")

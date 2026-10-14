@@ -1,25 +1,20 @@
--- InstanceTrackerPage.lua: this hour, the visit history, and the settings cards.
+-- Pages.lua: This Hour and History, the lists in the Instance Tracker's window.
 local ns = _G.NaowhForever
 local UI = ns.UI
 local T = ns.THEME
-local S = ns.InstanceTrackerSettings
 
--- This Hour and History rows. Sizes are pixels at the addon's UI scale.
-local LINE_H = 20          -- one visit line, and the shortest a wrapped line may be
-local LINE_FONT = 12       -- the row's text; also the shortest a wrapped string may measure
-local LINE_INSET = 4       -- text from a row's edges
-local FALLBACK_W = 960     -- used when the page has no width yet
-local GROUP_GAP = 6        -- under a character, an hour list, or an in-progress visit
+local LINE_H = 20
+local LINE_FONT = 12
+local LINE_INSET = 4
+local FALLBACK_W = 960
+local GROUP_GAP = 6
 
--- Cap and warn colors live on the tracker. Secondary text uses the theme's muted
--- color, read when the line is built.
 local function HourPaint(left, text)
     local colors = ns.InstanceTracker
     return ns.Color(left <= 0 and colors.CapRGB or colors.WarnRGB, text)
 end
 
 local function Line(parent, y, text)
-    -- Search runs the builder on a stub parent. These rows are stored visits, not settings.
     if UI.searchScan then return y - LINE_H end
     local row = UI.Keep(parent, "line", function(p)
         local f = CreateFrame("Frame", nil, p)
@@ -40,8 +35,6 @@ local function Line(parent, y, text)
     return y - LINE_H
 end
 
--- A second line under a visit. One line stays the same height as the rows above it;
--- a long one wraps instead of running off the page. Padding is the inset on both sides.
 local function WrapLine(parent, y, text)
     if UI.searchScan then return y - LINE_H end
     local row = UI.Keep(parent, "wrap", function(p)
@@ -131,8 +124,6 @@ local function RunLine(run)
     return text
 end
 
--- Reputation gained during the visit. The words come from the tracker; this only
--- indents them as a second line. Left out when none was gained.
 local function RepText(rep)
     local text = ns.InstanceTracker.Reputation(rep)
     if not text then return end
@@ -242,132 +233,3 @@ function ns.BuildInstanceHistoryPage(parent, y)
     end
     return y
 end
-
--- Settings. One page in the options window. The lists live in the module window.
-local Settings = ns.Shared and ns.Shared.Settings
-if not Settings then return end
-
-local OFF = ns.L("Turn on Instance Tracker")
-local WHERE = { { self = "Your Chat", group = "Group" }, { "self", "group" } }
-local RAID_WHY = ns.L("Choose Group above")
-
-local function Enabled()
-    return S.Get("enabled") == true
-end
-
-local function Row(key, label, help)
-    return { key = key, label = label, toggle = true, needs = Enabled, why = OFF, help = help }
-end
-
--- needs updates why before the row reads it: the module, then Group.
-local raid = Row("leavePrintRaid", "Send to Raid Chat", "Sends the summary to raid chat.")
-raid.needs = function()
-    if not Enabled() then
-        raid.why = OFF
-        return false
-    end
-    raid.why = RAID_WHY
-    return S.Get("leaveWhere") == "group"
-end
-
-local function Headline()
-    local IT = ns.InstanceTracker
-    if not IT.Enabled() then return ns.L("Instance Tracker is off") end
-    local open = IT.Open()
-    if open and open.instance then return "In " .. IT.PlaceName(open.instance, open.difficulty) end
-    local count, cap = IT.Hour()
-    return string.format(ns.L("%d of %d instances on this account"), count, cap)
-end
-
-local function Detail()
-    local IT = ns.InstanceTracker
-    if not IT.Enabled() then return ns.L("Turn it on to record visits.") end
-    local open = IT.Open()
-    if open and open.instance then return IT.Duration(IT.Elapsed(open)) .. ns.L(" in this visit.") end
-    local count, _, frees = IT.Hour()
-    if count > 0 then return ns.L("The next one frees in ") .. IT.Duration(frees) .. "." end
-    return ns.L("No new instances this hour.")
-end
-
-local function LeaveSummary(store)
-    return store.Get("leaveWhere") == "group" and ns.L("Sent to the group") or ns.L("Your chat only")
-end
-
-local function WindowSummary(store)
-    return (ns.L("%d%% opacity")):format(math.floor((store.Get("windowAlpha") or 1) * 100 + 0.5))
-end
-
-local page = Settings.Page("Instance Tracker/Settings", S)
-
-page:Window({
-    text = "Open Instance Tracker",
-    open = function() ns.OpenInstanceTrackerWindow() end,
-    headline = Headline,
-    detail = Detail,
-})
-
-page:Card({
-    id = "hour", name = "This Hour", order = 10,
-    help = "Warns in chat as you near the hourly instance cap.",
-    rows = {
-        { key = "hourlyWarn", label = "Warn when this many are left", slider = { 1, 5, 1 },
-          needs = Enabled, why = OFF, help = "Sets how close to the cap the warning starts." },
-    },
-})
-
-page:Card({
-    id = "timer", name = "Run Timer", order = 20, switch = "showFrame",
-    help = "Shows this visit's time, coins, and experience.",
-    summary = function() return ns.L("Inside a dungeon or raid") end,
-})
-
-page:Card({
-    id = "enter", name = "Chat on Enter", order = 30, switch = "enterChat",
-    help = "Prints in your chat when you enter an instance.",
-    summary = function() return ns.L("Your chat only") end,
-})
-
-page:Card({
-    id = "alts", name = "Track Alts", order = 40, switch = "trackAlts",
-    help = "Shows your other characters' visits.",
-    summary = function() return ns.L("Other characters stay listed") end,
-})
-
-page:Card({
-    id = "leave", name = "When You Leave", order = 50, switch = "leaveChat",
-    help = "Prints a summary when you leave a dungeon.",
-    summary = LeaveSummary,
-    rows = {
-        Settings.Group("Where"),
-        { key = "leaveWhere", label = "Send It To", choice = WHERE, needs = Enabled, why = OFF,
-          help = "Prints the summary in your chat or in the group." },
-        raid,
-        Settings.Group("Included"),
-        Row("leaveTime", "Show Time", "Adds how long the visit lasted."),
-        Row("leaveXP", "Show Experience", "Adds the experience gained."),
-        Row("leaveGold", "Show Coins Looted", "Adds the coins looted."),
-        Row("leaveDeaths", "Show Deaths", "Adds the deaths."),
-        Row("leaveRep", "Show Reputation", "Adds the reputation gained."),
-        Row("leaveAverage", "Show Average Experience", "Adds the average experience here."),
-        Row("leaveRunsLevel", "Show Runs This Level", "Adds the visits at this level."),
-        Row("leaveRunsToLevel", "Show Runs to Next Level", "Adds the visits until you level."),
-        Row("leaveActivity", "Skip If Nothing Happened", "Skips the summary when the visit gained nothing."),
-        Row("leaveRaids", "Include Raids", "Also prints the summary when you leave a raid."),
-    },
-})
-
-page:Card({
-    id = "reset", name = "When You Reset", order = 60, switch = "resetChat",
-    help = "Posts the reset in group chat when you are leading.",
-    summary = function() return ns.L("Posted in group chat") end,
-})
-
-page:Card({
-    id = "window", name = "Window", order = 90,
-    help = "Keeps this hour and visits in their own window.",
-    summary = WindowSummary,
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = { ns.Shared.Style.OPACITY_MIN, 100, 5 },
-          unit = "%", scale = 0.01, help = "Sets how solid the window is." },
-    },
-})

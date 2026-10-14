@@ -109,7 +109,6 @@ end
 SW.MIN_GAIN = MIN_GAIN
 SW.Stats = Stats
 SW.Worth = Worth
-SW.DpsShare = DpsShare
 
 function SW.SwingDamage(weights, slot)
     local main, off = lastMain, lastOff

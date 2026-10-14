@@ -1,4 +1,4 @@
-"""Build NaowhForever_Journeys/Data/QuestSpots.lua: where each quest is handed in and where its
+"""Build NaowhForever_JourneysData/QuestSpots.lua: where each quest is handed in and where its
 objectives are, so a tracked quest has somewhere to go when the game names no point.
 
 Each quest page on Wowhead Forever (/forever/quest=<id>) draws a map (its "new Mapper" data) with
@@ -28,7 +28,7 @@ from completo_quests import REDRAWN_BOUNDS, forever_spot  # noqa: E402
 from journal import header, write  # noqa: E402
 from quest_chains import ZONE_MAP  # noqa: E402
 
-OUT = paths.ROOT / "NaowhForever_Journeys" / "Data" / "QuestSpots.lua"
+OUT = paths.ROOT / "NaowhForever_JourneysData" / "QuestSpots.lua"
 QUESTS = paths.DATA / "completo_quests.json"
 CACHE = paths.DATA / "journeys_quest_spots.json"
 GAP = 4   # seconds between pages: completo_quests.py found 1.5 drew 403s from Wowhead after ~125

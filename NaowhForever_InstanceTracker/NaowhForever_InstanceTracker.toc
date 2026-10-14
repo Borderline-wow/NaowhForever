@@ -7,6 +7,4 @@
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 
-NaowhForever_InstanceTracker.lua
-NaowhForever_InstanceTrackerPage.lua
-NaowhForever_InstanceTrackerWindow.lua
+InstanceTracker.xml

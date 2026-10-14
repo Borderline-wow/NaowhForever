@@ -1,4 +1,4 @@
--- Loads the shared food lists, QoL's Food & Drink Bar and the Macros module's rules (Macros.lua through Profile.lua)
+-- Loads the shared food lists, QoL's Food & Drink Bar and the Macros module's rules (Macros.lua through Smart.lua)
 -- against stubbed macro, bag and item APIs and checks what they write. Run from the repo root:
 -- lua Tools/regression/test-macros.lua
 local function Read(path)
@@ -7,7 +7,7 @@ local function Read(path)
     return text
 end
 local foodSource = Read("NaowhForever_QoL/Loot/FoodBar.lua")
-local MACRO_FILES = { "Macros.lua", "Constants.lua", "Data/Items.lua", "Commands.lua", "Smart.lua", "Profile.lua",
+local MACRO_FILES = { "Macros.lua", "Constants.lua", "Data/Items.lua", "Commands.lua", "Smart.lua",
     "UI/SettingsPage.lua" }
 local sources = { Read("Core/Features.lua"), Read("Shared/Game/Consumables.lua"), Read("Shared/Game/ActionKeys.lua"),
     Read("Shared/UI/ItemBar.lua"), Read("Shared/UI/Anchor.lua"), foodSource }
@@ -40,7 +40,7 @@ local function Fixture(opts)
     local macros, created, edited, deleted, printed = opts.macros or {}, 0, 0, 0, {}
     local account = {}
     local combat, group = false, opts.group
-    local consts = { MAX_ACCOUNT_MACROS = opts.max or 30, MAX_CHARACTER_MACROS = opts.maxChar or 30 }
+    local consts = { MAX_ACCOUNT_MACROS = opts.max or 30 }
     local frames = {}
     local globals = {}
     local bindings, actions, timers = {}, {}, {}
@@ -518,7 +518,7 @@ do
     Check("deleted after combat", t.Body("NF Trinket 2"), nil)
 end
 
--- Full character macros: warned once, nothing made; made once a slot frees up.
+-- Full General macros: warned once, nothing made; made once a slot frees up.
 do
     local t = Fixture({ settings = { trinket1 = true, trinket2 = true }, max = 0 })
     t.Fire("PLAYER_ENTERING_WORLD")
@@ -533,13 +533,6 @@ end
 do
     local t = Fixture({})
     t.Fire("PLAYER_ENTERING_WORLD")
-    t.ns.PickupProfileMacro({ name = "Example", body = "/say test", icon = 1 })
-    Check("profile macro created", t.Body("Example"), "/say test")
-    Check("profile macro is a character macro", t.Macro("Example").perChar, true)
-    t.ns.PickupProfileMacro({ name = "Example", body = "/say replaced" })
-    Check("name collision preserves existing", t.Body("Example"), "/say test")
-    t.ns.PickupProfileMacro({ name = "TooLongBody", body = string.rep("x", 256) })
-    Check("oversize macro rejected", t.Body("TooLongBody"), nil)
     t.Combat(true)
     t.ns.PickupManagedMacro("trinket1")
     Check("click in combat does not create", t.Body("NF Trinket 1"), nil)
@@ -547,62 +540,6 @@ do
     t.ns.PickupManagedMacro("trinket1")
     Check("click creates macro", t.Body("NF Trinket 1"), "#showtooltip 13\n/use 13")
     Check("managed macro stays a General macro", t.Macro("NF Trinket 1").perChar, false)
-    t.Combat(true)
-    t.ns.RemoveManagedMacro("trinket1")
-    Check("remove in combat keeps macro", t.Body("NF Trinket 1") ~= nil, true)
-    t.Combat(false)
-    t.ns.RemoveManagedMacro("trinket1")
-    Check("right-click removes macro", t.Body("NF Trinket 1"), nil)
-end
-
--- Shared profile macros that run Lua ask before they are created.
-do
-    local t = Fixture({})
-    t.Fire("PLAYER_ENTERING_WORLD")
-    local accept
-    t.ns.Confirm = function(_, onYes) accept = onYes end
-    t.ns.PickupProfileMacro({ name = "Sneaky", body = "#showtooltip\n/run print(1)" })
-    Check("script macro waits for confirmation", t.Body("Sneaky"), nil)
-    accept()
-    Check("confirmed script macro created", t.Body("Sneaky") ~= nil, true)
-    accept = nil
-    t.ns.PickupProfileMacro({ name = "Plain", body = "/cast Frostbolt" })
-    Check("plain macro needs no confirmation", accept == nil and t.Body("Plain") ~= nil, true)
-end
-
--- Class macros go to the character tab, so its limit is the one checked.
-do
-    local t = Fixture({ maxChar = 1 })
-    t.Fire("PLAYER_ENTERING_WORLD")
-    t.ns.PickupProfileMacro({ name = "One", body = "/say one" })
-    t.ns.PickupProfileMacro({ name = "Two", body = "/say two" })
-    Check("character limit respected", t.Body("Two"), nil)
-    Check("character limit named", t.printed[#t.printed]:find("Character macros are full", 1, true) ~= nil, true)
-end
-
--- A full General tab warning once must not silence a full Character tab.
-do
-    local t = Fixture({ settings = { trinket1 = true }, max = 0, maxChar = 0 })
-    t.Fire("PLAYER_ENTERING_WORLD")
-    t.ns.PickupProfileMacro({ name = "One", body = "/say one" })
-    Check("each tab warns", #t.printed, 2)
-end
-
--- Command checks warn about what would fail when pressed, and leave script lines alone.
-do
-    local t = Fixture({})
-    t.Fire("PLAYER_ENTERING_WORLD")
-    local function Problems(body) return #t.ns.MacroProblems(body) end
-    Check("known commands pass", Problems("#showtooltip\n/cast [@mouseover,help][] Heal\n/tm [@focus] 8"), 0)
-    Check("emotes and channels pass", Problems("/wave\n/2 LFG"), 0)
-    Check("unknown command flagged", Problems("/castt Frostbolt"), 1)
-    Check("case does not matter", Problems("/CAST Frostbolt"), 0)
-    Check("non-command line flagged", Problems("cast Frostbolt"), 1)
-    Check("unbalanced bracket flagged", Problems("/cast [@mouseover Heal"), 1)
-    Check("script brackets ignored", Problems("/run local t = {}; t[1] = 2 print(t[1]"), 0)
-    t.ns.PickupProfileMacro({ name = "Typo", body = "/castt Frostbolt" })
-    Check("typo macro still created", t.Body("Typo"), "/castt Frostbolt")
-    Check("typo macro warns", t.printed[#t.printed]:find("Typo may not work", 1, true) ~= nil, true)
 end
 
 -- Food & Drink bar: built only once switched on, best food and drink, updates after combat.
@@ -918,9 +855,6 @@ do
     local used = { health = true }
     t.ns.ConsumableBarUsesMacro = function(key) return used[key] == true end
     t.Fire("PLAYER_ENTERING_WORLD")
-    t.ns.RemoveManagedMacro("health")
-    Check("right-click cannot remove a macro the bar uses", t.Body("NF Health"), "#showtooltip\n/use item:5509")
-    Check("it says why", (t.printed[#t.printed] or ""):find("Consumable Bar") ~= nil, true)
     t.Set("health", false)
     Check("switching it off keeps it while the bar uses it", t.Body("NF Health"), "#showtooltip\n/use item:5509")
     t.Set("enabled", false)

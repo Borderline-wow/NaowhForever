@@ -161,6 +161,8 @@ end
 
 local questNeeds, questDirty = {}, true
 local needPool, needsUsed = {}, 0
+local questKey, keyParts = "", {}
+local questOnly
 
 local function NoteNeed(name, title, have, need)
     needsUsed = needsUsed + 1
@@ -168,6 +170,7 @@ local function NoteNeed(name, title, have, need)
     needPool[needsUsed] = n
     n.title, n.have, n.need = title, have, need
     questNeeds[name] = n
+    keyParts[needsUsed] = name .. "|" .. title .. "|" .. have .. "|" .. need
 end
 
 local function NoteObjectives(info)
@@ -190,6 +193,7 @@ local function RebuildQuestNeeds()
         local info = C_QuestLog.GetInfo(i)
         if info and not info.isHeader and info.questID then NoteObjectives(info) end
     end
+    questKey = table.concat(keyParts, "\n", 1, needsUsed)
 end
 
 local function Cheaper(a, b)
@@ -800,10 +804,25 @@ function Update()
     Render()
 end
 
-function RequestScan()
+local function ScanDue()
+    if questOnly then
+        questOnly = false
+        local before = questKey
+        RebuildQuestNeeds()
+        if questKey == before then
+            pendingScan = false
+            return
+        end
+    end
+    Update()
+end
+
+function RequestScan(fromQuests)
+    if not fromQuests then questOnly = false end
     if pendingScan then return end
     pendingScan = true
-    C_Timer.After(SCAN_DELAY, Update)
+    questOnly = fromQuests == true
+    C_Timer.After(SCAN_DELAY, ScanDue)
 end
 
 function ns.BagSpaceRescan()
@@ -827,6 +846,8 @@ local function OnEvent(_, event, _, message)
         setsDirty = true
     elseif event == "QUEST_LOG_UPDATE" then
         questDirty = true
+        RequestScan(true)
+        return
     end
     RequestScan()
 end

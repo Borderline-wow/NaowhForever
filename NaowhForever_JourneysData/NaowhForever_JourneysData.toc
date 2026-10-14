@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: |cff0091edNaowh|r Forever: Journeys Data
-## Notes: The walking maps Journeys loads when a journey needs them.
+## Notes: The walking maps and quest spots Journeys loads when a journey needs them.
 ## Author: Naowh
 ## Version: 1.1.16
 ## Dependencies: NaowhForever

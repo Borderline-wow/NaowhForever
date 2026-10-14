@@ -522,6 +522,8 @@ What a comment in the code used to say, in short. The house rules behind it are 
   reload. It replaced the Classic+ skin, and the parts it kept from it keep their `CLASSIC_` names:
   the full-color icons (`CLASSIC_ICONS`, `Parts.ClassicIcon`), the Top Bar's highlight and the
   heading step.
+- `Parts.ClassicIcon` answers false when the name has no icon or this client lacks its file, and
+  the caller keeps its own glyph.
 - It dresses the windows as WoW Forever's own (Talents, Spellbook, Character, Professions) and is
   built on their art. Every atlas is asked for with `C_Texture.GetAtlasInfo` first (once, then
   remembered), and a whole frame only through `NineSliceUtil` when all of its pieces exist; when one

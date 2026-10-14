@@ -162,7 +162,5 @@ local function OnSetting(key)
     if SETTINGS[key] then Apply() end
 end
 
-B.ApplyBagMarks = Apply
-
 S.OnChange(OnSetting)
 hooksecurefunc(ns, "Apply", Apply)

@@ -52,7 +52,6 @@ local MODULES = {
           { name = "Quest Tracker", reuse = true },
           { name = "Map", reuse = true },
       } },
-    -- This hour and the visit history are a window of their own (open); only the settings live here.
     { name = "Instance Tracker", group = "UTILITIES", navIcon = "person", settings = "InstanceTrackerSettings",
       addon = "NaowhForever_InstanceTracker",
       open = "ToggleInstanceTrackerWindow",

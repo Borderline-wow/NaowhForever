@@ -9,20 +9,17 @@ local Items = M.Items
 local QUESTION = C.QUESTION
 local TRINKET_TOP, TRINKET_BOTTOM = 13, 14
 
-local TEXT_FULL_CHARACTER = ns.L("Character macros are full, so %s could not be made. Delete one and it will be added.")
 local TEXT_FULL_GENERAL = ns.L("General macros are full, so %s could not be made. Delete one and it will be added.")
 local TEXT_IN_COMBAT = ns.L("Move macros outside combat.")
 local TEXT_ENABLE_FIRST = ns.L("Enable Macros first.")
 local TEXT_NO_ROOM = ns.L("Make room in General macros first.")
 local TEXT_TOO_LONG = ns.L("%s with your extra lines is over %d characters, so they were left out.")
 local TEXT_EXTRA_SCRIPT = ns.L("%s's extra lines run a script, so they were left out. Write scripts in /macro.")
-local TEXT_REMOVE_IN_COMBAT = ns.L("Remove macros outside combat.")
 local TEXT_HEADLINE = ns.L("%d of %d macros kept current for you")
 local TEXT_OFF = ns.L("Turn on Macros to keep them current.")
 local TEXT_NO_CLASS_MACROS = ns.L("Your profile has no class macros for your %s.")
 local TEXT_CLASS_MACRO = ns.L("%d class macro from your profile for your %s.")
 local TEXT_CLASS_MACROS = ns.L("%d class macros from your profile for your %s.")
-local TEXT_ON_BAR = ns.L("%s is on the Consumable Bar. Take it off the bar first (Consumable Bar > Settings).")
 
 local MACROS = {
     { key = "health", name = "NF Health" },
@@ -46,7 +43,7 @@ local EXTRA_SUFFIX = "Extra"
 local LINE_BREAK = "\\n"
 
 local ready, pending
-local warnedFull = {}
+local warnedFull
 local warnedLong, warnedScript = {}, {}
 local refresh = {}
 local toDelete = {}
@@ -166,30 +163,27 @@ local function Full(m)
     if body then return WithExtra(m, body) end
 end
 
-local function IsFull(perCharacter)
-    local accountCount, characterCount = GetNumMacros()
-    if perCharacter then return characterCount >= Constants.MacroConsts.MAX_CHARACTER_MACROS end
-    return accountCount >= Constants.MacroConsts.MAX_ACCOUNT_MACROS
+local function IsFull()
+    return GetNumMacros() >= Constants.MacroConsts.MAX_ACCOUNT_MACROS
 end
 
-local function WarnFull(m, perCharacter)
-    local scope = perCharacter and "character" or "general"
-    if warnedFull[scope] then return end
-    warnedFull[scope] = true
-    ns.Print((perCharacter and TEXT_FULL_CHARACTER or TEXT_FULL_GENERAL):format(m.name))
+local function WarnFull(m)
+    if warnedFull then return end
+    warnedFull = true
+    ns.Print(TEXT_FULL_GENERAL:format(m.name))
 end
 
-local function Write(m, body, perCharacter)
+local function Write(m, body)
     local index = GetMacroIndexByName(m.name)
     if index > 0 then
         if GetMacroBody(index) ~= body then EditMacro(index, m.name, QUESTION, body) end
         return
     end
-    if IsFull(perCharacter) then
-        WarnFull(m, perCharacter)
+    if IsFull() then
+        WarnFull(m)
         return
     end
-    CreateMacro(m.name, m.icon or QUESTION, body, perCharacter or false)
+    CreateMacro(m.name, m.icon or QUESTION, body, false)
 end
 
 local function Wanted()
@@ -307,14 +301,11 @@ local function Detail()
     return (count == 1 and TEXT_CLASS_MACRO or TEXT_CLASS_MACROS):format(count, name)
 end
 
-local Smart = { list = MACROS, bag = BAG_MACROS, Body = Body, Write = Write, On = On, KeptCount = KeptCount,
+local Smart = { list = MACROS, bag = BAG_MACROS, Body = Body, On = On, KeptCount = KeptCount,
     Headline = Headline, Detail = Detail, UsedByBar = UsedByBar }
 M.Smart = Smart
 
-function Smart.Ready() return ready end
-
 ns.MacroSmart = { list = MACROS, Body = Body }
-ns.MacroStatus = { Headline = Headline, Detail = Detail }
 
 function ns.PickupManagedMacro(key)
     if InCombatLockdown() then ns.Print(TEXT_IN_COMBAT) return end
@@ -331,17 +322,6 @@ end
 function ns.UpdateManagedMacros()
     SyncEvents()
     Update()
-end
-
-function ns.RemoveManagedMacro(key)
-    if InCombatLockdown() then ns.Print(TEXT_REMOVE_IN_COMBAT) return end
-    if UsedByBar(key) then
-        ns.Print(TEXT_ON_BAR:format(Named(key).name))
-        return
-    end
-    if not S.Get(key) then return end
-    S.Set(key, false)
-    Refresh()
 end
 
 events:SetScript("OnEvent", OnEvent)

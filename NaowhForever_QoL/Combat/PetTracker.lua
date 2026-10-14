@@ -20,7 +20,7 @@ local PERCENT = ns.QoLConstants.PERCENT
 local STEP_EDGE = 0.001
 local LOW_HEALTH_RANGE = { 5, 90, 1 }
 local TEXT_RANGE = { 12, 48, 1 }
-local EVENTS = { "UNIT_PET", "PET_BAR_UPDATE", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_DEAD", "PLAYER_ALIVE",
+local EVENTS = { "PET_BAR_UPDATE", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_DEAD", "PLAYER_ALIVE",
     "PLAYER_UNGHOST", "SPELLS_CHANGED", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD",
     "PLAYER_CONTROL_LOST", "PLAYER_CONTROL_GAINED" }
 
@@ -195,6 +195,7 @@ local function Apply()
         mounted = IsMounted()
         CheckSacrifice()
         for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
+        events:RegisterUnitEvent("UNIT_PET", "player")
         events:RegisterUnitEvent("UNIT_HEALTH", "pet")
         events:RegisterUnitEvent("UNIT_MAXHEALTH", "pet")
         if class == "WARLOCK" then events:RegisterUnitEvent("UNIT_AURA", "player") end

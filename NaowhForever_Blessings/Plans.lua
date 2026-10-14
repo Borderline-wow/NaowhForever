@@ -174,7 +174,6 @@ local function SyncNow()
 end
 
 B.PREFIX = PREFIX
-B.EncodePlan = EncodePlan
 B.Send = Send
 B.BroadcastSoon = BroadcastSoon
 

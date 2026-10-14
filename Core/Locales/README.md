@@ -52,6 +52,9 @@ NaowhForever_Locales/        load on demand, one addon for every language
   path, not this addon, so matching the request is the stable half of the comparison.
 - Use `ns.L("English text")` for new player-facing text. It falls back to the English text when the
   active locale has not translated that key.
+- `Core.lua` keeps only the catalog's entries that are not `true` (the bracketed keys) and drops
+  the global: a `true` entry says the key is its own text, which `ns.L` falls back to anyway, and
+  holding every one of them cost each player over half a megabyte.
 - Spell and item logic stays on IDs; Blizzard supplies their localized names.
 - The shared parts translate what they show: settings rows, cards, groups and footers, tooltips,
   dialogs, title bars, tabs, links, section titles, notes and the HUD Editor's element names.

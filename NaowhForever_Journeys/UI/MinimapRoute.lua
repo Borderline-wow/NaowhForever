@@ -34,7 +34,6 @@ local function On()
     return Jy.On() and S.Get("minimapRoute")
 end
 
--- A world offset (yards north, yards west) as minimap pixels, the minimap turned by facing when it rotates.
 function Math.Project(north, west, facing, pixelsPerYard)
     local east = -west
     local x = east * cos(facing) + north * sin(facing)

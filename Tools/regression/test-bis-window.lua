@@ -142,8 +142,6 @@ local function Fixture()
                 toggle._get, toggle._set, toggle._refreshValue = get, set, NOTHING
                 return toggle
             end,
-            FormatPercent = function(v) return v .. "%" end,
-            FormatSeconds = function(v) return v .. "s" end,
             ShowWidgetTooltip = function(_, text) state.tip = text end,
             HideWidgetTooltip = NOTHING },
         AccountSettings = function() return state.account end,

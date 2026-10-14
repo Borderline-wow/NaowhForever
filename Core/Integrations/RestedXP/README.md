@@ -36,7 +36,8 @@ Core/Integrations/RestedXP/
   OnSizeChanged is watched.
 - The colored layer over RestedXP's arrow is lighter at the top, deeper at the bottom and not full
   strength, so the dark arrow still shades it. It follows the arrow's rotation through a post-hook
-  on its SetRotation.
+  on its SetRotation. A turned arrow reaches past its square frame, so the layer covers the square's
+  diagonal and its mask cuts it to the arrow; at the frame's own size the tips lost their color.
 - RestedXP only sets the distance text, never shows or hides it, so hiding it is ours to undo.
 - The title bar and footer banners are plain black in DarkMode, so they are faded with SetAlpha to
   let the fill show; RestedXP sets them again whenever it draws its theme, so SetTexture is

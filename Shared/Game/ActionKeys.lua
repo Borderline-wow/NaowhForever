@@ -7,8 +7,6 @@ local EUI_SLOTS = 180
 local CLICK = "CLICK %s:%s"
 local CLICK_LEFT, CLICK_KEYBIND = "LeftButton", "Keybind"
 local KEY_EVENTS = { "UPDATE_BINDINGS", "ACTIONBAR_SLOT_CHANGED", "ACTIONBAR_PAGE_CHANGED", "UPDATE_BONUS_ACTIONBAR" }
-local KEY_EVENT = {}
-for _, event in ipairs(KEY_EVENTS) do KEY_EVENT[event] = true end
 
 local ActionKeys = {}
 ns.Shared.ActionKeys = ActionKeys
@@ -51,10 +49,6 @@ function ActionKeys.Each(visit)
             end
         end
     end
-end
-
-function ActionKeys.IsKeyEvent(event)
-    return KEY_EVENT[event] == true
 end
 
 function ActionKeys.Listen(frame, on)

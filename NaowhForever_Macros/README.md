@@ -25,10 +25,9 @@ NaowhForever_Macros/
     Items.lua               the mana potions and bandages the Smart Macros use, best first (M.Items)
   Text.lua                  a macro's text read and written: problems and fixes, each line in words, one press
                             simulated, clauses built back into a line, the editor's colors, Shorten (M.Text)
-  Commands.lua              the commands the game knows, whose they are, and what would fail when pressed (M.Commands)
+  Commands.lua              the commands the game knows, whose they are, and which run a script (M.Commands)
   Store.lua                 the game's macros, the pack's and the Library's, and the icon each shows (M.Store)
   Smart.lua                 the Smart Macros: their text, writing them out of combat, their events (M.Smart)
-  Profile.lua               a pack's class macro made on this character and picked up (ns.PickupProfileMacro)
   Sharing.lua               macros as a string to share, and a shared string read back (M.Sharing)
   View/
     Style.lua               the Forge's colors, fonts and sizes, on top of Shared/Style.lua (M.Style)
@@ -127,8 +126,8 @@ the open tab) and the functions its UI files call on each other.
 ## Checking
 
 - `luacheck NaowhForever_Macros` from the repo root.
-- `lua Tools/regression/test-macros.lua`: the Smart Macros and profile macros against stubbed
-  macro, bag and item APIs, with the Food & Drink Bar.
+- `lua Tools/regression/test-macros.lua`: the Smart Macros against stubbed macro, bag and item
+  APIs, with the Food & Drink Bar.
 - `lua Tools/regression/test-macro-text.lua`: Check, Fix, Explain, Simulate, Build, Shorten and the colors.
 - `lua Tools/regression/test-macro-window.lua`: the window built from the real files, every tab
   drawn and their controls used.

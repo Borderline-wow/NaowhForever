@@ -137,6 +137,7 @@ local function FoodLevel(itemID)
     if level then return level end
     if not pendingItems[itemID] then
         pendingItems[itemID] = true
+        events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
         C_Item.RequestLoadItemDataByID(itemID)
     end
 end
@@ -174,26 +175,6 @@ local function ScanBags()
         end
     end
     return food, junk, free, drink
-end
-
-function ns.RestockReagentSliders()
-    local class = select(2, UnitClass("player"))
-    local sliders, seen = {}, {}
-    for _, family in ipairs(FAMILIES) do
-        if family.class == class then
-            for _, rank in ipairs(family) do
-                local item = rank[2]
-                if not seen[item] then
-                    seen[item] = true
-                    local slider = S.Slider("restockTarget" .. item, ItemName(item), 0, CARRY_MAX, 1,
-                        CARRY_HELP, "restockReagents")
-                    slider.getValue = function() return Target(item) end
-                    sliders[#sliders + 1] = slider
-                end
-            end
-        end
-    end
-    return sliders
 end
 
 local function ReagentLines(lines)
@@ -399,6 +380,7 @@ local function OnEvent(_, event, itemID)
     if event == "GET_ITEM_INFO_RECEIVED" then
         if not pendingItems[itemID] then return end
         pendingItems[itemID] = nil
+        if not next(pendingItems) then events:UnregisterEvent("GET_ITEM_INFO_RECEIVED") end
     end
     if event == "MERCHANT_SHOW" then
         OnMerchantShow()
@@ -428,11 +410,11 @@ local function Apply()
     events:RegisterEvent("PLAYER_ENTERING_WORLD")
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
-    events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     events:RegisterEvent("MERCHANT_CLOSED")
     events:RegisterEvent("BAG_UPDATE_DELAYED")
     if HunterAmmoOn() then events:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player") end
     pendingItems[DRINK_ITEM] = true
+    events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     C_Item.RequestLoadItemDataByID(DRINK_ITEM)
     wasResting = IsResting()
     Check()

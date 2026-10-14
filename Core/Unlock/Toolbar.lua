@@ -21,7 +21,6 @@ local FOREVER_ROW_GAP = 4
 local SWITCH_COLUMNS = 2
 local SWITCH_COL = (BAR_W - 2 * BAR_PAD) / SWITCH_COLUMNS
 local LABEL_GAP = 8
-local SECTION_H = 18
 local OFF_ALPHA = 0.4
 local HISTORY_W, ELEMENTS_W = 64, 84
 local TOOLBAR_NAME = "NaowhForeverUnlockToolbar"
@@ -39,12 +38,6 @@ local NO_LAYOUT_VALUES = {}
 
 local configActive, reopenWindowOnExit = false, false
 local configToolbar
-local toolbarChecks, toolbarSection = {}, nil
-
-function ns.AddUnlockModeChecks(section, checks)
-    toolbarSection = section
-    for _, c in ipairs(checks) do toolbarChecks[#toolbarChecks + 1] = c end
-end
 
 local function BarRule(f, y)
     local rule = ns.Solid(f, "ARTWORK", ns.Shared.Style.BORDER_RGB, 1)
@@ -180,22 +173,6 @@ local function GuidesRow(f, y)
     return y + math.max(rowH, SwitchRow())
 end
 
-local function ModuleSwitches(f, y)
-    local switches = {}
-    f._switches = switches
-    if #toolbarChecks == 0 then return y end
-    y = y + BAR_GAP
-    f._section = ns.Font(f, C.LABEL_SIZE, nil, T.muted)
-    f._section:SetPoint("TOPLEFT", BAR_PAD, -y)
-    y = y + SECTION_H
-    local step = SwitchRow()
-    for i, c in ipairs(toolbarChecks) do
-        local col, row = (i - 1) % SWITCH_COLUMNS, math.floor((i - 1) / SWITCH_COLUMNS)
-        switches[i] = BarSwitch(f, c.label, col, y + row * step, c.get, c.set)
-    end
-    return y + math.ceil(#toolbarChecks / SWITCH_COLUMNS) * step + BAR_GAP / 2
-end
-
 local function BuildConfigToolbar()
     if configToolbar then return configToolbar end
     local f = ToolbarFrame()
@@ -208,20 +185,9 @@ local function BuildConfigToolbar()
     end
     local y = HistoryButtons(f, top)
     y = GuidesRow(f, y)
-    f:SetHeight(ModuleSwitches(f, y))
+    f:SetHeight(y)
     configToolbar = f
     return f
-end
-
-local function PaintSwitches(f)
-    if f._section then f._section:SetText(ns.L(toolbarSection())) end
-    for i, c in ipairs(toolbarChecks) do
-        local switch, on = f._switches[i], c.enabled()
-        switch._refreshValue()
-        switch:EnableMouse(on)
-        switch:SetAlpha(on and 1 or OFF_ALPHA)
-        switch.label:SetAlpha(on and 1 or OFF_ALPHA)
-    end
 end
 
 function ns.ShowUnlockMode()
@@ -235,7 +201,6 @@ function ns.ShowUnlockMode()
     PaintLayout()
     ShowPanel(ns.UnlockModeSettings.Get("elementsPanel") ~= false)
     for _, item in ipairs(placement.items) do PaintMarks(item) end
-    PaintSwitches(f)
     f:Show()
     ns.SetAnchorGridShown(true)
 end

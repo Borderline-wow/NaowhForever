@@ -156,7 +156,5 @@ local function OnSetting(key)
     if key == "enabled" or key:find("^characterPanel") then Apply() end
 end
 
-CP.ApplyChrome = Apply
-
 S.OnChange(OnSetting)
 hooksecurefunc(ns, "Apply", Apply)

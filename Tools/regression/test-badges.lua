@@ -354,12 +354,6 @@ do  -- chat, card, tooltip
     check("preview none: your own name wears no badge, the panel sees none",
         not say(filter, "Me", 899, "Player-1-SELF"):find("Badge", 1, true) and s.ns.BadgeOf("Player-1-SELF") == nil)
     s.ns.BadgesCommand("preview developer")
-    -- The card for a preview badge on any name, as the character panel's pitch card shows it.
-    s.ns.ShowBadgeCard("legendary", "Dieman")
-    check("a preview badge's card: the tier's title on the name given", card.title.text == "Legendary Patron"
-        and card.player.text == "Dieman" and card:IsShown())
-    s.ns.HideBadgeCard()
-    check("and it hides", not card:IsShown())
     check("preview badges your own name", say(filter, "Me", 900, "Player-1-SELF"):find("BadgeDeveloper", 1, true))
     enter.fn(enter.owner, {}, "player:Me-Realm:900:SAY", "[Me]")
     check("developer preview: title, no supporter date", card.title.text == "Lead Developer"
@@ -1000,8 +994,6 @@ do  -- ns.FEATURE_BADGES = 0: the team's badges only, on the defaults, with no s
     s.postCalls[1](tooltip, { guid = "Player-1-LEG" })
     check("flag 0: a tooltip line for the moderator, none for the patron", #lines == 1
         and lines[1]:find("Moderator", 1, true))
-    ns.ShowBadgeCard("legendary", "Someone")
-    check("flag 0: no patron preview card", card.title.text == "Lead Developer")
 
     s.me = "Player-1-SELF"
     s.region = 1

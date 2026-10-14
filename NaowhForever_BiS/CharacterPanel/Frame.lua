@@ -27,7 +27,7 @@ local function CloseCross(close)
     return cross
 end
 
-CP.HEADER, CP.TITLE_SIZE, CP.LEVEL_SIZE, CP.MODEL_ALPHA = HEADER, TITLE_SIZE, LEVEL_SIZE, MODEL_ALPHA
+CP.HEADER, CP.TITLE_SIZE, CP.LEVEL_SIZE = HEADER, TITLE_SIZE, LEVEL_SIZE
 
 function CP.Chrome(frame)
     local back = CreateFrame("Frame", nil, frame)

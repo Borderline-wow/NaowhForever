@@ -244,11 +244,10 @@ local function Shown(flag)
     end
     local pages = #texts
 
-    for key, tier in pairs(ns.BADGE_TIERS) do
+    for _, tier in pairs(ns.BADGE_TIERS) do
         for _, field in ipairs({ "title", "about", "label", "tooltipLine" }) do
             if tier[field] then texts[#texts + 1] = tier[field] end
         end
-        ns.ShowBadgeCard(key, "Someone")
     end
     texts[#texts + 1] = ns.BadgeSince({ tier = "legendary", since = "2026-03" })
     for _, command in ipairs({ "", "preview", "toast", "preview none", "preview off", "id" }) do

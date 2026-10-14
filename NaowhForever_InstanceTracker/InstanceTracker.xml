@@ -1,0 +1,7 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- InstanceTracker.xml: the Instance Tracker's files, in load order. -->
+    <Script file="InstanceTracker.lua"/>
+    <Script file="UI\Pages.lua"/>
+    <Script file="UI\Window.lua"/>
+    <Script file="UI\SettingsPage.lua"/>
+</Ui>

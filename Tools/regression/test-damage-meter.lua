@@ -429,7 +429,7 @@ do
     check("class colors by default", s.store.Get("barColor") == "class")
     local DM = s.DM
     local C = DM.C
-    check("ten lists, in order", #C.MODES == 10 and C.MODE_ORDER[1] == "damage" and C.MODE_ORDER[2] == "dps"
+    check("ten lists, in order", #C.MODE_ORDER == 10 and C.MODE_ORDER[1] == "damage" and C.MODE_ORDER[2] == "dps"
         and C.MODE_ORDER[4] == "hps" and C.MODE_ORDER[6] == "avoidable" and C.MODE_ORDER[10] == "deaths")
     check("DPS and HPS are the game's own lists and lead with the per-second figure",
         DM.Mode("dps").type == "Dps" and DM.Mode("hps").type == "Hps" and DM.Mode("dps").rateFirst == true

@@ -86,8 +86,5 @@ local function OnSetting(key)
     if key == "enabled" or key:find("^characterPanel") then Apply() end
 end
 
-CP.MarksOn = MarksOn
-CP.ApplySlots = Apply
-
 S.OnChange(OnSetting)
 hooksecurefunc(ns, "Apply", Apply)

@@ -5,6 +5,7 @@ local Jy = ns.Journeys
 local C = Jy.C
 local S = Jy.Settings
 local World = Jy.World
+local Walk = Jy.Walk
 local Guide = Jy.Guide
 
 local PERCENT = 100
@@ -62,7 +63,8 @@ local function Nearest(camps)
 end
 
 local function FromData(quest)
-    local spots = ns.JourneyQuestSpots[quest]
+    if not ns.JourneyQuestSpots then Walk.Ready() end
+    local spots = ns.JourneyQuestSpots and ns.JourneyQuestSpots[quest]
     if not spots then return nil end
     local turnIn, camps = spots[1], spots[2]
     if turnIn and (C_QuestLog.IsComplete(quest) or #camps == 0) then

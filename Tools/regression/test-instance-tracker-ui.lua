@@ -16,11 +16,13 @@ end
 local toc = Read("NaowhForever.toc")
 local moduleToc = Read("NaowhForever_InstanceTracker/NaowhForever_InstanceTracker.toc")
 local window = Read("Core/Options/Modules.lua")
-local tracker = Read("NaowhForever_InstanceTracker/NaowhForever_InstanceTracker.lua")
-local page = Read("NaowhForever_InstanceTracker/NaowhForever_InstanceTrackerPage.lua")
-local lists = Read("NaowhForever_InstanceTracker/NaowhForever_InstanceTrackerWindow.lua")
+local moduleXml = Read("NaowhForever_InstanceTracker/InstanceTracker.xml")
+local tracker = Read("NaowhForever_InstanceTracker/InstanceTracker.lua")
+local page = Read("NaowhForever_InstanceTracker/UI/Pages.lua")
+    .. Read("NaowhForever_InstanceTracker/UI/SettingsPage.lua")
+local lists = Read("NaowhForever_InstanceTracker/UI/Window.lua")
 
-Check(toc:find("NaowhForever_InstanceTracker.lua", 1, true) == nil,
+Check(toc:find("InstanceTracker", 1, true) == nil,
     "the core toc does not load the tracker")
 Check(moduleToc:match("## Interface:[^%c]*") == toc:match("## Interface:[^%c]*")
     and moduleToc:match("## Version:[^%c]*") == toc:match("## Version:[^%c]*"),
@@ -28,11 +30,13 @@ Check(moduleToc:match("## Interface:[^%c]*") == toc:match("## Interface:[^%c]*")
 Check(moduleToc:find("## Dependencies: NaowhForever", 1, true) ~= nil
     and moduleToc:find("## Group: NaowhForever", 1, true) ~= nil,
     "the module depends on NaowhForever and is grouped with it")
-local tocAt = moduleToc:find("NaowhForever_InstanceTracker.lua", 1, true)
-local pageAt = moduleToc:find("NaowhForever_InstanceTrackerPage.lua", 1, true)
-local windowAt = moduleToc:find("NaowhForever_InstanceTrackerWindow.lua", 1, true)
-Check(tocAt and pageAt and windowAt and tocAt < pageAt and pageAt < windowAt,
-    "tracker, then its page, then its window")
+Check(moduleToc:find("\nInstanceTracker.xml", 1, true) ~= nil, "its TOC loads its XML")
+local trackerAt = moduleXml:find('file="InstanceTracker.lua"', 1, true)
+local pagesAt = moduleXml:find('file="UI\\Pages.lua"', 1, true)
+local windowAt = moduleXml:find('file="UI\\Window.lua"', 1, true)
+local settingsAt = moduleXml:find('file="UI\\SettingsPage.lua"', 1, true)
+Check(trackerAt and pagesAt and windowAt and settingsAt and trackerAt < pagesAt and pagesAt < windowAt
+    and windowAt < settingsAt, "the tracker, then its pages, its window and its settings page")
 
 Check(tracker:find("Parts.TrackerPanel(", 1, true) ~= nil, "the timer is a tracker panel")
 Check(tracker:find('page = SETTINGS_PAGE, card = TIMER_CARD', 1, true) ~= nil,

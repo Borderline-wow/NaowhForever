@@ -1115,10 +1115,11 @@ do
     check("in Ironforge: its city and the Gnomeregan Exiles", Keys() == "Ironforge GnomereganExiles")
     state.standingOn = 1454
     check("in Orgrimmar, for the Alliance: none", Keys() == "")
-    local Rep = J.Reputation
-    check("your side's cities are listed", Rep.Shown(J.GetFaction("Stormwind")))
-    check("the other side's are not", not Rep.Shown(J.GetFaction("Orgrimmar")))
-    check("a city's hand-ins: Additional Runecloth", J.GetFaction("Stormwind").turnins[1].name == "Additional Runecloth")
+    local Rep, cities = J.Reputation, {}
+    for _, faction in ipairs(J.Factions("reputation")) do cities[faction.key] = faction end
+    check("your side's cities are listed", Rep.Shown(cities.Stormwind))
+    check("the other side's are not", not Rep.Shown(cities.Orgrimmar))
+    check("a city's hand-ins: Additional Runecloth", cities.Stormwind.turnins[1].name == "Additional Runecloth")
     state.instance = { id = 529, name = "Arathi Basin", kind = "pvp" }
     check("in Arathi Basin: the League of Arathor", Keys() == "LeagueOfArathor")
     state.instance = { id = 36, name = "The Deadmines" }
@@ -2486,6 +2487,14 @@ do
     check("and your quest log selection is put back", state.selected == 99)
 end
 
+local function FactionOf(J, key)
+    for _, tab in ipairs({ "reputation", "pvp" }) do
+        for _, faction in ipairs(J.Factions(tab)) do
+            if faction.key == key then return faction end
+        end
+    end
+end
+
 -------------------------------------------------------------------------------
 --  The factions' data: each faction's rewards by standing, Neutral to Exalted, every reward
 --  known to the item facts, and each faction linked with the dungeons it is earned in
@@ -2500,7 +2509,6 @@ do
         for _, faction in ipairs(list) do
             check(faction.key .. " is listed once", not seen[faction.key])
             seen[faction.key] = true
-            check(faction.key .. " is found by its key", J.GetFaction(faction.key) == faction)
             check(faction.key .. " has a name and an ID", type(faction.name) == "string" and faction.id > 0)
             check(faction.key .. "'s rewards are a list, empty while a build has none", type(faction.tiers) == "table")
             local last = 0
@@ -2520,7 +2528,7 @@ do
                 or faction.group == "Cities"))
         end
     end
-    local dawn, strat = J.GetFaction("ArgentDawn"), J.Get("Stratholme")
+    local dawn, strat = FactionOf(J, "ArgentDawn"), J.Get("Stratholme")
     local linked = false
     for _, f in ipairs(strat.factions or {}) do linked = linked or f == dawn end
     check("Stratholme links to the Argent Dawn", linked)
@@ -2534,7 +2542,7 @@ end
 do
     local ns, state, S = fixture()
     local J, Rep = ns.Journal, ns.Journal.Reputation
-    local dawn = J.GetFaction("ArgentDawn")
+    local dawn = FactionOf(J, "ArgentDawn")
     check("a faction not met has no standing", Rep.Standing(dawn) == nil)
     state.standings[529] = { reaction = 6, currentStanding = 12000, currentReactionThreshold = 9000,
         nextReactionThreshold = 21000 }
@@ -2567,7 +2575,7 @@ do
     bis, have = Rep.Bis(dawn)
     check("and you have it", bis == 1 and have == 1)
 
-    local defilers, league = J.GetFaction("Defilers"), J.GetFaction("LeagueOfArathor")
+    local defilers, league = FactionOf(J, "Defilers"), FactionOf(J, "LeagueOfArathor")
     check("both sides' battleground factions show", Rep.Shown(defilers) and Rep.Shown(league))
     S.Set("showHorde", false)
     check("the switch hides the Horde's", not Rep.Shown(defilers) and Rep.Shown(league))
@@ -2717,7 +2725,7 @@ do
     local ns, state, S = fixture({ enabled = true })
     local J = ns.Journal
     local Loot, Rep = J.Loot, J.Reputation
-    local druids = J.GetFaction("NightclawDruids")
+    local druids = FactionOf(J, "NightclawDruids")
     -- Its Friendly rewards: two tailoring recipes (one known), a blacksmithing one, and gear.
     local friendly = druids.tiers[1].items
     local tailor, known, smith, gear = friendly[1], friendly[2], friendly[3], friendly[4]
@@ -2858,7 +2866,7 @@ do
         and placed.title == "Nightclaw Quartermaster" and state.mapOpened == 2422)
 
     -- The list: the unlocked counts, and the raids not in Forever closed under their title.
-    local zandalar = J.GetFaction("ZandalarTribe")
+    local zandalar = FactionOf(J, "ZandalarTribe")
     check("Zandalar Tribe is not in Forever yet", zandalar.unreleased == true)
     check("listed apart, closed", Said("NOT IN FOREVER YET") ~= nil and not Said("Zandalar Tribe"))
     S.Set("openUnreleased", true)
@@ -2999,7 +3007,7 @@ do
     druids.turnins, druids.questData, state.owned[12840] = nil, nil, nil
     state.log, state.logged[70001], state.logged[70002], state.onQuest = {}, nil, nil, nil
     -- The data's own: Timbermaw's feathers and beads, each item one the game knows.
-    ns.OpenJournalWindow(J.GetFaction("TimbermawHold"))
+    ns.OpenJournalWindow(FactionOf(J, "TimbermawHold"))
     check("Timbermaw lists its hand-ins", QuestRow("Feathers for Grazle") and QuestRow("Beads for Salfa")
         and Said("+50 rep"))
     check("each saying who takes it and where", Said("Grazle (51, 85)"))

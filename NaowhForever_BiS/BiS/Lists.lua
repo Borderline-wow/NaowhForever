@@ -300,11 +300,6 @@ function ns.MoveBisPick(slot, itemID, step)
     Changed()
 end
 
-function ns.TopBisPick(slot, itemID)
-    Edit(List(), slot, Top, itemID)
-    Changed()
-end
-
 function ns.AddBisItem(value)
     local id = Items.IDFrom(value)
     local fits = id and Items.SlotsFor(id)

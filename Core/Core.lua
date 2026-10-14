@@ -23,7 +23,6 @@ local MAX_FRAME_LEVEL = 9999
 local OFFSCREEN = 0.9
 local BUTTON_TEXT_SIZE, BUTTON_REST_ALPHA = 12, 0.9
 local SKIN_CLASSIC, SKIN_FOREVER = "classic", "forever"
--- The Forever skin sets text as the game does: Friz Quadrata, and Arial Narrow for compact numbers.
 local FONT_NAOWH, FONT_CLASSIC, FONT_DATA = "Naowh", "Friz Quadrata TT", "Arial Narrow"
 local FONT_HEADING = FONT_CLASSIC
 local LOCALE_ADDON, ENGLISH = "NaowhForever_Locales", "enUS"
@@ -89,7 +88,11 @@ if ns.LOCALE ~= ENGLISH then
     C_AddOns.LoadAddOn(LOCALE_ADDON)
 end
 
-local catalog = _G.NaowhForeverLocale or {}
+local catalog = {}
+for key, text in pairs(_G.NaowhForeverLocale or {}) do
+    if text ~= true then catalog[key] = text end
+end
+_G.NaowhForeverLocale = nil
 local translation = _G.NaowhForeverTranslation or {}
 function ns.L(key, ...)
     local text = translation[key]
@@ -482,9 +485,6 @@ if LSM then
 end
 
 ns.BLIZZARD_FONT = "__blizzard"
--- name is the font as requested (an LSM name or one of this file's FONT_* constants), path its
--- resolved file. The Cyrillic swap keys off the request, not the resolved path, so it still
--- applies if LSM's registration for Friz Quadrata ever changes.
 function ns.LocaleFont(name, path)
     if GLYPH_FONTS[ns.LOCALE] then return GLYPH_FONTS[ns.LOCALE] end
     if ns.LOCALE == "ruRU" and name == FONT_CLASSIC then return FRIZ_CYRILLIC end
@@ -517,7 +517,6 @@ function ns.HeadingFontPath(classic)
     return FontPath(FONT_HEADING) or ns.UIFontPath()
 end
 
--- Compact numbers (a slider's value): Arial Narrow on the Forever skin, else the Addon Font.
 function ns.DataFontPath()
     if not ns.foreverSkin or ns.AccountSettings().uiFont then return ns.UIFontPath() end
     return FontPath(FONT_DATA) or ns.UIFontPath()
@@ -705,7 +704,6 @@ function ns.Button(parent, text, w, h, onClick, template)
     return btn
 end
 
--- The game marks no button as the main one.
 function ns.AccentBorder(frame)
     if frame and frame._forever then return frame end
     if not (frame and frame._border) or frame._art then return frame end
@@ -1320,11 +1318,6 @@ function ns.ApplySpecProfile(specID)
     if not want or type(sv.profiles[want]) ~= "table" then return false end
     if sv.charActive[CharKey()] == want then return false end
     return (ns.SwitchProfile(want)) and true or false
-end
-
-function ns.ProfileSettings(name)
-    local p = DB().profiles[name]
-    return type(p) == "table" and type(p.tankReminder) == "table" and p.tankReminder or nil
 end
 
 function ns.EnsureProfile(name)

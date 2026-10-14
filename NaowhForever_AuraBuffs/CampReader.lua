@@ -269,7 +269,6 @@ end
 
 Camp.Secret = Secret
 Camp.Hidden = Hidden
-Camp.BonusLabel = BonusLabel
 
 function Camp.Refresh() end
 

@@ -95,7 +95,7 @@ local ordered, byKey = {}, {}
 local newBosses = {}
 local byNpc, dungeonOf
 local byMap, byName
-local factions, factionByKey = { reputation = {}, pvp = {} }, {}
+local factions = { reputation = {}, pvp = {} }
 local byZone, byBattleground
 local inFront = {}
 
@@ -241,7 +241,6 @@ function J.AddFaction(key, faction)
     for _, tier in ipairs(faction.tiers) do tier.faction = faction end
     local list = factions[faction.tab]
     list[#list + 1] = faction
-    factionByKey[key] = faction
 end
 
 function J.Dungeons()
@@ -257,11 +256,6 @@ end
 function J.Factions(tab)
     Joined()
     return factions[tab]
-end
-
-function J.GetFaction(key)
-    Joined()
-    return factionByKey[key]
 end
 
 function J.Levels(dungeon)

@@ -245,7 +245,6 @@ function Parts.Window(width, height, positionKey)
     return window
 end
 
--- False when the name has no icon or this client lacks its file; the caller keeps its glyph.
 function Parts.ClassicIcon(texture, name)
     local icon = ns.foreverSkin and St.CLASSIC_ICONS[name]
     if not (icon and texture:SetTexture(St.CLASSIC_ICON_PATH .. icon)) then return false end

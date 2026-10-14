@@ -7,7 +7,6 @@
     <Script file="Commands.lua"/>
     <Script file="Store.lua"/>
     <Script file="Smart.lua"/>
-    <Script file="Profile.lua"/>
     <Script file="Sharing.lua"/>
     <Script file="View\Style.lua"/>
     <Script file="View\Parts.lua"/>

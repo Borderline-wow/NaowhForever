@@ -92,7 +92,9 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   makes it transparent instead of hiding it. Resizing waits for combat to end for the same reason.
 - Once dragged, Blizzard's window is moved to where ours was put, out of combat only (it holds secure
   buttons); anchoring it to ours instead would make ours protected. The panel manager places it
-  again whenever any panel opens or closes, so its SetPoint is hooked.
+  again whenever any panel opens or closes, so its SetPoint is hooked. EllesmereUI's Shifter puts
+  ProfessionsFrame back at its own saved spot on every SetPoint, so with the Shifter on that saved
+  spot is written too.
 - A trade link reads `trade:<crafter GUID>:<spell>:<skill line>`; only a plain click opens it. Opened
   from a closed window, a link does not always read as linked yet, so the click is remembered. A
   link clicked while Blizzard's window is loaded but closed makes Forever cast every one of your

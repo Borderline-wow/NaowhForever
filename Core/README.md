@@ -207,6 +207,8 @@ Modals and windows
   builds (previews, lazy journal reads) never run off-screen. A profile import can change any tab, so
   every cached tab is invalidated, not only the one on show.
 - Window scale is set from a dropdown, not a slider: the control sits inside the frame it resizes.
+- Sidebar rows are 28 high (`NAV_ROW`) so every module fits the default 852-high window
+  (test-navigation.lua).
 - The options window and a module's window size through `Parts.Resizable`; letting go of the grip
   (`onReleased`) fits the page to the new width and redraws it only when that width changed.
 
@@ -256,7 +258,8 @@ Widgets
 - On Forever a field has a bronze rim one pixel outside its black edge (`Parts.ForeverField`), and
   a button is the game's red `128-RedButton` (`Parts.ForeverButton`, see Shared/README.md); its
   pieces are its `_art`, and drawn, its bronze rim hangs off the edge's frame, so the
-  Flight Timer fades them with the rest.
+  Flight Timer fades them with the rest. `ns.AccentBorder` leaves the game's button art alone: the
+  game marks no button as the main one.
 - `UI.KeyField` takes a binding command, or functions for its action and label, for one field
   pointed at another binding each time its panel opens; its `_refreshValue` shows the new one.
 

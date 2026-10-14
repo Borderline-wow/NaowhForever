@@ -146,7 +146,6 @@ end
 
 local R = {}
 B.Rankings = R
-R.SOURCE_SEP = SOURCE_SEP
 R.Usable = Items.ClassCanUse
 
 function R.ClassSpecs()

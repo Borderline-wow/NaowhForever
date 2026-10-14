@@ -119,7 +119,6 @@ local St = setmetatable({
     LIST_BAR = 4,
     LIST_BAR_GAP = 2,
     GROUP_H = 22,
-    STANDING_BAR = 6,
     LIST_STANDING_W = 30,
 
     ROLE_ATLAS = { T = "UI-LFG-RoleIcon-Tank-Micro", H = "UI-LFG-RoleIcon-Healer-Micro",

@@ -4,7 +4,6 @@
     <Script file="Constants.lua"/>
     <Script file="Data\Network.lua"/>
     <Script file="Data\Teleports.lua"/>
-    <Script file="Data\QuestSpots.lua"/>
     <Script file="Planner.lua"/>
     <Script file="World.lua"/>
     <Script file="Walk.lua"/>

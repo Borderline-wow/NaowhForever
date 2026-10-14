@@ -1,4 +1,4 @@
--- InstanceTrackerWindow.lua: this hour and the visit history, in Instance Tracker's own window.
+-- Window.lua: this hour and the visit history, in Instance Tracker's own window.
 local ns = _G.NaowhForever
 local S = ns.InstanceTrackerSettings
 local Shared = ns.Shared

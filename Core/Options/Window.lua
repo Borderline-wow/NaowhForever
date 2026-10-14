@@ -25,7 +25,6 @@ local SCROLL_BAR_GAP = 12
 local NAV_STEP = 30
 local NAV_DOT, NAV_OPEN, NAV_OPEN_ICON = 6, 22, 14
 local NAV_COUNT_SIZE = 12
--- 28 keeps every module inside the default 852-high window (test-navigation.lua).
 local NAV_ROW, NAV_OFF_ALPHA = 28, 0.45
 local MISS_ALPHA = 0.3
 local NAV_BUTTON_EXTRA, NAV_FILL_ALPHA, NAV_MARKER_W = 6, 0.16, 3
@@ -88,7 +87,7 @@ local navButtons, tabStrips, navBlocks = {}, {}, {}
 local wrappers = {}
 local currentPage = FIRST_PAGE
 local pendingRefresh
-local onShowCallbacks, onHideCallbacks = {}, {}
+local onHideCallbacks = {}
 local moduleWindows = {}
 local refreshQueued
 local lastFilter, searchJump
@@ -100,9 +99,7 @@ function ns.VersionText()
     return TEXT_VERSION .. (ns.CODE_BUILD or C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or TEXT_UNKNOWN)
 end
 
-function UI:RegisterOnShow(fn) onShowCallbacks[#onShowCallbacks + 1] = fn end
 function UI:RegisterOnHide(fn) onHideCallbacks[#onHideCallbacks + 1] = fn end
-function UI:ClearContentHeader() end
 
 local function SoonPage(parent, text)
     local head, body = parent.soonHead, parent.soonBody
@@ -268,8 +265,7 @@ end
 local function BuildWrapper(wrapper, child, key, filter)
     wrapper._builtWidth = child:GetWidth()
     wrapper._dirty = nil
-    wrapper._pageKey, wrapper._collapsible, wrapper._nsuiCollapsed = key, PAGES[key].collapse, nil
-    wrapper._nsuiFeatureId = nil
+    wrapper._nsuiCollapsed = nil
     if PAGES[key].reuse then UI.BeginReusableRows(wrapper) end
     local usedY = BuildPageInto(PAGES[key], wrapper, filter)
     wrapper:SetHeight(math.abs(usedY) + PAGE_ROOM)
@@ -913,7 +909,6 @@ local function OnWindowShow(self)
         InvalidatePages(wrappers)
     end
     ShowPage(currentPage)
-    for i = 1, #onShowCallbacks do onShowCallbacks[i]() end
 end
 
 local function OnWindowHide()
