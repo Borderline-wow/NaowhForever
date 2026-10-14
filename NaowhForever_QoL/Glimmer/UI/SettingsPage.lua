@@ -148,7 +148,7 @@ page:Window({
 })
 
 page:Card({
-    id = "look", name = "Glimmer", order = ORDER_LOOK, switch = "enabled",
+    id = "look", name = "Glimmer", order = ORDER_LOOK, switch = "enabled", open = true,
     help = "Herbs, ore, chests and quest objects light up as you walk up to them.",
     studio = { height = STAGE_H, states = LOOK_STATES, new = NewPreview, paint = PaintPreview },
     rows = {

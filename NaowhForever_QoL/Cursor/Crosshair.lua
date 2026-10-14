@@ -325,7 +325,7 @@ local function Summary(store)
 end
 
 ns.Shared.Settings.Page("QoL/Cursor & Crosshair", S):Card({
-    id = "crosshair", name = "Crosshair", order = 10, switch = "crosshair", collapsed = true,
+    id = "crosshair", name = "Crosshair", order = 10, switch = "crosshair",
     help = "A crosshair at the middle of your screen.",
     summary = Summary,
     studio = { height = STAGE_H, states = STATES, new = NewPreview, paint = PaintPreview },

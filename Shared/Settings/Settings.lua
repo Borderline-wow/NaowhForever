@@ -210,17 +210,6 @@ local function Needing(row, key)
     return true, row.why or (label and ns.L(TEXT_NEEDS, ns.L(label)))
 end
 
-local function CountCards(page)
-    local cards, first = 0, nil
-    for _, item in ipairs(page.items) do
-        if not item.window then
-            cards = cards + 1
-            first = first or item
-        end
-    end
-    return cards, first
-end
-
 local function Static(text)
     return type(text) == "string" and text or ""
 end
@@ -421,10 +410,7 @@ end
 function Settings.IsOpen(card)
     local state = open[card.uid]
     if state ~= nil then return state end
-    if card.info then return card.open == true end
-    if card.collapsed then return false end
-    local cards, first = CountCards(card.page)
-    return cards == 1 or (first == card and card.studio ~= nil)
+    return card.open == true
 end
 
 function Settings.SetOpen(card, on)

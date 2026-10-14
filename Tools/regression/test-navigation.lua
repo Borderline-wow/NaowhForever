@@ -637,8 +637,8 @@ do
     input:SetText("skin"); Flush()
     Check(drawnWith[#drawnWith] == UI.filter, "the page draws again as the words change")
     root.scripts.OnKeyDown(root, "ESCAPE"); Flush()
-    Check(UI.filter == nil and drawnWith[#drawnWith] == false and Shown("Onboarding") ~= nil,
-        "cleared, the page is drawn whole again")
+    Check(UI.filter == nil and drawnWith[#drawnWith] == false and Head("Setups") ~= nil and not Shown("Onboarding"),
+        "cleared, the page is drawn whole again, its card folded as it started")
 
     -- A window card is found by its button and drawn on its page while the search holds it.
     Settings.Page("QoL/Combat", S):Window({ text = "Open Test Log", open = function() end, headline = "Test Log",

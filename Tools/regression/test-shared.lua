@@ -312,7 +312,7 @@ local store = {
     OnChange = NOTHING,
 }
 local Settings = Shared.Settings
-Settings.Page("Test/Costs", store):Card({ id = "costs", name = "Costs", switch = "on", rows = {
+Settings.Page("Test/Costs", store):Card({ id = "costs", name = "Costs", switch = "on", open = true, rows = {
     Settings.Group("Look"),
     { key = "shown", label = "Shown", toggle = true },
     { key = "size", label = "Size", slider = { 8, 32, 1 }, unit = "px", needs = "shown" },
@@ -530,7 +530,7 @@ local lookStore = {
     Set = function(k, v) lookValues[k] = v end,
     OnChange = NOTHING,
 }
-local card = Settings.Page("Test/Look", lookStore):Card({ id = "look", name = "Look", rows = {
+local card = Settings.Page("Test/Look", lookStore):Card({ id = "look", name = "Look", open = true, rows = {
     Settings.Group("Behaviour"),
     { key = "on", label = "On", toggle = true },
     Settings.Look("", { bar = "Flat" }),
@@ -602,7 +602,7 @@ local cogStore = {
     OnChange = function(fn) listeners[#listeners + 1] = fn end,
 }
 local backed, anchored = 0, false
-local cogCard = Settings.Page("Test/Cogs", cogStore):Card({ id = "bar", name = "Bar", rows = {
+local cogCard = Settings.Page("Test/Cogs", cogStore):Card({ id = "bar", name = "Bar", open = true, rows = {
     { key = "showCount", label = "Show Count", toggle = true, cog = { title = "Count Text", tip = "Its text." } },
     { key = "countSize", label = "Count Size", slider = { 8, 32, 1 }, under = "Show Count" },
     { key = "countX", label = "Count X", slider = { -50, 50, 1 }, under = "Show Count" },
@@ -671,7 +671,7 @@ check("a second click on the cog closes it", not panel.shown)
 cogIcon = PageRow("Show Count").icons[1]
 cogIcon.scripts.OnClick(cogIcon)
 check("the cog is open again", panel.shown)
-local otherCard = Settings.Page("Test/Folded", cogStore):Card({ id = "f", name = "F", rows = {
+local otherCard = Settings.Page("Test/Folded", cogStore):Card({ id = "f", name = "F", open = true, rows = {
     { key = "other", label = "Other", toggle = true } } })
 local foldedParent = Frame()
 Settings.Render(foldedParent, "Test/Folded", NOTHING)

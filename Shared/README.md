@@ -484,9 +484,9 @@ What a comment in the code used to say, in short. The house rules behind it are 
 - A settings row with `field` is one entry of a table setting: its dot and reset are that
   entry's own. A number counts as unchanged within `SAME_WITHIN`, so a value saved back through
   a slider or color picker still reads as the default.
-- A page's only card opens by itself, as does its first card when it has a live preview, unless
-  the card says `collapsed = true` (the Crosshair, so the Cursor & Crosshair tab opens folded). A
-  search holds a card open, so its head does not fold it.
+- A card starts folded unless it says `open = true` (Damage Meter, Glimmer and Top Bar), so a tab
+  opens showing its sections, not one long card. A card someone opened or folded stays so for the
+  session. A search holds a card open, so its head does not fold it.
 - A hidden row is set on the card's preview instead; it is still searched, counted and reset. A
   search match on a hidden row shows the card whole, and part of a card shows no reset, which
   would reset what is left out too.

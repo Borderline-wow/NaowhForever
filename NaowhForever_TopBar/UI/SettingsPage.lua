@@ -81,7 +81,7 @@ local ROWS = {
 }
 
 ns.Shared.Settings.Page("QoL/Interface", S):Card({
-    id = "topBar", name = "Top Bar", order = 10, switch = "enabled",
+    id = "topBar", name = "Top Bar", order = 10, switch = "enabled", open = true,
     help = "Your buttons on either side of an optional clock, with FPS and latency underneath. Arrange the "
         .. "buttons in the preview: drag one to move it, its x removes it, a side's + adds one. Move "
         .. "the bar in the HUD Editor.",
