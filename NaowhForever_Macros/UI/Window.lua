@@ -332,6 +332,7 @@ end
 local function OnHide(self)
     self:UnregisterAllEvents()
     if F.picker then F.picker:Hide() end
+    if F.spellPopup then F.spellPopup:Hide() end
 end
 
 local function Build()

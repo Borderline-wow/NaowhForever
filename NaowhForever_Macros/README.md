@@ -39,6 +39,7 @@ NaowhForever_Macros/
     NewMacro.lua            the New Macro dialog on the Library tab (F.NewMacro)
     Editor.lua              My Macros' editor: the draft, its name, icon, byte meter, code box, Save, Undo, Delete
     List.lua                My Macros' list: your macros, searchable, with a dot for one with problems
+    SpellSuggest.lua        the spells you know, offered under a spell box as you type
     Builder.lua             the Build view (Simple, and Advanced's Build tab) and Test it
     Inspector.lua           Advanced's side panel (Build, Reads as, Simulate) and the icon picker
     Window.lua              the window, its tabs, title bar and footer (ns.OpenMacroWindow)
@@ -94,6 +95,9 @@ the open tab) and the functions its UI files call on each other.
   an unknown condition, more than one bracket per clause after `Text.Expand`) stays exactly as typed
   and says to edit it in Advanced. #355 had taken the editor out in favour of `/macro`; this one
   brings it back with the Simple view for players who do not know the syntax.
+- The spell boxes (the recipe's, a `/cast` line's, Button shows) offer the spells in your spellbook:
+  active spells only, one per name whatever its ranks, read again after `SPELLS_CHANGED`. `/use`
+  boxes take items, so they offer nothing.
 - The code box shows the text with color codes; `Text.Strip` gives the plain text back and
   `Text.PlainPos`/`CodedPos` keep the cursor in place when the colors are rewritten as you type.
 - Save, Delete and a picked icon refuse in combat, like every other macro write. An icon picked for a

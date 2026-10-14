@@ -30,6 +30,7 @@ local QUESTION_GAP = 6
 local NEW_BODY = "#showtooltip\n/cast "
 local DEFAULT_UNIT = "target"
 local SHOWTOOLTIP = "#showtooltip"
+local SPELL_COMMANDS = { ["/cast"] = true, ["/castrandom"] = true }
 
 local TEXT_PROBLEMS = ns.L("Problems")
 local TEXT_FIX = ns.L("Fix it")
@@ -300,19 +301,36 @@ local function Menu(owner, fill)
     MenuUtil.CreateContextMenu(owner, function(_, root) fill(root) end)
 end
 
-local function ArgBox(parent, commit)
-    local box = ns.NewEditBox(parent)
-    box:SetHeight(ROW_H)
-    box:SetFont(ns.UIFontPath(), TEXT_SIZE, "")
-    box:SetScript("OnEnterPressed", box.ClearFocus)
-    box:SetScript("OnEscapePressed", function(self)
-        self:SetText(self.committed or "")
+local function SpellBox(box)
+    box:SetScript("OnEditFocusGained", F.SuggestOpen)
+    box:SetScript("OnTextChanged", F.SuggestTyped)
+    box:SetScript("OnArrowPressed", F.SuggestMove)
+    box:SetScript("OnHide", F.SuggestClose)
+    box:SetScript("OnEnterPressed", function(self)
+        F.SuggestAccept(self)
         self:ClearFocus()
     end)
     box:SetScript("OnEditFocusLost", function(self)
+        if F.SuggestHeld() then return end
+        F.SuggestClose(self)
+        if self.Commit then self:Commit() end
+    end)
+    return box
+end
+
+local function ArgBox(parent, commit)
+    local box = SpellBox(ns.NewEditBox(parent))
+    box:SetHeight(ROW_H)
+    box:SetFont(ns.UIFontPath(), TEXT_SIZE, "")
+    box:SetScript("OnEscapePressed", function(self)
+        F.SuggestClose(self)
+        self:SetText(self.committed or "")
+        self:ClearFocus()
+    end)
+    function box:Commit()
         local text = strtrim(self:GetText() or "")
         if text ~= (self.committed or "") then commit(self, text) end
-    end)
+    end
     return box
 end
 
@@ -386,6 +404,7 @@ local function NewCard(body)
     card.note:SetWordWrap(true)
     card.hint = Label(card, SMALL_SIZE, T.muted)
     card.shows = ArgBox(card, function(box, text) SetShows(box.line, text) end)
+    card.shows.spells = true
     card.clauses = P.Pool(function() return NewClause(card) end)
     card.otherwise = SmallButton(card, TEXT_OTHERWISE, OTHERWISE_W)
     card.otherwise._onClick = function() AddOtherwise(card.line) end
@@ -593,6 +612,7 @@ local function DrawClause(card, p, ci, n, width, y)
     row.arg:SetPoint("RIGHT", 0, 0)
     row.arg.line, row.arg.clause = n, ci
     row.arg.committed = strtrim(clause.arg or "")
+    row.arg.spells = SPELL_COMMANDS[p.cmd]
     row.arg:SetShown(verb ~= nil)
     row.verb:SetWidth(verb and VERB_W or width)
     row.verb:SetText(verb or Text.Action(p, clause))
@@ -756,10 +776,13 @@ local function BuildExtras(view)
     view.recipeHint = Label(body, SMALL_SIZE, T.muted)
     view.recipeHint:SetWordWrap(true)
     view.recipeHint:SetText(TEXT_RECIPE_HINT)
-    view.spell = ns.NewEditBox(body)
+    view.spell = SpellBox(ns.NewEditBox(body))
+    view.spell.spells = true
     view.spell:SetHeight(ROW_H)
-    view.spell:SetScript("OnEnterPressed", view.spell.ClearFocus)
-    view.spell:SetScript("OnEscapePressed", view.spell.ClearFocus)
+    view.spell:SetScript("OnEscapePressed", function(self)
+        F.SuggestClose(self)
+        self:ClearFocus()
+    end)
     view.recipeButtons = {}
     for i, recipe in ipairs(RECIPES) do view.recipeButtons[i] = NewRecipeButton(view, recipe) end
 end

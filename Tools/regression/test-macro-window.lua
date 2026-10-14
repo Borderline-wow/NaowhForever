@@ -243,6 +243,28 @@ local env = setmetatable({
     GetLooseMacroItemIcons = NOTHING,
     GetMacroIcons = function(t) t[#t + 1] = 134400; t[#t + 1] = 135846 end,
     GetMacroItemIcons = NOTHING,
+    Enum = { SpellBookSpellBank = { Player = 0 }, SpellBookItemType = { Spell = 1, Flyout = 2 } },
+    C_SpellBook = {
+        GetNumSpellBookSkillLines = function() return 2 end,
+        GetSpellBookSkillLineInfo = function(line)
+            if line == 1 then return { itemIndexOffset = 0, numSpellBookItems = 3 } end
+            return { itemIndexOffset = 3, numSpellBookItems = 6 }
+        end,
+        GetSpellBookItemInfo = function(i)
+            local book = {
+                { name = "Fireball", iconID = 135812, itemType = 1 },
+                { name = "Fireball", iconID = 135812, itemType = 1 },
+                { name = "Frost Armor", iconID = 135843, itemType = 1, isPassive = true },
+                { name = "Blink", iconID = 135736, itemType = 1 },
+                { name = "Fire Blast", iconID = 135807, itemType = 1 },
+                { name = "Flamestrike", iconID = 135826, itemType = 1 },
+                { name = "Frost Nova", iconID = 135848, itemType = 1 },
+                { name = "Polymorph", iconID = 136071, itemType = 1 },
+                { name = "Portals", iconID = 1, itemType = 2 },
+            }
+            return book[i]
+        end,
+    },
     GetMacroBody = function() return nil end,
     GetInventoryItemID = function() return 19949 end,
     NUM_BAG_SLOTS = 0,
@@ -379,6 +401,15 @@ box.scripts.OnEditFocusLost(box)
 check("the spell box writes the spell when you leave it",
     Body() == "#showtooltip Polymorph\n/cast [@focus,harm] Frost Nova; [@player] Polymorph")
 Click(editor.undo)
+cast = Cards(builder)[2]
+box = cast.clauses.list[1].arg
+box.scripts.OnEditFocusGained(box)
+box:SetText("bli")
+box.scripts.OnTextChanged(box, true)
+Click(ns.Macros.Forge.spellPopup.rows[1])
+check("a /cast line's spell box offers spells and writes the pick into the line",
+    Body() == "#showtooltip Polymorph\n/cast [@focus,harm] Blink; [@player] Polymorph")
+Click(editor.undo)
 check("Undo puts the line back", Body() == "#showtooltip Polymorph\n/cast [@focus,harm][@player] Polymorph")
 
 local tester = builder.tester
@@ -396,6 +427,35 @@ check("Save writes the game macro", store.character[1].body == "#showtooltip Pol
 
 Click(window.list.new)
 check("New Macro starts a fresh draft", window.name:GetText() == "New Macro" and editor.saveLabel.text == "Create")
+local spellBox = builder.spell
+spellBox.scripts.OnEditFocusGained(spellBox)
+local popup = ns.Macros.Forge.spellPopup
+local function Offered()
+    local out = {}
+    for _, row in ipairs(popup.rows) do
+        if row:IsShown() then out[#out + 1] = row.text.text end
+    end
+    return table.concat(out, ", ")
+end
+check("the recipe's spell box offers the spells you know, once each, no passives or flyouts",
+    popup:IsShown() and Offered() == "Blink, Fire Blast, Fireball, Flamestrike, Frost Nova, Polymorph")
+spellBox:SetText("f")
+spellBox.scripts.OnTextChanged(spellBox, true)
+check("typing narrows them, starting with what you typed",
+    Offered() == "Fire Blast, Fireball, Flamestrike, Frost Nova")
+spellBox:SetText("bla")
+spellBox.scripts.OnTextChanged(spellBox, true)
+check("a word inside a name still finds it", Offered() == "Fire Blast")
+spellBox:SetText("fr")
+spellBox.scripts.OnTextChanged(spellBox, true)
+spellBox.scripts.OnArrowPressed(spellBox, "DOWN")
+spellBox.scripts.OnEnterPressed(spellBox)
+check("Enter takes the lit one", spellBox:GetText() == "Frost Nova" and not popup:IsShown())
+spellBox.scripts.OnEditFocusGained(spellBox)
+spellBox:SetText("pol")
+spellBox.scripts.OnTextChanged(spellBox, true)
+Click(popup.rows[1])
+check("a click takes it too", spellBox:GetText() == "Polymorph" and not popup:IsShown())
 builder.spell:SetText("Flash Heal")
 Click(builder.recipeButtons[1])
 check("a recipe writes the macro around the spell",

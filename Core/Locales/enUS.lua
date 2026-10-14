@@ -6328,3 +6328,4 @@ L["My Macros"] = true
 L["Your macros, and the editor."] = true
 L["Each line as a sentence you edit with menus, and Test it."] = true
 L["The macro text with colors, Build, Reads as and Simulate."] = true
+L["No spell you know matches."] = true
