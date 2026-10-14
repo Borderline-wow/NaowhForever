@@ -771,6 +771,43 @@ searchInput:SetText("group inspect"); Flush()
 Check(GroupInspectRows() >= 3, "a search that matches a row opens its section")
 searchInput:SetText(""); Flush()
 Check(GroupInspectRows() == 1, "and clearing the search folds them again")
+-- A disabled, unloaded module's description reveals its switch without loading or enabling it.
+do
+    local function ThreatSwitch()
+        for _, f in ipairs(frames) do
+            if f:IsShown() and f.parent and f.parent._cfg and f.parent._cfg.module
+                and f.parent._cfg.module.name == "Threat Meter" and f.parent._control == f then return f end
+        end
+    end
+    missingAddOns.NaowhForever_ThreatMeter = true
+    local enabled = ns.ThreatMeterSettings.Get("enabled")
+    local enable, load = env.C_AddOns.EnableAddOn, env.C_AddOns.LoadAddOn
+    local calls = 0
+    env.C_AddOns.EnableAddOn = function() calls = calls + 1 end
+    env.C_AddOns.LoadAddOn = function() calls = calls + 1 end
+    ns.OpenOptionsWindow("Settings"); Flush()
+    Check(not ThreatSwitch(), "the unloaded Threat Meter switch starts folded")
+    for _, query in ipairs({ "pull", "threat", "settings pull", "pull warning" }) do
+        searchInput:SetText(query); Flush()
+        Check(Text("Threat Meter is turned off, so its settings are hidden. Turn it on under Modules below."),
+            "'" .. query .. "' finds the unloaded module")
+        Check(ThreatSwitch(), "'" .. query .. "' reveals its module switch")
+    end
+    searchInput:SetText("zzzz"); Flush()
+    Check(not ThreatSwitch(), "a nonmatching search restores the closed module fold")
+    searchInput:SetText(""); Flush()
+    Check(not ThreatSwitch(), "clearing search restores the closed module fold")
+    Click(Text("MODULES").parent.hit); Flush()
+    searchInput:SetText("pull"); Flush()
+    searchInput:SetText(""); Flush()
+    Check(ThreatSwitch(), "clearing search preserves a previously open module fold")
+    Check(calls == 0 and missingAddOns.NaowhForever_ThreatMeter
+        and ns.ThreatMeterSettings.Get("enabled") == enabled,
+        "search never enables or loads the module or changes its profile switch")
+    Click(Text("MODULES").parent.hit); Flush()
+    env.C_AddOns.EnableAddOn, env.C_AddOns.LoadAddOn = enable, load
+    missingAddOns.NaowhForever_ThreatMeter = nil
+end
 Click(Text("MODULES").parent.hit); Flush()
 Click(Text("MINIMAP ICONS").parent.hit); Flush()
 Check(GroupInspectRows() >= 3, "Group Inspect: in the sidebar, under Settings > Modules and in Minimap Icons once opened")

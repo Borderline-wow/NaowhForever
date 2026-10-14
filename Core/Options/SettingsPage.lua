@@ -87,6 +87,9 @@ local function SearchHit(title, rows)
     if Mark(filter, shown) ~= shown then return true end
     for _, row in ipairs(rows) do
         if Mark(filter, row.text) ~= row.text then return true end
+        for _, mod in ipairs(filter.off or NONE) do
+            if row.module == mod then return true end
+        end
     end
     return false
 end
