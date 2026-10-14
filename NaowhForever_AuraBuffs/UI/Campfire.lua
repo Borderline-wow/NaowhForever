@@ -15,7 +15,7 @@ local TIME_STEPS = St.CAMP_TIME_STEPS
 local REFRESH_NOW = TIME_STEPS[2][1]
 local SIT_PREFIX = St.CAMP_SIT_PREFIX
 local SECONDS = A.C.SECONDS
-local SIT_GAP, SIT_TEXT_SIZE = St.CAMP_SIT_GAP, St.CAMP_BAR.TEXT
+local SIT_GAP, SIT_TEXT_SIZE, TEXT_SIZE = St.CAMP_SIT_GAP, St.CAMP_BAR.TEXT, St.CAMP_TEXT_SIZE
 local GLOW_RGBA, GLOW_THICKNESS = St.CAMP_GLOW_RGBA, St.CAMP_GLOW_THICKNESS
 local GLOW_LIB = "LibCustomGlow-1.0"
 local TIMER_PAD = 0.1
@@ -177,12 +177,17 @@ local function SetGlow(on)
     end
 end
 
+local function PaintSit(button, color)
+    button.tex:SetVertexColor(color.r, color.g, color.b, 1)
+    button.label:SetTextColor(color.r, color.g, color.b, 1)
+end
+
 local function OnSitEnter(self)
-    Parts.ColorPill(self.pill, T.fg)
+    PaintSit(self, T.fg)
 end
 
 local function OnSitLeave(self)
-    Parts.ColorPill(self.pill, T.accent)
+    PaintSit(self, T.accent)
 end
 
 local function OnSitClick()
@@ -192,10 +197,11 @@ end
 local function SitButton(host)
     if host.sit then return host.sit end
     local button = CreateFrame("Button", nil, host)
-    button.pill = Parts.Pill(button, SIT_TEXT_SIZE, T.accent)
-    button.pill:SetPoint("CENTER")
-    button:SetSize(Parts.SetPill(button.pill, TEXT_SIT_BUTTON), button.pill:GetHeight())
+    Look.NewSit(button)
+    button.label = Parts.HudText(ns.Font(button, TEXT_SIZE))
+    button.label:SetText(ns.L(TEXT_SIT_BUTTON))
     button:SetPoint("LEFT", host, "RIGHT", SIT_GAP, 0)
+    PaintSit(button, T.accent)
     button:SetScript("OnClick", OnSitClick)
     button:SetScript("OnEnter", OnSitEnter)
     button:SetScript("OnLeave", OnSitLeave)
@@ -203,9 +209,29 @@ local function SitButton(host)
     return button
 end
 
+local function LaySit(button, host)
+    local inline = host ~= icon or Simple()
+    local size = inline and host:GetHeight() or S.Get("campIconSize")
+    local font, outline = S.Get("campFont"), S.Get("campOutline")
+    local key = table.concat({ inline and 1 or 0, size, font, outline }, ":")
+    if button.laid == key then return end
+    button.laid = key
+    Look.SitSize(button, size)
+    Parts.HudFont(button.label, font, inline and SIT_TEXT_SIZE or TEXT_SIZE, outline)
+    button.label:ClearAllPoints()
+    if inline then
+        button.label:SetPoint("LEFT", button, "RIGHT", SIT_GAP, 0)
+    else
+        button.label:SetPoint("TOP", button, "BOTTOM", 0, -Look.LABEL_DROP)
+    end
+end
+
 local function ShowSit(host, on)
     on = on and S.Get("campSitButton") and not unlocked and true or false
-    if on or host.sit then SitButton(host):SetShown(on) end
+    if not (on or host.sit) then return end
+    local button = SitButton(host)
+    if on then LaySit(button, host) end
+    button:SetShown(on)
 end
 
 local function Build()

@@ -1302,6 +1302,11 @@ do
     local icon = s.named.NaowhForeverCampfire
     check("no camp, none nearby: the reminder glows and offers Sit", s.glows[icon] and icon.sit and icon.sit.shown)
     check("Sit sits on the right of the reminder", icon.sit.rel.LEFT == icon and icon.sit.pt.LEFT > 0)
+    check("Sit is an icon the size of the camp icon, drawn from the sitting art",
+        icon.sit.w == s.S.Get("campIconSize") and icon.sit.h == icon.sit.w and icon.sit.tex.texture == "Interface\\AddOns\\NaowhForever_AuraBuffs\\Media\\Sit.tga")
+    check("Sit's label is the camp label's size, on the same line under its icon",
+        icon.sit.label.text == "Sit" and icon.sit.label.size == icon.label.size
+        and icon.sit.label.pty.TOP == icon.label.pty.TOP and icon.sit.label.rel.TOP == icon.sit)
     icon.sit.scripts.OnClick(icon.sit)
     check("clicking Sit performs the /sit emote", #s.emotes == 1 and s.emotes[1] == "SIT")
     s.auras[CAMP] = { duration = 3600, expirationTime = s.now + 2400, auraInstanceID = 1 }
