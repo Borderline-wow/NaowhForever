@@ -50,6 +50,9 @@ local function Fixture(opts)
         weapons = opts.weapons or {},               -- slot -> enchant seconds left, false for none
         target = opts.target,                       -- nil, or the target's classification
         itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
+        levels = opts.levels or {},                 -- itemID -> required level
+        level = 60,
+        slotReads = 0,
         requested = {},
         glows = {},
         reads = 0,
@@ -157,6 +160,7 @@ local function Fixture(opts)
         IsInRaid = function() return state.group == "raid" end,
         GetNumGroupMembers = function() return state.group and #Roster() or 0 end,
         UnitClass = function(unit) return "x", state.units[unit] end,
+        UnitLevel = function() return state.level end,
         UnitIsConnected = function() return true end,
         UnitIsDeadOrGhost = function() return false end,
         UnitIsVisible = function() return true end,
@@ -179,7 +183,10 @@ local function Fixture(opts)
         },
         C_Container = {
             GetContainerNumSlots = function() return #state.bags end,
-            GetContainerItemID = function(_, slot) return state.bags[slot] end,
+            GetContainerItemID = function(_, slot)
+                state.slotReads = state.slotReads + 1
+                return state.bags[slot]
+            end,
         },
         C_Item = {
             GetItemCount = Count,
@@ -189,6 +196,7 @@ local function Fixture(opts)
                 if spell then return "spell", spell end
             end,
             RequestLoadItemDataByID = function(id) state.requested[id] = true end,
+            GetItemInfo = function(id) return "item", nil, nil, nil, state.levels[id] end,
             GetWeaponEnchantInfo = function(weaponSlot)
                 local left = state.weapons[weaponSlot == 0 and 16 or 17]
                 return { { hasEnchant = false, timeLeft = 0 },
@@ -485,20 +493,99 @@ do
     Check("after combat", t.Shown(), "")
 end
 
--- An empty profile never invents reminders from items in bags.
+-- Only If I Carry One with nothing listed: a flask, elixir or buff food in your bags reminds you.
 do
     local t = Fixture({ settings = { consumableEntries = {}, personalBuffs = false }, instance = "raid",
-        bags = { 13931, 13510, 13454, 10306 } })
+        bags = { 13510 } })
     t.Login()
-    Check("empty profile has no automatic reminders", t.Shown(), "")
-    Check("empty profile has no aura listener", t.Listening("UNIT_AURA"), false)
+    Check("empty profile, flask carried", t.Shown(), "item:13510")
+    Check("empty profile listens for auras", t.Listening("UNIT_AURA"), true)
+    t.state.bags = { 13510, 13931, 13454, 10306 }
+    t.Fire("BAG_UPDATE_DELAYED"); t.Advance(0.5)
+    Check("buff food and elixir too, scrolls stay opt-in", t.Shown(), "item:13931 item:13510 item:13454")
+    t.state.auras.player = { { 17626, 7000, 7200 }, { 1249520, 1800, 3600 }, { 11334, 3000, 3600 } }
+    t.Fire("UNIT_AURA", "player"); t.Advance(0.5)
+    Check("any flask, Well Fed and elixir counts", t.Shown(), "")
     t.Set("consumableEntries", { { category = "scroll", itemID = 10306, auras = { 12176 } } })
     Check("manual scroll added", t.Shown(), "item:10306")
-    t.state.auras.player = { { 12176, 1000, 1800 } }
+end
+
+-- Nothing listed and nothing carried: no reminder.
+do
+    local t = Fixture({ settings = { consumableEntries = {}, personalBuffs = false }, instance = "raid",
+        bags = { 2679, 10306 } })
+    t.Login()
+    Check("empty profile, nothing carried", t.Shown(), "")
+end
+
+-- A listed item is preferred; with none of it carried, a carried built-in one stands in.
+do
+    local t = Fixture({ instance = "raid", bags = { 13510, 13511 }, settings = { consumableEntries = {
+        { category = "flask", itemID = 13511, auras = { 17627 } } } } })
+    t.Login()
+    Check("listed flask preferred", t.Shown(), "item:13511")
+    t.state.bags = { 13510 }
+    t.Fire("BAG_UPDATE_DELAYED"); t.Advance(0.5)
+    Check("listed one gone, built-in carried", t.Shown(), "item:13510")
+    t.state.auras.player = { { 17627, 7000, 7200 } }
     t.Fire("UNIT_AURA", "player"); t.Advance(0.5)
-    Check("manual scroll buff suppresses reminder", t.Shown(), "")
-    t.Set("consumableEntries", {})
-    Check("removed configuration stays empty", t.Shown(), "")
+    Check("the listed buff still counts", t.Shown(), "")
+end
+
+-- The built-in item offered is the highest level one you can use, with every carried one in its menu.
+do
+    local t = Fixture({ instance = "raid", bags = { 9187, 13452, 9264 }, levels = { [9187] = 38, [13452] = 46, [9264] = 40 },
+        settings = { consumableEntries = {}, personalBuffs = false } })
+    t.Login()
+    Check("highest level elixir", t.Shown(), "item:13452")
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") and f.shown then cell = f end end
+    Check("menu lists the carried elixirs, best first", table.concat(cell.items, " "), "13452 9187 9264")
+    t.state.level = 40
+    t.Fire("BAG_UPDATE_DELAYED"); t.Advance(0.5)
+    Check("one too high for you is skipped", t.Shown(), "item:9264")
+    t.ns.AccountSettings().lastIcons = { battle = "item:9187" }
+    t.Set("buffIconMode", "last")
+    Check("Last Used icon kept", t.Shown(), "item:9187")
+end
+
+-- Guardian listed but not carried: no stand-in elixir, as the elixir kinds stay apart.
+do
+    local t = Fixture({ instance = "raid", bags = { 13454 }, settings = { consumableEntries = {
+        { category = "guardian", itemID = 13445, auras = { 11348 } } }, personalBuffs = false } })
+    t.Login()
+    Check("guardian listed, built-in elixir not used", t.Shown(), "")
+end
+
+-- Off is unchanged: a reminder per kind, carried or not.
+do
+    local t = Fixture({ instance = "raid", settings = { consumableEntries = {}, onlyIfCarried = false,
+        personalBuffs = false } })
+    t.Login()
+    Check("off, nothing carried", t.Shown(), "spell:1248406 item:13510 item:13452")
+end
+
+-- Bags are read once per bag change, not on every refresh; combat and secret auras still freeze the row.
+do
+    local t = Fixture({ settings = { consumableEntries = {}, personalBuffs = false }, instance = "raid",
+        bags = { 13510, 13931 } })
+    t.Login()
+    local reads = t.state.slotReads
+    for _ = 1, 5 do
+        t.Fire("UNIT_AURA", "player"); t.Advance(0.5)
+    end
+    Check("aura refreshes reuse the scan", t.state.slotReads, reads)
+    t.state.combat = true
+    t.state.bags = {}
+    t.Fire("BAG_UPDATE_DELAYED"); t.Advance(0.5)
+    Check("combat: frozen", t.Shown(), "item:13931 item:13510")
+    t.state.combat = false
+    t.state.secret = true
+    t.Fire("PLAYER_REGEN_ENABLED"); t.Advance(0.5)
+    Check("secret: frozen", t.Shown(), "item:13931 item:13510")
+    t.state.secret = false
+    t.Fire("PLAYER_REGEN_ENABLED"); t.Advance(0.5)
+    Check("after combat, nothing carried", t.Shown(), "")
 end
 
 -- Raid buffs: how many are missing each buff you can cast, or any class in the group can.
@@ -707,12 +794,12 @@ do
     Check("two minute shout is not nagged early", w.Shown(), "")
 end
 
--- A class with no personal buff: the default profile keeps the row off, though the card lists other classes'.
+-- A class with no personal buff: the card still lists other classes'.
 do
     local t = Fixture({ page = true, settings = { consumableEntries = {} }, units = { player = "PALADIN" },
         known = { [19740] = true } })
     t.Login()
-    Check("paladin default: no aura listener", t.Listening("UNIT_AURA"), false)
+    Check("paladin default: listens, a carried flask can remind", t.Listening("UNIT_AURA"), true)
     local card = t.ns.Shared.Settings.pages["AuraBuffs/Settings"].cards.buffs
     local found
     for _, row in ipairs(card.rows) do

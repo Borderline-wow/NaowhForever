@@ -178,7 +178,7 @@ local rows = {
       needs = Enabled, why = OFF,
       help = "A consumable or personal buff with less time than this left counts as missing." },
     { key = "onlyIfCarried", label = "Only If I Carry One", toggle = true, needs = Enabled, why = OFF,
-      help = "Off: a reminder for food, flasks and elixirs, even with none in your bags." },
+      help = "On: any flask, elixir or buff food in your bags reminds you, listed or not; off: even with none." },
     { key = "weaponEnhancements", label = "Weapon Enhancement Reminder", toggle = true, needs = Enabled, why = OFF,
       help = "A reminder when a weapon has no sharpening stone, weightstone or oil on it." },
     { key = "hideResting", label = "Hide While Resting", toggle = true, needs = Enabled, why = OFF,

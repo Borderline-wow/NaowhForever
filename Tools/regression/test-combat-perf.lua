@@ -267,7 +267,12 @@ do
             local list = auras[unit]
             return list and list[i]
         end },
-        C_Item = { GetItemCount = function(id) return bags[id] or 0 end, GetItemIconByID = function(id) return id end },
+        C_Item = { GetItemCount = function(id) return bags[id] or 0 end, GetItemIconByID = function(id) return id end,
+            GetItemSpell = function() end, GetItemInfo = function() end },
+        C_Container = { GetContainerNumSlots = function() return 2 end,
+            GetContainerItemID = function(_, slot) return slot == 1 and 13931 or 13510 end },
+        NUM_BAG_SLOTS = 0,
+        UnitLevel = function() return 60 end,
         C_Spell = { GetSpellTexture = function(id) return id end },
         C_SpellBook = { IsSpellKnown = function() return false end },
         C_Timer = { After = function(_, fn) lastAfter = fn end, NewTimer = function() return timer end },

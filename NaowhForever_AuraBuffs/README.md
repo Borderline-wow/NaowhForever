@@ -129,6 +129,14 @@ NaowhForever_AuraBuffs/
   with that use spell, else the spell's own texture), else Well Fed's. Weapon Enhancement Reminder (off by default) asks for a stone or
   oil (`D.WEAPON_ITEMS`) on each equipped weapon, an off hand only when it is a weapon, and defers to a class's
   own poison or imbue reminder.
+- With Only If I Carry One on (the default), Robin asked for reminders only while you have the item, but a profile
+  with nothing listed should still remind you about the flask or buff food in your bags. So a kind shows when a
+  listed item is carried, else when an item of the same `D.DEFAULT_GROUPS` list is (buff food is any bag item whose
+  use spell is in `D.FOOD_SPELLS`), with that list's auras also counting as up. The listed item wins; else the
+  highest required level you can use, the rest following in the hover menu. The bags are read once after
+  `BAG_UPDATE_DELAYED` or `PLAYER_ENTERING_WORLD`, not on every refresh. This replaced "an empty profile never
+  invents reminders from bag items", so the row is on whenever the module is. Weapon Enhancement Reminder
+  already worked this way on `D.WEAPON_ITEMS`.
 - Icon (Default or Last Used): Last Used shows the icon of the flask, elixir, scroll or weapon item
   used last (`lastIcons` in the account settings, food's is `lastFoodIcon`), taken from the item whose
   use spell `UNIT_SPELLCAST_SUCCEEDED` reports; a spell no listed or default item uses is ignored, and
@@ -145,7 +153,7 @@ NaowhForever_AuraBuffs/
   ready for the Warlock; every personal rule checks `family.class` against the player's class, so
   none fires for another class. Raid buff picks are not greyed: another class's raid buff fires when a
   group member of that class can cast it. A class with no personal buff (paladin) still gets the
-  group for the others, and the switch alone does not turn the row on.
+  group for the others.
 - Hunter's Mark is asked for only with a hostile elite, rare elite or boss targeted, read from the
   target's debuffs; like every reminder it holds what it showed once combat starts.
 - The buff menu holds secure buttons, so it can only be hidden outside combat. It uses
