@@ -326,6 +326,9 @@ local function Fixture(opts)
     return t
 end
 
+local ICONS = "Interface\\Icons\\"
+local ROUGH = ICONS .. "inv_stone_sharpeningstone_01"
+
 local failures = 0
 local function Check(label, got, want)
     if got ~= want then
@@ -710,6 +713,34 @@ do
     t.Set("enabled", true)
     Check("enabled: listening", t.Listening("UNIT_AURA"), true)
     Check("enabled: shown", t.Shown(), "item:13931")
+end
+
+-- The preview shows a raid buff only when it is one you track: no Arcane Intellect on a warrior.
+do
+    local SAMPLES = "spell:1248406 item:13510 item:13454 item:10306x2"
+    local function Unlocked(t)
+        t.ns.ShowUnlockMode()
+        local shown = t.Shown()
+        t.ns.HideUnlockMode()
+        return shown
+    end
+    local w = Fixture({ page = true, units = { player = "WARRIOR" } })
+    w.Login()
+    Check("warrior, raid buffs off: consumables only", Unlocked(w), SAMPLES)
+    w.Set("raidBuffs", true)
+    Check("warrior, only buffs I can cast: no arcane intellect", Unlocked(w), SAMPLES)
+    w.Set("raidBuffsOwn", false)
+    Check("warrior, any class's buff: arcane intellect", Unlocked(w), SAMPLES .. " spell:10157x3")
+    local card = w.ns.Shared.Settings.pages["AuraBuffs/Settings"].cards.buffs
+    local shot = card.studio.new(w.ns.Shared.Settings)
+    card.studio.paint(shot, "raid")
+    Check("warrior card: arcane intellect", shot.cells[#shot.cells].icon.texture, "spell:10157")
+    w.Set("raidBuffsOwn", true)
+    card.studio.paint(shot, "raid")
+    Check("warrior card, only buffs I can cast: no raid buff", shot.cells[#shot.cells].shown, false)
+    local m = Fixture({ settings = { raidBuffs = true }, units = { player = "MAGE" }, known = { [1460] = true } })
+    m.Login()
+    Check("mage: arcane intellect", Unlocked(m), SAMPLES .. " spell:10157x3")
 end
 
 -- Hover menus offer only carried configured alternatives as secure item buttons.
@@ -1097,13 +1128,19 @@ do
     t.Login()
     Check("off by default", t.Shown(), "")
     t.Set("weaponEnhancements", true)
-    Check("oil carried, main hand bare", t.Shown(), "item:20750")
+    Check("oil carried, main hand bare, its classic icon", t.Shown(), ICONS .. "inv_potion_104")
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") and f.shown then cell = f end end
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    Check("the hover menu's oil has its classic icon", popup.buttons[1].icon.texture, ICONS .. "inv_potion_104")
     t.state.bags = {}
     t.Fire("BAG_UPDATE_DELAYED")
     t.Advance(0.5)
     Check("none carried", t.Shown(), "")
     t.Set("onlyIfCarried", false)
-    Check("none carried, switch off", t.Shown(), "item:13931 item:13510 item:13452 item:12404")
+    Check("none carried, switch off: a rough sharpening stone", t.Shown(), "item:13931 item:13510 item:13452 " .. ROUGH)
     t.state.weapons[16] = 1800
     t.Fire("UNIT_INVENTORY_CHANGED", "player")
     t.Advance(0.5)
@@ -1111,7 +1148,7 @@ do
     t.state.shields[17] = nil
     t.Fire("UNIT_INVENTORY_CHANGED", "player")
     t.Advance(0.5)
-    Check("off hand weapon bare", t.Shown(), "item:13931 item:13510 item:13452 item:12404")
+    Check("off hand weapon bare", t.Shown(), "item:13931 item:13510 item:13452 " .. ROUGH)
 end
 
 -- Icon: Last Used shows the flask, elixir or weapon item used last, and only listens while it is chosen.
@@ -1120,7 +1157,7 @@ do
         itemSpells = { [13511] = 17627, [20749] = 28898 },
         settings = { consumableEntries = {}, onlyIfCarried = false, weaponEnhancements = true, personalBuffs = false } })
     t.Login()
-    Check("default icons", t.Shown(), "spell:1248406 item:13510 item:13452 item:12404")
+    Check("default icons", t.Shown(), "spell:1248406 item:13510 item:13452 " .. ROUGH)
     Check("off-mode listens for the food icon", t.Listening("UNIT_SPELLCAST_SUCCEEDED"), true)
     t.Set("onlyIfCarried", true)
     Check("not listening for casts", t.Listening("UNIT_SPELLCAST_SUCCEEDED"), false)
@@ -1129,12 +1166,54 @@ do
     t.Set("onlyIfCarried", false)
     t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast1", 17627)
     t.Advance(0.5)
-    Check("a flask used", t.Shown(), "spell:1248406 item:13511 item:13452 item:12404")
+    Check("a flask used", t.Shown(), "spell:1248406 item:13511 item:13452 " .. ROUGH)
     t.Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast2", 28898)
     t.Advance(0.5)
-    Check("a weapon oil used", t.Shown(), "spell:1248406 item:13511 item:13452 item:20749")
+    Check("a weapon oil used, its classic icon", t.Shown(), "spell:1248406 item:13511 item:13452 " .. ICONS .. "inv_potion_105")
     t.Set("buffIconMode", "default")
-    Check("Default again", t.Shown(), "spell:1248406 item:13510 item:13452 item:12404")
+    Check("Default again", t.Shown(), "spell:1248406 item:13510 item:13452 " .. ROUGH)
+    local account = t.ns.AccountSettings()
+    account.lastIcons.weapon = "item:20749"
+    t.Set("buffIconMode", "last")
+    Check("an oil saved by an older version shows its classic icon", t.Shown(),
+        "spell:1248406 item:13511 item:13452 " .. ICONS .. "inv_potion_105")
+    Check("and is saved as that", account.lastIcons.weapon, ICONS .. "inv_potion_105")
+    t.Set("buffIconMode", "default")
+    account.lastIcons.weapon = 123456
+    t.Set("buffIconMode", "last")
+    Check("an old icon of no stone or oil falls back", t.Shown(), "spell:1248406 item:13511 item:13452 " .. ROUGH)
+    Check("and is forgotten", account.lastIcons.weapon, nil)
+end
+
+-- Last Used with weapon items: the row picks the carried one with that classic icon and uses it, and
+-- every weapon icon on the row and in the menu is the classic one.
+do
+    local WIZARD, BRILLIANT = ICONS .. "inv_potion_104", ICONS .. "inv_potion_105"
+    local t = Fixture({ instance = "raid", units = { player = "MAGE" }, bags = { 20750, 20749 }, weapons = { [16] = false },
+        settings = { consumableEntries = {}, weaponEnhancements = true, personalBuffs = false, buffIconMode = "last" } })
+    local account = t.ns.AccountSettings()
+    account.lastIcons = { weapon = BRILLIANT }
+    t.Login()
+    local cell
+    for _, f in ipairs(t.frames) do if rawget(f, "items") and f.shown then cell = f end end
+    Check("Last Used oil shown with its classic icon", t.Shown(), BRILLIANT)
+    Check("and clicking it uses that oil", cell.attributes.item1, "item:20749")
+    cell.scripts.OnEnter(cell)
+    local popup
+    for _, f in ipairs(t.frames) do if rawget(f, "owner") == cell then popup = f end end
+    Check("menu oils have classic icons", popup.buttons[1].icon.texture .. " " .. popup.buttons[2].icon.texture,
+        WIZARD .. " " .. BRILLIANT)
+    t.state.bags = { 20750 }
+    t.Fire("BAG_UPDATE_DELAYED")
+    t.Advance(0.5)
+    Check("Last Used oil gone: the carried one's classic icon", t.Shown(), WIZARD)
+    Check("and clicking it uses the carried one", cell.attributes.item1, "item:20750")
+    t.state.bags = { 20750, 20749 }
+    t.Set("buffIconMode", "default")
+    account.lastIcons.weapon = "item:20749"
+    t.Set("buffIconMode", "last")
+    Check("an oil saved by an older version picks that oil", t.Shown(), BRILLIANT)
+    Check("and clicking it uses that oil too", cell.attributes.item1, "item:20749")
 end
 
 -- Worn Gear Reminder: Cloak of Hermitic Bliss worn in Wailing Caverns, off by default.

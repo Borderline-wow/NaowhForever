@@ -1,6 +1,8 @@
 -- BuffReminders.lua: the spells and items behind the Buffs & Consumables reminders (ns.BuffReminderData).
 local ns = _G.NaowhForever
 
+local ICON_PATH = "Interface\\Icons\\"
+
 local D = {}
 ns.BuffReminderData = D
 
@@ -31,7 +33,19 @@ D.WEAPON_ITEMS = {
     23122, 18262, 12404, 7964, 2871, 2863, 2862,
     12643, 7965, 3241, 3240, 3239,
 }
-D.WEAPON_ICON_ITEM = 12404
+D.WEAPON_ICON_ITEM = 2862
+D.WEAPON_ICONS = {
+    [20750] = "inv_potion_104", [20749] = "inv_potion_105", [20748] = "inv_potion_100",
+    [20747] = "inv_potion_99", [20746] = "inv_potion_103", [20745] = "inv_potion_98",
+    [20744] = "inv_poison_mindnumbing", [23123] = "inv_potion_26", [3829] = "inv_potion_20",
+    [3824] = "inv_potion_23", [23122] = "inv_stone_sharpeningstone_02", [18262] = "inv_stone_02",
+    [12404] = "inv_stone_sharpeningstone_05", [7964] = "inv_stone_sharpeningstone_04",
+    [2871] = "inv_stone_sharpeningstone_03", [2863] = "inv_stone_sharpeningstone_02",
+    [2862] = "inv_stone_sharpeningstone_01", [12643] = "inv_stone_weightstone_05",
+    [7965] = "inv_stone_weightstone_04", [3241] = "inv_stone_weightstone_03",
+    [3240] = "inv_stone_weightstone_02", [3239] = "inv_stone_weightstone_01",
+}
+for id, name in pairs(D.WEAPON_ICONS) do D.WEAPON_ICONS[id] = ICON_PATH .. name end
 
 D.WORN = {
     { item = 273084, slot = 15, instance = 43 },

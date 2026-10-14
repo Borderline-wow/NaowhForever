@@ -105,6 +105,9 @@ NaowhForever_AuraBuffs/
 - Group auras change in bursts, so a buff refresh waits `QUEUE_DELAY` and covers the lot. Nothing
   fires as a buff runs down, so the earliest one to cross the warning time is timed.
 - `ELIXIR_ICON` (13454, Greater Arcane Elixir) stands for "no elixir at all" in the preview.
+- The preview's raid buff (Unlock Mode and the card) is the first picked one the reminders would track for you
+  (`A.Buffs.RaidSample`): one you know, or with Only Buffs I Can Cast off any non-talent one. With Raid Buff
+  Reminders off, or none that applies, it shows none, so a warrior no longer sees Arcane Intellect.
 - Two classic elixirs for the same stat do not stack, so one of each group counts; Forever's
   stacking is unconfirmed. Forever keeps the classic IDs for flasks, elixirs, scrolls and class
   buffs; cooked food moved to Forever-only "Nutritious Food" spells with one shared Well Fed aura
@@ -144,8 +147,13 @@ NaowhForever_AuraBuffs/
   food eaten (`lastFoodIcon` in the account settings, taken on `UNIT_SPELLCAST_SUCCEEDED` from the bag item
   with that use spell, else the spell's own texture), else Well Fed's. Weapon Enhancement Reminder (off by default) asks for a stone or
   oil (`D.WEAPON_ITEMS`) on each equipped weapon, an off hand only when it is a weapon, and defers to a class's
-  own poison or imbue reminder. Its icon is the carried item's, else a Dense Sharpening Stone (`D.WEAPON_ICON_ITEM`):
-  Naowh asked for classic-looking defaults, and the first oil in the list has a modern icon.
+  own poison or imbue reminder. Its icon is the carried item's, else a Rough Sharpening Stone (`D.WEAPON_ICON_ITEM`),
+  and each stone, weightstone and oil shows its classic icon (`D.WEAPON_ICONS`, a texture path per item ID, here and in
+  the hover menu) rather than the client's item icon: Naowh asked for classic-looking icons, and the first oil in the
+  list has a modern one. The IDs and icon names are Wowhead Forever's (2026-10-14), which match Classic's.
+  A weapon item saved as Last Used before that (the client's item icon) is turned into its classic icon the
+  first time it is shown, or forgotten when no stone or oil has it. `ItemIcon` returns the classic icon for these
+  items, and Last Used finds the carried item by it, so the row, the item a click uses and the menu agree.
 - With Only If I Carry One on (the default), Robin asked for reminders only while you have the item, but a profile
   with nothing listed should still remind you about the flask or buff food in your bags. So a kind shows when a
   listed item is carried, else when an item of the same `D.DEFAULT_GROUPS` list is (buff food is any bag item whose

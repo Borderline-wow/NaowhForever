@@ -27,7 +27,7 @@ local KEYS = {
 }
 local PREVIEW = {
     { spell = D.WELL_FED[1] }, { item = D.FLASKS.items[1] }, { item = ELIXIR_ICON },
-    { item = D.SCROLLS[4].items[4], count = 2 }, { spell = D.RAID[1].spells[1], count = 3 },
+    { item = D.SCROLLS[4].items[4], count = 2 }, { raid = true, count = 3 },
 }
 
 local frame, unlocked, pending, held
@@ -107,8 +107,12 @@ end
 
 local function PreviewList()
     local list = {}
-    for i, p in ipairs(PREVIEW) do
-        list[i] = { icon = p.item and C_Item.GetItemIconByID(p.item) or C_Spell.GetSpellTexture(p.spell), count = p.count }
+    for _, p in ipairs(PREVIEW) do
+        local spell = p.raid and R.RaidSample() or p.spell
+        if p.item or spell then
+            list[#list + 1] = { icon = p.item and C_Item.GetItemIconByID(p.item) or C_Spell.GetSpellTexture(spell),
+                count = p.count }
+        end
     end
     return list
 end

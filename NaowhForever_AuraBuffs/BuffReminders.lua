@@ -33,6 +33,9 @@ for category, group in pairs(D.DEFAULT_GROUPS) do
     for _, id in ipairs(group.items) do BUILT_IN[id] = category end
 end
 
+local CLASSIC_WEAPON_ICON = {}
+for _, icon in pairs(D.WEAPON_ICONS) do CLASSIC_WEAPON_ICON[icon] = true end
+
 local buffPool, members, memberCount, classes = {}, {}, 0, {}
 local itemBuffs, requested = {}, {}
 local carried
@@ -83,6 +86,7 @@ local function ItemBuff(itemID)
 end
 
 local function ItemIcon(itemID)
+    if D.WEAPON_ICONS[itemID] then return D.WEAPON_ICONS[itemID] end
     local icon = select(ITEM_ICON, C_Item.GetItemInfo(itemID))
     if icon then return icon end
     if not requested[itemID] then
@@ -132,17 +136,30 @@ local function LastUsed()
     return S.Get("buffIconMode") == "last"
 end
 
+local function ClassicWeaponIcon(icon)
+    for _, id in ipairs(D.WEAPON_ITEMS) do
+        if C_Item.GetItemIconByID(id) == icon then return D.WEAPON_ICONS[id] end
+    end
+end
+
 local function LastIcon(category)
     if not LastUsed() then return nil end
     if category == "food" then return ns.AccountSettings().lastFoodIcon end
     local icons = ns.AccountSettings().lastIcons
-    return icons and icons[category]
+    local icon = icons and icons[category]
+    if category == "weapon" and icon and not CLASSIC_WEAPON_ICON[icon] then
+        icon = ClassicWeaponIcon(icon)
+        icons.weapon = icon
+    end
+    return icon
 end
 
 local function Shown(items, last, item)
     if last then
         for _, id in ipairs(items) do
-            if C_Item.GetItemCount(id) > 0 and C_Item.GetItemIconByID(id) == last then return last, id end
+            if C_Item.GetItemCount(id) > 0 and (D.WEAPON_ICONS[id] or C_Item.GetItemIconByID(id)) == last then
+                return last, id
+            end
         end
         if not item then return last end
     end
@@ -361,7 +378,7 @@ local function WeaponEnhancement(list)
     local item = FirstCarried(D.WEAPON_ITEMS)
     if not item and S.Get("onlyIfCarried") then return end
     local shown, used = Shown(D.WEAPON_ITEMS, LastIcon("weapon"), item)
-    list[#list + 1] = { icon = shown or C_Item.GetItemIconByID(D.WEAPON_ICON_ITEM), items = D.WEAPON_ITEMS,
+    list[#list + 1] = { icon = shown or D.WEAPON_ICONS[D.WEAPON_ICON_ITEM], items = D.WEAPON_ITEMS,
         item = used }
 end
 
@@ -480,7 +497,7 @@ end
 local function UsedIcon(items, spellID)
     for _, id in ipairs(items) do
         local _, spell = C_Item.GetItemSpell(id)
-        if spell == spellID then return C_Item.GetItemIconByID(id) end
+        if spell == spellID then return D.WEAPON_ICONS[id] or C_Item.GetItemIconByID(id) end
     end
 end
 
@@ -507,6 +524,14 @@ function Reminders.NoteUseCast(spellID)
 end
 
 Reminders.ItemIcon = ItemIcon
+
+function Reminders.RaidSample()
+    if not S.Get("raidBuffs") then return nil end
+    local own = S.Get("raidBuffsOwn")
+    for _, family in ipairs(D.RAID) do
+        if Picked(family) and (Knows(family.spells) or not (own or family.talent)) then return family.spells[1] end
+    end
+end
 
 function Reminders.Requested(itemID)
     return requested[itemID] == true

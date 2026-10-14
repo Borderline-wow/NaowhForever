@@ -85,13 +85,6 @@ local function Fit(shot)
     row:SetPoint("CENTER", shot, "CENTER", 0, NOTE_Y / scale)
 end
 
-local function RaidSample()
-    if not S.Get("raidBuffs") then return nil end
-    for _, family in ipairs(D.RAID) do
-        if R.Picked(family) then return family.spells[1] end
-    end
-end
-
 local function PersonalSample()
     if not S.Get("personalBuffs") then return nil end
     for _, family in ipairs(PERSONAL) do
@@ -101,7 +94,7 @@ end
 
 local function PaintPreview(shot, state)
     local size = S.Get("iconSize")
-    local consumables, raid = ConsumablesShown(state), RaidSample()
+    local consumables, raid = ConsumablesShown(state), R.RaidSample()
     local personal = state ~= "resting" and PersonalSample()
     local n = 0
     local function Put(cell, icon, count)
