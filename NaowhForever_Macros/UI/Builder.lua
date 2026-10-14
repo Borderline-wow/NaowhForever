@@ -1,4 +1,4 @@
--- Builder.lua: the Forge's Build view: each line as a sentence edited with menus, the problems with a fix, lines and recipes to add, and Test it, which answers what one press does.
+-- Builder.lua: Advanced's Build view: each line as a sentence edited with menus, the problems with a fix, lines and recipes to add; and Simulate's questions, which answer what one press does.
 local ns = _G.NaowhForever
 local T = ns.THEME
 local UI = ns.UI
@@ -98,9 +98,9 @@ local LINES = {
 }
 
 local RECIPES = {
-    { title = ns.L("Heal the unit under my mouse"), note = ns.L("Else your friendly target, else yourself."),
+    { title = ns.L("Heal my mouseover"), note = ns.L("Else your friendly target, else yourself."),
       text = "#showtooltip\n/cast [@mouseover,help,nodead][help,nodead][@player] %s" },
-    { title = ns.L("Attack the unit under my mouse"), note = ns.L("Else your target."),
+    { title = ns.L("Attack my mouseover"), note = ns.L("Else your target."),
       text = "#showtooltip\n/cast [@mouseover,harm,nodead][] %s" },
     { title = ns.L("Cast on myself while Alt is held"), note = ns.L("Else on your target."),
       text = "#showtooltip\n/cast [mod:alt,@player][] %s" },
@@ -110,7 +110,7 @@ local RECIPES = {
 
 local QUESTIONS = {
     { key = "target", label = ns.L("What are you targeting?"), unit = true },
-    { key = "mouseover", label = ns.L("What is under your mouse?"), unit = true },
+    { key = "mouseover", label = ns.L("What is your mouseover?"), unit = true },
     { key = "focus", label = ns.L("Who is your focus?"), unit = true },
     { key = "combat", label = ns.L("Are you in combat?"), yesNo = true },
     { key = "mounted", label = ns.L("Are you mounted?"), yesNo = true },
@@ -734,10 +734,6 @@ local function DrawView(view, issues)
     local width = math.max(1, view.body:GetWidth())
     local y = DrawIssues(view, issues, width, 0)
     y = DrawCards(view, width, y)
-    if view.tester then
-        Place(view.tester, view.body, 0, y)
-        y = y + DrawTester(view.tester, width) + SECTION_GAP
-    end
     if view.addTitle then
         y = DrawAddLine(view, width, y)
         y = DrawRecipes(view, width, y)
@@ -806,7 +802,6 @@ function F.BuildBuilder(parent, opts)
     view.empty = Label(body, NOTE_SIZE, T.muted)
     view.empty:SetWordWrap(true)
     view.empty:SetText(TEXT_EMPTY)
-    if opts.test ~= false then view.tester = NewTester(body) end
     if opts.extras ~= false then BuildExtras(view) end
     return view
 end
@@ -816,10 +811,7 @@ function F.NewTester(parent)
 end
 
 F.DrawTester = DrawTester
+F.SpellBox = SpellBox
 F.DrawBuilderView = DrawView
-
-function F.DrawBuilder(issues)
-    DrawView(F.window.editor.builder, issues)
-end
 
 F.BuilderState = state

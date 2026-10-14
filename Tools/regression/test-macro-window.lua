@@ -1,8 +1,8 @@
--- Run with Lua 5.1 from the repository root: Naowh's Forge, the Macros module's window, built
--- on the Shared kit and opened against stubs and a stand-in for the game's macros. Every tab is
--- drawn and its controls used: My Macros with its editor in Simple and Advanced, the Smart Macros,
--- the Library that starts empty and fills from the pack and from the player's own, and a share
--- string that round-trips.
+-- Run with Lua 5.1 from the repository root: Naowh's Forge, the My Macros, Smart Macros and Library
+-- tabs of the Macros page, built into stand-ins for the options window's pages against stubs and the
+-- game's macros. Every tab is drawn and its controls used: My Macros with Simple's form and Advanced's
+-- Build and Simulate, the Smart Macros, the Library that starts empty and fills from the pack and from
+-- the player's own, and a share string that round-trips.
 local Load = dofile("Tools/regression/load_files.lua")
 
 local checks = 0
@@ -19,6 +19,7 @@ local METHODS = {
     GetScript = function(f, script) return f.scripts[script] end,
     HookScript = function(f, script, fn) f.scripts[script] = fn end,
     GetParent = function(f) return rawget(f, "parent") end,
+    SetParent = function(f, parent) f.parent = parent end,
     SetWidth = function(f, w) f.w = w end,
     SetHeight = function(f, h) f.h = h end,
     SetSize = function(f, w, h) f.w, f.h = w, h end,
@@ -303,10 +304,20 @@ Load(SHARED_FILES, env)
 Load(MACRO_FILES, env)
 ns.Shared.Decode = dofile("Tools/regression/load_decode.lua")(env, true)
 
-local function Window()
-    for _, f in ipairs(frames) do
-        if rawget(f, "positionKey") == "macroWindow" then return f end
+local opened = {}
+ns.OpenOptionsWindow = function(key) opened[#opened + 1] = key end
+
+-- The options window: a scroll frame, its scroll child, and one page per tab, shown one at a time.
+local scrollFrame = Frame()
+local scrollChild = Frame(scrollFrame)
+local pages = {}
+local function Tab(key)
+    for k, page in pairs(pages) do
+        if k ~= key then page:Hide() end
     end
+    if pages[key] then return pages[key]:Show() end
+    pages[key] = Frame(scrollChild)
+    ns.BuildForgePage(pages[key], -6, key)
 end
 local function Shown(test)
     local out = {}
@@ -317,30 +328,31 @@ local function Shown(test)
 end
 
 -------------------------------------------------------------------------------
---  The window and its two tabs
+--  The Macros page's tabs
 -------------------------------------------------------------------------------
 store.account[1] = { name = "Hearth", icon = 134400, body = "#showtooltip\n/use Hearthstone" }
 store.character[1] = { name = "Sheep", icon = 134400, body = "#showtooltip Polymorph\n/cast [@focus,harm][] Polymorph" }
 
-ns.OpenMacroWindow()
-local window = Window()
-check("Naowh's Forge is built by the kit", window and window.backdrop and window.switch)
-check("its title is Naowh's Forge", window.title:GetText() == "Naowh's Forge")
+ns.OpenMacroWindow("smart")
+check("/nfmacros and its callers open the options window on a Macros tab", opened[1] == "Macros/Smart Macros")
+Tab("mine")
+local window = ns.Macros.Forge.window
+check("My Macros is built into the options window's page, no window of its own",
+    window and window.parent == pages.mine and rawget(window, "positionKey") == nil)
 check("the subtitle names the character and meters the slots", window.subtitle:GetText() == "Glyalith, MAGE"
     and window.meters[1].label:GetText() == "Account 1/120" and window.meters[2].label:GetText() == "MAGE 1/18")
-local tabs = {}
-for _, f in ipairs(frames) do
-    if f.parent == window.switch and rawget(f, "key") then tabs[#tabs + 1] = f.key end
-end
-check("the window has My Macros, Smart Macros and Library", #tabs == 3 and tabs[1] == "mine"
-    and tabs[2] == "smart" and tabs[3] == "lib")
-check("it opens on My Macros", window.switch.shown == "mine" and window.mine:IsShown()
-    and not window.smartView:IsShown() and not window.libView:IsShown())
+check("it shows My Macros", window.mine:IsShown() and not window.smartView:IsShown() and not window.libView:IsShown())
+Tab("smart")
+check("the Smart Macros tab moves it to its own page", window.parent == pages.smart and window.smartView:IsShown()
+    and not window.mine:IsShown())
+Tab("mine")
+check("back on My Macros, the built page takes it back", window.parent == pages.mine and window.mine:IsShown())
 
 -------------------------------------------------------------------------------
---  My Macros
+--  My Macros: Simple
 -------------------------------------------------------------------------------
 local editor = window.editor
+local simple = editor.simple
 local function Rows()
     return Shown(function(f) return rawget(f, "macro") ~= nil and rawget(f, "dot") ~= nil end)
 end
@@ -361,18 +373,70 @@ local function PickItem(text)
     end
     error("no menu item " .. text)
 end
+local function Says() return simple.press.text.text end
 
-check("Simple is the default: the sentence cards show, the code box and the side panel do not",
-    editor.builder:IsShown() and not editor.codeBox:IsShown() and not window.inspectorArea:IsShown()
+check("Simple is the default: the form shows, the code box and the side panel do not",
+    simple:IsShown() and not editor.codeBox:IsShown() and not window.inspectorArea:IsShown()
     and ns.Macros.Settings.Get("forgeMode") == "simple")
 check("the list shows the account's and this character's macros", Row("Hearth") and Row("Sheep"))
 check("a new macro waits in the editor", editor.saveLabel.text == "Create" and Body():find("^#showtooltip"))
+check("a new macro is a form: cast a spell at your target", simple.spell:IsShown() and simple.aim.bar.shown == "target"
+    and simple.fall.bar.shown == "none" and Says() == "Type the spell or item it casts.")
+check("aiming at your target with nothing else asks no friend or enemy question", not simple.kind:IsShown())
+
+local box = simple.spell.box
+box:SetText("Flash Heal")
+box.scripts.OnEditFocusLost(box)
+check("the spell box writes a plain cast", Body() == "#showtooltip\n/cast Flash Heal"
+    and Says() == "Casts Flash Heal on your target.")
+simple.aim.bar.onPick("mouseover")
+check("Mouseover aims it, your target if there is none",
+    Body() == "#showtooltip\n/cast [@mouseover,help,nodead][help,nodead] Flash Heal"
+    and simple.kind:IsShown() and simple.fall.bar.shown == "target"
+    and Says() == "Casts Flash Heal on your mouseover. No living friend there: on your target instead.")
+check("the fallback question names the mouseover", simple.fall.label.text == "If there is no mouseover")
+simple.fall.bar.onPick("player")
+simple.self.bar.onPick("alt")
+check("yourself as the fallback, and Alt for yourself",
+    Body() == "#showtooltip\n/cast [mod:alt,@player][@mouseover,help,nodead][@player] Flash Heal"
+    and Says():find("Hold Alt: on yourself.", 1, true))
+simple.kind.bar.onPick("enemy")
+check("Enemies swaps the checks",
+    Body() == "#showtooltip\n/cast [mod:alt,@player][@mouseover,harm,nodead][@player] Flash Heal")
+Click(simple.toggles[1].toggle)
+Click(simple.toggles[2].toggle)
+Click(simple.toggles[3].toggle)
+check("the switches add /stopcasting and /startattack and take #showtooltip off",
+    Body() == "/stopcasting\n/startattack\n/cast [mod:alt,@player][@mouseover,harm,nodead][@player] Flash Heal"
+    and Says():find("^Stops your cast first%.") and Says():find("Starts attacking too%.$"))
+simple.aim.bar.onPick("player")
+check("Myself needs no fallback or key", Body() == "/stopcasting\n/startattack\n/cast [@player] Flash Heal"
+    and not simple.fall:IsShown() and not simple.self:IsShown() and Says():find("on yourself.", 1, true))
+check("the text it writes is under the form", simple.code.text.text == ns.Macros.Text.Colorize(Body()))
+Click(editor.undo)
+check("Undo takes back a pick",
+    Body() == "/stopcasting\n/startattack\n/cast [mod:alt,@player][@mouseover,harm,nodead][@player] Flash Heal")
+
+ns.Macros.Forge.SetBody("#showtooltip\n/use [@focus,harm,nodead][harm,nodead] Linen Bandage", true)
+check("a macro in the same shape reads back into the form", simple.aim.bar.shown == "focus"
+    and simple.kind.bar.shown == "enemy" and simple.fall.bar.shown == "target"
+    and simple.spell.box:GetText() == "Linen Bandage" and Says():find("^Uses Linen Bandage on your focus%."))
 
 Click(Row("Sheep"))
-local builder = editor.builder
+check("a macro Simple cannot show says so, with the way to Advanced", window.name:GetText() == "Sheep"
+    and simple.tooBig:IsShown() and simple.advanced:IsShown() and not simple.spell:IsShown())
+Click(simple.advanced)
+check("Edit in Advanced switches to Advanced", settings.forgeMode == "advanced" and editor.codeBox:IsShown()
+    and not simple:IsShown() and window.inspectorArea:IsShown())
+
+-------------------------------------------------------------------------------
+--  My Macros: Advanced, its Build and Simulate panels
+-------------------------------------------------------------------------------
+local builder = Shown(function(f) return rawget(f, "recipeButtons") ~= nil end)[1]
 local forgeCards = Cards(builder)
-check("picking one opens it: its name and one card per line", window.name:GetText() == "Sheep" and #forgeCards == 2)
-check("the #showtooltip line is the Button shows card", forgeCards[1].shows:IsShown() and forgeCards[1].shows:GetText() == "Polymorph")
+check("Build opens it: one card per line", #forgeCards == 2)
+check("the #showtooltip line is the Button shows card",
+    forgeCards[1].shows:IsShown() and forgeCards[1].shows:GetText() == "Polymorph")
 local cast = forgeCards[2]
 local first, second = cast.clauses.list[1], cast.clauses.list[2]
 check("the /cast line reads as two choices, each with its unit and spell", cast.clauses.used == 2
@@ -395,7 +459,7 @@ PickItem("yourself")
 check("the unit menu aims a choice", Body() == "#showtooltip Polymorph\n/cast [@focus,harm][@player] Polymorph")
 
 cast = Cards(builder)[2]
-local box = cast.clauses.list[1].arg
+box = cast.clauses.list[1].arg
 box:SetText("Frost Nova")
 box.scripts.OnEditFocusLost(box)
 check("the spell box writes the spell when you leave it",
@@ -412,14 +476,16 @@ check("a /cast line's spell box offers spells and writes the pick into the line"
 Click(editor.undo)
 check("Undo puts the line back", Body() == "#showtooltip Polymorph\n/cast [@focus,harm][@player] Polymorph")
 
-local tester = builder.tester
+local inspector = window.inspector
+inspector.tabs.onPick("sim")
+local tester = Shown(function(f) return rawget(f, "answerText") ~= nil and rawget(f, "questions") ~= nil end)[1]
 local asked = {}
 for i = 1, tester.questions.used do asked[#asked + 1] = tester.questions.list[i].label.text end
-check("Test it asks only what the macro depends on", #asked == 1 and asked[1] == "Who is your focus?")
+check("Simulate asks only what the macro depends on", #asked == 1 and asked[1] == "Who is your focus?")
 check("with no focus it falls through to you", tester.answerText.text:find("1. Cast Polymorph on yourself", 1, true))
 tester.questions.list[1].bar.onPick("enemy")
-check("an enemy focus takes the first choice",
-    builder.tester.answerText.text:find("1. Cast Polymorph on your focus", 1, true))
+check("an enemy focus takes the first choice", tester.answerText.text:find("1. Cast Polymorph on your focus", 1, true))
+inspector.tabs.onPick("build")
 
 Click(editor.saveButton)
 check("Save writes the game macro", store.character[1].body == "#showtooltip Polymorph\n/cast [@focus,harm][@player] Polymorph"
@@ -460,6 +526,7 @@ builder.spell:SetText("Flash Heal")
 Click(builder.recipeButtons[1])
 check("a recipe writes the macro around the spell",
     Body() == "#showtooltip\n/cast [@mouseover,help,nodead][help,nodead][@player] Flash Heal")
+check("its recipe says mouseover", builder.recipeButtons[1].title.text == "Heal my mouseover")
 window.name:SetText("MO Heal")
 window.name.scripts.OnTextChanged(window.name, true)
 Click(editor.saveButton)
@@ -476,24 +543,17 @@ check("Add a line appends it", Body() == "/cast Fireball\n/stopcasting")
 Click(builder.lineButtons[5])
 check("Show on button goes on top", Body() == "#showtooltip\n/cast Fireball\n/stopcasting")
 
-window.mode.onPick("advanced")
-check("Advanced shows the code box and the side panel", settings.forgeMode == "advanced" and editor.codeBox:IsShown()
-    and not editor.builder:IsShown() and window.inspectorArea:IsShown())
 check("the code box holds the text, colored", window.code:GetText():find("|c", 1, true) ~= nil
     and ns.Macros.Text.Strip(window.code:GetText()) == Body())
-local inspector = window.inspector
-check("the side panel opens on Build", inspector.shown == "build")
 inspector.tabs.onPick("reads")
 local said = {}
 for _, f in ipairs(Shown(function(f) return rawget(f, "number") ~= nil and rawget(f, "box") ~= nil end)) do
     said[#said + 1] = f.text.text
 end
 check("Reads as says each line in words", #said == 3 and said[2] == "Cast Fireball.")
-inspector.tabs.onPick("sim")
-local simAnswer = Shown(function(f) return rawget(f, "answerText") ~= nil and f ~= builder.tester end)[1]
-check("Simulate answers like Test it", simAnswer and simAnswer.answerText.text:find("1. Cast Fireball", 1, true))
+inspector.tabs.onPick("build")
 window.mode.onPick("simple")
-check("back to Simple", editor.builder:IsShown() and not window.inspectorArea:IsShown())
+check("back to Simple", simple:IsShown() and not window.inspectorArea:IsShown())
 
 Click(Row("Sheep"))
 Click(editor.iconButton)
@@ -509,7 +569,7 @@ check("Delete asks, then removes the macro", account.lastConfirm:find("Delete Sh
     and #store.character == 1 and store.character[1].name == "MO Heal")
 store.account = { { name = "Hearth", icon = 134400, body = "#showtooltip\n/use Hearthstone" } }
 store.character = { { name = "Sheep", icon = 134400, body = "#showtooltip Polymorph\n/cast [@focus,harm][] Polymorph" } }
-window.switch.onPick("smart")
+Tab("smart")
 
 -------------------------------------------------------------------------------
 --  Smart Macros and Library
@@ -529,12 +589,12 @@ local function LibCard(name)
     end
 end
 
-window.switch.onPick("lib")
+Tab("lib")
 check("the Library starts empty, with nothing but the class name", not window.lib.lead:IsShown()
     and #LibCards() == 0)
 packMacros.MAGE = { { name = "Naowh Sheep", body = "#showtooltip Polymorph\n/cast Polymorph", note = "Naowh's" } }
-window.switch.onPick("smart")
-window.switch.onPick("lib")
+Tab("smart")
+Tab("lib")
 local libCards = LibCards()
 check("the pack's macros fill it", #libCards == 1 and window.lib.lead:IsShown())
 check("a card has no editor button", rawget(libCards[1], "open") == nil)
@@ -545,11 +605,13 @@ check("and says where to find it", printed[#printed]:find("/macro", 1, true)
 
 local importButton, exportAllButton, newButton
 for _, f in ipairs(frames) do
-    local tip = rawget(f, "tip")
-    if tip == "Import" then importButton = f elseif tip == "Export" then exportAllButton = f
-    elseif tip == "New Macro" then newButton = f end
+    local caption = rawget(f, "caption")
+    if f.parent == window then
+        if caption == "Import" then importButton = f elseif caption == "Export" then exportAllButton = f
+        elseif caption == "New Macro" then newButton = f end
+    end
 end
-check("the bar has Import and Export, no New Macro", importButton and exportAllButton and not newButton)
+check("the top bar has Import and Export, no New Macro", importButton and exportAllButton and not newButton)
 
 -------------------------------------------------------------------------------
 --  Import and Export
@@ -638,22 +700,22 @@ packMacros.MAGE = {
     { name = "Plain", body = "/cast Frost Nova" },
 }
 account.lastConfirm = nil
-window.switch.onPick("smart")
-window.switch.onPick("lib")
+Tab("smart")
+Tab("lib")
 Click(LibCard("Scripted").add)
 check("a pack script needs the player's yes", (account.lastConfirm or ""):find("runs a script from a shared pack", 1, true))
 Click(LibCard("A name far too long").add)
 check("a name the game cannot hold is turned away", printed[#printed]:find("not a macro the game can hold", 1, true)
     and #store.character == 1)
-window.switch.onPick("lib")
+Tab("lib")
 Click(LibCard("Plain").add)
-window.switch.onPick("lib")
+Tab("lib")
 Click(LibCard("Plain").add)
 check("adding it twice makes one macro", #store.character == 2 and printed[#printed]:find("already", 1, true))
 
 -- A pack import refreshes the Library.
 packMacros.MAGE = {}
-window.switch.onPick("lib")
+Tab("lib")
 packMacros.MAGE = { { name = "Iconic", body = "/cast Blink", icon = 135736 } }
 for _, fn in ipairs(applyHooks) do fn() end
 check("a pack import fills the open Library", LibCard("Iconic") ~= nil and window.lib.lead:IsShown())
@@ -666,7 +728,7 @@ check("Add makes it with the pack's icon", store.character[1] and store.characte
 -- A name already in use is not taken twice.
 store.character = { { name = "Iconic", icon = 134400, body = "/cast Something Else" } }
 packMacros.MAGE = { { name = "Iconic", body = "/cast Blink", icon = 135736 } }
-window.switch.onPick("lib")
+Tab("lib")
 Click(LibCard("Iconic").add)
 check("Library Add will not take a name in use", #store.character == 1
     and printed[#printed]:find("different macro called Iconic", 1, true))
@@ -678,8 +740,8 @@ store.account, store.character = {}, {}
 packMacros.MAGE = { { name = "Pack One", body = "/cast Arcane Missiles" } }
 account.libraryMacros = { MAGE = { { name = "My Blink", body = "/cast Blink" },
     { name = "My Script", body = "/run print(1)" }, { name = "Pack Run", body = "/run print(2)", pack = true } } }
-window.switch.onPick("smart")
-window.switch.onPick("lib")
+Tab("smart")
+Tab("lib")
 local mine, packed = LibCard("My Blink"), LibCard("Pack One")
 check("yours shows in the Library beside the pack's", mine and mine.tag.text == "YOURS" and mine.remove:IsShown()
     and packed and packed.tag.text:find("NAOWH", 1, true) and not packed.remove:IsShown())
@@ -703,7 +765,7 @@ store.account = { { name = "Ice Lance", icon = 135846, body = "/cast Ice Lance" 
 store.character = { { name = "Blink Now", icon = 134400, body = "/cast Blink" },
     { name = "Too Long", icon = 134400, body = ("x"):rep(256) } }
 account.libraryMacros = { MAGE = {} }
-window.switch.onPick("lib")
+Tab("lib")
 check("the Library has a Save a Macro button on your own class", window.lib.save:IsShown())
 Click(window.lib.save)
 local texts = {}
@@ -748,8 +810,8 @@ check("the button is only for your own class: not on another's page", priest and
 -------------------------------------------------------------------------------
 store.account, store.character = {}, {}
 account.libraryMacros = { MAGE = {} }
-window.switch.onPick("smart")
-window.switch.onPick("lib")
+Tab("smart")
+Tab("lib")
 Click(Shown(function(f) return rawget(f, "class") == "MAGE" end)[1])
 check("the Library has a New Macro button beside Save a Macro, on your own class", window.lib.new:IsShown())
 Click(window.lib.new)

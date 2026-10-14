@@ -35,7 +35,7 @@ local SAVE_W, UNDO_W, REVERT_W, SHARE_W, LIBRARY_W, DELETE_W = 70, 60, 64, 60, 8
 
 local TEXT_NEW_MACRO = ns.L("New Macro")
 local NEW_BODY = "#showtooltip\n/cast "
-local TEXT_LOST = ns.L("That macro was changed or removed outside the Forge. Save makes it again as a new macro.")
+local TEXT_LOST = ns.L("That macro was changed or removed outside Macros. Save makes it again as a new macro.")
 local TEXT_SAVE_IN_COMBAT = ns.L("Macros can be saved once the fight is over.")
 local TEXT_DELETE_IN_COMBAT = ns.L("Macros can be deleted once the fight is over.")
 local TEXT_BAD_NAME = ns.L("A macro's name is 1 to 16 bytes.")
@@ -286,11 +286,11 @@ local function RenderEditor()
     F.issues = issues
     local simple = Simple()
     window.editor.codeBox:SetShown(not simple)
-    window.editor.builder:SetShown(simple)
+    window.editor.simple:SetShown(simple)
     window.editor.share:SetShown(not simple)
     window.editor.toLibrary:SetShown(not simple)
     if simple then
-        F.DrawBuilder(issues)
+        F.DrawSimple()
     else
         Gutter(issues)
         F.DrawInspector(issues)
@@ -510,7 +510,7 @@ local function BuildEditor(parent)
     area:SetPoint("BOTTOMRIGHT", -PAD, FOOT_H)
     editor.area = area
     BuildCodeBox(editor, area)
-    editor.builder = F.BuildBuilder(area)
+    editor.simple = F.BuildSimple(area)
     BuildMeter(editor)
     BuildActions(editor)
 end

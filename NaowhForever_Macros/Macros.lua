@@ -11,7 +11,7 @@ local S = ns.UI.ModuleSettings("macros", {
     drinkExtra = "", bandageExtra = "",
     trinket1 = F.trinket1, trinket2 = F.trinket2,
     focus = F.focus, focusMark = true, focusMarker = 8, focusAnnounce = true,
-    acceptPopup = F.acceptPopup, windowAlpha = 1, forgeMode = "simple",
+    acceptPopup = F.acceptPopup, forgeMode = "simple",
 })
 
 local CLASS_MACROS = "classMacros"

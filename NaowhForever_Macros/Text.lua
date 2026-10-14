@@ -92,7 +92,7 @@ local UNIT_PATTERNS = { "^party%d$", "^raid%d+$", "^arena%d$", "^boss%d$", "^par
     "^nameplate%d+$" }
 
 local UNIT_WORDS = { player = ns.L("yourself"), target = ns.L("your target"), focus = ns.L("your focus"),
-    mouseover = ns.L("the unit under your mouse"), targettarget = ns.L("your target's target"),
+    mouseover = ns.L("your mouseover"), targettarget = ns.L("your target's target"),
     pet = ns.L("your pet"), cursor = ns.L("the spot under your cursor"), focustarget = ns.L("your focus's target"),
     pettarget = ns.L("your pet's target"), none = ns.L("no one") }
 

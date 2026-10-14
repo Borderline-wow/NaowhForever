@@ -64,8 +64,8 @@ Each crowd control ability and each debuff in the spell data has its own switch:
   is shown as given, never compared: the text sits in a frame clipped to a bar that is full
   while any shield is up and empty without one, so the number shows only while there is a
   shield. A small shield icon before it, the same on every panel, says what it is.
-- NF Focus, the Macros module's focus macro, is how a player sets their focus: Open Forge opens
-  Naowh's Forge on its Smart Macros, where it can be dragged to a bar.
+- NF Focus, the Macros module's focus macro, is how a player sets their focus: the Smart Macros button
+  opens the Macros page on its Smart Macros tab, where it can be dragged to a bar.
 - Battleground Displays: until one is dragged its holder follows the game's frame, which stays
   where the game (or the Top Bar) put it; once dragged, the game's frame hangs from the holder.
   `SCORES_Y` (-15) is the game's own spot for the scores.

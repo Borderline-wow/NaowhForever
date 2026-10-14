@@ -54,7 +54,7 @@ check("#showtooltip belongs on the first line", Issues("/cast Blink\n#showtoolti
 -- Explain
 local lines = Said("#showtooltip\n/cast [@mouseover,help,nodead][help,nodead][@player] Greater Heal")
 check("#showtooltip says what the button shows", lines[1] == "The button shows what the macro will cast, with its tooltip and cooldown.")
-check("each choice reads as a sentence", lines[2] == "If the unit under your mouse is friendly and is alive: Cast Greater Heal on the unit under your mouse."
+check("each choice reads as a sentence", lines[2] == "If your mouseover is friendly and is alive: Cast Greater Heal on your mouseover."
     .. " Otherwise, if your target is friendly and is alive: Cast Greater Heal. Otherwise: Cast Greater Heal on yourself.")
 check("modifiers and combat read in words", Said("/cast [mod:alt,nocombat] Mount")[1] == "If you hold Alt and you are out of combat: Cast Mount.")
 check("a trinket slot is named", Said("/use 13")[1] == "Use trinket 1 (slot 13).")
@@ -64,7 +64,7 @@ local heal = "/cast [@mouseover,help,nodead][help,nodead][@player] Greater Heal"
 check("nothing under the mouse and an enemy targeted: it falls to you",
     Press(heal, { target = "enemy", mouseover = "none" }) == "fire:Cast Greater Heal on yourself")
 check("a friend under the mouse takes the first choice",
-    Press(heal, { target = "enemy", mouseover = "friend" }) == "fire:Cast Greater Heal on the unit under your mouse")
+    Press(heal, { target = "enemy", mouseover = "friend" }) == "fire:Cast Greater Heal on your mouseover")
 check("one spell per press: the second /cast is skipped",
     Press("/cast Frostbolt\n/cast Fireball", {}) == "fire:Cast Frostbolt | skipped:Cast Fireball")
 check("a line that cannot fire says why",

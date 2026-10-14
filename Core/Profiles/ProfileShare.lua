@@ -45,7 +45,7 @@ local PARTS = {
 }
 local LEGACY_PARTS = {
     { key = "library", label = "Macro Library", help = "Added next to your Library, never over it",
-      share = ns.L("The macros you saved to the Forge's Library.") },
+      share = ns.L("The macros you saved to the Macros Library.") },
     { key = "consumables", label = "Consumables", help = "The consumables your reminders watch",
       share = "The consumables your reminders watch." },
 }

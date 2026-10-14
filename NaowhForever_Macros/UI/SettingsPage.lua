@@ -7,8 +7,7 @@ local Smart = M.Smart
 local Settings = ns.Shared.Settings
 local Group = Settings.Group
 
-local OPACITY_RANGE, PERCENT_SCALE = ns.Shared.Style.OPACITY_RANGE, ns.Shared.Style.PERCENT_SCALE
-local ORDER_KEPT, ORDER_HEALTH, ORDER_FOOD, ORDER_EXTRA, ORDER_FOCUS, ORDER_WINDOW = 5, 20, 22, 25, 30, 40
+local ORDER_KEPT, ORDER_HEALTH, ORDER_FOOD, ORDER_EXTRA, ORDER_FOCUS = 5, 20, 22, 25, 30
 local MACROS_OFF = ns.L("Turn on Macros")
 local USED_BY_BAR = ns.L("Used by Consumable Bar")
 local BAR_PAGE, BAR_CARD = "Consumable Bar/Settings", "Consumable Bar/Settings:adding"
@@ -87,17 +86,10 @@ end
 
 local page = Settings.Page("Macros/Settings", S)
 
-page:Window({
-    text = "Open Naowh's Forge",
-    open = function() ns.OpenMacroWindow() end,
-    headline = Smart.Headline,
-    detail = Smart.Detail,
-})
-
 page:Card({
     id = "kept", name = "Kept Current", order = ORDER_KEPT,
     help = "The macros the addon writes and keeps up to date for you, out of combat. Switch one on here, "
-        .. "or take it to your bars from Smart Macros in Naowh's Forge.",
+        .. "or take it to your bars from the Smart Macros tab.",
     summary = KeptSummary,
     rows = KeptRows,
     watch = { ns.QoLSettings },
@@ -157,15 +149,5 @@ page:Card({
           help = "Puts a raid marker on your focus. Pressing the macro again on the same focus clears the marker." },
         { key = "focusMarker", label = "Focus Marker", choice = { MARKER_VALUES, MARKER_ORDER }, needs = MarkOn,
           why = "Needs Mark Focus", help = "The raid marker Mark Focus puts on your focus." },
-    },
-})
-
-page:Card({
-    id = "window", name = "Window", order = ORDER_WINDOW,
-    help = "Naowh's Forge, Macros' own window: your macros and their editor, the ones kept current, and the Library.",
-    search = "import export macro strings editor my macros simple advanced test it shorten icon",
-    rows = {
-        { key = "windowAlpha", label = "Window Opacity", slider = OPACITY_RANGE,
-          unit = "%", scale = PERCENT_SCALE, help = "How solid the window is, in percent. Also on its title bar." },
     },
 })

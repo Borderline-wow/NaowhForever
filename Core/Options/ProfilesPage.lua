@@ -65,7 +65,7 @@ local TEXT_OTHER_PROFILES = ns.L("OTHER PROFILES")
 local TEXT_SHARE = ns.L("Share")
 local TEXT_SHARE_SUMMARY = ns.L("Pick what goes in the string you give someone.")
 local TEXT_PICK_ALL, TEXT_PICK_NONE = ns.L("Pick All"), ns.L("Pick None")
-local TEXT_IMPORT_SUMMARY = ns.L("Profiles, Forge macros, talent builds and BiS lists.")
+local TEXT_IMPORT_SUMMARY = ns.L("Profiles, Library macros, talent builds and BiS lists.")
 local UNKNOWN = "?"
 
 local wanted = {}

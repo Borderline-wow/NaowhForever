@@ -17,6 +17,7 @@
     <Script file="UI\List.lua"/>
     <Script file="UI\SpellSuggest.lua"/>
     <Script file="UI\Builder.lua"/>
+    <Script file="UI\Simple.lua"/>
     <Script file="UI\Inspector.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\SettingsPage.lua"/>

@@ -413,14 +413,14 @@ do
         "Focus Panel off: the focus's hidden and not followed, the target's stays")
     S.Set("focus", true)
 
-    -- How to set a focus: NF Focus, in Naowh's Forge.
+    -- How to set a focus: NF Focus, on Macros' Smart Macros tab.
     local forge
     for _, row in ipairs(env.cards.auras.rows) do
-        if row.buttonText == "Open Forge" then forge = row end
+        if row.buttonText == "Smart Macros" then forge = row end
     end
     Check(forge and forge.needs() and forge.help:find("NF Focus", 1, true), "the Focus group points to NF Focus")
     forge.button()
-    Check(env.opened[1] == "from options" and env.opened[2] == "smart", "Open Forge: Naowh's Forge, on its Smart Macros")
+    Check(env.opened[1] == "smart" and #env.opened == 1, "the button opens Macros on its Smart Macros tab")
     local openMacros = ns.OpenMacroWindow
     ns.OpenMacroWindow = nil
     Check(not forge.needs(), "without the Macros module the button is greyed out")

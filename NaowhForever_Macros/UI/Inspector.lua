@@ -102,7 +102,7 @@ end
 
 local function BuildBuild()
     panes.build = Pane()
-    panes.build.view = F.BuildBuilder(panes.build, { test = false })
+    panes.build.view = F.BuildBuilder(panes.build)
 end
 
 local function SaidRow(pane, y)

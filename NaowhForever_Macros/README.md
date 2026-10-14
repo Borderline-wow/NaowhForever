@@ -1,12 +1,13 @@
 # Macros
 
-Naowh's Forge, the Macros module's own window (`/nfmacros`), has three tabs: My Macros, Smart Macros
-and the Library. My Macros lists your account and character macros beside an editor with two views.
-Simple, the default, shows each line as a sentence edited with menus (who it aims at, conditions as
-chips, the spell), the problems with a Fix it, lines and recipes to add, and Test it, which asks only
-what the macro depends on and says what one press does. Advanced adds the colored text editor with a
-line gutter, and a side panel with Build, Reads as and Simulate. Export and Import in the Forge's title
-bar share your macros as a string. The Smart Macros (NF Health, NF Healthstone, NF Health Potion, NF Mana, NF Food, NF Drink, NF
+Naowh's Forge is three tabs of the Macros page in the options window (`/nfmacros`): My Macros, Smart
+Macros and the Library, beside the Settings tab. My Macros lists your account and character macros
+beside an editor with two views. Simple, the default, is a short form: the spell, what to aim at
+(Mouseover, Target, Focus or Myself), friends or enemies, what to do if there is no one there, a key
+to cast on yourself, and three switches; under it, one or two sentences say what a press does, above
+the text it writes. Advanced is the colored text editor with a line gutter, and a side panel with
+Build (each line as a sentence edited with menus, problems with a Fix it, lines and recipes to add),
+Reads as and Simulate. Export and Import on the tabs' top bar share your macros as a string. The Smart Macros (NF Health, NF Healthstone, NF Health Potion, NF Mana, NF Food, NF Drink, NF
 Bandage, NF Trinket 1 and 2, NF Focus, NF Accept) are written by the module and kept on the best
 item or spell you carry, out of combat.
 The Library keeps, by class, the macros you saved to it and those your profile pack brings. Save a Macro on its
@@ -39,15 +40,16 @@ NaowhForever_Macros/
     Editor.lua              My Macros' editor: the draft, its name, icon, byte meter, code box, Save, Undo, Delete
     List.lua                My Macros' list: your macros, searchable, with a dot for one with problems
     SpellSuggest.lua        the spells you know, offered under a spell box as you type
-    Builder.lua             the Build view (Simple, and Advanced's Build tab) and Test it
+    Builder.lua             Advanced's Build view and Simulate's questions
     Inspector.lua           Advanced's side panel (Build, Reads as, Simulate) and the icon picker
-    Window.lua              the window, its tabs, title bar and footer (ns.OpenMacroWindow)
+    Simple.lua              the Simple view: the form, what a press does, the text it writes
+    Window.lua              the tabs' frame on the Macros page, its top bar (ns.BuildForgePage, ns.OpenMacroWindow)
     SettingsPage.lua        its settings page (Macros/Settings), declared as cards
   README.md                 this file
 ```
 
-Each layer uses only the ones above it. `M.Forge` holds the window's shared state (the window and
-the open tab) and the functions its UI files call on each other.
+Each layer uses only the ones above it. `M.Forge` holds the tabs' shared state (the frame they share,
+`F.window`, and the open tab) and the functions its UI files call on each other.
 
 ## Why
 
@@ -83,7 +85,7 @@ the open tab) and the functions its UI files call on each other.
 - `ACCEPT_ICON` (136814) is the ready check mark, NF Accept's icon; `FOCUS_ICON` (132212) stands
   for NF Focus on its Smart Macros card.
 - The class macros (`classMacros`) live in the profile's `utilityReminders`, not in the module's
-  own settings, so they travel with shared profile packs; the window's look stays in the module.
+  own settings, so they travel with shared profile packs.
 - Icons once picked for a pack macro are still kept by macro name in the account settings, outside
   the profile, so a pack export never carries them; the Library and the pack hand-off use them over
   the pack's own.
@@ -93,7 +95,18 @@ the open tab) and the functions its UI files call on each other.
   it does and Undo covers every change. A line Build cannot show (a script, a chat line, a bracket with
   an unknown condition, more than one bracket per clause after `Text.Expand`) stays exactly as typed
   and says to edit it in Advanced. #355 had taken the editor out in favour of `/macro`; this one
-  brings it back with the Simple view for players who do not know the syntax.
+  brings it back for players who do not know the syntax.
+- Naowh's Forge used to be its own window with sentence cards as Simple. Testers found it looked unlike
+  the other pages and Simple still too hard, so it moved into the Macros page and Simple became a form.
+- The three tabs share one frame (`F.window`), built on the first tab's page and moved to the page of
+  the tab shown: each page's `OnShow` takes it back, since the options window builds a page only once.
+  The options window scrolls each page, but the tabs scroll their own lists, so the frame reaches down
+  to the bottom of that scroll frame and the page itself stays one line tall.
+- Simple writes the text from the form (`Write`) and reads a macro back by writing every form it could
+  be and keeping the one that writes exactly its text. Anything else (another spell line, a
+  `#showtooltip` naming a spell, a clause it would not write) says to edit it in Advanced, so Simple
+  never rewrites a macro it did not make. Aiming at your target with nothing else writes a plain
+  `/cast`, so friends or enemies is asked only when a check is written.
 - The spell boxes (the recipe's, a `/cast` line's, Button shows) offer the spells in your spellbook:
   active spells only, one per name whatever its ranks, read again after `SPELLS_CHANGED`. `/use`
   boxes take items, so they offer nothing.
@@ -129,5 +142,5 @@ the open tab) and the functions its UI files call on each other.
 - `lua Tools/regression/test-macros.lua`: the Smart Macros against stubbed macro, bag and item
   APIs, with the Food & Drink Bar.
 - `lua Tools/regression/test-macro-text.lua`: Check, Fix, Explain, Simulate, Build, Shorten and the colors.
-- `lua Tools/regression/test-macro-window.lua`: the window built from the real files, every tab
-  drawn and their controls used.
+- `lua Tools/regression/test-macro-window.lua`: the tabs built from the real files into stand-in pages,
+  every tab drawn and its controls used, Simple's form included.

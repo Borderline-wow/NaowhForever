@@ -26,12 +26,8 @@ local function ForgeReady()
     return focusOn() and ns.OpenMacroWindow ~= nil
 end
 
-local function OpenForgeWindow()
-    ns.OpenMacroWindow(FORGE_VIEW)
-end
-
 local function OpenForge()
-    ns.OpenFromOptions(OpenForgeWindow)
+    ns.OpenMacroWindow(FORGE_VIEW)
 end
 
 local function Summary(store)
@@ -102,9 +98,9 @@ page:Card({
         Group("Focus"),
         { key = "focus", label = "Focus Panel", toggle = true, needs = Enabled, why = OFF,
           help = "A second panel for your focus, to keep Sap or Polymorph's time on one enemy while you fight another." },
-        { label = "Focus Macro", buttonText = "Open Forge", button = OpenForge, needs = ForgeReady,
+        { label = "Focus Macro", buttonText = "Smart Macros", button = OpenForge, needs = ForgeReady,
           why = NEEDS_FORGE,
-          help = "NF Focus in Naowh's Forge focuses the enemy under your mouse, or your target: drag it to a bar." },
+          help = "NF Focus focuses your mouseover, or your target: drag it to a bar from Smart Macros." },
         { key = "focusName", label = "Focus Name", toggle = true, needs = focusOn, why = NEEDS_FOCUS,
           help = "Your focus's name, tinted by class, with their class icon above the panel." },
         { key = "focusBuffs", label = "Focus Short Buffs", toggle = true, needs = focusOn, why = NEEDS_FOCUS },

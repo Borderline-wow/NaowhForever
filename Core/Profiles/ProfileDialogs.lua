@@ -16,7 +16,7 @@ local BUTTON_GAP = 4
 local UNKNOWN = "?"
 local HANDOFFS = {
     { prefix = "!NFM1!", button = "Add Macros", module = "Macros", needs = "ImportMacroString",
-      what = ns.L("These are Forge macros. They are added as character macros on this character."),
+      what = ns.L("These are Library macros. They are added as character macros on this character."),
       go = function(text) ns.ImportMacroString(text) end },
     { prefix = "!NFB1!", button = "Add Build", module = "Training Planner", needs = "Training",
       what = ns.L("This is a talent build. It is added to your builds in the Training Planner."),
