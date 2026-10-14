@@ -8,12 +8,14 @@
     <Script file="CampReader.lua"/>
     <Script file="LowHealth.lua"/>
     <Script file="View\Style.lua"/>
+    <Script file="View\Glow.lua"/>
     <Script file="View\BuffCell.lua"/>
     <Script file="View\CampIcon.lua"/>
     <Script file="View\CampBar.lua"/>
     <Script file="View\CampAlert.lua"/>
     <Script file="View\LowHealthLook.lua"/>
     <Script file="UI\SettingsPage.lua"/>
+    <Script file="UI\GlowRows.lua"/>
     <Script file="UI\Campfire.lua"/>
     <Script file="UI\CampfireCards.lua"/>
     <Script file="UI\LowHealth.lua"/>

@@ -20,9 +20,9 @@ local Load = dofile("Tools/regression/load_files.lua")
 -- The AuraBuffs files the Campfire reminder and its cards are made of, in AuraBuffs.xml's order.
 local CAMP_FILES = { "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
     "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/Data/Campfire.lua", "NaowhForever_AuraBuffs/CampReader.lua",
-    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/CampIcon.lua",
+    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/Glow.lua", "NaowhForever_AuraBuffs/View/CampIcon.lua",
     "NaowhForever_AuraBuffs/View/CampBar.lua", "NaowhForever_AuraBuffs/View/CampAlert.lua",
-    "NaowhForever_AuraBuffs/UI/SettingsPage.lua", "NaowhForever_AuraBuffs/UI/Campfire.lua",
+    "NaowhForever_AuraBuffs/UI/SettingsPage.lua", "NaowhForever_AuraBuffs/UI/GlowRows.lua", "NaowhForever_AuraBuffs/UI/Campfire.lua",
     "NaowhForever_AuraBuffs/UI/CampfireCards.lua" }
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 local Measure = dofile("Tools/regression/measure.lua")
@@ -304,8 +304,14 @@ local function Fixture(settings)
         C_UnitAuras = { GetPlayerAuraBySpellID = function(id) return state.auras[id] end },
         C_ChatInfo = { PerformEmote = function(token) state.emotes[#state.emotes + 1] = token end },
         LibStub = function()
-            return { PixelGlow_Start = function(frame) state.glows[frame] = true end,
-                PixelGlow_Stop = function(frame) state.glows[frame] = nil end }
+            return {
+                PixelGlow_Start = function(frame, color, lines, frequency, length, thickness)
+                    state.glows[frame] = { kind = "pixel", color = color, lines = lines, frequency = frequency,
+                        length = length, thickness = thickness }
+                end,
+                PixelGlow_Stop = function(frame) state.glows[frame] = nil end,
+                ButtonGlow_Start = function(frame, color) state.glows[frame] = { kind = "standard", color = color } end,
+                ButtonGlow_Stop = function(frame) state.glows[frame] = nil end }
         end,
         C_Spell = { GetSpellTexture = function(id) return id end,
             GetSpellName = function(id) return state.spellNames[id] end },
@@ -1319,6 +1325,25 @@ do
     s.S.Set("campGlow", true)
     s.S.Set("campSitButton", true)
     check("and on again", s.glows[icon] and icon.sit.shown)
+    local glow = s.glows[icon]
+    check("the default glow is today's: red pixel lines, eight, two thick, a four second march",
+        glow.kind == "pixel" and glow.color[1] == 0.97 and glow.color[2] == 0.27 and glow.lines == 8
+        and glow.thickness == 2 and glow.frequency == 0.25 and glow.length == nil)
+    s.S.Set("campGlowColor", { r = 0, g = 1, b = 0 })
+    s.S.Set("campGlowLines", 4)
+    s.S.Set("campGlowSpeed", 7)
+    glow = s.glows[icon]
+    check("a new color, lines and speed restart the pixel glow",
+        glow.color[2] == 1 and glow.lines == 4 and glow.frequency == 0.5)
+    s.S.Set("campGlowType", "standard")
+    check("Standard Glow replaces it, in the chosen color", s.glows[icon].kind == "standard"
+        and s.glows[icon].color[2] == 1)
+    s.fire("UNIT_AURA")
+    check("a refresh keeps the same glow", s.glows[icon].kind == "standard")
+    s.S.Set("campGlowType", "pixel")
+    check("and back to pixel", s.glows[icon].kind == "pixel")
+    s.S.Set("campGlow", false)
+    check("Enable Glow off stops either", s.glows[icon] == nil)
 end
 
 print(checks .. " campfire look checks passed")

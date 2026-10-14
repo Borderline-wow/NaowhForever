@@ -12,7 +12,6 @@ if not Settings then return end
 local STAGE_H, NOTE_Y, NOTE_SIZE, STAGE_MARGIN, LABEL_ROOM = 150, A.Style.STAGE_NOTE_Y, A.Style.STAGE_NOTE_SIZE, A.Style.STAGE_MARGIN, 24
 local BELOW_RANGE, ICON_RANGE, TEXT_RANGE = { 10, 90, 1 }, { 24, 96, 1 }, { 10, 28, 1 }
 local ORDER_LOW_HEALTH = 40
-local GLOW_RGB = A.Style.LOW_RGB
 local GLOW_OUT = 2
 local SAMPLE_POTIONS = 3
 local ITEMS = { { auto = "Best in Bags", stone = "Healthstone", potion = "Healing Potion" },
@@ -36,7 +35,7 @@ local function NewPreview(stage)
     shot.glow = CreateFrame("Frame", nil, shot.icon)
     shot.glow:SetPoint("TOPLEFT", -GLOW_OUT, GLOW_OUT)
     shot.glow:SetPoint("BOTTOMRIGHT", GLOW_OUT, -GLOW_OUT)
-    ns.Border(shot.glow, GLOW_RGB)
+    shot.glowBorder = ns.Border(shot.glow, S.Get("lowHealthGlowColor"))
     shot.note = ns.Font(shot, NOTE_SIZE, nil, T.muted)
     shot.note:SetPoint("BOTTOM", 0, NOTE_Y)
     return shot
@@ -59,6 +58,8 @@ local function PaintPreview(shot, state)
     f:SetPoint("CENTER", shot, "CENTER", 0, (NOTE_Y + LABEL_ROOM / 2) / scale)
     local mode = S.Get("lowHealthItem")
     Look.Item(f, SampleItem(state, mode), mode == "potion" and SAMPLE_POTIONS or 1)
+    local glow = S.Get("lowHealthGlowColor")
+    shot.glowBorder:SetColor(glow.r, glow.g, glow.b)
     shot.glow:SetShown(S.Get("lowHealthGlow"))
     shot.note:SetText(TEXT_NOTE:format(S.Get("lowHealthBelow")))
 end
@@ -79,7 +80,8 @@ Settings.Page(A.PAGE, S):Card({
         { key = "lowHealthItem", label = "Item", choice = ITEMS, needs = Enabled, why = OFF,
           help = "Best in Bags: your best healthstone, else your best healing potion." },
         { key = "lowHealthGlow", label = "Glow", toggle = true, needs = Enabled, why = OFF,
-          help = "A red glow around the icon while it shows." },
+          help = "A glow around the icon while it shows." },
+        A.GlowRows("lowHealthGlow"),
         { key = "lowHealthSound", label = "Play a Sound", toggle = true, needs = Enabled, why = OFF,
           help = "Plays once each time your health drops below the threshold. If the game hides your "
               .. "health from addons mid-fight, it only plays out of combat." },

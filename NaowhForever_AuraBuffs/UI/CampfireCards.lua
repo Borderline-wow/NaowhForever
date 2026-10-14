@@ -394,6 +394,7 @@ campCard = page:Card({
           help = "Stays on screen, greyed out, while you have no Camp Benefits." },
         { key = "campGlow", label = "Glow When Refresh Needed", toggle = true, needs = Needs("campShowMissing"),
           why = "Needs Show Refresh Reminder", help = "A glow around the reminder while you have no Camp Benefits." },
+        A.GlowRows("campGlow", Needs("campShowMissing")),
         { key = "campSitButton", label = "Show Sit Button", toggle = true, needs = Enabled, why = OFF,
           help = "A Sit button beside the reminder and Camp Nearby, to sit down at the campfire." },
         { key = "campShowUnder", label = "Show Only When Low", toggle = true, needs = Enabled, why = OFF,

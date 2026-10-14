@@ -225,7 +225,7 @@ do
     check('anything else holds no list', not s.ns.ParseConsumableList('hello'))
     check('invalid IDs rejected', not parse('food', '123, x') and not parse('food', '0, 1'))
     s.S.Set('campShowUnder', false)
-    for _, file in ipairs({ 'Data/Campfire.lua', 'CampReader.lua', 'View/Style.lua', 'View/CampIcon.lua',
+    for _, file in ipairs({ 'Data/Campfire.lua', 'CampReader.lua', 'View/Style.lua', 'View/Glow.lua', 'View/CampIcon.lua',
         'View/CampBar.lua', 'View/CampAlert.lua', 'UI/Campfire.lua', 'UI/CampfireCards.lua' }) do
         s.load('NaowhForever_AuraBuffs/' .. file)
     end

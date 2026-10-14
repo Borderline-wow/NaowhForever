@@ -7,7 +7,7 @@ local T = ns.THEME
 local St = A.Style
 local Parts = ns.Shared.Parts
 local D, Camp = A.CampData, A.Camp
-local Look, Bar, Alert = A.CampIcon, A.CampBar, A.CampAlert
+local Look, Bar, Alert, Glow = A.CampIcon, A.CampBar, A.CampAlert, A.Glow
 
 local CAMP_BENEFITS, CAMPFIRE_NEARBY = D.CAMP_BENEFITS, D.CAMPFIRE_NEARBY
 local WELCOMING_CAMPFIRE, WELCOMING_CAMPFIRE_CRAFT = D.WELCOMING_CAMPFIRE, D.WELCOMING_CAMPFIRE_CRAFT
@@ -16,8 +16,6 @@ local REFRESH_NOW = TIME_STEPS[2][1]
 local SIT_PREFIX = St.CAMP_SIT_PREFIX
 local SECONDS = A.C.SECONDS
 local SIT_GAP, SIT_TEXT_SIZE, TEXT_SIZE = St.CAMP_SIT_GAP, St.CAMP_BAR.TEXT, St.CAMP_TEXT_SIZE
-local GLOW_RGBA, GLOW_THICKNESS = St.CAMP_GLOW_RGBA, St.CAMP_GLOW_THICKNESS
-local GLOW_LIB = "LibCustomGlow-1.0"
 local TIMER_PAD = 0.1
 local UNLOCK_DURATION, UNLOCK_LEFT = 3600, 2400
 local DEFAULT_X, DEFAULT_Y = -260, 120
@@ -47,7 +45,7 @@ local Spot = { DEFAULT = { point = "CENTER", relPoint = "CENTER", x = DEFAULT_X,
 Spot.CORNERS = { TOPLEFT = { 1, -1 }, TOP = { 0, -1 }, TOPRIGHT = { -1, -1 }, RIGHT = { -1, 0 },
     BOTTOMLEFT = { 1, 1 }, BOTTOM = { 0, 1 }, BOTTOMRIGHT = { -1, 1 } }
 
-local icon, unlocked, simpleBar, glowing
+local icon, unlocked, simpleBar
 local hasCamp
 local shownExpiry
 local alert
@@ -165,16 +163,7 @@ local function SavePos(pos)
 end
 
 local function SetGlow(on)
-    on = on and S.Get("campGlow") and not unlocked and true or false
-    if on == glowing then return end
-    glowing = on
-    local LCG = LibStub(GLOW_LIB, true)
-    if not LCG then return end
-    if on then
-        LCG.PixelGlow_Start(icon, GLOW_RGBA, nil, nil, nil, GLOW_THICKNESS)
-    else
-        LCG.PixelGlow_Stop(icon)
-    end
+    Glow.Set(icon, on and S.Get("campGlow") and not unlocked, "campGlow")
 end
 
 local function PaintSit(button, color)

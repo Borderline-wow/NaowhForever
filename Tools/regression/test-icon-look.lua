@@ -22,7 +22,7 @@ local function Frame()
     return f
 end
 
-local function Load(path, settings)
+local function Load(path, settings, extra)
     local hooks = {}
     local S = { Get = function(k) return settings[k] end }
     function S.Set(k, v)
@@ -65,6 +65,7 @@ local function Load(path, settings)
         GameTooltip_Hide = NOTHING,
     }, { __index = _G })
     env._G = env
+    for k, v in pairs(extra or {}) do env[k] = v end
     for _, file in ipairs(type(path) == "table" and path or { path }) do
         local chunk = assert(loadfile(file))
         setfenv(chunk, env)
@@ -73,7 +74,7 @@ local function Load(path, settings)
     for _, f in ipairs(frames) do
         if f.scripts.OnEvent and f.events.PLAYER_LOGIN then f.scripts.OnEvent(f, "PLAYER_LOGIN") end
     end
-    return S, fonts
+    return S, fonts, frames
 end
 
 local function Find(fonts, text)
@@ -89,7 +90,8 @@ do
         lowHealthFont = "", lowHealthFontSize = 16, lowHealthOutline = "OUTLINE" }
     local S, fonts = Load({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
         "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/LowHealth.lua", "NaowhForever_AuraBuffs/View/Style.lua",
-        "NaowhForever_AuraBuffs/View/LowHealthLook.lua", "NaowhForever_AuraBuffs/UI/LowHealth.lua",
+        "NaowhForever_AuraBuffs/View/Glow.lua", "NaowhForever_AuraBuffs/View/LowHealthLook.lua",
+        "NaowhForever_AuraBuffs/UI/GlowRows.lua", "NaowhForever_AuraBuffs/UI/LowHealth.lua",
         "NaowhForever_AuraBuffs/UI/LowHealthCard.lua" }, settings)
     local label, count = Find(fonts, "LOW HEALTH"), fonts[1]
     check("Low Health: the warning as today", label.font == "" and label.size == 16 and label.outline == "OUTLINE")
@@ -100,6 +102,33 @@ do
     check("Low Health: Font Size is the warning's", label.font == "Naowh" and label.size == 20 and label.outline == "")
     check("Low Health: the count follows the font and outline, not the size", count.font == "Naowh"
         and count.size == 14 and count.outline == "")
+end
+
+-- Low Health: the glow starts once while health stays low, and again only when its look changes.
+do
+    local reads = 0
+    local settings = setmetatable({ enabled = true, lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
+        lowHealthIconSize = 48, lowHealthGlow = true, lowHealthSound = false,
+        lowHealthGlowColor = { r = 1, g = 0.25, b = 0.25 }, lowHealthGlowLines = 8, lowHealthGlowThickness = 2,
+        lowHealthGlowSpeed = 5, lowHealthFont = "", lowHealthFontSize = 16, lowHealthOutline = "OUTLINE" },
+        { __index = function(_, k) if k == "lowHealthGlowType" then reads = reads + 1; return "pixel" end end })
+    local starts, stops = 0, 0
+    local LCG = { PixelGlow_Start = function() starts = starts + 1 end, PixelGlow_Stop = function() stops = stops + 1 end }
+    local S, _, frames = Load({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
+        "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/LowHealth.lua", "NaowhForever_AuraBuffs/View/Style.lua",
+        "NaowhForever_AuraBuffs/View/Glow.lua", "NaowhForever_AuraBuffs/View/LowHealthLook.lua",
+        "NaowhForever_AuraBuffs/UI/GlowRows.lua", "NaowhForever_AuraBuffs/UI/LowHealth.lua" }, settings,
+        { LibStub = function() return LCG end, UnitHealthPercent = function() return 0.2 end })
+    local events
+    for _, f in ipairs(frames) do
+        if f.events.UNIT_HEALTH then events = f end
+    end
+    check("Low Health: low at login, the glow starts", starts == 1)
+    local before = reads
+    for _ = 1, 5 do events.scripts.OnEvent(events, "UNIT_HEALTH") end
+    check("Low Health: health events while low leave the glow alone", starts == 1 and stops == 0 and reads == before)
+    S.Set("lowHealthGlowLines", 6)
+    check("Low Health: a new glow look restarts it", starts == 2 and stops == 1)
 end
 
 -- Tracking: its Track line at 13, outlined.

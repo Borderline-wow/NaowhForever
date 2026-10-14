@@ -41,6 +41,7 @@ NaowhForever_AuraBuffs/
   LowHealth.lua                the item to offer and the curve that shows it (A.LowHealth)
   View/
     Style.lua                  its look (A.Style), on top of Shared/Style.lua
+    Glow.lua                   a reminder's glow, Pixel or Standard, from its glow settings (A.Glow)
     BuffCell.lua               a buff reminder icon (A.BuffCell)
     CampIcon.lua               the campfire art and the Round look (A.CampIcon)
     CampBar.lua                the Simple bar (A.CampBar)
@@ -48,6 +49,7 @@ NaowhForever_AuraBuffs/
     LowHealthLook.lua          the Low Health icon and warning (A.LowHealthLook)
   UI/
     SettingsPage.lua           the page's banner (Open AuraBuffs) and its Window card
+    GlowRows.lua               the glow type, color and pixel look rows a card adds (A.GlowRows)
     Campfire.lua               the Campfire reminder and the Camp Nearby alert on screen
     CampfireCards.lua          the Campfire and Camp Nearby cards, with their editable previews
     LowHealth.lua              the Low Health icon on screen
@@ -112,6 +114,14 @@ NaowhForever_AuraBuffs/
   trained more than one. `UNIT_SPELLCAST_SUCCEEDED` remembers the last one actually cast
   (`lastImbue`) and the icon follows that instead, falling back to the first known spell until a
   cast is seen.
+- The glow of a reminder (the buff icons, the Campfire's refresh reminder, Low Health) is Pixel Glow or
+  Standard Glow, both LibCustomGlow's. Standard is its ButtonGlow, the action button spell alert: Blizzard's
+  own `ActionButtonSpellAlertManager` only drives action buttons. Each feature has its own switch
+  (`buffGlow` off by default, `campGlow` and `lowHealthGlow` on as before), type, color, and for Pixel Glow lines,
+  thickness and speed. Speed is 1 to 8 as in EllesmereUI, the march taking `9 - speed` seconds, so 5 is the
+  four seconds the Campfire and Low Health glows always had; the default type, red color, eight lines and
+  thickness 2 are what they drew before. `Glow.Set` restarts a glow only when its settings or the icon's
+  width changed.
 - With Only If I Carry One off, food, flasks and elixirs with no entries still get a reminder: any Well Fed, flask or elixir of the
   classic lists in `D.DEFAULT_GROUPS` (no battle/guardian split on Forever, so one elixir reminder, skipped when
   guardian entries exist). Scrolls stay opt-in. Food's icon is the carried item's, else the last buff

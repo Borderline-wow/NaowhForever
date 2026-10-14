@@ -200,6 +200,10 @@ rows[#rows + 1] = Group("Personal Buffs")
 rows[#rows + 1] = { key = "personalBuffs", label = "Personal Buff Reminders", toggle = true, needs = Enabled,
     why = OFF, help = "Your class buffs when they are missing or about to run out." }
 for _, family in ipairs(ALL_PERSONAL) do rows[#rows + 1] = PersonalRow(family) end
+rows[#rows + 1] = Group("Glow")
+rows[#rows + 1] = { key = "buffGlow", label = "Glow", toggle = true, needs = Enabled, why = OFF,
+    help = "A glow around each reminder icon, since each is a buff that is missing or running out." }
+rows[#rows + 1] = A.GlowRows("buffGlow")
 rows[#rows + 1] = Group("Size")
 rows[#rows + 1] = { key = "iconSize", label = "Icon Size", slider = ICON_RANGE, needs = Enabled, why = OFF }
 rows[#rows + 1] = { key = "buffIconMode", label = "Icon", choice = ICON_MODES, needs = Enabled, why = OFF,

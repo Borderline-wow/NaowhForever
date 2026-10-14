@@ -12,11 +12,12 @@ local MODULE = {}
 for i, path in ipairs({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
     "NaowhForever_AuraBuffs/Constants.lua", "Shared/Game/Consumables.lua",
         "NaowhForever_AuraBuffs/Data/BuffReminders.lua", "NaowhForever_AuraBuffs/BuffReminders.lua",
-    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/BuffCell.lua",
+    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/Glow.lua",
+    "NaowhForever_AuraBuffs/View/BuffCell.lua",
     "NaowhForever_AuraBuffs/UI/BuffMenu.lua", "NaowhForever_AuraBuffs/UI/BuffReminders.lua" }) do
     MODULE[i] = Read(path)
 end
-local CARD = Read("NaowhForever_AuraBuffs/UI/BuffsCard.lua")
+local CARD = Read("NaowhForever_AuraBuffs/UI/GlowRows.lua") .. "\n" .. Read("NaowhForever_AuraBuffs/UI/BuffsCard.lua")
 local SETTINGS = Read("Shared/Settings/Settings.lua")
 
 -- itemID -> use spell, for the food scan.
@@ -50,6 +51,7 @@ local function Fixture(opts)
         target = opts.target,                       -- nil, or the target's classification
         itemSpells = opts.itemSpells or {},         -- itemID -> use spell, once the item is cached
         requested = {},
+        glows = {},
         reads = 0,
     }
     local timers, frames = {}, {}
@@ -90,6 +92,8 @@ local function Fixture(opts)
         buffsFont = "", buffsFontSize = 14, buffsOutline = "OUTLINE",
         raidBuffPicks = { intellect = true, stamina = true, spirit = true, wild = true, blessing = false },
         personalBuffs = true, personalBuffPicks = {}, weaponEnhancements = false,
+        buffGlow = false, buffGlowType = "standard", buffGlowColor = { r = 1, g = 0.82, b = 0.2 },
+        buffGlowLines = 8, buffGlowThickness = 2, buffGlowSpeed = 5,
     }
     local S = {}
     function S.Get(k)
@@ -131,6 +135,13 @@ local function Fixture(opts)
     local env = {
         NUM_BAG_SLOTS = 0,
         UIParent = {},
+        LibStub = function()
+            return {
+                PixelGlow_Start = function(frame) state.glows[frame] = "pixel" end,
+                PixelGlow_Stop = function(frame) state.glows[frame] = nil end,
+                ButtonGlow_Start = function(frame) state.glows[frame] = "standard" end,
+                ButtonGlow_Stop = function(frame) state.glows[frame] = nil end }
+        end,
         RAID_CLASS_COLORS = setmetatable({}, { __index = function(colors, class)
             local color = { r = 0.5, g = 0.5, b = 0.5 }
             function color.WrapTextInColorCode(_, text) return "|c" .. class .. "|" .. text end
@@ -309,6 +320,27 @@ do
     t.Set("buffsFontSize", 18)
     t.Set("buffsOutline", "")
     Check("count font set", count.font .. count.size .. count.outline, "Naowh18")
+end
+
+-- Glow: off by default, then a Standard or Pixel glow on each shown reminder, gone when they are.
+do
+    local t = Fixture({ instance = "raid", bags = { 13931, 13510 } })
+    local function Glowing()
+        local out = {}
+        for frame, kind in pairs(t.state.glows) do
+            if frame.shown then out[#out + 1] = kind end
+        end
+        table.sort(out)
+        return table.concat(out, " ")
+    end
+    t.Login()
+    Check("no glow by default", Glowing(), "")
+    t.Set("buffGlow", true)
+    Check("Standard Glow on each reminder", Glowing(), "standard standard")
+    t.Set("buffGlowType", "pixel")
+    Check("Pixel Glow instead", Glowing(), "pixel pixel")
+    t.Set("buffGlow", false)
+    Check("Glow off stops them", Glowing(), "")
 end
 
 -- Show In: Dungeons & Raids keeps them out of the open world; Everywhere does not.

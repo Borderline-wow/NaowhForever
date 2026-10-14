@@ -4,7 +4,7 @@ local ns = _G.NaowhForever
 local A = ns.AuraBuffs
 local S = A.Settings
 local D = ns.BuffReminderData
-local R, Cell, Menu = A.Buffs, A.BuffCell, A.BuffMenu
+local R, Cell, Menu, Glow = A.Buffs, A.BuffCell, A.BuffMenu, A.Glow
 local Left, Secret, GROUP_UNIT = R.Left, R.Secret, R.GROUP_UNIT
 
 local QUEUE_DELAY = 0.3
@@ -20,6 +20,8 @@ local KEYS = {
     buffIconMode = true,
     personalBuffs = true, personalBuffPicks = true, weaponEnhancements = true,
     buffsFont = true, buffsFontSize = true, buffsOutline = true,
+    buffGlow = true, buffGlowType = true, buffGlowColor = true, buffGlowLines = true, buffGlowThickness = true,
+    buffGlowSpeed = true,
 }
 local PREVIEW = {
     { spell = D.WELL_FED[1] }, { item = D.FLASKS.items[1] }, { item = ELIXIR_ICON },
@@ -68,8 +70,12 @@ local function Show(list)
         cell.items = entry.items
         ShowTimer(cell, entry.aura)
         cell:Show()
+        Glow.Set(cell, S.Get("buffGlow") and not unlocked, "buffGlow")
     end
-    for i = #list + 1, #cells do cells[i]:Hide() end
+    for i = #list + 1, #cells do
+        Glow.Set(cells[i], false)
+        cells[i]:Hide()
+    end
     Cell.Fit(frame, #list, size)
     local owner = Menu.Owner()
     if not owner then return end
