@@ -62,6 +62,7 @@ local function ColorFor(info)
 end
 
 local function Paint(info)
+    G.Cutout.Place(fx)
     Effects.Set(fx, G.StyleOf(info.category), ColorFor(info), S.Get("brightness"), S.Get("size"),
         info.ready, info.locked)
     local text, color = LineFor(info)
@@ -119,6 +120,7 @@ local function Watch(_, elapsed)
     watch.since = (watch.since or 0) + elapsed
     if watch.since < C.STATE_CHECK then return end
     watch.since = 0
+    G.Cutout.Place(fx)
     local ready = Target.Reach(UNIT)
     if ready == shown.ready then
         wantSince = nil

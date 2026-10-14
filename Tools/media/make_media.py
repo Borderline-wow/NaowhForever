@@ -950,9 +950,26 @@ def glimmer_bracket(x, y, size):
     return (255, 255, 255, int(round(255 * max(top, left))))
 
 
+def glimmer_capsule_dist(x, y, size):
+    # Distance outside an upright capsule, the shape a character stands in; negative inside.
+    c, half_w, half_h = size / 2.0, size * 0.2, size * 0.45
+    dy = max(abs(y - c) - (half_h - half_w), 0.0)
+    return math.hypot(x - c, dy) - half_w
+
+
+def glimmer_cutout(x, y, size):
+    a = max(0.0, min(1.0, glimmer_capsule_dist(x, y, size) / (size * 0.04) + 0.5))
+    return (255, 255, 255, int(round(255 * a)))
+
+
+def glimmer_cutout_edge(x, y, size):
+    return (255, 255, 255, int(round(255 * smooth(size * 0.012, abs(glimmer_capsule_dist(x, y, size))))))
+
+
 GLIMMER_TEXTURES = {
     "glow": glimmer_glow, "flare": glimmer_flare, "ring": glimmer_ring,
     "beam": glimmer_beam, "bracket": glimmer_bracket,
+    "cutout": glimmer_cutout, "cutout_edge": glimmer_cutout_edge,
 }
 os.makedirs(GLIMMER_OUT, exist_ok=True)
 for name, pixel in GLIMMER_TEXTURES.items():

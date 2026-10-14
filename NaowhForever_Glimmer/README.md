@@ -6,7 +6,8 @@ ore take the color of your chance of a skill-up and get a line under their name 
 your skill is too low for shows red with the skill it needs. Quest objects get the line of the
 quest objective they count for. A second switch keeps the game's loot sparkle on quest items
 through graphics presets. Two map switches: every spot herbs and ore grow near you as icons on the
-minimap, ringed in their skill-up color, and every herb and vein you gather on the world map. Its settings page is Glimmer/Settings; its switches and their defaults
+minimap, ringed in their skill-up color, and every herb and vein you gather on the world map. Behind My
+Character cuts the effect out around you, so it passes behind you instead of over you. Its settings page is Glimmer/Settings; its switches and their defaults
 come from `ns.FEATURES.glimmer`.
 
 ## Layout
@@ -28,12 +29,14 @@ NaowhForever_Glimmer/
     Effects.lua              the five effects on a frame, over the world and on the previews (G.Effects)
   UI/
     Conflict.lua             the question when another addon changes the same game settings (G.CheckOthers)
+    Cutout.lua               the hole in the effect where your character stands, and its red outline (G.Cutout)
     Highlight.lua            the effect and its line on the target's nameplate, and its events
     Minimap.lua              where herbs and veins grow, as icons on the minimap
     MapPins.xml              the Gathered pin's template, and the file that fills it
     MapPins.lua              the herbs and veins you gathered on the world map, noted as you loot them
     SettingsPage.lua         its settings page, declared as cards, with its previews
-  Media/                     glow, flare, ring, beam and bracket, drawn by Tools/media/make_media.py
+  Media/                     glow, flare, ring, beam, bracket, the cut-out and its outline, drawn by
+                             Tools/media/make_media.py
   README.md                  this file
 ```
 
@@ -73,6 +76,13 @@ NaowhForever_Glimmer/
   preset turns the quest sparkle settings back; `CVAR_UPDATE` on a preset or one of those settings
   puts them back `SPARKLE_AGAIN` seconds later, after the preset has finished writing.
 - Taking the quest sparkle off only shows after a full restart of the game, so the card says so.
+- The game does not tell an addon where your character is on screen. With the camera behind you, you
+  stand near the middle, so Behind My Character masks a capsule there (`CUTOUT_SHARE` of the screen's
+  height, `CUTOUT_Y` below the middle) with its size and height as settings, and Show the Cut-Out
+  outlines it in red so you can fit it. The mask belongs to the effect's frame but is anchored to the
+  screen, so its size and place are scaled from the screen's scale to the nameplate's, which changes
+  with distance; it is placed again on every repaint and every reach check. Its texture is opaque to its edges, so
+  anything outside it stays visible.
 - Other addons that change the same soft target settings (`OTHER_ADDONS`) undo Glimmer's and it
   undoes theirs; with one on as well, Glimmer asks once per session to disable it.
 - A slider drag sets its key on every step, so settings apply once on the next frame.
@@ -102,5 +112,5 @@ NaowhForever_Glimmer/
 ## Checking
 
 - `lua Tools/regression/test-glimmer.lua`: reading the target, skill-up colors, the game settings
-  saved and put back, combat, the nameplate it opens, the minimap icons and the gathered pins, against
+  saved and put back, combat, the nameplate it opens, the cut-out, the minimap icons and the gathered pins, against
   stubs of the game's API.
