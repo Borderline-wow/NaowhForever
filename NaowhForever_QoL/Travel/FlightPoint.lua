@@ -1,4 +1,4 @@
--- FlightPoint.lua: the QoL reminder to learn a town's flight point.
+-- FlightPoint.lua: the QoL reminders to learn a zone's flight points.
 local ns = _G.NaowhForever
 
 local issecretvalue = issecretvalue
@@ -10,8 +10,11 @@ local Parts, St = ns.Shared.Parts, ns.Shared.Style
 local WIDTH, ROOM = 300, 10
 local STACK_ORDER = 6
 local TOWN_RANGE = 400
+local ZONE_HOLD = 10
+local PERCENT = ns.QoLConstants.PERCENT
 local ZONE = Enum.UIMapType.Zone
 local CONTINENT = Enum.UIMapType.Continent
+local TAXI_MAPS = { [1415] = 1463, [1414] = 1464 }
 local NEUTRAL = Enum.FlightPathFaction.Neutral
 local HORDE = Enum.FlightPathFaction.Horde
 local ALLIANCE = Enum.FlightPathFaction.Alliance
@@ -36,6 +39,7 @@ local REFRESH = { ZONE_CHANGED = true, ZONE_CHANGED_INDOORS = true, ZONE_CHANGED
 
 local frame, unlocked, inCombat, taxiIcon
 local cachedZone, cachedMap, cachedNodes
+local entryZone, entryNotified, entryNode, entryPlace, entryTimer
 local events = CreateFrame("Frame")
 
 local function On()
@@ -103,15 +107,22 @@ local function Up(id, mapType)
     if info and info.mapType == mapType then return info.mapID end
 end
 
+local function Seen(mine, zone)
+    local maps = mine and mine.seenMaps
+    local continent = Up(zone, CONTINENT)
+    return maps and continent and (maps[continent] or maps[TAXI_MAPS[continent]])
+end
+
 local function Learn()
     local mine = Mine(true)
     local taxi = mine and GetTaxiMapID()
     if not taxi then return end
-    local continent = Up(taxi, CONTINENT)
-    if continent then
-        mine.seenMaps = mine.seenMaps or {}
-        mine.seenMaps[continent] = true
-    end
+    local taxiContinent = Up(taxi, CONTINENT)
+    local continent = Up(C_Map.GetBestMapForUnit(PLAYER), CONTINENT)
+    mine.seenMaps = mine.seenMaps or {}
+    mine.seenMaps[taxi] = true
+    if taxiContinent then mine.seenMaps[taxiContinent] = true end
+    if continent then mine.seenMaps[continent] = true end
     for _, node in ipairs(C_TaxiMap.GetAllTaxiNodes(taxi)) do
         if node.nodeID then mine[node.nodeID] = node.state ~= UNREACHABLE end
     end
@@ -126,10 +137,10 @@ end
 local function WorldOf(map, pos)
     if not map or not pos then return nil, false end
     if Secret(pos.x) or Secret(pos.y) then return nil, true end
-    local _, world = C_Map.GetWorldPosFromMapPos(map, pos)
+    local continent, world = C_Map.GetWorldPosFromMapPos(map, pos)
     if not world then return nil, false end
     if Secret(world.x) or Secret(world.y) then return nil, true end
-    return world, false
+    return world, false, continent
 end
 
 local function Yards(a, b)
@@ -141,12 +152,19 @@ local function ForgetNodes()
     cachedZone, cachedMap, cachedNodes = nil, nil, nil
 end
 
-local function Prepare(map, nodes)
+local function InZone(zone, world, continent)
+    if not world or not continent then return false end
+    local _, pos = C_Map.GetMapPosFromWorldPos(continent, world, zone)
+    if not pos or Secret(pos.x) or Secret(pos.y) then return false end
+    return pos.x >= 0 and pos.x <= 1 and pos.y >= 0 and pos.y <= 1
+end
+
+local function Prepare(map, nodes, zone)
     local ready = {}
     for i, node in ipairs(nodes) do
-        local world, blocked = WorldOf(map, node.position)
+        local world, blocked, continent = WorldOf(map, node.position)
         if blocked then return nil, true end
-        ready[i] = { node = node, world = world }
+        ready[i] = { node = node, world = world, inZone = InZone(zone, world, continent) }
     end
     return ready
 end
@@ -173,20 +191,22 @@ local function NodesFor(zone)
         cachedZone, cachedMap, cachedNodes = zone, nil, {}
         return nil, cachedNodes
     end
-    local ready, blocked = Prepare(map, nodes)
+    local ready, blocked = Prepare(map, nodes, zone)
     if blocked then return nil, nil, true end
     cachedZone, cachedMap, cachedNodes = zone, map, ready
     return map, ready
 end
 
-local function Candidate(entry, map, zone, zoneName, player, subzone, mine, seen)
+local function Candidate(entry, map, zone, zoneName, player, subzone, mine, seen, zoneWide)
     local node = entry.node
     local kind = Kind(node, mine, seen)
     if not kind then return nil end
     local dist = player and entry.world and Yards(player, entry.world)
     local place = PlaceName(node.name)
-    if ns.TownCapitals[zone] and map == zone then
+    if ns.TownCapitals[zone] and (map == zone or zoneWide) then
         if not OwnCity(place, zoneName) then return nil end
+    elseif zoneWide then
+        if not entry.inZone then return nil end
     else
         local named = subzone ~= "" and subzone == place
         if not (named or (dist and dist <= TOWN_RANGE)) then return nil end
@@ -194,23 +214,22 @@ local function Candidate(entry, map, zone, zoneName, player, subzone, mine, seen
     return kind, place, dist or math.huge
 end
 
-local function Scan(entries, map, zone, zoneName, player, subzone, mine, seen)
-    local bestName, bestDist, bestID, ask, askDist, askID
+local function Scan(entries, map, zone, zoneName, player, subzone, mine, seen, zoneWide)
+    local bestName, bestDist, bestNode, ask, askDist, askNode
     for _, entry in ipairs(entries) do
-        local kind, place, rank = Candidate(entry, map, zone, zoneName, player, subzone, mine, seen)
+        local kind, place, rank = Candidate(entry, map, zone, zoneName, player, subzone, mine, seen, zoneWide)
         local node = entry.node
         if kind == LEARN and (not bestName or rank < bestDist) then
-            bestName, bestDist, bestID = place, rank, node.nodeID
+            bestName, bestDist, bestNode = place, rank, node
         elseif kind == ASK and (not ask or rank < askDist) then
-            ask, askDist, askID = true, rank, node.nodeID
+            ask, askDist, askNode = true, rank, node
         end
     end
-    local spoken
-    if bestName then spoken = bestID else spoken = askID end
-    return bestName, ask, spoken
+    local spoken = bestNode or askNode
+    return bestName, ask, spoken and spoken.nodeID, spoken
 end
 
-local function Nearest()
+local function Nearest(zoneWide)
     if inCombat or UnitOnTaxi(PLAYER) then return nil end
     local zone = Up(C_Map.GetBestMapForUnit(PLAYER), ZONE)
     if not zone then return nil end
@@ -219,27 +238,62 @@ local function Nearest()
     if secret then return nil end
     local info = C_Map.GetMapInfo(zone)
     local subzone, mine = Subzone(), Mine()
-    local seen = mine and mine.seenMaps and mine.seenMaps[Up(zone, CONTINENT)]
+    local seen = Seen(mine, zone)
     local map, entries, blocked = NodesFor(zone)
     if blocked or not map then return nil end
-    local best, ask, spoken = Scan(entries, map, zone, info and info.name or "", player, subzone, mine, seen)
-    if best then return best, nil, spoken end
-    return nil, ask, spoken
+    local best, ask, spoken, node = Scan(entries, map, zone, info and info.name or "", player, subzone, mine, seen, zoneWide)
+    if best then return best, nil, spoken, node end
+    return nil, ask, spoken, node
+end
+
+local function LearnText(place)
+    local name = place:gsub("^The ", "")
+    return TEXT:format(name)
 end
 
 local function Show(place)
-    frame.text:SetText(place and TEXT:format(place) or OPEN)
+    frame.text:SetText(place and LearnText(place) or OPEN)
     frame:SetWidth(frame.mode == "none" and WIDTH or frame.text:GetStringWidth() + 2 * St.CARD_PAD)
     frame:Show()
 end
 
-local function Update()
+local function CancelEntry()
+    if entryTimer then entryTimer:Cancel() end
+    entryTimer, entryNode, entryPlace = nil, nil, nil
+end
+
+local Update
+
+local function EntryExpired()
+    entryTimer, entryNode, entryPlace = nil, nil, nil
+    Update()
+end
+
+Update = function()
     if unlocked then
         Show(SAMPLE_PLACE)
         return
     end
+    local zone = Up(C_Map.GetBestMapForUnit(PLAYER), ZONE)
+    if zone ~= entryZone then
+        CancelEntry()
+        entryZone, entryNotified = zone, false
+    end
+    if zone and not entryNotified then
+        local place, ask, _, node = Nearest(true)
+        if place or ask then
+            entryNotified, entryNode, entryPlace = true, node, place
+            entryTimer = C_Timer.NewTimer(ZONE_HOLD, EntryExpired)
+        end
+    end
     local place, ask = Nearest()
-    if place or ask then Show(place) else frame:Hide() end
+    if place or ask then
+        Show(place)
+    elseif entryTimer and not inCombat and not UnitOnTaxi(PLAYER) and Kind(entryNode, Mine(), false) then
+        Show(entryPlace)
+    else
+        frame:Hide()
+    end
 end
 
 local function TaxiIcon()
@@ -303,6 +357,8 @@ local function Apply()
     events:UnregisterAllEvents()
     ForgetNodes()
     if not On() then
+        CancelEntry()
+        entryZone, entryNotified = nil, nil
         if frame then frame:Hide() end
         return
     end
@@ -311,6 +367,28 @@ local function Apply()
     inCombat = UnitAffectingCombat(PLAYER)
     for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
     Update()
+end
+
+function ns.FlightPointReminderForPin(map, npc)
+    if not On() then return nil end
+    local zone = Up(map, ZONE)
+    if not zone then return nil end
+    local world, secret = WorldOf(map, CreateVector2D(npc[1] / PERCENT, npc[2] / PERCENT))
+    if secret or not world then return nil end
+    local _, entries, blocked = NodesFor(zone)
+    if blocked or not entries then return nil end
+    local nearest, distance
+    for _, entry in ipairs(entries) do
+        if Ours(entry.node.faction) and entry.world then
+            local yards = Yards(world, entry.world)
+            if yards <= TOWN_RANGE and (not distance or yards < distance) then
+                nearest, distance = entry.node, yards
+            end
+        end
+    end
+    local mine = Mine()
+    local seen = Seen(mine, zone)
+    if nearest and Kind(nearest, mine, seen) == LEARN then return LearnText(PlaceName(nearest.name)) end
 end
 
 events:SetScript("OnEvent", OnEvent)
@@ -336,7 +414,7 @@ local Settings = ns.Shared.Settings
 
 Settings.Page(PAGE, S):Card({
     id = "flightPoint", name = "Flight Point Reminder", order = 12, switch = "flightPoint",
-    help = "Text on screen in a town whose flight point you have not learned.",
+    help = "Reminds you of unlearned flight points when you enter a zone or reach a town.",
     rows = {
         Settings.Look("flightPoint", { text = true, size = St.HUD_TEXT_RANGE, background = "card" }),
         Settings.Group("Colors"),

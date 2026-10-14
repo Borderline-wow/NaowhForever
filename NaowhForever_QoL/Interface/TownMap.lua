@@ -234,6 +234,10 @@ function NaowhForeverTownPinMixin:OnMouseEnter()
     GameTooltip:SetText(npc[4], 1, 1, 1)
     local title = npc[5] ~= "" and npc[5] or CATEGORIES[npc[3]][3]
     GameTooltip:AddLine(title, SoftBlue(HINT.r, HINT.g, HINT.b))
+    if npc[3] == "flight" and ns.FlightPointReminderForPin then
+        local reminder = ns.FlightPointReminderForPin(self:GetMap():GetMapID(), npc)
+        if reminder then GameTooltip:AddLine(reminder, SoftBlue(HINT.r, HINT.g, HINT.b)) end
+    end
     GameTooltip:Show()
 end
 

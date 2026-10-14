@@ -114,7 +114,7 @@ NaowhForever_QoL/
   Travel/
     FlightData.lua      each flight route's flown length (ns.FLIGHT_ROUTES), generated
     Flight.lua          the Flight Timer, Flight Games and flight times on the flight map
-    FlightPoint.lua     the reminder to learn a town's flight point
+    FlightPoint.lua     zone-entry and nearby-town flight point reminders
     AimTrainer.lua      the Aim Trainer (/nfaim, ns.AimRules, ns.AimPlay, ns.AimOffer)
     AimBoard.lua        the Aim Trainer's leaderboard (ns.AimBoard)
     QuizData.lua        the quiz questions (ns.QUIZ_QUESTIONS)
@@ -526,6 +526,12 @@ NaowhForever_QoL/
   as known, so the reminder hides without opening the flight map, and does not mark the snapshot
   complete. The snapshot is this character's GUID in `flightPoints` (`TAXIMAP_OPENED`), and opening
   the map still replaces every node from `GetAllTaxiNodes`. A name cannot tell two characters apart.
+- Opening a flight map saves both its taxi map ID and the player's real continent in
+  `seenMaps`. Classic and Forever use separate taxi maps: 1463 for Eastern Kingdoms (1415)
+  and 1464 for Kalimdor (1414). `TAXI_MAPS` lets both the screen reminder and pin hint recognize
+  older saves containing only those taxi map IDs after a reload, without another visit.
+- The learn sentence drops a leading `The ` from the place name so The Sepulcher reads
+  "Learn the Sepulcher flight point". The original name still matches the town's subzone.
 - A node is reminded only when it is unlearned and its faction is neutral or the player's.
   An Alliance character in Undercity sees nothing, because that flight point is Horde.
 - A capital (`ns.TownCapitals`) reminds you only of that city's own flight point, and only while
@@ -535,6 +541,20 @@ NaowhForever_QoL/
   be within 400 yards, or standing in the subzone of that flight point, which is how the Auberdine
   inn counts. The Crossroads and Ratchet are about 1,200 yards apart, so one town does not
   light the next. An empty subzone matches nothing.
+- Entering a zone also shows one reminder through `ns.AlertStack`, anywhere in that zone.
+  `ZONE_HOLD` is ten seconds so the entry alert clears while you keep questing. Stops, subzone
+  changes and restyling do not restart it. Combat and flying defer the alert until they end.
+  Leaving the zone or disabling the reminder cancels its timer. Returning to the zone allows
+  another entry alert. Nearby-town reminders still stay up until the node is learned or you leave.
+- Node world positions are projected into the current zone with `C_Map.GetMapPosFromWorldPos`.
+  Only coordinates inside that zone's map count for the entry alert, including when the taxi API
+  falls back to the continent. A flight point in another zone cannot trigger that alert.
+- Existing `TownMap.lua` flight-master pins add the learn reminder to their tooltip when the
+  closest friendly taxi node within `TOWN_RANGE` is unlearned. Known nodes get no reminder,
+  even if another unlearned node is nearby. The Town Pins and Flight Masters switches still
+  control those pins; Flight Point Reminder controls the extra tooltip line. No pin system or
+  setting is added. Gossip still uses the nearby-town scan, so a distant entry alert cannot
+  record that node as learned.
 - It checks on a zone change, when you stop, when you talk to a flight master, when the flight map
   opens or closes, when a flight takes or returns control, and when combat starts or ends. While the
   switch is off, none of those events are registered and the frame is not built.

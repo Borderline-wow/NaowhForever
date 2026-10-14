@@ -4619,6 +4619,7 @@ L["Test roll"] = true
 L["Text"] = true
 L["Text Color"] = true
 L["Text on screen in a town whose flight point you have not learned."] = true
+L["Reminds you of unlearned flight points when you enter a zone or reach a town."] = true
 L["Text on screen when any piece of gear drops below the threshold. Hidden in combat. Move it in the HUD Editor."] = true
 L["Text on screen while you have talent points to spend. Hidden in combat. Move it in the HUD Editor."] = true
 L["Text Outline"] = true

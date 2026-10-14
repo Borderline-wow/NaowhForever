@@ -95,4 +95,28 @@ Check(Shown(2) == "bank flight inn profession repair vendor", "in a capital too"
 playerClass = "HUNTER"
 Check(Shown(1) == "bank flight inn profession repair stable vendor", "and shown for a hunter")
 
+
+
+local tooltipLines, requestedMap, requestedNPC = {}, nil, nil
+local hoverMap = { GetMapID = function() return 1 end }
+local flightNPC = Town()[1]
+env.GameTooltip = {
+    SetOwner = function() end, SetText = function() end, Show = function() end,
+    AddLine = function(_, text) tooltipLines[#tooltipLines + 1] = text end,
+}
+ns.FlightPointReminderForPin = function(mapID, npc)
+    requestedMap, requestedNPC = mapID, npc
+    return "Learn the Flyer's Town flight point"
+end
+env.NaowhForeverTownPinMixin.OnMouseEnter({ npc = flightNPC, GetMap = function() return hoverMap end })
+Check(requestedMap == 1 and requestedNPC == flightNPC and tooltipLines[2] == "Learn the Flyer's Town flight point",
+    "the existing flight-master pin tooltip uses the reminder's known-node check")
+ns.FlightPointReminderForPin = function() return nil end
+tooltipLines = {}
+env.NaowhForeverTownPinMixin.OnMouseEnter({ npc = flightNPC, GetMap = function() return hoverMap end })
+Check(#tooltipLines == 1, "a known flight-master pin keeps its ordinary tooltip")
+ns.FlightPointReminderForPin = function() error("not a flight master") end
+env.NaowhForeverTownPinMixin.OnMouseEnter({ npc = Town()[2] })
+Check(#tooltipLines == 2, "other town pins never query flight knowledge")
+
 print(("test-town-capitals: %d checks passed"):format(checks))

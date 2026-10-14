@@ -5,7 +5,8 @@
 -- its own flight point with no distance check, and stays quiet once that point is known.
 -- Combat and a taxi hide it. Talking to a flight master records that
 -- town's point without opening the flight map. The switch off registers nothing. The snapshot
--- is this character's GUID.
+-- is this character's GUID. Zone alerts are expired automatically for these local-reminder checks;
+-- the zone-entry checks below drive their timer explicitly.
 
 local Load = dofile("Tools/regression/load_files.lua")
 
@@ -16,6 +17,7 @@ local NEUTRAL, HORDE, ALLIANCE = 0, 1, 2
 local BARRENS, STORMWIND, UNDERCITY, CAVES = 1413, 1453, 1458, 9001
 local DARKSHORE, KALIMDOR, DUSKWOOD, EASTERN_KINGDOMS = 1439, 1414, 1431, 1415
 local AUBERDINE, RATCHET, STORMWIND_FP, DARKSHIRE, THORIUM = 26, 80, 2, 12, 74
+local EASTERN_TAXI, KALIMDOR_TAXI = 1463, 1464
 local UNREACHABLE, CURRENT = 2, 0
 local SECRET = "secret"
 local GUID = "Player-1-GLYADIN"
@@ -23,8 +25,16 @@ local TAXI, VENDOR = 102, 101
 
 local state = { map = BARRENS, pos = { x = 0, y = 0 }, faction = "Alliance", taxi = false,
     combat = false, secret = false, guid = GUID, nodes = {}, asked = nil, asks = 0, subzone = "", openNodes = {},
-    options = {} }
-local frames, named = {}, {}
+    options = {}, taxiMap = DARKSHORE }
+local frames, named, timers = {}, {}, {}
+
+local function Expire()
+    local pending = timers
+    timers = {}
+    for _, timer in ipairs(pending) do
+        if not timer.cancelled then timer.callback() end
+    end
+end
 
 local function NewFrame(name)
     local f = { events = {} }
@@ -59,6 +69,7 @@ local function Fire(event)
         local f = frames[i]
         if f.events[event] and f.OnEvent then f:OnEvent(event) end
     end
+    if not state.zoneAlerts then Expire() end
 end
 
 local function Text()
@@ -91,6 +102,7 @@ function S.Set(k, v) values[k] = v end
 
 local account = {}
 local ns = { L = dofile("Tools/regression/locale_stub.lua").L, QoLSettings = S,
+    QoLConstants = dofile("Tools/regression/qol_constants.lua"),
     TownCapitals = { [STORMWIND] = true, [UNDERCITY] = true },
     AccountSettings = function() return account end,
     THEME = { accent = { r = 0, g = 0.5, b = 0.9 } },
@@ -98,7 +110,7 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, QoLSettings = S,
         parent.text = NewFrame()
         return parent.text
     end,
-    AlertStack = function() end,
+    AlertStack = function(frame) state.alertFrame = frame end,
     Apply = function() end, ShowUnlockMode = function() end, HideUnlockMode = function() end,
     Shared = {
         Parts = { HudBackdrop = function()
@@ -138,22 +150,32 @@ local env = {
         t[key] = function(...) orig(...); callback(...) end
     end,
     UIParent = {},
+    CreateVector2D = function(x, y) return { x = x, y = y, normalized = true } end,
     UnitFactionGroup = function() return state.faction end,
     UnitName = function() return "Glyadin" end,
     GetRealmName = function() return "Forever" end,
     UnitGUID = function() return state.guid end,
     GetSubZoneText = function() return state.subzone end,
-    GetTaxiMapID = function() return DARKSHORE end,
+    GetTaxiMapID = function() return state.taxiMap end,
     UnitOnTaxi = function() return state.taxi end,
     UnitAffectingCombat = function() return state.combat end,
     issecretvalue = function(v) return state.secret and v == SECRET end,
     GetFileIDFromPath = function(path)
         if path == "Interface\\GossipFrame\\TaxiGossipIcon" then return TAXI end
     end,
+    C_Timer = { NewTimer = function(seconds, callback)
+        local timer = { seconds = seconds, callback = callback }
+        function timer:Cancel() self.cancelled = true end
+        timers[#timers + 1] = timer
+        return timer
+    end },
     C_GossipInfo = { GetOptions = function() return state.options end },
     C_Map = {
         GetBestMapForUnit = function() return state.map end,
         GetMapInfo = function(id)
+            if id == EASTERN_TAXI or id == KALIMDOR_TAXI then
+                return { mapID = id, mapType = 2, parentMapID = 0 }
+            end
             if id == CAVES then return { mapID = CAVES, mapType = 4, parentMapID = UNDERCITY } end
             if id == DARKSHORE then return { mapID = DARKSHORE, mapType = 3, parentMapID = KALIMDOR } end
             if id == KALIMDOR then return { mapID = KALIMDOR, mapType = 2, parentMapID = 0 } end
@@ -164,7 +186,12 @@ local env = {
             return { mapID = id, mapType = 3, parentMapID = 0 }
         end,
         GetPlayerMapPosition = function() return state.pos end,
-        GetWorldPosFromMapPos = function(_, pos) return 0, pos end,
+        GetMapPosFromWorldPos = function(_, world, map)
+            return map, { x = world.x / 10000, y = world.y / 10000 }
+        end,
+        GetWorldPosFromMapPos = function(_, pos)
+            return 0, pos.normalized and { x = pos.x * 10000, y = pos.y * 10000 } or pos
+        end,
     },
     C_TaxiMap = {
         GetTaxiNodesForMap = function(map)
@@ -327,5 +354,215 @@ check("leaving Unlock Mode hides it when no flight point is nearby", Text() == n
 S.Set("flightPoint", false)
 check("turning it off drops the events and hides the line", not Listening("ZONE_CHANGED")
     and not Listening("GOSSIP_SHOW") and not Listening("PLAYER_CONTROL_LOST") and Text() == nil)
+
+account.flightPoints = nil
+state.zoneAlerts = true
+state.nodes, state.map, state.pos = {}, BARRENS, { x = 0, y = 0 }
+S.Set("flightPoint", true)
+check("zone entry reminds of an unlearned node beyond town range",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) })
+    == "Learn the Auberdine flight point")
+check("the zone reminder uses the existing alert stack", state.alertFrame == named.NaowhForeverFlightPoint)
+check("the zone alert has one ten-second timer", #timers == 1 and timers[1].seconds == 10)
+Fire("PLAYER_STOPPED_MOVING")
+Fire("ZONE_CHANGED_INDOORS")
+ns.Apply()
+S.Set("flightPointFontSize", 14)
+check("stops, subzones and restyling do not restart the zone alert", #timers == 1)
+state.options = { { icon = TAXI } }
+Fire("GOSSIP_SHOW")
+check("distant taxi gossip cannot mark the zone alert's node known", account.flightPoints == nil)
+Expire()
+check("the distant zone alert expires", Text() == nil)
+Fire("ZONE_CHANGED")
+Fire("PLAYER_STOPPED_MOVING")
+Fire("PLAYER_ENTERING_WORLD")
+check("the alert cannot repeat within the same zone", Text() == nil and #timers == 0)
+At(BARRENS, {})
+check("returning to the zone allows a new alert",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) })
+    == "Learn the Auberdine flight point" and #timers == 1)
+local oldTimer = timers[1]
+At(BARRENS, {})
+check("leaving the zone cancels its alert", Text() == nil and oldTimer.cancelled)
+Expire()
+
+account.flightPoints = { [GUID] = { [AUBERDINE] = true, seenMaps = { [KALIMDOR] = true } } }
+check("known nodes stay silent even if the map still calls them undiscovered",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) }) == nil and #timers == 0)
+check("a known node cannot mask another unlearned node in the same zone",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE),
+        Node("Far Town, Darkshore", ALLIANCE, 9000, false, 99) }) == "Learn the Far Town flight point")
+Expire()
+At(BARRENS, {})
+account.flightPoints = nil
+check("a zone-wide reminder without a snapshot asks for the map instead of asserting a node is unlearned",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, true, AUBERDINE) })
+    == "Open a flight master's map to save the points you know")
+state.openNodes = { { nodeID = AUBERDINE, state = CURRENT } }
+Fire("TAXIMAP_OPENED")
+check("learning the node hides an active zone alert", Text() == nil)
+Expire()
+At(BARRENS, {})
+account.flightPoints = nil
+check("continent fallback excludes flight points outside the current zone",
+    At(DARKSHORE, { [KALIMDOR] = { Node("Other Zone", ALLIANCE, 12000, false, 99) } }) == nil)
+check("continent fallback finds a flight point inside the current zone",
+    At(DARKSHORE, { [KALIMDOR] = { Node("Other Zone", ALLIANCE, 12000, false, 99),
+        Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) } }) == "Learn the Auberdine flight point")
+Expire()
+At(BARRENS, {})
+check("direct zone data also excludes a point projected outside the zone",
+    At(DARKSHORE, { Node("Other Zone", ALLIANCE, 12000, false, 99) }) == nil)
+At(BARRENS, {})
+check("the other faction gets no zone-wide reminder",
+    At(DARKSHORE, { Node("Enemy Town", HORDE, 8000, false, 99) }) == nil)
+
+At(BARRENS, {})
+Fire("PLAYER_REGEN_DISABLED")
+check("entering a zone in combat defers its alert",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) }) == nil and #timers == 0)
+Fire("PLAYER_REGEN_ENABLED")
+check("the deferred alert shows on leaving combat", Text() == "Learn the Auberdine flight point" and #timers == 1)
+Expire()
+Fire("PLAYER_REGEN_DISABLED")
+Fire("PLAYER_REGEN_ENABLED")
+check("another combat does not repeat the zone alert", Text() == nil and #timers == 0)
+At(BARRENS, {})
+state.taxi = true
+check("flying across a zone defers its alert",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) }) == nil and #timers == 0)
+state.taxi = false
+Fire("PLAYER_CONTROL_GAINED")
+check("landing shows the deferred alert", Text() == "Learn the Auberdine flight point")
+Expire()
+
+At(BARRENS, {})
+account.flightPoints = { [GUID] = { [STORMWIND_FP] = true } }
+check("a capital's continent fallback does not remind of another town after its own node is known",
+    At(STORMWIND, { [EASTERN_KINGDOMS] = {
+        Node("Stormwind, Elwynn", ALLIANCE, 8000, false, STORMWIND_FP),
+        Node("Darkshire, Duskwood", ALLIANCE, 9000, false, DARKSHIRE) } }) == nil)
+account.flightPoints = nil
+At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) })
+Expire()
+
+local pin = { 80, 0, "flight", "Flight Master", "", nil, "A" }
+check("an existing flight-master pin gets the unlearned reminder",
+    ns.FlightPointReminderForPin(DARKSHORE, pin) == "Learn the Auberdine flight point")
+account.flightPoints = { [GUID] = { [AUBERDINE] = true } }
+check("a known flight-master pin gets no reminder", ns.FlightPointReminderForPin(DARKSHORE, pin) == nil)
+state.nodes = { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE),
+    Node("Another Town, Darkshore", ALLIANCE, 8300, false, 99) }
+Fire("ZONE_CHANGED")
+check("a known pin cannot borrow another nearby node's reminder", ns.FlightPointReminderForPin(DARKSHORE, pin) == nil)
+account.flightPoints = nil
+state.nodes = { Node("Auberdine, Darkshore", ALLIANCE, 8000, true, AUBERDINE) }
+Fire("ZONE_CHANGED")
+check("an unchecked pin is not labelled as unlearned", ns.FlightPointReminderForPin(DARKSHORE, pin) == nil)
+state.nodes = { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) }
+Fire("ZONE_CHANGED")
+check("a remote pin cannot borrow this zone's node", ns.FlightPointReminderForPin(DARKSHORE, { 10, 0 }) == nil)
+
+At(BARRENS, {})
+At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 8000, false, AUBERDINE) })
+local activeTimer = timers[#timers]
+S.Set("enabled", false)
+check("disabling QoL cancels the timer, hides the alert and drops events",
+    activeTimer.cancelled and Text() == nil and not Listening("ZONE_CHANGED"))
+state.asks = 0
+check("a pin does no taxi data work while QoL is off", ns.FlightPointReminderForPin(DARKSHORE, pin) == nil
+    and state.asks == 0)
+Expire()
+check("a cancelled timer cannot resurrect the disabled alert", Text() == nil)
+S.Set("enabled", true)
+S.Set("flightPoint", false)
+state.asks = 0
+check("a pin does no taxi data work while the reminder is off", ns.FlightPointReminderForPin(DARKSHORE, pin) == nil
+    and state.asks == 0 and not Listening("ZONE_CHANGED"))
+
+local function Reload()
+    frames, named, timers = {}, {}, {}
+    S.Set = function(k, v) values[k] = v end
+    ns.Apply, ns.ShowUnlockMode, ns.HideUnlockMode = function() end, function() end, function() end
+    Load({ "NaowhForever_QoL/Travel/FlightPoint.lua" }, env)
+    Fire("PLAYER_LOGIN")
+end
+
+state.zoneAlerts, state.map, state.nodes, state.subzone = false, DUSKWOOD, {}, ""
+state.taxiMap = EASTERN_TAXI
+S.Set("flightPoint", true)
+account.flightPoints = { [GUID] = { [11] = true, seenMaps = { [EASTERN_TAXI] = true } } }
+state.nodes = { Node("Darkshire, Duskwood", ALLIANCE, 50, true, DARKSHIRE) }
+Reload()
+check("a reloaded 1463-only save recognizes Eastern Kingdoms without opening a flight map",
+    Text() == "Learn the Darkshire flight point")
+check("the pin hint also recognizes a 1463-only save",
+    ns.FlightPointReminderForPin(DUSKWOOD, { 0.5, 0 }) == "Learn the Darkshire flight point")
+check("the legacy save still hides its known node 11",
+    At(DUSKWOOD, { Node("Known Town, Duskwood", ALLIANCE, 50, true, 11) }) == nil)
+state.zoneAlerts = true
+At(BARRENS, {})
+check("a 1463-only save also enables the distant zone-entry learn reminder",
+    At(DUSKWOOD, { Node("Darkshire, Duskwood", ALLIANCE, 8000, true, DARKSHIRE) })
+    == "Learn the Darkshire flight point")
+Expire()
+state.zoneAlerts = false
+check("an Eastern Kingdoms taxi save does not mark Kalimdor seen",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 50, true, AUBERDINE) })
+    == "Open a flight master's map to save the points you know")
+state.guid = "Player-1-OTHER"
+check("the migrated continent belongs only to the saved character",
+    At(DUSKWOOD, { Node("Darkshire, Duskwood", ALLIANCE, 50, true, DARKSHIRE) })
+    == "Open a flight master's map to save the points you know")
+state.guid = GUID
+account.flightPoints[GUID] = { seenMaps = { [KALIMDOR_TAXI] = true } }
+check("a 1464-only save recognizes Kalimdor",
+    At(DARKSHORE, { Node("Auberdine, Darkshore", ALLIANCE, 50, true, AUBERDINE) })
+    == "Learn the Auberdine flight point")
+check("a Kalimdor taxi save does not mark Eastern Kingdoms seen",
+    At(DUSKWOOD, { Node("Darkshire, Duskwood", ALLIANCE, 50, true, DARKSHIRE) })
+    == "Open a flight master's map to save the points you know")
+account.flightPoints[GUID] = { seenMaps = { [9002] = true } }
+check("an unrelated saved map cannot mark a continent seen",
+    At(DUSKWOOD, { Node("Darkshire, Duskwood", ALLIANCE, 50, true, DARKSHIRE) })
+    == "Open a flight master's map to save the points you know")
+account.flightPoints = nil
+state.openNodes = { { nodeID = 11, state = CURRENT }, { nodeID = DARKSHIRE, state = UNREACHABLE } }
+Fire("TAXIMAP_OPENED")
+check("opening Forever's 1463 map saves both the taxi map and player's real continent",
+    account.flightPoints[GUID].seenMaps[EASTERN_TAXI] == true
+    and account.flightPoints[GUID].seenMaps[EASTERN_KINGDOMS] == true
+    and account.flightPoints[GUID][11] == true and account.flightPoints[GUID][DARKSHIRE] == false)
+Reload()
+check("the new snapshot keeps its learn reminder after reload", Text() == "Learn the Darkshire flight point")
+check("the new snapshot keeps its known node hidden after reload",
+    At(DUSKWOOD, { Node("Known Town, Duskwood", ALLIANCE, 50, true, 11) }) == nil)
+account.flightPoints = nil
+state.taxiMap = 9002
+state.nodes = { Node("Darkshire, Duskwood", ALLIANCE, 50, true, DARKSHIRE) }
+Fire("TAXIMAP_OPENED")
+check("saving the player's continent does not depend on a recognized taxi map",
+    account.flightPoints[GUID].seenMaps[EASTERN_KINGDOMS] == true
+    and Text() == "Learn the Darkshire flight point")
+
+state.subzone, state.pos, state.faction = "The Sepulcher", nil, "Horde"
+local sepulcher = Node("The Sepulcher, Silverpine Forest", HORDE, 8000, false, 69)
+check("the sentence drops a leading The while the town still matches its original subzone",
+    At(DUSKWOOD, { sepulcher }) == "Learn the Sepulcher flight point")
+check("the pin sentence also drops the duplicated article",
+    ns.FlightPointReminderForPin(DUSKWOOD, { 80, 0 }) == "Learn the Sepulcher flight point")
+state.zoneAlerts, state.subzone, state.pos = true, "", { x = 0, y = 0 }
+At(BARRENS, {})
+check("the zone-entry sentence also drops the duplicated article",
+    At(DUSKWOOD, { sepulcher }) == "Learn the Sepulcher flight point")
+Expire()
+state.zoneAlerts = false
+check("a name merely beginning with The keeps its spelling",
+    At(DUSKWOOD, { Node("Thelsamar, Loch Modan", NEUTRAL, 50, false, 70) })
+    == "Learn the Thelsamar flight point")
+check("The inside a name is preserved",
+    At(DUSKWOOD, { Node("Ruins of The City", NEUTRAL, 50, false, 71) })
+    == "Learn the Ruins of The City flight point")
 
 print(checks .. " flight point checks passed")
