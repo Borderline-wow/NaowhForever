@@ -1373,6 +1373,8 @@ do
     check("and settles when the mouse leaves", icon.hot.shown == false)
     spot.scripts.OnClick(spot, "LeftButton")
     check("clicking the fire performs the /sit emote", #s.emotes == 1 and s.emotes[1] == "SIT")
+    check("the click covers the icon and its Click to sit under it", spot.rel.TOP == icon
+        and spot.rel.BOTTOM == icon.label and spot.w == math.max(icon.w, icon.label:GetStringWidth()))
     spot.scripts.OnClick(spot, "RightButton")
     check("a right click doesn't", #s.emotes == 1)
     s.auras[CAMP] = { duration = 3600, expirationTime = s.now + 2400, auraInstanceID = 1 }

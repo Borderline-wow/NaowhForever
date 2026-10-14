@@ -268,8 +268,16 @@ local function BarShown()
     return simpleBar ~= nil and simpleBar:IsShown()
 end
 
+local function FitRound(spot)
+    spot:ClearAllPoints()
+    spot:SetPoint("TOP", icon, "TOP")
+    spot:SetPoint("BOTTOM", icon.label, "BOTTOM")
+    spot:SetWidth(math.max(icon:GetWidth(), icon.label:GetStringWidth()))
+end
+
 local function ShowSit(nearby)
     ShowSitSpot(icon, nearby and not BarShown())
+    if icon.sitSpot and icon.sitSpot:IsShown() then FitRound(icon.sitSpot) end
     if simpleBar then ShowSitSpot(simpleBar.camp, nearby and BarShown(), simpleBar, simpleBar) end
 end
 

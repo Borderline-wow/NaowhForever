@@ -15,8 +15,9 @@ minimap and Top Bar button). Its on/off switches and their defaults come from
   their amounts, and the time left on the right over a line that runs down green, yellow, then
   red. Hovering it lists each bonus, the time left and when to refresh.
   With no Camp Benefits it glows (LibCustomGlow) and its fire is grey. With a campfire in range the
-  fire lights up, the words say Click to sit, and a click on the fire performs the /sit emote; it
-  glows brighter under the mouse. Camp Nearby's fire does the same.
+  fire lights up, the words say Click to sit, and a click on the fire or its words performs the
+  /sit emote (Round: the icon and the label under it; Simple: the whole bar); it glows brighter
+  under the mouse. Camp Nearby's fire does the same.
 - **Camp Nearby:** the same bar drawn bare (no backdrop, edge or line), larger by its own scale,
   sized to what it says and stacked in the Alerts group (`ns.AlertStack`), with the camp's time
   left inline after a dot while it still runs.
