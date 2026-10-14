@@ -69,6 +69,8 @@ local TIP_KEEP, TIP_KEEP_HELP = ns.L("Buy It"), ns.L("Buys it as it is instead o
 local TIP_FIELD, TIP_FIELD_HELP = ns.L("Add an Item"), ns.L("Shift-click an item, or type its name or ID.")
 local TIP_QTY, TIP_QTY_HELP = ns.L("How Many"), ns.L("How many of the item to add.")
 local TIP_ADD_HELP = ns.L("Puts that many of the item on the list.")
+local TEXT_CONSUMABLES = ns.L("Consumables")
+local TIP_CONSUMABLES_HELP = ns.L("Picks food, flasks, elixirs and more for your class to buy.")
 
 local window, side, scroll, input, qty, empty, total, clear, events
 local crafts, craftPool, items, itemPool, madeList, madePool = {}, {}, {}, {}, {}, {}
@@ -435,10 +437,22 @@ local function BuildFooter()
     total:SetWordWrap(true)
 end
 
+local function OnConsumables()
+    Shopping.ToggleConsumables(window)
+end
+
+local function BuildBar(close)
+    local picker = Parts.BarButton(window, St.BAG, TEXT_CONSUMABLES, TIP_CONSUMABLES_HELP, OnConsumables,
+        TEXT_CONSUMABLES)
+    picker:SetPoint("RIGHT", close, "LEFT", -St.BAR_GAP, 0)
+    window.subtitle:SetPoint("RIGHT", picker, "LEFT", -St.BAR_GAP, 0)
+    window.subtitle:SetWordWrap(false)
+end
+
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, "shoppingListWindow")
     window.backdrop:Card(CARD_INSET, HEADER + CARD_INSET, CARD_INSET, FOOTER + CARD_INSET)
-    Parts.TitleBar(window, TEXT_TITLE, TEXT_SUBTITLE, PAGE)
+    BuildBar(Parts.TitleBar(window, TEXT_TITLE, TEXT_SUBTITLE, PAGE))
     Parts.FooterBrand(window, PAGE)
     BuildBody(BuildInput())
     BuildFooter()

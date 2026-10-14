@@ -25,6 +25,7 @@ local demand, nextDemand, toMake, buy, had = {}, {}, {}, {}, {}
 local trials = {}
 for depth = 0, MAX_DEPTH do trials[depth] = { left = {}, made = {} } end
 local materialList, materialPool = {}, {}
+local listeners = {}
 
 local Shopping = { waiting = waiting }
 P.Shopping = Shopping
@@ -85,12 +86,17 @@ local function Reach()
     return reach
 end
 
+local function Changed()
+    for i = 1, #listeners do listeners[i]() end
+end
+
 local function Trim()
     local have, reach = Have(), Reach()
     for item, qty in pairs(have) do
         local most = reach[item] or 0
         if qty > most then have[item] = most > 0 and most or nil end
     end
+    Changed()
 end
 
 local function BuyPrice(item)
@@ -317,6 +323,11 @@ end
 
 local function Redraw()
     if Shopping.Render then Shopping.Render() end
+    Changed()
+end
+
+local function OnChange(fn)
+    listeners[#listeners + 1] = fn
 end
 
 local function Add(info, crafts)
@@ -367,6 +378,12 @@ local function StepItem(item, by)
     Redraw()
 end
 
+local function SetItem(item, qty)
+    Manual()[item] = qty > 0 and math.min(C.MAX_ITEMS, qty) or nil
+    Trim()
+    Redraw()
+end
+
 local function RemoveItem(item)
     Manual()[item] = nil
     Trim()
@@ -388,6 +405,7 @@ Shopping.Keep = Keep
 Shopping.Manual = Manual
 Shopping.AddItem = AddItem
 Shopping.StepItem = StepItem
+Shopping.SetItem = SetItem
 Shopping.RemoveItem = RemoveItem
 Shopping.Trim = Trim
 Shopping.BuyPrice = BuyPrice
@@ -402,4 +420,5 @@ Shopping.Step = Step
 Shopping.Remove = Remove
 Shopping.Clear = Clear
 Shopping.Redraw = Redraw
+Shopping.OnChange = OnChange
 Shopping.ByName = ByName

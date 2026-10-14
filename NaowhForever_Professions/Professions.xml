@@ -5,6 +5,7 @@
     <Script file="Data\RecipeData.lua"/>
     <Script file="Data\VendorReagents.lua"/>
     <Script file="Data\CooldownRecipes.lua"/>
+    <Script file="Data\ConsumableItems.lua"/>
     <Script file="Text.lua"/>
     <Script file="LinkView.lua"/>
     <Script file="Recipes.lua"/>
@@ -19,6 +20,7 @@
     <Script file="AuctionHouse.lua"/>
     <Script file="BagRoom.lua"/>
     <Script file="ShoppingPlan.lua"/>
+    <Script file="Consumables.lua"/>
     <Script file="Patterns.lua"/>
     <Script file="Disenchant.lua"/>
     <Script file="View\Style.lua"/>
@@ -37,6 +39,7 @@
     <Script file="UI\Takeover.lua"/>
     <Script file="UI\ShoppingAdd.lua"/>
     <Script file="UI\ShoppingWindow.lua"/>
+    <Script file="UI\ShoppingConsumables.lua"/>
     <Script file="UI\ShoppingList.lua"/>
     <Script file="UI\TrainFavorites.lua"/>
     <Script file="UI\FavoritePatterns.lua"/>
