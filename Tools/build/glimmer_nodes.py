@@ -6,7 +6,7 @@ Chest are not in the chest list but in the container list, so a container whose 
 is a chest too. Each herb and vein's own page has where it grows, as map percentages by world map
 ID (g_mapperData; a floor with no world map is left out); those spots are kept in Tools/data/glimmer_spots.json, delete it to ask again.
 
-Writes NaowhForever_Glimmer/Data/Nodes.lua and NaowhForever_GlimmerData/Data/Spots.lua.
+Writes NaowhForever_QoL/Glimmer/Data/Nodes.lua and NaowhForever_GlimmerData/Data/Spots.lua.
 
 Usage: python Tools/build/glimmer_nodes.py
 """
@@ -20,7 +20,7 @@ import paths  # noqa: E402
 from wowhead import WOWHEAD, fetch  # noqa: E402
 from journal import ROOT, header, write  # noqa: E402
 
-OUT = ROOT / "NaowhForever_Glimmer" / "Data" / "Nodes.lua"
+OUT = ROOT / "NaowhForever_QoL" / "Glimmer" / "Data" / "Nodes.lua"
 SPOTS_OUT = ROOT / "NaowhForever_GlimmerData" / "Data" / "Spots.lua"
 CACHE = paths.DATA / "glimmer_spots.json"
 LISTS = (("herb", "herbs"), ("ore", "mineral-veins"), ("chest", "chests"))
