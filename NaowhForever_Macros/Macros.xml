@@ -3,6 +3,7 @@
     <Script file="Macros.lua"/>
     <Script file="Constants.lua"/>
     <Script file="Data\Items.lua"/>
+    <Script file="Text.lua"/>
     <Script file="Commands.lua"/>
     <Script file="Store.lua"/>
     <Script file="Smart.lua"/>
@@ -13,6 +14,10 @@
     <Script file="UI\SmartPage.lua"/>
     <Script file="UI\Library.lua"/>
     <Script file="UI\NewMacro.lua"/>
+    <Script file="UI\Editor.lua"/>
+    <Script file="UI\List.lua"/>
+    <Script file="UI\Builder.lua"/>
+    <Script file="UI\Inspector.lua"/>
     <Script file="UI\Window.lua"/>
     <Script file="UI\SettingsPage.lua"/>
 </Ui>

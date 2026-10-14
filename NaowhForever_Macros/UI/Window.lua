@@ -16,18 +16,19 @@ local NAME = "Naowh's Forge"
 local PAGE = "Macros/Settings"
 local WIDTH, HEIGHT = 1100, 720
 local HEADER, FOOTER = St.WINDOW_HEADER, St.WINDOW_FOOTER
-local PAD, SECTION_H, INSPECTOR_W = St.PAD, St.SECTION_H, St.INSPECTOR_W
+local PAD, SECTION_H, LIST_W, INSPECTOR_W = St.PAD, St.SECTION_H, St.LIST_W, St.INSPECTOR_W
 local SMALL_SIZE, NOTE_SIZE, TEXT_SIZE = St.SMALL_SIZE, St.NOTE_SIZE, St.TEXT_SIZE
 local CARD_INSET, GAP, TOOL_GAP = 6, 6, 10
 local TOP = HEADER + TOOL_GAP + St.TAB_H + TOOL_GAP
-local SWITCH_W, CLASS_W = 220, 200
-local SCROLLBAR_ROOM, SCROLL_BOTTOM = St.SCROLLBAR_ROOM, 4
+local SWITCH_W, CLASS_W, SEARCH_W, MODE_W, MODE_GAP = 330, 200, 220, 170, 10
+local SCROLLBAR_ROOM, SCROLL_BOTTOM, LIST_TOP = St.SCROLLBAR_ROOM, 4, 4
 local METER_W, METER_H, METER_GAP, METER_SPACE, METER_LABEL_GAP = 54, 3, 12, 14, 6
 local EXPORT_GAP = 6
 local SMART_TOP, SIDE_TOP, SIDE_GAP, SIDE_SPACING = 10, 12, 10, 3
 local CLASS_TOP = 4
 local LIB_TITLE_SIZE, LIB_LEAD_GAP, LIB_TOP = 22, 6, 64
 local SAVE_W, NEW_W, TOOL_BUTTON_GAP = 120, 100, 6
+local LIST_NEW_ROOM = St.BUTTON_H + 2 * PAD
 local PERCENT = 100
 local ROUND = 0.5
 
@@ -46,10 +47,18 @@ local TEXT_SMART_HOW = ns.L("Each one is an account macro. Put it on a bar once 
     .. "until it ends.")
 local TEXT_FOOTER = ns.L("Smart Macros are account macros, for every character. A Library macro you add is for this character only.")
 local TEXT_ACCOUNT = ns.L("Account ")
+local TEXT_SEARCH = ns.L("Search your macros")
+local TEXT_NEW_MINE_TIP = ns.L("Start a new macro in the editor.")
 
 local TABS = {
+    { key = "mine", label = "My Macros", tip = "Your macros, and the editor." },
     { key = "smart", label = "Smart Macros", tip = "Macros that keep themselves up to date." },
     { key = "lib", label = "Library", tip = "Macros by class, for every character." },
+}
+
+local MODES = {
+    { key = "simple", label = "Simple", tip = "Each line as a sentence you edit with menus, and Test it." },
+    { key = "advanced", label = "Advanced", tip = "The macro text with colors, Build, Reads as and Simulate." },
 }
 
 local window
@@ -81,7 +90,11 @@ end
 local function Render()
     if not (window and window:IsShown()) then return end
     Subtitle()
-    if F.tab == "smart" then
+    if not F.draft then F.NewDraft() end
+    if F.tab == "mine" then
+        F.DrawList()
+        F.RenderEditor()
+    elseif F.tab == "smart" then
         F.DrawSmart()
     else
         F.DrawLibrary()
@@ -92,14 +105,33 @@ local function ShowCard(card, shown)
     for _, part in ipairs(card) do part:SetShown(shown) end
 end
 
+local function CardsFor(key)
+    if key ~= "mine" then return key end
+    return F.Simple() and "mineSimple" or "mine"
+end
+
+local function PlaceMine()
+    local simple = F.Simple()
+    window.editorArea:ClearAllPoints()
+    window.editorArea:SetPoint("TOPLEFT", window, "TOPLEFT", CARD_INSET + LIST_W + GAP, -TOP)
+    window.editorArea:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT",
+        -(simple and CARD_INSET or CARD_INSET + INSPECTOR_W + GAP), FOOTER + CARD_INSET)
+    window.inspectorArea:SetShown(not simple)
+    Parts.PaintTabs(window.mode, simple and "simple" or "advanced")
+end
+
 local function SetTab(key)
     F.tab = key
     Parts.PaintTabs(window.switch, key)
+    window.mine:SetShown(key == "mine")
     window.smartView:SetShown(key == "smart")
     window.libView:SetShown(key == "lib")
+    local shown = CardsFor(key)
     for name, cards in pairs(window.cards) do
-        for _, card in ipairs(cards) do ShowCard(card, name == key) end
+        for _, card in ipairs(cards) do ShowCard(card, name == shown) end
     end
+    window.search:SetShown(key == "mine")
+    window.mode:SetShown(key == "mine")
     if window:IsShown() then Render() end
 end
 
@@ -155,6 +187,20 @@ local function ExportAll()
     ns.ShowCopyBox(TEXT_YOUR_MACROS, Sharing.Export(all))
 end
 
+local function NewMacro()
+    F.NewDraft()
+    SetTab("mine")
+    if not F.Simple() then window.code:SetFocus() end
+end
+
+local function Search()
+    if F.tab == "mine" then F.DrawList() end
+end
+
+local function SetMode(key)
+    S.Set("forgeMode", key)
+end
+
 local function BuildMeters()
     window.meters = {}
     local after = window.subtitle
@@ -182,17 +228,48 @@ end
 local function BuildTabs()
     window.switch = Parts.Tabs(window, SWITCH_W, TABS, SetTab)
     window.switch:SetPoint("TOPLEFT", CARD_INSET, -(HEADER + TOOL_GAP))
+    window.search = Parts.SearchBox(window, TEXT_SEARCH, Search)
+    window.search:SetSize(SEARCH_W, St.SEARCH_H)
+    window.search:SetPoint("RIGHT", window, "TOPRIGHT", -CARD_INSET, -(HEADER + TOOL_GAP + St.TAB_H / 2))
+    window.mode = Parts.Tabs(window, MODE_W, MODES, SetMode)
+    window.mode:SetPoint("RIGHT", window.search, "LEFT", -MODE_GAP, 0)
 end
 
 local function BuildCards()
     local backdrop, bottom = window.backdrop, FOOTER + CARD_INSET
     local inspectorLeft = WIDTH - CARD_INSET - INSPECTOR_W
+    local editorLeft = CARD_INSET + LIST_W + GAP
     window.cards = {
+        mine = { backdrop:Card(CARD_INSET, TOP, WIDTH - CARD_INSET - LIST_W, bottom),
+            backdrop:Card(editorLeft, TOP, CARD_INSET + INSPECTOR_W + GAP, bottom),
+            backdrop:Card(inspectorLeft, TOP, CARD_INSET, bottom) },
+        mineSimple = { backdrop:Card(CARD_INSET, TOP, WIDTH - CARD_INSET - LIST_W, bottom),
+            backdrop:Card(editorLeft, TOP, CARD_INSET, bottom) },
         smart = { backdrop:Card(CARD_INSET, TOP, CARD_INSET + INSPECTOR_W + GAP, bottom),
             backdrop:Card(inspectorLeft, TOP, CARD_INSET, bottom) },
         lib = { backdrop:Card(CARD_INSET, TOP, WIDTH - CARD_INSET - CLASS_W, bottom),
             backdrop:Card(CARD_INSET + CLASS_W + GAP, TOP, CARD_INSET, bottom) },
     }
+end
+
+local function BuildMine()
+    window.mine = View()
+    local listArea = Area(CARD_INSET, WIDTH - CARD_INSET - LIST_W, window.mine)
+    local list = { area = listArea }
+    list.scroll, list.body = Scroller(listArea, LIST_TOP)
+    list.scroll:SetPoint("BOTTOMRIGHT", -SCROLLBAR_ROOM, LIST_NEW_ROOM)
+    list.rows = P.Pool(function() return F.NewMacroRow(list.body) end)
+    list.sections = P.Pool(function() return P.NewSection(list.body) end)
+    list.empty = P.Text(listArea, NOTE_SIZE, T.muted)
+    list.empty:SetPoint("TOP", 0, -PAD)
+    list.new = ns.AccentBorder(ns.Button(listArea, TEXT_NEW_MACRO, LIST_W - 2 * PAD, St.BUTTON_H, NewMacro))
+    list.new:SetPoint("BOTTOM", 0, PAD)
+    ns.Tooltip(list.new, TEXT_NEW_MACRO, TEXT_NEW_MINE_TIP)
+    window.list = list
+    window.editorArea = Area(CARD_INSET + LIST_W + GAP, CARD_INSET + INSPECTOR_W + GAP, window.mine)
+    F.BuildEditor(window.editorArea)
+    window.inspectorArea = Area(WIDTH - CARD_INSET - INSPECTOR_W, CARD_INSET, window.mine)
+    F.BuildInspector(window.inspectorArea)
 end
 
 local function BuildSmartSide(sideArea)
@@ -254,6 +331,7 @@ end
 
 local function OnHide(self)
     self:UnregisterAllEvents()
+    if F.picker then F.picker:Hide() end
 end
 
 local function Build()
@@ -266,6 +344,7 @@ local function Build()
     BuildBar(opacityIcon)
     BuildTabs()
     BuildCards()
+    BuildMine()
     BuildSmart()
     BuildLibrary()
     Parts.FooterBrand(window, PAGE, CARD_INSET)
@@ -273,6 +352,7 @@ local function Build()
     window:HookScript("OnShow", OnShow)
     window:HookScript("OnHide", OnHide)
     window:SetScript("OnEvent", Render)
+    PlaceMine()
     SetTab(F.tab)
     window:Hide()
 end
@@ -282,6 +362,9 @@ local function SettingChanged(key)
     if key == "windowAlpha" then
         window.backdrop:Paint(S.Get("windowAlpha") or 1)
         window.opacity._refreshValue()
+    elseif key == "forgeMode" then
+        PlaceMine()
+        SetTab(F.tab)
     elseif window:IsShown() then
         Render()
     end

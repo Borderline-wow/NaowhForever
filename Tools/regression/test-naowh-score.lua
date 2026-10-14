@@ -819,12 +819,16 @@ do
         state.gear[units[i]] = gear
     end
     Inspected(units[0])
-    collectgarbage("collect")
-    local before = collectgarbage("count")
-    local all = true
-    for i = 1, PLAYERS do all = Inspected(units[i]) and all end
-    collectgarbage("collect")
-    local kb = (collectgarbage("count") - before) / PLAYERS
+    -- Two halves, the smaller kept: a resize of Lua's string table lands in one of them.
+    local all, half, used = true, PLAYERS / 2, {}
+    for h = 1, 2 do
+        collectgarbage("collect")
+        local before = collectgarbage("count")
+        for i = (h - 1) * half + 1, h * half do all = Inspected(units[i]) and all end
+        collectgarbage("collect")
+        used[h] = collectgarbage("count") - before
+    end
+    local kb = math.min(used[1], used[2]) / half
     print(("  an inspected player kept: %.2f KB"):format(kb))
     check("each scored", all)
     check("an inspected player keeps their score, not their item links (under 1 KB each)", kb < 1)

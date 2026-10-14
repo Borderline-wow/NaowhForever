@@ -1,8 +1,12 @@
 # Macros
 
-Naowh's Forge, the Macros module's own window (`/nfmacros`), has two tabs: Smart Macros and the
-Library. Your own macros are written in the game's macro window (`/macro`), and Export and Import in the
-Forge's title bar share them as a string. The Smart Macros (NF Health, NF Healthstone, NF Health Potion, NF Mana, NF Food, NF Drink, NF
+Naowh's Forge, the Macros module's own window (`/nfmacros`), has three tabs: My Macros, Smart Macros
+and the Library. My Macros lists your account and character macros beside an editor with two views.
+Simple, the default, shows each line as a sentence edited with menus (who it aims at, conditions as
+chips, the spell), the problems with a Fix it, lines and recipes to add, and Test it, which asks only
+what the macro depends on and says what one press does. Advanced adds the colored text editor with a
+line gutter, and a side panel with Build, Reads as and Simulate. Export and Import in the Forge's title
+bar share your macros as a string. The Smart Macros (NF Health, NF Healthstone, NF Health Potion, NF Mana, NF Food, NF Drink, NF
 Bandage, NF Trinket 1 and 2, NF Focus, NF Accept) are written by the module and kept on the best
 item or spell you carry, out of combat.
 The Library keeps, by class, the macros you saved to it and those your profile pack brings. Save a Macro on its
@@ -19,6 +23,8 @@ NaowhForever_Macros/
   Constants.lua             the limits, icons and command sets several files share (M.C)
   Data/
     Items.lua               the mana potions and bandages the Smart Macros use, best first (M.Items)
+  Text.lua                  a macro's text read and written: problems and fixes, each line in words, one press
+                            simulated, clauses built back into a line, the editor's colors, Shorten (M.Text)
   Commands.lua              the commands the game knows, whose they are, and what would fail when pressed (M.Commands)
   Store.lua                 the game's macros, the pack's and the Library's, and the icon each shows (M.Store)
   Smart.lua                 the Smart Macros: their text, writing them out of combat, their events (M.Smart)
@@ -31,6 +37,10 @@ NaowhForever_Macros/
     SmartPage.lua           the Smart Macros tab (M.Forge, the window's shared state)
     Library.lua             the Library tab, and its Save a Macro picker (F.SavePicker)
     NewMacro.lua            the New Macro dialog on the Library tab (F.NewMacro)
+    Editor.lua              My Macros' editor: the draft, its name, icon, byte meter, code box, Save, Undo, Delete
+    List.lua                My Macros' list: your macros, searchable, with a dot for one with problems
+    Builder.lua             the Build view (Simple, and Advanced's Build tab) and Test it
+    Inspector.lua           Advanced's side panel (Build, Reads as, Simulate) and the icon picker
     Window.lua              the window, its tabs, title bar and footer (ns.OpenMacroWindow)
     SettingsPage.lua        its settings page (Macros/Settings), declared as cards
   README.md                 this file
@@ -77,13 +87,21 @@ the open tab) and the functions its UI files call on each other.
 - Icons once picked for a pack macro are still kept by macro name in the account settings, outside
   the profile, so a pack export never carries them; the Library and the pack hand-off use them over
   the pack's own.
-- The window has no macro editor: the game's own macro window (`/macro`) already edits, renames and
-  deletes macros, and a second one only had to keep up with it. Library cards, Import and the profile
-  hand-off add character macros, and say so in `/macro`. New Macro is only a way to write a macro into
-  the Library, not an editor: a name and its text (a name holds 16 bytes and the text 255, both capped
-  by the boxes), saved under your class like Save a Macro does, and added to this character too with
-  Save and Add. Changing one later is `/macro` for a game macro, or saving the same name again to
-  update its Library copy.
+- My Macros edits the game's macros directly; there is no copy of them. The text is the only model:
+  Build, Reads as, Simulate and Test it all read it through `M.Text`, and every Build control edits one
+  line by parsing it, changing its clauses and writing it back with `Text.Build`, so a line keeps what
+  it does and Undo covers every change. A line Build cannot show (a script, a chat line, a bracket with
+  an unknown condition, more than one bracket per clause after `Text.Expand`) stays exactly as typed
+  and says to edit it in Advanced. #355 had taken the editor out in favour of `/macro`; this one
+  brings it back with the Simple view for players who do not know the syntax.
+- The code box shows the text with color codes; `Text.Strip` gives the plain text back and
+  `Text.PlainPos`/`CodedPos` keep the cursor in place when the colors are rewritten as you type.
+- Save, Delete and a picked icon refuse in combat, like every other macro write. An icon picked for a
+  saved macro is written at once, without saving the unsaved text.
+- Library cards, Import and the profile hand-off add character macros, and say so in `/macro`.
+  New Macro on the Library tab writes a macro into the Library, not the game: a name and its text
+  (a name holds 16 bytes and the text 255, both capped by the boxes), saved under your class like
+  Save a Macro does, and added to this character too with Save and Add.
 - The known commands come from the client's `SLASH_` and `EMOTE_CMD` strings. Commands of addons
   that are not loaded are missing from that list, so an unknown command is a warning, not an error.
 - The Smart Macros' item lists are classic-era item IDs, best first.
@@ -107,5 +125,6 @@ the open tab) and the functions its UI files call on each other.
 - `luacheck NaowhForever_Macros` from the repo root.
 - `lua Tools/regression/test-macros.lua`: the Smart Macros and profile macros against stubbed
   macro, bag and item APIs, with the Food & Drink Bar.
-- `lua Tools/regression/test-macro-window.lua`: the window built from the real files, both tabs
+- `lua Tools/regression/test-macro-text.lua`: Check, Fix, Explain, Simulate, Build, Shorten and the colors.
+- `lua Tools/regression/test-macro-window.lua`: the window built from the real files, every tab
   drawn and their controls used.

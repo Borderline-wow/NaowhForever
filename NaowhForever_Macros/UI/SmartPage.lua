@@ -8,7 +8,7 @@ local S = M.Settings
 local C = M.C
 local St = M.Style
 local P = M.Parts
-local F = { tab = "smart" }
+local F = { tab = "mine" }
 M.Forge = F
 
 local QUESTION = C.QUESTION
