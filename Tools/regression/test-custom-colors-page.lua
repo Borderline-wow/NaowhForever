@@ -10,6 +10,10 @@ end
 local coreSource = Read("Core/Core.lua")
 local featuresSource = Read("Core/Features.lua")
 local rxpSource = Read("Core/Integrations/RestedXP/Themes.lua")
+local settingsSource = Read("Core/Integrations/RestedXP/WindowSettings.lua")
+local modelSource = Read("Core/Integrations/RestedXP/WindowModel.lua")
+local windowSource = Read("Core/Integrations/RestedXP/Window.lua")
+local iconsSource = Read("Core/Integrations/RestedXP/Icons.lua")
 local source = Read("Core/Options/SettingsPage.lua")
 local constants = assert(source:match("\n(local DEFAULT_SCALE = .-\n)\nlocal colorsPending = false\n"), "named values")
 local empty = assert(source:match("\n(local function Empty%(%).-end\n)"), "Empty")
@@ -59,6 +63,15 @@ local function RealCore(account, rxp, up)
     local module = assert(loadstring(rxpSource, "RXPThemes"))
     setfenv(module, env)
     module("NaowhForever")
+    for _, part in ipairs({ { settingsSource, "RXPWindowSettings" }, { modelSource, "RXPWindowModel" },
+            { windowSource, "RXPWindow" } }) do
+        local built = assert(loadstring(part[1], part[2]))
+        setfenv(built, env)
+        built("NaowhForever")
+    end
+    local icons = assert(loadstring(iconsSource, "RXPIcons"))
+    setfenv(icons, env)
+    icons("NaowhForever")
     return env.NaowhForever
 end
 
@@ -71,11 +84,24 @@ local function Page(account, rxp, up)
     e.reloads = {}
     ns.ConfirmReload = function(text) e.reloads[#e.reloads + 1] = text end
     local env = { ns = ns, W = {}, colorsPending = false, rxpPending = false,
-        UI = { RefreshPage = function() e.refreshes = e.refreshes + 1 end } }
+        UI = { RefreshPage = function() e.refreshes = e.refreshes + 1 end,
+            FontChoices = function() return { [""] = "Addon Font" }, { "" } end,
+            TextureChoices = function(_, label) return { [""] = label }, { "" } end } }
     function env.W:SectionHeader(_, text)
         e.headers[#e.headers + 1] = text
         return nil, 0
     end
+    function env.W:SwitchFold(_, text, _, cfg)
+        e.headers[#e.headers + 1] = text
+        e.rows[#e.rows + 1] = { { type = "toggle", text = text, tooltip = cfg.tooltip, getValue = cfg.get,
+            setValue = cfg.set, folds = cfg.rows } }
+        return nil, 0
+    end
+    function env.W:GroupHeader(_, text)
+        e.headers[#e.headers + 1] = text
+        return nil, 0
+    end
+    function env.W:EndFold() end
     function env.W:DualRow(_, _, left, right)
         -- The Skin row carries the Theme dropdown; the rows after it keep their places.
         if left.text == "Skin" then
@@ -319,7 +345,7 @@ end
 do
     local function Toggle(e)
         for _, row in ipairs(e.rows) do
-            if row[1].text == "Add Themes to RestedXP" then return row[1], row[2] end
+            if row[1].text == "RestedXP Theme (V1)" then return row[1], row[2] end
         end
     end
     local function Pair(page, name)
@@ -342,7 +368,7 @@ do
         for i = #page.rows, 1, -1 do
             local row = page.rows[i]
             table.insert(out, 1, (row[1].text or "") .. "|" .. (row[2] and row[2].text or ""))
-            if row[1].text == "Add Themes to RestedXP" then break end
+            if row[1].text == "RestedXP Theme (V1)" then break end
         end
         return table.concat(out, ", ")
     end
@@ -351,14 +377,42 @@ do
     local a = {}
     local e = Page(a, true)
     local toggle, beside = Toggle(e)
-    Check(table.concat(e.headers, ",") == "COLORS,RESTEDXP", "RestedXP Guides installed: a RESTEDXP section of its own, even with the themes off")
+    Check(table.concat(e.headers, ",") == "COLORS,RestedXP Theme (V1),RestedXP Naowh Window (V2),RESTEDXP ARROW",
+        "RestedXP Guides installed: V1's fold, V2's, and the arrow's own section while neither is on")
     Check(toggle and toggle.type == "toggle", "the toggle is there with RestedXP Guides installed")
     Check(toggle.getValue() == false and a.rxpThemes == nil, "off by default")
-    Check(toggle.tooltip == "Adds the Naowh themes to RestedXP's theme list.", "its tooltip is one short sentence")
+    Check(toggle.tooltip == "Adds the Naowh themes to RestedXP's theme list, in place of the Naowh window.",
+        "its tooltip is one short sentence")
 
-    Check(beside.type == "label" and beside.text == "", "nothing is beside the toggle")
-    Check(Layout(e) == "Add Themes to RestedXP|", "with the themes off, the toggle is the only RestedXP row")
+    Check(beside == nil and toggle.folds == false, "it is a fold's switch: nothing beside it, and nothing to fold")
+    local NEEDS = "Turn on RestedXP's Beta Features and V2 interface."
+    Check(Layout(e) == "RestedXP Theme (V1)|, RestedXP Naowh Window (V2)|, Style RestedXP's Arrow|",
+        "with them off: the switch of V1, of V2, and the arrow's own, and nothing else")
     Check(Hidden(e), "and none of the other RestedXP choices is shown")
+    local window = Pair(e, "RestedXP Naowh Window (V2)")
+    Check(window and window.type == "toggle" and window.getValue() == false and a.rxpWindow == nil and window.folds == false,
+        "a RestedXP Naowh Window (V2) switch, off by default")
+    Check(Pair(e, "Upcoming Steps") == nil and Pair(e, NEEDS) == nil, "and no steps or note while it is off")
+    window.setValue(true)
+    Check(a.rxpWindow == true, "on is stored")
+    e.build()
+    Check(Pair(e, "RestedXP Naowh Window (V2)").folds == true and Pair(e, NEEDS) ~= nil,
+        "on: it folds what follows, and says what it needs while RestedXP's V2 interface is off")
+    local steps, scale = Pair(e, "Upcoming Steps")
+    Check(steps and steps.type == "slider" and steps.min == 0 and steps.max == 12 and steps.step == 1,
+        "on: the steps listed after the active one")
+    Check(Pair(e, "Naowh Window Width") == nil and Pair(e, "Show Resize Grip") == nil,
+        "and no width and no grip to set: the corner is dragged")
+    Check(scale and scale.text == "Naowh Window Scale" and scale.type == "slider" and scale.min == 60 and scale.max == 200 and scale.step == 5,
+        "and its size, as a percent of its own")
+    steps.setValue(3)
+    scale.setValue(150)
+    Check(a.rxpWindowSteps == 3 and a.rxpWindowScale == 150, "a step count and a scale are stored")
+    steps.setValue(6)
+    scale.setValue(100)
+    Check(a.rxpWindowSteps == nil and a.rxpWindowScale == nil, "and the defaults are not stored")
+    Pair(e, "RestedXP Naowh Window (V2)").setValue(false)
+    Check(a.rxpWindow == nil, "off is not stored")
     Check(#e.notes == 0, "no hint before a change")
     local refreshed = e.refreshes
     toggle.setValue(true)
@@ -367,18 +421,18 @@ do
     Check(Toggle(e).getValue() == true and #e.notes == 1 and e.notes[1] == RXP_HINT, "it reads back, and the RestedXP reload hint shows")
     Check(not Hidden(e), "and the choices are shown")
 
-    Check(Layout(e) == "Add Themes to RestedXP|Reload UI to pick a theme., RestedXP Arrow|, Show Arrow Text|, Use Addon Font|Use Theme Text Color",
-        "with the themes just turned on: a note beside the toggle in place of the theme, then the arrow choice, the arrow text, and the font and text color")
-    local _, waiting = Pair(e, "Add Themes to RestedXP")
+    Check(Layout(e) == "RestedXP Theme (V1)|, Reload UI to pick a theme.|, Use Addon Font|Use Theme Text Color, Style RestedXP's Arrow|, RestedXP Naowh Window (V2)|",
+        "with the themes just turned on: a note in place of the theme, the font and text color, the arrow's switch as it was (off), and the window")
+    local waiting = Pair(e, "Reload UI to pick a theme.")
     Check(waiting.type == "label" and waiting.getValue == nil, "RestedXP has not started with the themes yet: a note, not a dropdown")
 
     -- RestedXP up with the themes in its list: the dropdown, which is RestedXP's own setting
     local up = RxpStub("RXP Blue")
     local u = Page({ rxpThemes = true }, true, up)
-    Check(Layout(u) == "Add Themes to RestedXP|RestedXP Theme, RestedXP Arrow|, Show Arrow Text|, Use Addon Font|Use Theme Text Color",
-        "with RestedXP started: the toggle with the theme beside it, the arrow choice, the arrow text, and the font and text color")
-    local switch, picker = Pair(u, "Add Themes to RestedXP")
-    Check(switch and picker.type == "dropdown" and picker.text == "RestedXP Theme", "the theme is a dropdown beside the toggle")
+    Check(Layout(u) == "RestedXP Theme (V1)|, RestedXP Theme|, Use Addon Font|Use Theme Text Color, Style RestedXP's Arrow|, RestedXP Arrow|, Show Arrow Text|, Arrow Shows Objective|Arrow Text Size, Arrow Addon Font|, RestedXP Naowh Window (V2)|",
+        "with RestedXP started: the switch, the theme, the font and text color, and the arrow's own rows")
+    local picker = Pair(u, "RestedXP Theme")
+    Check(picker and picker.type == "dropdown" and picker.text == "RestedXP Theme", "the theme is a dropdown under the switch")
     Check(picker.getValue() == "" and u.account.rxpTheme == nil, "RestedXP's own while RestedXP is on its own, and nothing stored")
     local presets = u.ns.THEME_PRESET_ORDER
     Check(#picker.order == #presets + 3 and picker.order[1] == "" and picker.order[2] == "current" and picker.order[3] == "default"
@@ -401,12 +455,14 @@ do
     -- RestedXP's live reload off: the theme shows after a reload, so the note does
     local quiet = RxpStub("RXP Blue", false)
     local q = Page({ rxpThemes = true }, true, quiet)
-    local _, quietPicker = Pair(q, "Add Themes to RestedXP")
+    local quietPicker = Pair(q, "RestedXP Theme")
     quietPicker.setValue("crimson")
     Check(quiet.settings.profile.activeTheme == "NaowhForever:crimson" and #quiet.reloads == 0 and q.refreshes == 1,
         "RestedXP's live reload off: the pick is set, RestedXP is not reloaded, and the page redraws")
     q.build()
     Check(#q.notes == 1 and q.notes[1] == RXP_HINT, "with the reload note")
+    a = { rxpThemes = true, rxpArrowOn = true }
+    e = Page(a, true)
     local arrow, noShape = Pair(e, "RestedXP Arrow")
     Check(arrow and arrow.type == "dropdown" and noShape.type == "label" and noShape.text == "",
         "the arrow choice is the next row, with nothing beside it until Naowh arrow is picked")
@@ -423,9 +479,10 @@ do
     Check(Pair(e, "Naowh Arrow Shape") == nil and Pair(e, "Naowh Arrow Size") == nil,
         "with the layer as the arrow style, the choices for Naowh's arrow are not shown")
     local imaged = Page({ rxpThemes = true, rxpArrow = "image" }, true, RxpStub("RXP Blue"))
-    Check(Layout(imaged) == "Add Themes to RestedXP|RestedXP Theme, RestedXP Arrow|Naowh Arrow Shape, Naowh Arrow Glow|Naowh Arrow Size, "
-        .. "Show Arrow Text|Naowh Arrow Text Gap, Use Addon Font|Use Theme Text Color",
-        "with Naowh arrow picked: the arrow and its shape, its glow and size, the arrow text and its gap, then the font and text color")
+    Check(Layout(imaged) == "RestedXP Theme (V1)|, RestedXP Theme|, Use Addon Font|Use Theme Text Color, Style RestedXP's Arrow|, "
+        .. "RestedXP Arrow|Naowh Arrow Shape, Naowh Arrow Glow|Naowh Arrow Size, "
+        .. "Show Arrow Text|Naowh Arrow Text Gap, Arrow Shows Objective|Arrow Text Size, Arrow Addon Font|, RestedXP Naowh Window (V2)|",
+        "with Naowh arrow picked: the arrow and its shape, its glow and size, the arrow text and its gap, what it says, and its font")
     local _, shape = Pair(imaged, "RestedXP Arrow")
     local glow, size = Pair(imaged, "Naowh Arrow Glow")
     Check(shape.type == "dropdown" and glow.type == "toggle" and size.type == "slider", "a dropdown, a toggle and a slider")
@@ -471,7 +528,7 @@ do
     for _, page in ipairs({ u, imaged }) do
         local inSection
         for _, row in ipairs(page.rows) do
-            inSection = inSection or row[1].text == "Add Themes to RestedXP"
+            inSection = inSection or row[1].text == "RestedXP Theme (V1)"
             for _, cfg in ipairs(inSection and row or {}) do
                 if cfg.tooltip then
                     count = count + 1
@@ -513,17 +570,352 @@ do
     Toggle(again).setValue(false)
     again.build()
     Check(again.account.rxpThemes == nil, "off clears it")
-    Check(Hidden(again) and select(2, Toggle(again)).type == "label", "and the choices are hidden again")
+    local themeHidden = true
+    for _, name in ipairs({ "RestedXP Theme", "Use Addon Font", "Use Theme Text Color" }) do
+        if Pair(again, name) then themeHidden = false end
+    end
+    Check(themeHidden and Toggle(again).folds == false and Pair(again, "RestedXP Arrow") ~= nil,
+        "and the theme's choices are hidden again, the arrow's being its own as they were")
 
     local plain = #Page({ themePreset = "custom" }).rows
     local custom = Page({ themePreset = "custom" }, true)
-    Check(Toggle(custom) and #custom.rows == plain + 1, "with Custom and the themes off, RestedXP adds the one toggle row")
-    Check(custom.rows[#custom.rows][1].text == "Add Themes to RestedXP", "and it is the last, above the Reload button")
+    Check(Toggle(custom) and #custom.rows == plain + 3, "with Custom and everything off, RestedXP adds three rows: the theme's, the arrow's and the window's")
+    Check(custom.rows[#custom.rows][1].text == "Style RestedXP's Arrow", "and the arrow's own is the last, above the Reload button")
     local onCustom = Page({ themePreset = "custom", rxpThemes = true }, true)
-    Check(#onCustom.rows == plain + 4, "with the themes on, RestedXP adds four rows: the toggle and theme, the arrow, the arrow text, and the font and text")
-    Check(onCustom.rows[#onCustom.rows][1].text == "Use Addon Font", "and the font row is the last, above the Reload button")
+    Check(#onCustom.rows == plain + 9, "with the themes on, RestedXP adds nine rows: the switch, the theme, the font and text, the arrow's switch, its style, its text, what it says, its font and the window")
+    Check(onCustom.rows[#onCustom.rows][1].text == "RestedXP Naowh Window (V2)", "and the window row is the last, above the Reload button")
     local onImage = Page({ themePreset = "custom", rxpThemes = true, rxpArrow = "image" }, true)
-    Check(#onImage.rows == plain + 5, "with Naowh arrow picked, one more: the glow and size")
+    Check(#onImage.rows == plain + 10, "with Naowh arrow picked, one more: the glow and size")
+    local objective, textSize = Pair(onImage, "Arrow Shows Objective")
+    Check(objective and objective.type == "toggle" and objective.getValue() == false and onImage.account.rxpArrowObjective == nil,
+        "an Arrow Shows Objective toggle, off by default")
+    Check(textSize and textSize.type == "slider" and textSize.text == "Arrow Text Size" and textSize.min == 8 and textSize.max == 24
+        and textSize.step == 1 and textSize.getValue() == 9, "and the arrow text's size beside it, RestedXP's 9 to start")
+    textSize.setValue(18)
+    Check(onImage.account.rxpArrowTextSize == 18, "a size is stored")
+    textSize.setValue(9)
+    Check(onImage.account.rxpArrowTextSize == 9, "and so is RestedXP's own once picked")
+    objective.setValue(true)
+    Check(onImage.account.rxpArrowObjective == true, "on is stored")
+    objective.setValue(false)
+    Check(onImage.account.rxpArrowObjective == nil, "and off is not")
+end
+
+-- The Naowh guide window's look: a row for each thing it can be changed in, from its own list.
+do
+    -- the window's look: a row for each thing it can be changed in, from its own list
+    local styled = {}
+    local s = Page({ rxpWindow = true, rxpWindowTheme = "custom" }, true)
+    Check(table.concat(s.headers, ","):find("WINDOW LOOK", 1, true) ~= nil, "a WINDOW LOOK section with it on")
+    Check(table.concat(Page({}, true).headers, ","):find("WINDOW LOOK", 1, true) == nil, "and none with it off")
+    local cells = {}
+    for _, row in ipairs(s.rows) do
+        for _, cell in ipairs(row) do cells[#cells + 1] = cell end
+    end
+    local function Cell(text)
+        for _, cell in ipairs(cells) do
+            if cell.text == text then return cell end
+        end
+    end
+    for _, option in ipairs(s.ns.RXPWindowOptions()) do
+        local cell = Cell(option.label)
+        local want = { toggle = "toggle", number = "slider", choice = "dropdown", font = "dropdown",
+            texture = "dropdown" }
+        Check(cell and cell.type == want[option.kind] and cell.tooltip == option.tip, option.label .. ": its row")
+        styled[option.key] = cell
+    end
+    for _, color in ipairs(s.ns.RXPWindowColors()) do
+        local cell = Cell(color.label)
+        Check(cell and cell.type == "colorpicker" and cell.hasAlpha == not color.opaque, color.label .. ": its swatch")
+        local r, g, b, alpha = cell.getValue()
+        Check(type(r) == "number" and type(g) == "number" and type(b) == "number" and type(alpha) == "number",
+            color.label .. ": it reads a color")
+        cell.setValue(0.25, 0.5, 0.75, 0.5)
+        Check(s.account.rxpWindowColors[color.name].g == 0.5
+            and select(4, cell.getValue()) == (color.opaque and 1 or 0.5), color.label .. ": and keeps one picked")
+    end
+    local size = styled.rxpWindowTitleSize
+    Check(size.min == 10 and size.max == 28 and size.step == 1 and size.getValue() == 16, "a size has its range and start")
+    size.setValue(20)
+    Check(s.account.rxpWindowTitleSize == 20 and size.getValue() == 20, "a size picked is kept")
+    local outline = styled.rxpWindowOutline
+    Check(outline.values.shadow == "Shadow" and outline.order[1] == "shadow", "a choice has its own words")
+    outline.setValue("outline")
+    Check(s.account.rxpWindowOutline == "outline", "and keeps the one picked")
+    local reset = Cell("Window Look")
+    Check(reset and reset.type == "button" and reset.buttonText == "Reset", "a button puts the look back")
+    local refreshed = s.refreshes
+    reset.onClick()
+    Check(s.account.rxpWindowColors == nil and s.account.rxpWindowTitleSize == nil
+        and s.account.rxpWindowOutline == nil and s.refreshes == refreshed + 1, "it clears them and redraws the page")
+end
+
+do
+    -- the window has a theme of its own in its fold, and its colors are its own only with Custom
+    local function All(page, text)
+        local out = {}
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do
+                if cell.text == text then out[#out + 1] = cell end
+            end
+        end
+        return out
+    end
+    local s = Page({ rxpWindow = true }, true)
+    local pickers = All(s, "Window Theme")
+    Check(#pickers == 1 and pickers[1].type == "dropdown" and s.theme.text == "Theme" and #All(s, "Theme") == 0,
+        "a picker of its own, and the addon's is the one beside the Skin")
+    Check(pickers[1].getValue ~= s.theme.getValue and pickers[1].getValue() == "",
+        "it is not the addon's setting, and is the addon's theme to start")
+    Check(pickers[1].values[""] == "Same as the Addon" and pickers[1].values.midnight == "Midnight"
+        and pickers[1].values.forever == "Forever" and pickers[1].values.custom == "Custom" and pickers[1].order[1] == ""
+        and pickers[1].order[#pickers[1].order] == "custom" and pickers[1].order[#pickers[1].order - 1] == "forever",
+        "the addon's, every preset, the Forever skin and Custom last")
+    Check(pickers[1].tooltip == "The window's colors alone, whatever the addon's theme is; Custom lets you pick them.",
+        "with a short tooltip")
+    Check(#All(s, "Title Color") == 0 and #All(s, "Accent Color") == 0 and #All(s, "Arrow Color") == 0,
+        "a theme picked: no colors to pick")
+    Check(#All(Page({ rxpWindow = true, rxpWindowTheme = "midnight" }, true), "Title Color") == 0,
+        "and a theme of the presets is the same")
+    Check(#All(Page({ rxpWindow = true, rxpWindowTheme = "forever" }, true), "Title Color") == 0,
+        "and so is the Forever skin's")
+    Check(#All(Page({ rxpWindow = true, themePreset = "custom" }, true), "Title Color") == 0,
+        "the addon's theme being Custom is not the window's")
+    local custom = Page({ rxpWindow = true, rxpWindowTheme = "custom" }, true)
+    Check(#All(custom, "Title Color") == 1 and #All(custom, "Accent Color") == 1 and #All(custom, "Window Color") == 1
+        and #All(custom, "Arrow Color") == 1, "Custom: the colors, each once, the arrow's with them")
+    local arrow = All(custom, "Arrow Color")[1]
+    Check(arrow.type == "colorpicker" and arrow.tooltip == "RestedXP's waypoint arrow.", "the arrow's is a swatch")
+    Check(#All(Page({ rxpWindow = true }, true), "Upcoming Steps") == 1, "the sliders are there either way")
+    local pick = Page({ rxpWindow = true }, true)
+    local picker = All(pick, "Window Theme")[1]
+    local refreshed = pick.refreshes
+    picker.setValue("custom")
+    Check(pick.account.rxpWindowTheme == "custom" and pick.account.themePreset == nil,
+        "the picker sets the window's theme and leaves the addon's alone")
+    Check(pick.refreshes == refreshed + 1, "and the page is drawn again")
+    pick.build()
+    Check(#All(pick, "Title Color") == 1, "the colors are there once it is Custom")
+    Check(#pick.notes == 0, "and no reload is asked for: it is at once")
+    picker.setValue("")
+    Check(pick.account.rxpWindowTheme == nil, "the addon's is not stored")
+end
+
+do
+    -- setting a character up: in the window's section (V2), when the window is wished for, off to start, and a
+    -- button for the one played
+    local function Cells(page)
+        local out = {}
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do out[cell.text] = cell end
+        end
+        return out
+    end
+    local none = Cells(Page({}, true))
+    Check(none["Set Up New Characters"] == nil and none["This Character"] == nil,
+        "nothing wished for: no row of it")
+    local themed = Page({ rxpThemes = true }, true)
+    Check(Cells(themed)["Set Up New Characters"] == nil and Cells(themed)["This Character"] == nil,
+        "the theme (V1) wished for: none, it is the window's (V2)")
+    local s = Page({ rxpWindow = true }, true)
+    local cells = Cells(s)
+    local toggle, button = cells["Set Up New Characters"], cells["This Character"]
+    Check(toggle and toggle.type == "toggle" and toggle.getValue() == false, "with the window wished for: a switch, off to start")
+    local function Position(page, name)
+        local at = 0
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do
+                at = at + 1
+                if cell.text == name then return at end
+            end
+        end
+    end
+    local switch, set, note = Position(s, "RestedXP Naowh Window (V2)"), Position(s, "Set Up New Characters"),
+        Position(s, "Turn on RestedXP's Beta Features and V2 interface.")
+    local steps, scale = Position(s, "Upcoming Steps"), Position(s, "Naowh Window Scale")
+    Check(switch and set and note and steps and scale and switch < set and set < note and note < steps
+        and steps < scale, "in the window's section it is the first thing: before what it needs and its sliders")
+    Check(Position(s, "This Character") == set + 1, "and the button for the character played is beside it")
+    Check(("," .. table.concat(s.headers, ",") .. ","):find(",RESTEDXP,", 1, true) == nil,
+        "and there is no section of shared rows for it")
+    Check(button and button.type == "button" and button.buttonText == "Set Up", "and a button for the character played")
+    toggle.setValue(true)
+    Check(s.account.rxpSetup == true and toggle.getValue() == true, "turned on, it is kept")
+    toggle.setValue(false)
+    Check(s.account.rxpSetup == nil, "and the default is not")
+    local refreshed = s.refreshes
+    s.ns.RXPSetUpCharacter = function() return "reload" end
+    button.onClick()
+    Check(s.refreshes == refreshed + 1, "the button draws the page again with its reload note")
+    s.ns.RXPSetUpCharacter = function() return nil end
+    button.onClick()
+    Check(s.refreshes == refreshed + 2, "and when nothing needed a reload")
+end
+
+do
+    -- the old theme, the arrow and the window: three sections of their own
+    local function Cells(page)
+        local out = {}
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do out[cell.text] = cell end
+        end
+        return out
+    end
+    local s = Page({}, true)
+    local cells = Cells(s)
+    local arrow = cells["Style RestedXP's Arrow"]
+    Check(arrow and arrow.type == "toggle" and arrow.getValue() == false, "the arrow has a switch of its own, off to start")
+    Check(cells["RestedXP Arrow"] == nil and cells["Show Arrow Text"] == nil and cells["Arrow Addon Font"] == nil,
+        "and its rows are not shown while it is off")
+    arrow.setValue(true)
+    Check(s.account.rxpArrowOn == true, "turned on, it is kept")
+    s.build()
+    cells = Cells(s)
+    Check(cells["RestedXP Arrow"] and cells["Show Arrow Text"] and cells["Arrow Shows Objective"]
+        and cells["Arrow Addon Font"], "and its rows are there, with no theme turned on")
+    arrow.setValue(false)
+    Check(s.account.rxpArrowOn == false, "off is kept as off, so that a theme does not turn it on again")
+
+    -- the arrow's font is its own, and so is the theme's
+    local f = Page({ rxpArrowOn = true }, true)
+    local font = Cells(f)["Arrow Addon Font"]
+    Check(font and font.type == "toggle" and font.getValue() == true, "the arrow's font is a switch of its own, on to start")
+    font.setValue(false)
+    Check(f.account.rxpArrowFont == false and f.ns.RXPFontEnabled() == true, "and not the theme's")
+
+    -- the window on: the theme's toggle reads off, and turning it on turns the window off
+    local w = Page({ rxpThemes = true, rxpWindow = true }, true)
+    local themes = Cells(w)["RestedXP Theme (V1)"]
+    Check(themes.getValue() == false, "saved with both on, the window is used and the theme reads off")
+    local before = w.account.rxpWindow
+    Check(before == true, "the window is on")
+    themes.setValue(true)
+    Check(w.account.rxpThemes == true and w.account.rxpWindow == nil, "the theme turned on turns the window off")
+end
+
+do
+    -- the arrow's options are in V1 and in V2, and on their own when neither is on: once on the page
+    local function Count(page, name)
+        local count = 0
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do
+                if cell.text == name then count = count + 1 end
+            end
+        end
+        return count
+    end
+    local function Has(page, header)
+        return ("," .. table.concat(page.headers, ",") .. ","):find("," .. header .. ",", 1, true) ~= nil
+    end
+    local neither = Page({}, true)
+    Check(Count(neither, "Style RestedXP's Arrow") == 1 and Has(neither, "RESTEDXP ARROW"),
+        "neither on: the arrow's options have a section of their own")
+    local v1 = Page({ rxpThemes = true, rxpArrowOn = true }, true)
+    Check(Count(v1, "Style RestedXP's Arrow") == 1 and Count(v1, "RestedXP Arrow") == 1 and not Has(v1, "RESTEDXP ARROW")
+        and Has(v1, "RestedXP Theme (V1)"), "V1 on: the arrow's options are in V1's section, once")
+    local v2 = Page({ rxpWindow = true, rxpArrowOn = true }, true)
+    Check(Count(v2, "Style RestedXP's Arrow") == 1 and Count(v2, "RestedXP Arrow") == 1 and not Has(v2, "RESTEDXP ARROW")
+        and Has(v2, "RestedXP Naowh Window (V2)") and Has(v2, "WINDOW LOOK"),
+        "V2 on: the arrow's options are in V2's section, once, before the window's look")
+    Check(Count(v2, "Use Addon Font") == 0 and Count(v1, "Upcoming Steps") == 0,
+        "and what is of the one is not in the other")
+    local function Position(page, name)
+        local at = 0
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do
+                at = at + 1
+                if cell.text == name then return at end
+            end
+        end
+    end
+    local firstLook
+    for _, option in ipairs(v2.ns.RXPWindowOptions()) do
+        if option.group == "Text" and not firstLook then firstLook = option.label end
+    end
+    local sliders, arrow, look = Position(v2, "Naowh Window Scale"), Position(v2, "Style RestedXP's Arrow"), Position(v2, firstLook)
+    Check(sliders and arrow and look and sliders < arrow and arrow < look,
+        "V2: the window's sliders, then the arrow's options, then the window's look")
+end
+
+do
+    -- the search lists what the folds hold, under the fold's title, with no page to build
+    local from = assert(source:find("local Terms = {}", 1, true))
+    local upto = assert(source:find("function ns.SettingsSearchTerms", from, true))
+    local driver = assert(loadstring(constants .. empty .. section .. source:sub(from, upto - 1)
+        .. "local add = ...\nreturn RestedXPSection(setmetatable({ add = add }, Terms), nil, 0)"))
+    local function Terms(account)
+        local seen = {}
+        local env = { ns = RealCore(account, true), colorsPending = false, rxpPending = false,
+            UI = { FontChoices = function() return { [""] = "Addon Font" }, { "" } end,
+                TextureChoices = function(_, label) return { [""] = label }, { "" } end } }
+        env.UI.RefreshPage = function() end
+        env.W = {}
+        setmetatable(env, { __index = _G })
+        setfenv(driver, env)
+        driver(function(text, _, title) seen[text] = title end)
+        return seen
+    end
+    local theme = Terms({ rxpThemes = true })
+    Check(theme["RestedXP Theme (V1)"] == "RestedXP Theme (V1)" and theme["Use Addon Font"] == "RestedXP Theme (V1)"
+        and theme["Style RestedXP's Arrow"] == "RestedXP Theme (V1)", "V1's switch and rows, under its title")
+    Check(theme["RestedXP Naowh Window (V2)"] == "RestedXP Naowh Window (V2)", "and V2's switch, under its own")
+    local window = Terms({ rxpWindow = true })
+    Check(window["Upcoming Steps"] == "RestedXP Naowh Window (V2)" and window["Set Up New Characters"]
+        == "RestedXP Naowh Window (V2)" and window["Title Color"] == nil and window["Window Look"] ~= nil,
+        "V2's rows, the set up and the look, under its title, and no colors with a theme")
+    Check(Terms({ rxpWindow = true, rxpWindowTheme = "custom" })["Title Color"] == "WINDOW LOOK",
+        "and the colors with Custom, in the look's group")
+    local none = Terms({})
+    Check(none["RestedXP Theme (V1)"] ~= nil and none["Upcoming Steps"] == nil and none["Style RestedXP's Arrow"] ~= nil,
+        "nothing wished for: the two switches and the arrow's own")
+end
+
+do
+    -- the icons: a style in the window's fold, kept only when one is picked, and a reload to apply it
+    local function IconCell(page)
+        for _, row in ipairs(page.rows) do
+            for _, cell in ipairs(row) do
+                if cell.text == "Step Icons" then return cell end
+            end
+        end
+    end
+    local s = Page({ rxpWindow = true }, true)
+    local cell = IconCell(s)
+    Check(cell and cell.type == "dropdown", "Step Icons is a dropdown")
+    Check(cell.getValue() == "" and cell.values[""] == "RestedXP's own" and cell.values.line == "Line"
+        and cell.values.filled == "Filled", "RestedXP's own to start, then the two styles")
+    Check(cell.order[1] == "" and cell.order[2] == "line" and cell.order[3] == "filled", "in that order")
+    local refreshed = s.refreshes
+    cell.setValue("filled")
+    Check(s.account.rxpIconStyle == "filled" and cell.getValue() == "filled", "a style picked is kept")
+    Check(s.refreshes == refreshed + 1, "and the page is drawn again with its reload note")
+    cell.setValue("")
+    Check(s.account.rxpIconStyle == nil and cell.getValue() == "", "RestedXP's own is not stored")
+    cell.setValue("rainbow")
+    Check(s.account.rxpIconStyle == nil, "and a style that is not one is not kept")
+    Check(cell.tooltip == "Naowh's own step icons in the accent color in place of RestedXP's, after a /reload.",
+        "its tooltip is one short sentence")
+    local function Position(page, name)
+        local at = 0
+        for _, row in ipairs(page.rows) do
+            for _, cell2 in ipairs(row) do
+                at = at + 1
+                if cell2.text == name then return at end
+            end
+        end
+    end
+    local scale = Position(s, "Naowh Window Scale")
+    Check(scale and scale == Position(s, "Step Icons") - 1, "it is beside the window's scale")
+    Check(IconCell(Page({}, true)) == nil and IconCell(Page({ rxpThemes = true }, true)) == nil,
+        "and not there with the window off, whatever else is on")
+    Check(IconCell(Page({ rxpWindow = true }, false)) == nil and IconCell(Page({ rxpWindow = true })) == nil,
+        "nor without RestedXP Guides")
+    local all = {}
+    for _, row in ipairs(s.rows) do
+        for _, c in ipairs(row) do all[c.text] = c end
+    end
+    Check(all["Quest Icon Color"] == nil and all["Travel Icon Color"] == nil and all["Other Icon Color"] == nil
+        and all["Icon Colors"] == nil, "and no colors of its own: the icons follow the Accent Color")
 end
 
 print("PASS custom colors page: " .. cases .. " checks")

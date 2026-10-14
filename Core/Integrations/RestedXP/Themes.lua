@@ -10,6 +10,7 @@ local CURRENT_KEY, CURRENT_NAME = "current", ns.L("Naowh (current)")
 local RXP_DEFAULT = "Default"
 local TEXT_RXP_DEFAULT = ns.L("RestedXP (default)")
 local TEXT_CURRENT = ns.L("Current Theme")
+local TEXT_SETUP = ns.L("Naowh turned on RestedXP's new interface for this character. Reload UI to use it.")
 
 local RXP_TEXTURES = "Interface/AddOns/RXPGuides/Textures/"
 local TEXTURES = RXP_TEXTURES .. "DarkMode/"
@@ -34,8 +35,11 @@ local DEFAULT_ARROW = "layer"
 local SIZE_MIN, SIZE_MAX, SIZE_STEP, DEFAULT_SIZE = 60, 200, 5, 90
 local GLOW_FILL = 0.76
 local GAP_MIN, GAP_MAX, DEFAULT_GAP = 0, 20, 4
+local TEXT_MIN, TEXT_MAX, RXP_TEXT_SIZE = 8, 24, 9
+local TEXT_WIDTH = 240
 local GAP_STEP = 1
 local PERCENT = 100
+local ARROW_DISTANCE = ns.L("%d yd")
 local CHANNEL_MAX = 255
 local ROUND = 0.5
 local TOP_TOWARD_WHITE = 0.22
@@ -51,6 +55,8 @@ local ARROW_PARTS = { "Normal", "Highlight", "Pushed", "Disabled" }
 local THUMB_W, THUMB_H = 8, 40
 
 local PaintArrow
+local ApplyFont
+local StartArrow
 local boot
 
 function ns.RXPThemesAvailable()
@@ -58,13 +64,44 @@ function ns.RXPThemesAvailable()
 end
 
 function ns.RXPThemesEnabled()
+    if ns.RXPWindowEnabled() then return false end
     local on = ns.AccountSettings().rxpThemes
     if on == nil then return F.rxpThemes end
     return on == true
 end
 
+function ns.RXPSetUpEnabled()
+    local on = ns.AccountSettings().rxpSetup
+    if on == nil then return F.rxpSetup end
+    return on == true
+end
+
+function ns.SetRXPSetUp(on)
+    ns.AccountSettings().rxpSetup = on and true or nil
+end
+
+function ns.RXPArrowKept()
+    local account = ns.AccountSettings()
+    if account.rxpArrowOn == nil then account.rxpArrowOn = ns.RXPArrowEnabled() end
+end
+
 function ns.SetRXPThemes(on)
+    ns.RXPArrowKept()
     ns.AccountSettings().rxpThemes = on and true or nil
+    if on and ns.RXPWindowEnabled() then ns.SetRXPWindow(false) end
+end
+
+function ns.RXPArrowEnabled()
+    local account = ns.AccountSettings()
+    local on = account.rxpArrowOn
+    if on == nil then return account.rxpThemes == true or F.rxpArrowOn end
+    return on == true
+end
+
+function ns.SetRXPArrow(on)
+    ns.AccountSettings().rxpArrowOn = on and true or false
+    if on then StartArrow() end
+    PaintArrow()
 end
 
 function ns.RXPThemeChoices()
@@ -97,6 +134,22 @@ local function Ours(name)
     return type(name) == "string" and name:find(NAME_PREFIX, 1, true) == 1
 end
 
+local reported = {}
+
+local function Run(name, fn, ...)
+    local ok, result = pcall(fn, ...)
+    if ok then return result end
+    if reported[name] then return end
+    reported[name] = true
+    geterrorhandler()(result)
+end
+
+ns.RXPSafe = { Has = Has, Dig = Dig, Run = Run }
+
+local function Visible(region)
+    return region ~= nil and region:IsVisible()
+end
+
 local function Reload()
     local rxp = _G.RXP
     if not Has(rxp, "ReloadTheme") then return end
@@ -104,7 +157,7 @@ local function Reload()
         boot:RegisterEvent("PLAYER_REGEN_ENABLED")
         return
     end
-    rxp:ReloadTheme()
+    Run("ReloadTheme", rxp.ReloadTheme, rxp)
 end
 
 function ns.RXPThemesReady()
@@ -145,7 +198,16 @@ end
 
 function ns.RXPFontEnabled() return Wanted("rxpFont") end
 
-function ns.SetRXPFont(on) Want("rxpFont", on) end
+function ns.SetRXPFont(on)
+    Want("rxpFont", on)
+end
+
+function ns.RXPArrowFontEnabled() return Wanted("rxpArrowFont") end
+
+function ns.SetRXPArrowFont(on)
+    Want("rxpArrowFont", on)
+    ApplyFont()
+end
 
 function ns.RXPTextColorEnabled() return Wanted("rxpTextColor") end
 
@@ -203,11 +265,29 @@ function ns.SetRXPArrowGap(gap)
     PaintArrow()
 end
 
+function ns.RXPArrowTextSizeRange() return TEXT_MIN, TEXT_MAX, 1 end
+
+function ns.RXPArrowTextSize()
+    local size = tonumber(ns.AccountSettings().rxpArrowTextSize) or Dig(_G.RXP, "settings", "profile", "arrowText")
+    return size and Snap(size, TEXT_MIN, TEXT_MAX, 1) or RXP_TEXT_SIZE
+end
+
+function ns.SetRXPArrowTextSize(size)
+    size = tonumber(size)
+    size = size and Snap(size, TEXT_MIN, TEXT_MAX, 1)
+    ns.AccountSettings().rxpArrowTextSize = size
+    ApplyFont()
+end
+
 function ns.RXPArrowTextEnabled() return Wanted("rxpArrowText") end
 
 function ns.SetRXPArrowText(on)
     Want("rxpArrowText", on)
     PaintArrow()
+end
+
+function ns.RXPArrowObjective()
+    return ns.AccountSettings().rxpArrowObjective == true
 end
 
 function ns.RXPArrowGlow()
@@ -256,7 +336,7 @@ local function Theme(id, displayName, palette)
     }
 end
 
-local late
+local late, registered
 
 local function Add(themes, id, displayName, palette)
     local theme = Theme(id, displayName, palette)
@@ -264,6 +344,8 @@ local function Add(themes, id, displayName, palette)
 end
 
 local function Register()
+    if registered then return end
+    registered = true
     local themes = {}
     Add(themes, DEFAULT_KEY, DEFAULT_NAME, ns.ThemePalette(""))
     for _, key in ipairs(ns.THEME_PRESET_ORDER) do
@@ -273,7 +355,7 @@ local function Register()
     local rxp = _G.RXP
     if Has(rxp, "RegisterTheme") and type(rxp.activeTheme) == "table" then
         late = true
-        for _, theme in pairs(themes) do rxp:RegisterTheme(theme) end
+        for _, theme in pairs(themes) do Run("RegisterTheme", rxp.RegisterTheme, rxp, theme) end
         return
     end
     local list = _G.RXPGuides_Themes
@@ -305,7 +387,6 @@ local fitted
 local rxpImage
 local textHome
 local textHidden
-local hookedArrow
 
 local function BuildLayer(arrow)
     local texture = arrow.texture
@@ -384,41 +465,151 @@ local function HandBack(arrow, texture)
     end
 end
 
-local function PaintText(arrow, theme)
+local function PaintText(arrow, on)
     local text = arrow.text
     if not Has(text, "Hide") then return end
-    local hide = theme ~= nil and not ns.RXPArrowTextEnabled()
+    local hide = on and not ns.RXPArrowTextEnabled()
     if hide and not textHidden then
         text:Hide()
     elseif textHidden and not hide then
         text:Show()
     end
     textHidden = hide
+    text:SetWidth(ns.RXPArrowEnabled() and ns.RXPArrowObjective() and TEXT_WIDTH or 0)
+end
+
+local function Words(source)
+    if type(source) ~= "table" or source.completed or source.skip or source.hideTooltip then return nil end
+    local raw = source.text ~= " " and source.text or nil
+    raw = raw or source.tooltipText or source.rawtext
+    if type(raw) == "string" and raw ~= "" then return raw end
+end
+
+local function Source(element)
+    local sources = { element }
+    if type(element.parent) == "table" then table.insert(sources, 1, element.parent) end
+    local list = Dig(element, "step", "elements")
+    if type(list) == "table" then
+        local at = 0
+        for i, other in ipairs(list) do
+            if other == element then
+                at = i
+                break
+            end
+        end
+        for i = at + 1, #list do sources[#sources + 1] = list[i] end
+        for i = 1, at - 1 do sources[#sources + 1] = list[i] end
+    end
+    for _, source in ipairs(sources) do
+        if type(source) == "table" and Words(source) then return source end
+    end
+end
+
+local function Plain(text)
+    text = text:gsub("|T[^|]*|t", "")
+    text = text:gsub("|A[^|]*|a", "")
+    text = text:gsub("^%s+", "")
+    return text ~= "" and text or nil
+end
+
+local function Objective(arrow)
+    local element = arrow.element
+    if type(element) ~= "table" then return nil end
+    local source = Source(element)
+    local rxp = _G.RXP
+    if not source then return type(element.title) == "string" and Plain(element.title) or nil end
+    local shown = Dig(source, "frame", "text")
+    local text = shown and shown:GetText()
+    if not text or text == "" or text == " " then
+        local raw = Words(source)
+        text = Run("ArrowObjective", rxp.ReplaceNpcIds, raw, source) or raw
+    end
+    return Plain(text)
+end
+
+local keeping, composing, hookedArrow, objectiveHooked
+
+local function ArrowStyled()
+    return ns.RXPArrowEnabled() and (ActiveTheme() ~= nil or not ns.RXPThemesEnabled())
+end
+
+local function KeepFont(text, restore)
+    if keeping or not ArrowStyled() then return end
+    local path, size, flags = text:GetFont()
+    local want = ns.RXPArrowFontEnabled() and ns.AddonFontPath() or restore and _G.RXP.font or path
+    local wantSize = ns.AccountSettings().rxpArrowTextSize and ns.RXPArrowTextSize()
+        or restore and Dig(_G.RXP, "settings", "profile", "arrowText") or size
+    if not (want and wantSize) or path == want and size == wantSize then return end
+    keeping = true
+    text:SetFont(want, wantSize, flags)
+    keeping = false
+end
+
+function ApplyFont()
+    if hookedArrow then KeepFont(hookedArrow.text, true) end
+end
+
+local function OnArrowText(text)
+    if composing or not ns.RXPArrowEnabled() or not ns.RXPArrowObjective() or not ns.RXPArrowTextEnabled() then
+        return
+    end
+    local arrow = hookedArrow
+    if arrow.wrongContinent then return end
+    local line = ARROW_DISTANCE:format(arrow.distance)
+    local objective = Objective(arrow)
+    composing = true
+    text:SetText(objective and (line .. "\n" .. objective) or line)
+    composing = false
+end
+
+local function HookObjective()
+    if objectiveHooked or not hookedArrow then return end
+    objectiveHooked = true
+    local text = hookedArrow.text
+    hooksecurefunc(text, "SetText", function() OnArrowText(text) end)
+end
+
+function ns.SetRXPArrowObjective(on)
+    ns.AccountSettings().rxpArrowObjective = on and true or nil
+    if on then HookObjective() end
+    local arrow = _G.RXPG_ARROW
+    if arrow then arrow.distance = nil end
+    PaintArrow()
+end
+
+local function OwnArrowColor()
+    if not (ns.RXPWindowEnabled() and ns.RXPWindowOwnColors()) then return end
+    local r, g, b = ns.RXPWindowColor("arrow")
+    return { r, g, b, 1 }
 end
 
 function PaintArrow()
     local arrow = _G.RXPG_ARROW
-    local texture = arrow and arrow.texture
-    if not texture then return end
+    if not arrow then return end
+    local on = ArrowStyled()
     local theme = ActiveTheme()
-    local style = theme and ns.RXPArrowStyle() or "off"
+    local color = OwnArrowColor() or (theme and theme.mapPins) or Rgba(ns.THEME.accent, 1)
+    local style = on and ns.RXPArrowStyle() or "off"
     if style == "layer" then
-        ShowLayer(arrow, theme.mapPins)
+        ShowLayer(arrow, color)
     elseif layer then
         layer:Hide()
     end
     if style == "image" then
-        ShowImage(arrow, texture, theme.mapPins)
+        ShowImage(arrow, arrow.texture, color)
     else
-        HandBack(arrow, texture)
+        HandBack(arrow, arrow.texture)
     end
-    PaintText(arrow, theme)
+    PaintText(arrow, on)
+end
+
+function ns.RXPPaintArrow()
+    PaintArrow()
 end
 
 local function OnRxpUpdate()
-    local arrow = _G.RXPG_ARROW
     swapped = false
-    rxpImage = arrow and arrow.texture and arrow.texture:GetTexture()
+    rxpImage = hookedArrow.texture:GetTexture()
     PaintArrow()
 end
 
@@ -426,18 +617,20 @@ local function OnArrowSize()
     if fitted then Fit(hookedArrow, hookedArrow.texture, fitted) end
 end
 
-local function HookArrow()
+function StartArrow()
     local arrow = _G.RXPG_ARROW
-    if not (arrow and arrow.texture and Has(arrow, "UpdateVisuals")) then return end
+    if hookedArrow or not arrow then return end
+    hookedArrow = arrow
     hooksecurefunc(arrow, "UpdateVisuals", OnRxpUpdate)
-    if Has(arrow, "HookScript") then
-        hookedArrow = arrow
-        arrow:HookScript("OnSizeChanged", OnArrowSize)
-    end
+    arrow:HookScript("OnSizeChanged", OnArrowSize)
     OnRxpUpdate()
+    local text = arrow.text
+    hooksecurefunc(text, "SetFont", function() KeepFont(text) end)
+    if ns.RXPArrowObjective() then HookObjective() end
+    ApplyFont()
 end
 
-local barsHidden
+local faded = setmetatable({}, { __mode = "k" })
 
 local function Banner(name)
     local banner = Dig(_G.RXPFrame, name, "bg")
@@ -446,12 +639,13 @@ end
 
 local function PaintBars()
     local hide = ActiveTheme() ~= nil
-    if not hide and not barsHidden then return end
     for _, name in ipairs(BARS) do
         local banner = Banner(name)
-        if Has(banner, "SetAlpha") then banner:SetAlpha(hide and 0 or 1) end
+        if Has(banner, "SetAlpha") and (hide or faded[banner]) and Visible(banner) then
+            banner:SetAlpha(hide and 0 or 1)
+            faded[banner] = hide or nil
+        end
     end
-    barsHidden = hide
 end
 
 local function HookBars()
@@ -462,7 +656,7 @@ local function HookBars()
     PaintBars()
 end
 
-local chromeTinted, gripOriginal, thumbSize
+local footerTinted, scrollTinted, gripOriginal, thumbSize
 
 local function Skin(texture, path, color)
     if not Has(texture, "SetVertexColor") then return end
@@ -487,23 +681,36 @@ local function PaintThumb(thumb, color)
     end
 end
 
-local function PaintChrome()
-    local theme = ActiveTheme()
-    local color = theme and type(theme.chromeColor) == "table" and theme.chromeColor or nil
-    if not color and not chromeTinted then return end
-    chromeTinted = color ~= nil
+local function PaintFooter(color)
     local frame = _G.RXPFrame
     local grip = Normal(Dig(frame, "Footer", "icon"))
     if Has(grip, "GetTexture") then gripOriginal = gripOriginal or grip:GetTexture() end
     Skin(Normal(Dig(frame, "Footer", "cog")), color and COG, color)
     Skin(grip, color and GRIP or gripOriginal, color)
-    local bar = Dig(frame, "ScrollFrame", "ScrollBar")
+end
+
+local function PaintScrollBar(color)
+    local bar = Dig(_G.RXPFrame, "ScrollFrame", "ScrollBar")
     PaintThumb(Has(bar, "GetThumbTexture") and bar:GetThumbTexture() or nil, color)
     for _, name in ipairs(ARROWS) do
         for _, part in ipairs(ARROW_PARTS) do
             local texture = Dig(bar, name, part)
             if Has(texture, "SetAlpha") then texture:SetAlpha(color and 0 or 1) end
         end
+    end
+end
+
+local function PaintChrome()
+    local theme = ActiveTheme()
+    local color = theme and type(theme.chromeColor) == "table" and theme.chromeColor or nil
+    local frame = _G.RXPFrame
+    if (color or footerTinted) and Visible(Dig(frame, "Footer")) then
+        footerTinted = color ~= nil
+        PaintFooter(color)
+    end
+    if (color or scrollTinted) and Visible(Dig(frame, "ScrollFrame", "ScrollBar")) then
+        scrollTinted = color ~= nil
+        PaintScrollBar(color)
     end
 end
 
@@ -518,10 +725,9 @@ local ruleTheme, ruleRows
 
 local function PaintRules()
     local list = Dig(_G.RXPFrame, "ScrollChild", "framePool")
-    if type(list) ~= "table" then return end
+    if type(list) ~= "table" or not Visible(Dig(_G.RXPFrame, "ScrollChild")) then return end
     local theme = ActiveTheme()
     if theme == ruleTheme and #list == ruleRows then return end
-    ruleTheme, ruleRows = theme, #list
     local color = theme and theme.dividerColor
     if type(color) ~= "table" then color = nil end
     for _, row in ipairs(list) do
@@ -540,6 +746,7 @@ local function PaintRules()
             rule:Hide()
         end
     end
+    ruleTheme, ruleRows = theme, #list
 end
 
 local function HookRules()
@@ -548,12 +755,77 @@ local function HookRules()
     PaintRules()
 end
 
+local SHOWN = { {}, { "GuideName" }, { "Footer" }, { "ScrollChild" }, { "ScrollFrame", "ScrollBar" } }
+
+local function PaintLegacy()
+    PaintBars()
+    PaintChrome()
+    PaintRules()
+end
+
+local function HookShown()
+    for _, path in ipairs(SHOWN) do
+        local part = Dig(_G.RXPFrame, unpack(path))
+        if part then part:HookScript("OnShow", PaintLegacy) end
+    end
+end
+
+local ARROW_FRAME, SCREEN, MIDDLE, EDGE = "arrowFrame", "UIParent", "CENTER", "TOP"
+
+local function InRestedXPsPlace(places)
+    if type(places) ~= "table" then return true end
+    if #places ~= 1 then return false end
+    local p = places[1]
+    return type(p) == "table" and p[1] == EDGE and p[2] == SCREEN and p[3] == EDGE and (p[4] or 0) == 0
+        and (p[5] or 0) == 0
+end
+
+local function CenterArrow(rxp, profile)
+    if type(profile.framePositions) ~= "table" then profile.framePositions = {} end
+    if not InRestedXPsPlace(profile.framePositions[ARROW_FRAME]) then return end
+    profile.framePositions[ARROW_FRAME] = { { MIDDLE, SCREEN, MIDDLE, 0, 0 } }
+    local frame = rxp[ARROW_FRAME]
+    frame:ClearAllPoints()
+    frame:SetPoint(MIDDLE, SCREEN, MIDDLE, 0, 0)
+end
+
+local function SetUp(force)
+    local rxp = _G.RXP
+    local profile = Dig(rxp, "settings", "profile")
+    local guid = UnitGUID("player")
+    if type(profile) ~= "table" or type(guid) ~= "string" then return end
+    local account = ns.AccountSettings()
+    if type(account.rxpSetUp) ~= "table" then account.rxpSetUp = {} end
+    if account.rxpSetUp[guid] and not force then return end
+    account.rxpSetUp[guid] = true
+    CenterArrow(rxp, profile)
+    local restart
+    if ns.RXPWindowEnabled() and not (profile.enableBetaFeatures and profile.enableV2Interface) then
+        profile.enableBetaFeatures, profile.enableV2Interface = true, true
+        restart = true
+    end
+    if ns.RXPWindowEnabled() then Register() end
+    local current = NAME_PREFIX .. CURRENT_KEY
+    local changed = not Ours(profile.activeTheme) and rxp.themes[current] ~= nil
+    if changed then
+        profile.activeTheme = current
+        if not restart then Reload() end
+    end
+    if restart then ns.ConfirmReload(TEXT_SETUP) end
+    if restart or changed and not profile.enableThemeLiveReload then return "reload" end
+    return changed and "theme" or nil
+end
+
+function ns.RXPSetUpCharacter()
+    return SetUp(true)
+end
+
 local function OnBootEvent(self, event, name)
     if event == "ADDON_LOADED" then
         if name ~= ns.MODULE_KEY then return end
         self:UnregisterEvent("ADDON_LOADED")
-        if ns.RXPThemesEnabled() and ns.RXPThemesAvailable() then
-            Register()
+        if ns.RXPThemesAvailable() and (ns.RXPThemesEnabled() or ns.RXPWindowEnabled() or ns.RXPArrowEnabled()) then
+            if ns.RXPThemesEnabled() or ns.RXPWindowEnabled() then Register() end
             self:RegisterEvent("PLAYER_LOGIN")
         end
     elseif event == "PLAYER_REGEN_ENABLED" then
@@ -561,11 +833,16 @@ local function OnBootEvent(self, event, name)
         Reload()
     else
         self:UnregisterAllEvents()
+        if ns.RXPSetUpEnabled() then SetUp() end
         if late then Resume() end
-        HookArrow()
-        HookBars()
-        HookChrome()
-        HookRules()
+        if ns.RXPArrowEnabled() then StartArrow() end
+        if ns.RXPThemesEnabled() then
+            HookBars()
+            HookChrome()
+            HookRules()
+            HookShown()
+        end
+        if ns.RXPWindowEnabled() then ns.RXPWindowStart() end
     end
 end
 

@@ -44,7 +44,7 @@ local GLIDE_RATE = 14
 local GLIDE_DONE = 0.5
 local TIP = { w = 240, pad = 8, size = 10, spacing = 3, gap = 4, cursorX = 16, cursorY = -12, alpha = 0.98 }
 local TOGGLE = { w = 40, h = 20, knobShare = 0.7, insetShare = 0.15, minInset = 2 }
-local FOLD = { arrow = 14, inset = 22 }
+local FOLD = { arrow = 14, inset = 22, switchGap = 12 }
 local NOTE = { size = 12, inset = 20, top = 12, room = 24, fallbackW = 960 }
 local SCROLL = { slimW = 6, slimGap = 6, trackAlpha = 0.6, thumbAlpha = 0.8, minThumb = 24, sync = 0.5 }
 local SHARE_DEPTH = 4
@@ -874,6 +874,7 @@ function W:SectionHeader(parent, text, yOffset, inset)
     inset = inset or 0
     lbl:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", inset, HEADER_TEXT_Y)
     lbl:SetText(ns.L(text))
+    f._label = lbl
     local sep = ns.Solid(f, "ARTWORK", T.line, 1)
     sep:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
     sep:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
@@ -883,6 +884,7 @@ function W:SectionHeader(parent, text, yOffset, inset)
         pill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, ns.Shared.Style.FOREVER_PILL_PAD)
         pill:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, HEADER_H - HEADER_TEXT_Y)
         pill.text:SetText(text)
+        f._pill = pill
         lbl:Hide()
         sep:Hide()
     end
@@ -915,6 +917,40 @@ function W:FoldHeader(parent, text, yOffset, forceOpen)
     f.arrow:SetRotation(open and CHEVRON_DOWN or 0)
     parent._nsuiCollapsed = not open or nil
     return f, h
+end
+
+function W:SwitchFold(parent, text, yOffset, cfg)
+    local f, h = W:FoldHeader(parent, text, yOffset, cfg.open)
+    f._get, f._set = cfg.get, cfg.set
+    if not f.switch then
+        f.switch = UI.BuildToggleControl(f, f.hit:GetFrameLevel() + CONTROL_RAISE, function() return f._get() end,
+            function(v)
+                if v then openFolds[text] = true end
+                f._set(v)
+            end)
+        f.switch:SetPoint("LEFT", f._pill and f._pill.text or f._label, "RIGHT", FOLD.switchGap, 0)
+    end
+    f.switch._refreshValue()
+    if cfg.tooltip then ns.Tooltip(f.switch, ns.L(text), ns.L(cfg.tooltip)) end
+    f.arrow:SetShown(cfg.rows == true)
+    f.hit:SetShown(cfg.rows == true)
+    if not cfg.rows then parent._nsuiCollapsed = nil end
+    return f, h
+end
+
+function W:GroupHeader(parent, text, yOffset)
+    local shut = parent._nsuiCollapsed
+    local f, h = W:SectionHeader(parent, text, yOffset)
+    parent._nsuiCollapsed = shut
+    if shut then
+        f:Hide()
+        return f, 0
+    end
+    return f, h
+end
+
+function W:EndFold(parent)
+    parent._nsuiCollapsed = nil
 end
 
 function W:Button(parent, text, yOffset, onClick)

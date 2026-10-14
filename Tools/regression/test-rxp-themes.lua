@@ -8,12 +8,31 @@ end
 local coreSource = Read("Core/Core.lua")
 local featuresSource = Read("Core/Features.lua")
 local moduleSource = Read("Core/Integrations/RestedXP/Themes.lua")
+local windowSources = {}
+for _, name in ipairs({ "WindowSettings", "WindowModel", "Window" }) do
+    windowSources[#windowSources + 1] = { Read("Core/Integrations/RestedXP/" .. name .. ".lua"), name }
+end
 
 local cases = 0
 local function Check(ok, label) assert(ok, label); cases = cases + 1 end
 local function Same(got, want)
     for i = 1, #want do if got[i] ~= want[i] then return false end end
     return #got == #want
+end
+-- A frame of RestedXP's that is on the screen.
+local function Shown(t)
+    function t:IsVisible() return true end
+    function t:HookScript() end
+    return t
+end
+-- What a FontString answers that the arrow's text is asked: its font, text and width.
+local function Fontish(t)
+    t.font = t.font or { "Fonts\\RXP.TTF", 9, "OUTLINE" }
+    function t:GetFont() return unpack(self.font) end
+    function t:SetFont(path, size, flags) self.font = { path, size, flags } end
+    function t:SetText(text) self.shown = text end
+    function t:SetWidth(w) self.width = w end
+    return t
 end
 local function Hex(c)
     return ("%02x%02x%02x"):format(math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5),
@@ -71,6 +90,8 @@ local function Load(account, installed, existing, fonts)
         NaowhForeverDB = { account = account, profiles = {}, charActive = {} } }
     env._G = env
     env.InCombatLockdown = function() return env.inCombat == true end
+    env.reported = {}
+    env.geterrorhandler = function() return function(e) env.reported[#env.reported + 1] = tostring(e) end end
     if fonts then
         local lsm = MediaStub(fonts)
         env.LibStub = function(name) if name == "LibSharedMedia-3.0" then return lsm end end
@@ -86,6 +107,11 @@ local function Load(account, installed, existing, fonts)
     local module = assert(loadstring(moduleSource, "RXPThemes"))
     setfenv(module, env)
     module("NaowhForever")
+    for _, part in ipairs(windowSources) do
+        local chunk = assert(loadstring(part[1], part[2]))
+        setfenv(chunk, env)
+        chunk("NaowhForever")
+    end
     assert(#frames == coreFrames + 1, "the module makes one frame")
     return env, env.NaowhForever, frames, frames[#frames]
 end
@@ -417,11 +443,16 @@ do
     Check(idleNs.SetRXPThemeChoice("slate") == "reload" and idleBoot.events.PLAYER_REGEN_ENABLED == nil,
         "live reload off in combat: the reload is for later, with nothing to wait for")
 
-    -- an error inside RestedXP's reload is not swallowed
+    -- an error inside RestedXP's reload does not reach the settings: it goes to the game's error handler, once
     rxp = Rxp("RXP Blue", true)
     function rxp:ReloadTheme() error("boom") end
-    local _, failNs = Session({ rxpThemes = true }, rxp)
-    Check(not pcall(failNs.SetRXPThemeChoice, "current"), "an error in RestedXP's reload is raised")
+    local failEnv, failNs = Session({ rxpThemes = true }, rxp)
+    Check(pcall(failNs.SetRXPThemeChoice, "current"), "an error in RestedXP's reload is not raised")
+    Check(#failEnv.reported == 1 and failEnv.reported[1]:find("boom", 1, true) ~= nil,
+        "it is reported, with what it said")
+    Check(rxp.settings.profile.activeTheme == "NaowhForever:current", "and the pick is kept")
+    failNs.SetRXPThemeChoice("slate")
+    Check(#failEnv.reported == 1, "and only the first time")
 end
 
 -- Load order: RestedXP imports the global list as it starts, which is after us unless it loads first.
@@ -578,7 +609,7 @@ do
         function a.texture:SetPoint(...) self.points[#self.points + 1] = { ... } end
         function a.texture:SetAllPoints() self.points = "all" end
         function a:GetSize() return a.w or 32, a.h or 32 end
-        a.text = { point = { "TOP", a, "BOTTOM", 0, -5 } }   -- as RestedXP anchors it
+        a.text = Fontish({ point = { "TOP", a, "BOTTOM", 0, -5 } })   -- as RestedXP anchors it
         function a.text:GetPoint() return unpack(self.point) end
         function a.text:SetPoint(...) self.point = { ... } end
         a.text.hides, a.text.shows = 0, 0
@@ -609,9 +640,10 @@ do
     local arrow = env.RXPG_ARROW
     Check(#env.hooked == 0 and #Layers(frames, arrow) == 0, "nothing is hooked or built before login")
     Login(boot)
-    Check(#env.hooked == 2 and env.hooked[1][1] == arrow and env.hooked[1][2] == "UpdateVisuals",
+    Check(#env.hooked == 3 and env.hooked[1][1] == arrow and env.hooked[1][2] == "UpdateVisuals",
         "RestedXP's UpdateVisuals is hooked")
     Check(env.hooked[2][1] == arrow.texture and env.hooked[2][2] == "SetRotation", "and so is its arrow's SetRotation")
+    Check(env.hooked[3][1] == arrow.text and env.hooked[3][2] == "SetFont", "and its text's SetFont")
     local layers = Layers(frames, arrow)
     Check(#layers == 1, "one layer, a child of the arrow")
     local layer = layers[1]
@@ -647,7 +679,8 @@ do
 
     env.RXP.activeTheme = { name = "DarkMode" }
     env.hooked[1][3](arrow)
-    Check(layer.shown == false and #Layers(frames, arrow) == 1, "a theme of RestedXP's: the layer is hidden, not rebuilt")
+    Check(layer.shown == false and #Layers(frames, arrow) == 1,
+        "a theme of RestedXP's with the theme on: the arrow is RestedXP's own, the layer hidden and not rebuilt")
     env.RXP.activeTheme = list["NaowhForever:midnight"]
     arrow.texture.path = "Interface/AddOns/RXPGuides/Textures/Other/rxp_navigation_arrow-1"
     env.hooked[1][3](arrow)
@@ -658,10 +691,23 @@ do
 
     env, frames, boot = Start({ rxpThemes = true }, nil)
     Login(boot)
-    Check(#env.hooked == 1 and #Layers(frames, env.RXPG_ARROW) == 0, "RestedXP's own theme: no layer is built")
+    Check(#env.hooked == 2 and #Layers(frames, env.RXPG_ARROW) == 0,
+        "RestedXP's own theme with the theme on: hooked, and the arrow left as RestedXP draws it")
     env.RXP.activeTheme = { name = "xNaowhForever:default", mapPins = { 1, 0, 0, 1 } }
     env.hooked[1][3]()
-    Check(#Layers(frames, env.RXPG_ARROW) == 0, "only a name that starts with ours counts")
+    Check(#Layers(frames, env.RXPG_ARROW) == 0, "only a name that starts with ours is one of ours")
+
+    env, frames, boot = Start({ rxpWindow = true, rxpArrowOn = true }, nil)
+    Login(boot)
+    local own = Layers(frames, env.RXPG_ARROW)
+    local liveAccent = env.NaowhForever.THEME.accent
+    local ownDeep = Gradient({ liveAccent.r, liveAccent.g, liveAccent.b, 1 })
+    Check(#own == 1 and Close(own[1].colorRegion.gradient[2], ownDeep),
+        "the window on, with no theme of ours to pick: the arrow is styled in the live Accent")
+
+    local noArrow, _, noArrowBoot = Start({ rxpThemes = true, rxpArrowOn = false }, nil)
+    Login(noArrowBoot)
+    Check(#noArrow.hooked == 0, "the arrow turned off: it is not hooked, whatever the theme")
 
     local off, _, offBoot = Start({}, nil)
     Check(next(offBoot.events) == nil and #off.hooked == 0, "off: no event left, nothing hooked")
@@ -672,13 +718,9 @@ do
     Fire(f2, "NaowhForever"); Login(b2)
     Check(#e2.hooked == 0 and next(b2.events) == nil, "no arrow frame: nothing to do")
     e2, _, f2, b2 = Load({ rxpThemes = true }, true)
-    e2.RXPG_ARROW = { UpdateVisuals = function() end }
-    Fire(f2, "NaowhForever"); Login(b2)
-    Check(#e2.hooked == 0, "no arrow texture: nothing is hooked")
-    e2, _, f2, b2 = Load({ rxpThemes = true }, true)
     e2.RXPG_ARROW = Arrow()
     Fire(f2, "NaowhForever"); Login(b2)
-    Check(#e2.hooked == 1 and #Layers(f2, e2.RXPG_ARROW) == 0, "no RXP table: hooked, and nothing built")
+    Check(#e2.hooked == 2 and #Layers(f2, e2.RXPG_ARROW) == 0, "no RXP table: hooked, and nothing drawn without a theme of ours")
     e2, _, f2, b2 = Load({ rxpThemes = true }, true)
     local fixed = Arrow()
     fixed.texture.SetRotation = nil
@@ -686,7 +728,7 @@ do
     Fire(f2, "NaowhForever")
     e2.RXP = { activeTheme = e2.RXPGuides_Themes["NaowhForever:default"] }
     Login(b2)
-    Check(#e2.hooked == 1 and #Layers(f2, fixed) == 0, "an arrow that cannot be turned: no layer")
+    Check(#e2.hooked == 2 and #Layers(f2, fixed) == 0, "an arrow that cannot be turned: no layer")
     e2, _, f2, b2 = Load({ rxpThemes = true }, false)
     e2.RXPG_ARROW = Arrow()
     Fire(f2, "NaowhForever"); Login(b2)
@@ -710,19 +752,40 @@ do
     local imageEnv, imageFrames, imageBoot, imageList = Start({ rxpThemes = true, rxpArrow = "image" }, "NaowhForever:rosenoir")
     local drawn = imageEnv.RXPG_ARROW
     Login(imageBoot)
-    Check(#imageEnv.hooked == 1 and #Layers(imageFrames, drawn) == 0, "image: only UpdateVisuals is hooked, and no layer is built")
+    Check(#imageEnv.hooked == 2 and #Layers(imageFrames, drawn) == 0, "image: no SetRotation is hooked, and no layer is built")
     Check(drawn.texture.path == OURS and #drawn.sets == 1, "image: Naowh's arrow image is on the arrow")
     local tint = drawn.tints[#drawn.tints]
     Check(Hex(tint) == "ff5fa2" and tint[4] == 1, "image: in Rose Noir's Accent")
     imageEnv.RXP.activeTheme = { name = "DarkMode" }
     drawn.texture.path = IMAGE
     imageEnv.hooked[1][3](drawn)
-    Check(#drawn.sets == 1 and drawn.texture.path == IMAGE, "a theme of RestedXP's: its image is left on the arrow")
-    Check(Same(drawn.tints[#drawn.tints], { 1, 1, 1, 1 }), "and the tint is cleared")
+    Check(#drawn.sets == 1 and drawn.texture.path == IMAGE and Same(drawn.tints[#drawn.tints], { 1, 1, 1, 1 }),
+        "a theme of RestedXP's with the theme on: RestedXP's image, untinted")
     imageEnv.RXP.activeTheme = imageList["NaowhForever:midnight"]
+    drawn.texture.path = IMAGE
     imageEnv.hooked[1][3](drawn)
     tint = drawn.tints[#drawn.tints]
     Check(drawn.texture.path == OURS and #drawn.sets == 2 and Hex(tint) == "5b8cff", "back to one of ours: the image and Midnight's Accent")
+
+    -- the window on with its theme Custom: the arrow is in the color the player picked for it
+    local windowNs = imageEnv.NaowhForever
+    local realEnabled, realOwn, realColor = windowNs.RXPWindowEnabled, windowNs.RXPWindowOwnColors, windowNs.RXPWindowColor
+    windowNs.RXPWindowEnabled = function() return true end
+    windowNs.RXPWindowOwnColors = function() return true end
+    windowNs.RXPWindowColor = function(name) return name == "arrow" and 1 or 0, 0, 0.5, 1 end
+    windowNs.RXPPaintArrow()
+    Check(Same(drawn.tints[#drawn.tints], { 1, 0, 0.5, 1 }), "the window on, its theme Custom: the arrow's own color")
+    windowNs.RXPWindowOwnColors = function() return false end
+    windowNs.RXPPaintArrow()
+    Check(Hex(drawn.tints[#drawn.tints]) == "5b8cff", "a theme of the window's: the theme's own color")
+    windowNs.RXPWindowOwnColors = function() return true end
+    windowNs.RXPWindowEnabled = function() return false end
+    windowNs.RXPPaintArrow()
+    Check(Hex(drawn.tints[#drawn.tints]) == "5b8cff", "the window off: the theme's own color")
+    windowNs.RXPWindowOwnColors = function() return true end
+    windowNs.RXPWindowEnabled = function() return true end
+    windowNs.RXPWindowEnabled, windowNs.RXPWindowOwnColors, windowNs.RXPWindowColor = realEnabled, realOwn, realColor
+    windowNs.RXPPaintArrow()
 
     local styles = imageEnv.NaowhForever
     styles.SetRXPArrowStyle("layer")
@@ -964,13 +1027,17 @@ do
     Check(hiddenLine.hidden == true, "switched off from the start: hidden at login")
     hiddenEnv.RXP.activeTheme = { name = "DarkMode" }
     hiddenEnv.hooked[1][3](hiddenEnv.RXPG_ARROW)
-    Check(hiddenLine.hidden == false, "a theme of RestedXP's: its text is shown")
+    Check(hiddenLine.hidden == false, "a theme of RestedXP's with the theme on: the text is RestedXP's again")
     hiddenEnv.RXP.activeTheme = hiddenEnv.RXPGuides_Themes["NaowhForever:midnight"]
     hiddenEnv.hooked[1][3](hiddenEnv.RXPG_ARROW)
     Check(hiddenLine.hidden == true, "and one of ours again: hidden again")
     local ownEnv, _, ownBoot = Start({ rxpThemes = true, rxpArrowText = false }, nil)
     Login(ownBoot)
-    Check(ownEnv.RXPG_ARROW.text.hides == 0 and ownEnv.RXPG_ARROW.text.hidden == nil, "RestedXP's own theme: the text is never touched")
+    Check(ownEnv.RXPG_ARROW.text.hides == 0, "RestedXP's own theme with the theme on: its text is left alone")
+    ownEnv, _, ownBoot = Start({ rxpWindow = true, rxpArrowOn = true, rxpArrowText = false }, nil)
+    Login(ownBoot)
+    Check(ownEnv.RXPG_ARROW.text.hides == 1 and ownEnv.RXPG_ARROW.text.hidden == true,
+        "the window on: the arrow's setting hides its text")
 
     local wideEnv, _, wideBoot = Start({ rxpThemes = true, rxpArrow = "image", rxpArrowShape = "wide", rxpArrowGlow = true },
         "NaowhForever:rosenoir")
@@ -979,14 +1046,22 @@ do
 
     local quietEnv, quietFrames, quietBoot = Start({ rxpThemes = true, rxpArrow = "off" }, "NaowhForever:rosenoir")
     Login(quietBoot)
-    Check(#quietEnv.hooked == 1 and #Layers(quietFrames, quietEnv.RXPG_ARROW) == 0 and #quietEnv.RXPG_ARROW.sets == 0
+    Check(#quietEnv.hooked == 2 and #Layers(quietFrames, quietEnv.RXPG_ARROW) == 0 and #quietEnv.RXPG_ARROW.sets == 0
         and #quietEnv.RXPG_ARROW.tints == 0, "off: RestedXP's own arrow, untouched")
 
     for _, style in ipairs({ "layer", "image", "off" }) do
-        local e3, f3, b3 = Start({ rxpThemes = true, rxpArrow = style }, nil)
+        local e3, f3, b3 = Start({ rxpWindow = true, rxpArrowOn = true, rxpArrow = style }, nil)
         Login(b3)
-        Check(#Layers(f3, e3.RXPG_ARROW) == 0 and #e3.RXPG_ARROW.sets == 0 and #e3.RXPG_ARROW.tints == 0,
-            style .. ": with RestedXP's own theme the arrow is left alone")
+        local arrow3 = e3.RXPG_ARROW
+        if style == "layer" then
+            Check(#Layers(f3, arrow3) == 1 and #arrow3.sets == 0, style .. ": the window on: a layer in the live Accent")
+        elseif style == "image" then
+            Check(#Layers(f3, arrow3) == 0 and #arrow3.sets == 1 and #arrow3.tints >= 1,
+                style .. ": the window on: Naowh's image in the live Accent")
+        else
+            Check(#Layers(f3, arrow3) == 0 and #arrow3.sets == 0 and #arrow3.tints == 0,
+                style .. ": the window on, off: the arrow is left alone")
+        end
     end
 end
 
@@ -996,11 +1071,12 @@ do
         local b = { alphas = {} }
         function b:SetTexture() end   -- RestedXP's own call, which the hook follows
         function b:SetAlpha(alpha) self.alphas[#self.alphas + 1] = alpha; self.alpha = alpha end
+        function b:IsVisible() return true end
         return b
     end
     local function Start(account, active)
         local env, _, frames, boot = Load(account, true)
-        env.RXPFrame = { GuideName = { bg = Banner() }, Footer = { bg = Banner() } }
+        env.RXPFrame = Shown({ GuideName = Shown({ bg = Banner() }), Footer = Shown({ bg = Banner() }) })
         Fire(frames, "NaowhForever")
         env.RXP = { activeTheme = active and env.RXPGuides_Themes[active] or { name = "RXP Blue" } }
         return env, boot
@@ -1056,12 +1132,12 @@ do
         Login(b)
         return e
     end
-    Check(#Bare(nil).hooked == 0 and #Bare({}).hooked == 0, "no window, or one without bars: nothing is hooked")
-    Check(#Bare({ GuideName = {}, Footer = {} }).hooked == 0, "bars without banners: nothing is hooked")
-    local half = { GuideName = { bg = Banner() }, Footer = { bg = {} } }
+    Check(#Bare(nil).hooked == 0 and #Bare(Shown({})).hooked == 0, "no window, or one without bars: nothing is hooked")
+    Check(#Bare(Shown({ GuideName = Shown({}), Footer = Shown({}) })).hooked == 0, "bars without banners: nothing is hooked")
+    local half = Shown({ GuideName = Shown({ bg = Banner() }), Footer = Shown({ bg = {} }) })
     Check(#Bare(half, "NaowhForever:crimson").hooked == 1 and half.GuideName.bg.alpha == 0,
         "the banner that is there is hooked and hidden; the other is skipped")
-    local mute = { GuideName = { bg = { SetTexture = function() end } } }
+    local mute = Shown({ GuideName = Shown({ bg = { SetTexture = function() end } }) })
     Check(#Bare(mute, "NaowhForever:crimson").hooked == 1, "a banner that cannot be hidden is hooked and left alone")
 end
 
@@ -1097,10 +1173,10 @@ do
     end
     local function Arrow() return { Normal = Texture(), Highlight = Texture(), Pushed = Texture(), Disabled = Texture() } end
     local function Window()
-        return { Footer = { cog = Button("rxp cog"), icon = Button("blizzard grabber") },
-            ScrollFrame = { ScrollBar = { ScrollUpButton = Arrow(), ScrollDownButton = Arrow(), thumb = Texture("rxp knob"),
-                GetThumbTexture = function(self) return self.thumb end } },
-            UpdateScrollBar = function() end }
+        return Shown({ Footer = Shown({ cog = Button("rxp cog"), icon = Button("blizzard grabber") }),
+            ScrollFrame = { ScrollBar = Shown({ ScrollUpButton = Arrow(), ScrollDownButton = Arrow(), thumb = Texture("rxp knob"),
+                GetThumbTexture = function(self) return self.thumb end }) },
+            UpdateScrollBar = function() end })
     end
     local function Start(account, active, window)
         local env, _, frames, boot = Load(account, true)
@@ -1165,8 +1241,9 @@ do
         Login(b)
         return e
     end
-    Check(#Bare(nil).hooked == 0 and #Bare({}).hooked == 0, "no window, or one without the scroll bar update: nothing is hooked")
-    local partial = { Footer = { cog = {}, icon = { GetNormalTexture = function() end } }, ScrollFrame = {}, UpdateScrollBar = function() end }
+    Check(#Bare(nil).hooked == 0 and #Bare(Shown({})).hooked == 0, "no window, or one without the scroll bar update: nothing is hooked")
+    local partial = Shown({ Footer = Shown({ cog = {}, icon = { GetNormalTexture = function() end } }), ScrollFrame = {},
+        UpdateScrollBar = function() end })
     Check(#Bare(partial).hooked == 1, "buttons and a bar that are missing or bare: skipped without an error")
     local mute = Window()
     mute.Footer.cog = { GetNormalTexture = function() return {} end }
@@ -1198,7 +1275,7 @@ do
         local env, _, frames, boot = Load(account, true)
         local pool = {}
         for i = 1, rows do pool[i] = Row() end
-        env.RXPFrame = { ScrollChild = { framePool = pool } }
+        env.RXPFrame = Shown({ ScrollChild = Shown({ framePool = pool }) })
         Fire(frames, "NaowhForever")
         env.RXP = { SetStep = function() end,
             activeTheme = active and env.RXPGuides_Themes[active] or { name = "RXP Blue" } }
@@ -1271,11 +1348,11 @@ do
         return e
     end
     Check(#Bare(nil, {}).hooked == 0, "no window and no SetStep: nothing is hooked")
-    Check(#Bare({}, { SetStep = function() end }).hooked == 1, "a window without a list: hooked, nothing drawn, no error")
-    Check(#Bare({ ScrollChild = {} }, { SetStep = function() end }).hooked == 1, "a list without rows: no error")
-    local empty = { ScrollChild = { framePool = {} } }
+    Check(#Bare(Shown({}), { SetStep = function() end }).hooked == 1, "a window without a list: hooked, nothing drawn, no error")
+    Check(#Bare(Shown({ ScrollChild = Shown({}) }), { SetStep = function() end }).hooked == 1, "a list without rows: no error")
+    local empty = Shown({ ScrollChild = Shown({ framePool = {} }) })
     Check(#Bare(empty, { SetStep = function() end }).hooked == 1, "an empty list: no error")
-    local plain = { ScrollChild = { framePool = { {} } } }
+    local plain = Shown({ ScrollChild = Shown({ framePool = { {} } }) })
     Check(#Bare(plain, { SetStep = function() end }).hooked == 1, "a row that cannot make a texture is skipped")
 end
 
@@ -1331,6 +1408,780 @@ do
     Check(On(5, 24, 31) and On(5, 0, 7) and On(5, 24, 7) and Off(5, 29, 7) and Off(5, 24, 3) and Off(5, 10, 20), "top right")
     Check(On(6, 14, 0) and On(6, 31, 17) and On(6, 14, 17) and Off(6, 8, 17) and Off(6, 14, 22) and Off(6, 25, 5), "bottom left")
     Check(On(7, 24, 0) and On(7, 0, 17) and On(7, 24, 17) and Off(7, 29, 17) and Off(7, 24, 22) and Off(7, 10, 5), "bottom right")
+end
+
+-- The arrow's text says the objective, as in Talk to Duokna, where RestedXP says the step
+do
+    local ACTIVE = "NaowhForever:rosenoir"
+    local ICON = "|TInterface\\Icons\\Talk:0|t"
+    local ARIAL = "Fonts\\ARIALN.TTF"
+    -- RestedXP's arrow: its text is set again each time the distance changes, as it is in RestedXP
+    local function Up(account, setup)
+        local env, ns, frames, boot = Load(account, true)
+        env.hooksecurefunc = function(tbl, name, fn)
+            local original = tbl[name]
+            tbl[name] = function(...)
+                local results = { original(...) }
+                fn(...)
+                return unpack(results)
+            end
+        end
+        local arrow = { orientation = 0, distance = 0, wrongContinent = false }
+        arrow.texture = { path = "Interface/x" }
+        function arrow.texture:GetTexture() return self.path end
+        function arrow.texture:SetTexture(path) self.path = path end
+        function arrow.texture:SetVertexColor() end
+        function arrow.texture:SetRotation() end
+        function arrow.texture:ClearAllPoints() end
+        function arrow.texture:SetPoint() end
+        function arrow.texture:SetAllPoints() end
+        arrow.text = { sets = 0 }
+        function arrow.text:SetText(text) self.shown, self.sets = text, self.sets + 1 end
+        function arrow.text:GetText() return self.shown end
+        arrow.text.font = { ARIAL, 9, "OUTLINE" }
+        function arrow.text:GetFont() return unpack(self.font) end
+        function arrow.text:SetFont(path, size, flags)
+            self.font = { self.normalize and path:upper() or path, size, flags }
+        end
+        function arrow.text:Hide() end
+        function arrow.text:Show() end
+        function arrow.text:SetWidth(width) self.width = width end
+        function arrow.text:GetPoint() return "TOP", arrow, "BOTTOM", 0, -5 end
+        function arrow.text:SetPoint() end
+        function arrow:GetSize() return 32, 32 end
+        function arrow:GetFrameLevel() return 1 end
+        function arrow:HookScript() end
+        function arrow.UpdateVisuals() end
+        arrow.element = { step = { index = 36 },
+            parent = { text = "Talk to Duokna", tag = "target", step = { active = true } } }
+        env.RXPG_ARROW = arrow
+        Fire(frames, "NaowhForever")
+        local list = env.RXPGuides_Themes
+        env.RXP = { activeTheme = list[ACTIVE], icons = { target = ICON }, settings = { profile = { arrowText = 9 } },
+            ReplaceNpcIds = function(text) return text end }
+        if setup then setup(env, arrow, list) end
+        Login(boot)
+        -- RestedXP moves: it says the step and the distance
+        local function Moved(distance)
+            arrow.distance = distance
+            arrow.text:SetText(("Step 36\n(%dyd)"):format(distance))
+            return arrow.text.shown
+        end
+        return env, ns, arrow, Moved, list
+    end
+
+    local env0, ns, arrow, Moved = Up({ rxpThemes = true })
+    Check(ns.RXPArrowObjective() == false, "the arrow says the step by default")
+    Check(Moved(1577) == "Step 36\n(1577yd)", "and RestedXP's own text is left alone")
+
+    -- the font and its size: the face is ours, the size only once one is picked
+    Check(ns.RXPArrowTextSize() == 9, "with no size picked the slider says RestedXP's own")
+    Check(arrow.text.font[1] == ns.AddonFontPath() and arrow.text.font[2] == 9 and arrow.text.font[3] == "OUTLINE",
+        "in the Addon Font from login, at RestedXP's size, with the outline RestedXP gave it")
+    arrow.text:SetFont(ARIAL, 14, "OUTLINE")
+    Check(arrow.text.font[1] == ns.AddonFontPath() and arrow.text.font[2] == 14,
+        "RestedXP's Arrow Text Size sets it again: the face is put back, its size is kept")
+    ns.SetRXPArrowTextSize(18)
+    Check(ns.AccountSettings().rxpArrowTextSize == 18 and arrow.text.font[2] == 18 and arrow.text.font[3] == "OUTLINE",
+        "a size picked is used at once, and kept")
+    arrow.text:SetFont(ARIAL, 14, "OUTLINE")
+    Check(arrow.text.font[2] == 18, "and RestedXP setting its own again does not undo it")
+    ns.SetRXPArrowTextSize(9)
+    Check(ns.AccountSettings().rxpArrowTextSize == 9 and arrow.text.font[2] == 9, "a size picked is kept whatever it is")
+    ns.SetRXPArrowTextSize(90)
+    Check(ns.RXPArrowTextSize() == 24 and arrow.text.font[2] == 24, "the biggest is held to its range")
+    ns.SetRXPArrowTextSize(1)
+    Check(ns.RXPArrowTextSize() == 8 and arrow.text.font[2] == 8, "and the smallest")
+    ns.SetRXPArrowTextSize("big")
+    Check(ns.AccountSettings().rxpArrowTextSize == nil and ns.RXPArrowTextSize() == 9 and arrow.text.font[2] == 9,
+        "what is no number is no size of ours: RestedXP's is given back")
+    ns.SetRXPArrowTextSize(13)
+
+    Check(arrow.text.width == 0, "RestedXP's own text is as wide as it is")
+    ns.SetRXPArrowObjective(true)
+    Check(ns.AccountSettings().rxpArrowObjective == true and arrow.distance == nil,
+        "objective on: stored, and RestedXP is made to say its text again")
+    Check(arrow.text.width == 240, "a line that long is wrapped at a width, not one long line across the screen")
+    Check(Moved(1577) == "1577 yd\nTalk to Duokna", "the distance, then the objective, with no icon")
+    Check(arrow.text.font[1] == ns.AddonFontPath() and arrow.text.font[2] == 13 and arrow.text.font[3] == "OUTLINE",
+        "still in the Addon Font at that size")
+
+    arrow.text.font = { ARIAL, 12, "" }
+    ns.SetRXPArrowFont(false)
+    Moved(1576)
+    Check(arrow.text.font[1] == ARIAL and arrow.text.font[2] == 13, "with Use Addon Font off the face is left, the size is not")
+    env0.RXP.font = "Fonts\\SKURRI.TTF"
+    arrow.text:SetFont(ARIAL, 10, "")
+    Check(arrow.text.font[1] == ARIAL and arrow.text.font[2] == 13, "also when RestedXP sets it")
+    ns.SetRXPArrowFont(true)
+    Check(arrow.text.font[1] == ns.AddonFontPath() and arrow.text.font[2] == 13, "back on: in the Addon Font at once")
+    ns.SetRXPArrowFont(false)
+    Check(arrow.text.font[1] == "Fonts\\SKURRI.TTF" and arrow.text.font[2] == 13, "turned off, RestedXP's own face is given back")
+    ns.SetRXPArrowFont(true)
+    Check(Moved(1500) == "1500 yd\nTalk to Duokna", "and it follows the distance")
+    local sets = arrow.text.sets
+    Moved(1499)
+    Check(arrow.text.sets == sets + 2, "RestedXP's text and ours, and ours does not set itself again")
+
+    -- icons are left out, wherever they come from
+    arrow.element.parent.frame = { text = { GetText = function() return "Talk to |cff00ff00Duokna|r" end } }
+    Check(Moved(10) == "10 yd\nTalk to |cff00ff00Duokna|r", "the row RestedXP shows it in, as it reads now")
+    arrow.element.parent.frame = { text = { GetText = function() return ICON .. " Talk to Duokna" end } }
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "an icon in the row's text is left out")
+    arrow.element.parent.frame = nil
+    arrow.element.parent.icon = ICON
+    arrow.element.parent.text = ICON .. " Talk to Duokna"
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "and one in the line's own text, and the one it is given as its icon")
+    arrow.element.parent.text = "|Aquestlog:0|a Talk to Duokna"
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "an atlas too")
+    arrow.element.parent.text = ICON
+    Check(Moved(10) == "10 yd", "a line that is only an icon says nothing, only the distance")
+    arrow.element.parent = nil
+    arrow.element.title = ICON .. " Razor Hill"
+    Check(Moved(10) == "10 yd\nRazor Hill", "with no objective, the waypoint's own title, as plain")
+    arrow.element.title = nil
+    Check(Moved(10) == "10 yd", "and with none of them, only the distance")
+    arrow.element = nil
+    Check(Moved(10) == "10 yd", "with no waypoint, the same")
+
+    -- a waypoint written before its objective has no parent: the lines of its step are its words
+    local say = { text = "Talk to Duokna", tag = "target" }
+    local place = { arrow = true }
+    local step = { index = 36, active = true, elements = { place, say } }
+    place.step, say.step = step, step
+    arrow.element = place
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "no line above it: the step's line after it")
+    step.elements = { say, place }
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "or the one before it")
+    local other = { text = "Kill Boars", tag = "kill", step = step }
+    step.elements = { place, other, say }
+    Check(Moved(10) == "10 yd\nKill Boars", "the first line after it, when there are two")
+    step.elements = { say, place, other }
+    Check(Moved(10) == "10 yd\nKill Boars", "the one after it before the one before it")
+    other.completed = true
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "a line that is done is not the objective")
+    say.hideTooltip = true
+    Check(Moved(10) == "10 yd", "nor one that is not for the tooltip, and with none left only the distance")
+    say.hideTooltip, other.completed = nil, nil
+    place.text = "Run to the cave"
+    step.elements = { say, place, other }
+    Check(Moved(10) == "10 yd\nRun to the cave", "the waypoint's own words, before the step's")
+    place.parent = say
+    Check(Moved(10) == "10 yd\nTalk to Duokna", "and its parent before those")
+
+    arrow.element = { step = { index = 36 }, parent = { text = "Talk to Duokna", tag = "target", step = { active = true } } }
+    arrow.wrongContinent = true
+    arrow.distance = 5
+    arrow.text:SetText("~")
+    Check(arrow.text.shown == "~", "on the wrong continent RestedXP's mark is left")
+    arrow.wrongContinent = false
+    ns.SetRXPArrowText(false)
+    Check(Moved(10) == "Step 36\n(10yd)", "with the arrow's text off it is left alone")
+    ns.SetRXPArrowText(true)
+    ns.SetRXPArrowObjective(false)
+    Check(ns.AccountSettings().rxpArrowObjective == nil and arrow.distance == nil, "off: not stored, RestedXP's text again")
+    Check(arrow.text.width == 0, "and its width is its own again")
+    Check(Moved(10) == "Step 36\n(10yd)", "and the step is said again")
+
+    -- on at login, and with one of RestedXP's themes
+    local env, ns2, arrow2, Moved2, list = Up({ rxpThemes = true, rxpArrowObjective = true, rxpArrowTextSize = 16 })
+    Check(Moved2(88) == "88 yd\nTalk to Duokna", "saved on: it is hooked at login")
+    Check(arrow2.text.font[2] == 16, "and the size saved is the size at login")
+    local _, wild, arrowWild = Up({ rxpThemes = true, rxpArrowTextSize = 99 })
+    Check(wild.RXPArrowTextSize() == 24 and arrowWild.text.font[2] == 24, "a saved size out of range is held to it")
+    env.RXP.activeTheme = { name = "DarkMode" }
+    Check(Moved2(77) == "77 yd\nTalk to Duokna",
+        "with a theme of RestedXP's it says the same: the words do not wait for one of ours")
+    env.RXP.activeTheme = list[ACTIVE]
+    env.RXP.ReplaceNpcIds = function() error("no npc names yet") end
+    Check(Moved2(66) == "66 yd\nTalk to Duokna", "a name lookup that fails leaves the text as written")
+    Moved2(65)
+    Check(#env.reported == 1 and env.reported[1]:find("no npc names yet", 1, true), "and is reported, once")
+    -- a client that hands the path back in another spelling must not make the font chase itself
+    arrow2.text.normalize = true
+    arrow2.text:SetFont(ARIAL, 11, "")
+    Check(arrow2.text.font[1] == ns2.AddonFontPath():upper() and arrow2.text.font[2] == 16,
+        "a font that comes back spelled differently is set once, with nothing raised")
+end
+
+-- RestedXP missing or shaped like its UI v2, and its own functions raising: a call into RestedXP that fails
+-- is reported to the game's error handler once and the rest goes on.
+do
+    local ACTIVE = "NaowhForever:rosenoir"
+    local ARROW_PATH = "Interface/AddOns/RXPGuides/Textures/DarkMode/rxp_navigation_arrow-1"
+    local COG = "Interface\\AddOns\\NaowhForever\\Core\\Media\\cog.tga"
+
+    -- a frame or a region, visible when it and what it hangs from are shown
+    local function Part(parent)
+        local p = { shown = true, parent = parent, children = {}, hooks = {} }
+        if parent then parent.children[#parent.children + 1] = p end
+        function p:IsVisible() return self.shown and (self.parent == nil or self.parent:IsVisible()) end
+        function p:HookScript(name, fn)
+            self.hooks[name] = self.hooks[name] or {}
+            self.hooks[name][#self.hooks[name] + 1] = fn
+        end
+        function p:Announce()
+            for _, fn in ipairs(self.hooks.OnShow or {}) do fn(self) end
+            for _, child in ipairs(self.children) do
+                if child:IsVisible() then child:Announce() end
+            end
+        end
+        function p:Show()
+            local was = self:IsVisible()
+            self.shown = true
+            if not was and self:IsVisible() then self:Announce() end
+        end
+        function p:Hide() self.shown = false end
+        return p
+    end
+
+    local function Texture(parent, path)
+        local x = Part(parent)
+        x.path, x.alpha = path, 1
+        function x:GetTexture() return self.path end
+        function x:SetTexture(p) self.path = p end
+        function x:SetVertexColor(...) self.vertex = { ... } end
+        function x:SetColorTexture(...) self.solid = { ... } end
+        function x:SetRotation() end
+        function x:SetAlpha(a) self.alpha = a end
+        function x:ClearAllPoints() end
+        function x:SetPoint() end
+        function x:SetAllPoints() end
+        function x:SetHeight() end
+        function x:GetSize()
+            if self.sizeless then return end
+            return 8, 40
+        end
+        function x:SetSize(w, h)
+            assert(type(w) == "number" and type(h) == "number", "SetSize wants numbers")
+            self.w, self.h = w, h
+        end
+        return x
+    end
+
+    local function Button(parent)
+        local b = Part(parent)
+        b.normal = Texture(b)
+        function b:GetNormalTexture() return self.normal end
+        return b
+    end
+
+    -- the legacy window as RestedXP builds it; v2: what its DisableLegacyGuideWindow hides
+    local function Window(v2)
+        local f = Part()
+        f.GuideName = Part(f)
+        f.GuideName.bg = Texture(f.GuideName)
+        f.Footer = Part(f)
+        f.Footer.bg = Texture(f.Footer)
+        f.Footer.icon = Button(f.Footer)
+        f.Footer.cog = Button(f)   -- parented to the window itself, not to the footer
+        f.ScrollFrame = Part(f)
+        local bar = Part(f.ScrollFrame)
+        bar.thumb = Texture(bar)
+        function bar:GetThumbTexture() return self.thumb end
+        for _, name in ipairs({ "ScrollUpButton", "ScrollDownButton" }) do
+            bar[name] = Part(bar)
+            for _, part in ipairs({ "Normal", "Highlight", "Pushed", "Disabled" }) do
+                bar[name][part] = Texture(bar[name])
+            end
+        end
+        f.ScrollFrame.ScrollBar = bar
+        f.ScrollChild = Part(f)
+        f.ScrollChild.framePool = {}
+        for i = 1, 2 do
+            local row = Part(f.ScrollChild)
+            function row:CreateTexture() self.rule = Texture(self); return self.rule end
+            f.ScrollChild.framePool[i] = row
+        end
+        function f.UpdateScrollBar() end
+        if v2 then
+            for _, part in ipairs({ f.GuideName, f.Footer, f.ScrollFrame, f.ScrollChild, bar }) do part:Hide() end
+            f.ScrollChild.framePool = {}
+        end
+        return f
+    end
+
+    local function Arrow()
+        local a = { orientation = 0 }
+        a.texture = Texture(nil, ARROW_PATH)
+        a.text = Fontish({ point = { "TOP", a, "BOTTOM", 0, -5 } })
+        function a.text:GetPoint() return unpack(self.point) end
+        function a.text:SetPoint(...) self.point = { ... } end
+        function a.text:Hide() self.hidden = true end
+        function a.text:Show() self.hidden = false end
+        function a:GetSize() return 32, 32 end
+        function a:HookScript() end
+        function a:GetFrameLevel() return 1 end
+        function a.UpdateVisuals() end
+        return a
+    end
+
+    local function Rxp(opts)
+        opts = opts or {}
+        local r = { registered = {}, reloads = 0, themes = {}, activeTheme = { name = "RXP Blue" },
+            settings = { profile = { activeTheme = opts.saved or "RXP Blue", enableThemeLiveReload = true } } }
+        function r.SetStep() end
+        function r:RegisterTheme(theme)
+            if opts.registerThrows == theme.name then error("RegisterTheme: comms is nil") end
+            self.registered[#self.registered + 1] = theme.name
+            self.themes[theme.name] = theme
+        end
+        function r:ReloadTheme()
+            self.reloads = self.reloads + 1
+            if opts.reloadThrows then error("GetGuideWindow() is nil") end
+        end
+        return r
+    end
+
+    -- Up to and with the login. opts: rxp (what RestedXP is), early (it is there before us), none (it is not
+    -- there), keep (its active theme stays its own), arrow, window.
+    local function Up(opts)
+        opts = opts or {}
+        local env, ns, frames, boot = Load({ rxpThemes = true }, true, opts.existing)
+        if opts.env then opts.env(env) end
+        local rxp
+        if not opts.none then
+            rxp = opts.rxp and opts.rxp() or Rxp()
+            if opts.early then env.RXP = rxp end
+        end
+        local ok, problem = pcall(Fire, frames, "NaowhForever")
+        local list = env.RXPGuides_Themes or (rxp and rxp.themes) or {}
+        if rxp then
+            if not opts.keep and list[ACTIVE] then rxp.activeTheme = list[ACTIVE] end
+            env.RXP = rxp
+        end
+        env.RXPG_ARROW, env.RXPFrame = opts.arrow, opts.window
+        local logged, trouble = pcall(Login, boot)
+        return { env = env, ns = ns, rxp = rxp, list = list, loaded = ok and logged, problem = problem or trouble }
+    end
+
+    -- the game calling every hook
+    local function Fires(s)
+        for _, h in ipairs(s.env.hooked) do
+            if not pcall(h[3], h[1], 0.5) then return false end
+        end
+        return true
+    end
+
+    -- the settings page changing every setting
+    local function Settings(s)
+        local ns = s.ns
+        return (pcall(function()
+            ns.SetRXPArrowStyle("image")
+            ns.SetRXPArrowShape("wide")
+            ns.SetRXPArrowGlow(true)
+            ns.SetRXPArrowSize(120)
+            ns.SetRXPArrowGap(8)
+            ns.SetRXPArrowText(false)
+            ns.SetRXPArrowStyle("layer")
+            ns.SetRXPArrowText(true)
+            ns.RXPThemesReady()
+            ns.RXPThemeChoice()
+            ns.SetRXPThemeChoice("midnight")
+            ns.SetRXPThemeChoice("")
+        end))
+    end
+
+    local function Quiet(s) return #s.env.reported == 0 end
+
+    -- the control: every piece there
+    local s = Up({ arrow = Arrow(), window = Window() })
+    local ours = Count(s.list)
+    Check(s.loaded and #s.env.hooked == 7, "everything there: it loads, with every hook made")
+    Check(Fires(s) and Settings(s) and Quiet(s), "the hooks and the settings raise nothing and report nothing")
+
+    -- nothing of RestedXP there
+    s = Up({ none = true })
+    Check(s.loaded and #s.env.hooked == 0 and Settings(s) and Quiet(s), "no RestedXP global: inert, quiet")
+    s = Up({ rxp = function() return {} end })
+    Check(s.loaded and #s.env.hooked == 0 and Settings(s) and Quiet(s), "an empty RestedXP table: inert, quiet")
+    s = Up({ rxp = function() local r = Rxp(); r.settings = nil; return r end, arrow = Arrow(), window = Window() })
+    Check(s.loaded and #s.env.hooked == 7 and Fires(s) and Settings(s) and Quiet(s),
+        "no RestedXP settings: the rest is still hooked")
+
+    -- RestedXP's own functions raising
+    s = Up({ early = true, arrow = Arrow(), window = Window(),
+        rxp = function() return Rxp({ registerThrows = "NaowhForever:midnight" }) end })
+    Check(s.loaded and #s.rxp.registered == ours - 1 and s.rxp.themes["NaowhForever:midnight"] == nil
+        and s.rxp.themes["NaowhForever:default"] ~= nil, "RegisterTheme failing for one: the others are registered")
+    Check(#s.env.reported == 1 and s.env.reported[1]:find("comms is nil", 1, true), "and it is reported once")
+    Check(#s.env.hooked == 7, "the hooks are made after it")
+    -- RestedXP fell back from a theme of ours: it is reloaded at login, and that raises
+    s = Up({ early = true, keep = true, arrow = Arrow(), window = Window(),
+        rxp = function() return Rxp({ reloadThrows = true, saved = ACTIVE }) end })
+    Check(s.loaded and s.rxp.reloads == 1 and #s.env.hooked == 6,
+        "ReloadTheme failing at login: loaded, hooked (no layer while RestedXP's theme is its own)")
+    Check(#s.env.reported == 1 and s.env.reported[1]:find("GetGuideWindow", 1, true), "and reported")
+    Check(pcall(s.ns.SetRXPThemeChoice, "midnight") and s.rxp.settings.profile.activeTheme == "NaowhForever:midnight",
+        "a pick raises nothing and is kept")
+    Check(#s.env.reported == 1, "and the same failure is not reported again")
+
+    -- one of our own hooks failing raises, so the game shows it
+    local window = Window()
+    window.GuideName.bg.SetAlpha = function() error("alpha") end
+    s = Up({ arrow = Arrow(), window = window })
+    Check(not s.loaded and tostring(s.problem):find("alpha", 1, true), "a banner that cannot be painted raises")
+
+    -- RestedXP's legacy window under UI v2: hidden, with the cog still showing
+    window = Window(true)
+    s = Up({ arrow = Arrow(), window = window })
+    Check(s.loaded and #s.env.hooked == 7 and Fires(s) and Settings(s) and Quiet(s),
+        "UI v2's window: loaded, hooked, quiet")
+    Check(window.GuideName.bg.alpha == 1 and window.Footer.bg.alpha == 1, "its hidden banners are left alone")
+    Check(window.Footer.cog.normal.vertex == nil and window.Footer.cog.normal.path == nil,
+        "and its cog, which would show, is not given our image")
+    Check(window.Footer.icon.normal.vertex == nil and window.ScrollFrame.ScrollBar.thumb.solid == nil,
+        "nor the grip or the scroll bar")
+    Check(s.rxp.activeTheme.name == ACTIVE and #window.ScrollChild.framePool == 0, "no rows to rule")
+
+    -- painted when shown, and not before
+    window = Window()
+    window:Hide()
+    s = Up({ arrow = Arrow(), window = window })
+    Check(s.loaded and window.GuideName.bg.alpha == 1 and window.Footer.cog.normal.path == nil
+        and window.ScrollChild.framePool[1].rule == nil, "a window closed at login is not painted")
+    Check(Fires(s) and window.GuideName.bg.alpha == 1 and window.Footer.cog.normal.path == nil,
+        "nor by what RestedXP does meanwhile")
+    window:Show()
+    Check(window.GuideName.bg.alpha == 0 and window.Footer.bg.alpha == 0 and window.Footer.cog.normal.path == COG
+        and window.ScrollFrame.ScrollBar.thumb.solid ~= nil
+        and window.ScrollFrame.ScrollBar.ScrollUpButton.Normal.alpha == 0
+        and window.ScrollChild.framePool[1].rule ~= nil and window.ScrollChild.framePool[1].rule.shown == true,
+        "shown: painted")
+    Check(Quiet(s), "and quietly")
+
+    -- a stale look is not kept: the theme changes while the window is closed
+    window:Hide()
+    s.rxp.activeTheme = { name = "DarkMode" }
+    Check(Fires(s) and window.GuideName.bg.alpha == 0 and window.Footer.cog.normal.path == COG,
+        "closed, RestedXP's hooks leave it as it was")
+    window:Show()
+    Check(window.GuideName.bg.alpha == 1 and window.Footer.bg.alpha == 1, "opened again: the banners are given back")
+    Check(window.Footer.cog.normal.vertex[1] == 1 and window.ScrollFrame.ScrollBar.ScrollUpButton.Normal.alpha == 1,
+        "the cog and the scroll bar too")
+    Check(window.ScrollChild.framePool[1].rule.shown == false, "and the rules are hidden")
+    s.rxp.activeTheme = s.list["NaowhForever:midnight"]
+    window:Hide()
+    window:Show()
+    Check(window.GuideName.bg.alpha == 0 and window.Footer.cog.normal.path == COG
+        and window.ScrollChild.framePool[1].rule.shown == true, "and painted again in another of ours")
+    Check(#window.hooks.OnShow == 1 and #window.GuideName.hooks.OnShow == 1 and #window.Footer.hooks.OnShow == 1
+        and #window.ScrollChild.hooks.OnShow == 1 and #window.ScrollFrame.ScrollBar.hooks.OnShow == 1,
+        "each part is hooked once")
+end
+
+-- a character RestedXP has not met: what is turned on for the account is set for it once, and only if wished
+do
+    local function Rxp(profile)
+        local rxp = { activeTheme = { name = "RXP Blue" }, themes = { ["RXP Blue"] = { name = "RXP Blue" } },
+            registered = {}, reloads = {}, settings = { profile = profile }, arrowFrame = { points = {} } }
+        function rxp.arrowFrame:ClearAllPoints() self.points = {} end
+        function rxp.arrowFrame:SetPoint(...) self.points[#self.points + 1] = { ... } end
+        function rxp:RegisterTheme(theme) self.themes[theme.name] = theme end
+        function rxp:ReloadTheme()
+            self.reloads[#self.reloads + 1] = self.settings.profile.activeTheme
+            self.activeTheme = self.themes[self.settings.profile.activeTheme]
+        end
+        return rxp
+    end
+    local function Run(account, profile, guid, window, starting)
+        local env, ns, frames, boot = Load(account, true)
+        local rxp = Rxp(profile)
+        if not starting then env.RXP = rxp end
+        env.UnitGUID = function() return guid end
+        local confirms = {}
+        ns.ConfirmReload = function(text) confirms[#confirms + 1] = text end
+        ns.RXPWindowEnabled = function() return window == true end
+        Fire(frames, "NaowhForever")
+        if starting then
+            env.RXP = rxp
+            for name, theme in pairs(env.RXPGuides_Themes or {}) do rxp.themes[name] = theme end
+        end
+        if profile and rxp.themes[profile.activeTheme] then rxp.activeTheme = rxp.themes[profile.activeTheme] end
+        Login(boot)
+        return rxp, ns, confirms, env
+    end
+    local CURRENT = "NaowhForever:current"
+
+    -- not wished for: nothing is touched, as the other settings are
+    local profile = { activeTheme = "RXP Blue" }
+    local rxp, _, confirms = Run({ rxpThemes = true }, profile, "Player-1", true)
+    Check(profile.activeTheme == "RXP Blue" and profile.enableV2Interface == nil and #confirms == 0 and #rxp.reloads == 0,
+        "not turned on: the character's settings are left as they are")
+
+    -- wished for, on a character it has not seen: the interface and the theme, and a reload to use the interface
+    profile = { activeTheme = "RXP Blue" }
+    local account = { rxpThemes = true, rxpSetup = true }
+    local ns
+    _, _, confirms = Run(account, profile, "Player-1", true)
+    Check(profile.enableBetaFeatures == true and profile.enableV2Interface == true and profile.activeTheme == CURRENT,
+        "turned on with the window: the interface and the Naowh theme are set for it")
+    Check(#confirms == 1, "a reload is asked for, to use the interface")
+    Check(account.rxpSetUp["Player-1"] == true, "and it is kept that it was done")
+
+    -- seen: what the player changes after is theirs
+    profile.activeTheme, profile.enableV2Interface = "RXP Blue", false
+    _, _, confirms = Run(account, profile, "Player-1", true)
+    Check(profile.activeTheme == "RXP Blue" and profile.enableV2Interface == false and #confirms == 0,
+        "the same character again: nothing is set again")
+
+    -- another character
+    local other = { activeTheme = "RXP Blue" }
+    _, _, confirms = Run(account, other, "Player-2", true)
+    Check(other.enableV2Interface == true and other.activeTheme == CURRENT and #confirms == 1, "another one is set up")
+
+    -- the theme alone: no interface to wait for, so the theme is reloaded
+    local themed = { activeTheme = "RXP Blue" }
+    rxp, _, confirms = Run({ rxpThemes = true, rxpSetup = true }, themed, "Player-3", false)
+    Check(themed.activeTheme == CURRENT and themed.enableV2Interface == nil and #confirms == 0
+        and #rxp.reloads == 1 and rxp.reloads[1] == CURRENT, "the window not wished for: the theme only, and live")
+
+    -- RestedXP loading after us, which imports the themes itself: the theme is reloaded by the set up
+    local later = { activeTheme = "RXP Blue" }
+    rxp = Run({ rxpThemes = true, rxpSetup = true }, later, "Player-3b", false, true)
+    Check(later.activeTheme == CURRENT and #rxp.reloads == 1 and rxp.reloads[1] == CURRENT,
+        "RestedXP not up when we loaded: the theme is reloaded onto the new one")
+
+    -- the interface alone
+    local windowed = { activeTheme = "RXP Blue" }
+    _, _, confirms = Run({ rxpSetup = true }, windowed, "Player-4", true)
+    Check(windowed.activeTheme == CURRENT and windowed.enableV2Interface == true and #confirms == 1,
+        "the window wished for without the V1 theme: the interface, and the Naowh theme registered for it")
+
+    -- the arrow: RestedXP puts it at the top of the screen, and a character set up has it in the middle
+    local middle = { activeTheme = "RXP Blue", framePositions = { arrowFrame = { { "TOP", "UIParent", "TOP", 0, 0 } } } }
+    rxp = Run({ rxpThemes = true, rxpSetup = true }, middle, "Player-A1", true)
+    local places = middle.framePositions.arrowFrame
+    Check(#places == 1 and places[1][1] == "CENTER" and places[1][2] == "UIParent" and places[1][3] == "CENTER"
+        and places[1][4] == 0 and places[1][5] == 0, "an arrow where RestedXP puts it is in the middle, in the profile")
+    local at = rxp.arrowFrame.points
+    Check(#at == 1 and at[1][1] == "CENTER" and at[1][3] == "CENTER", "and where it is now, so that it is not put back")
+    local own = { activeTheme = "RXP Blue", framePositions = { arrowFrame = { { "LEFT", "UIParent", "LEFT", 40, -10 } } } }
+    rxp = Run({ rxpThemes = true, rxpSetup = true }, own, "Player-A2", true)
+    Check(own.framePositions.arrowFrame[1][1] == "LEFT" and own.framePositions.arrowFrame[1][4] == 40
+        and #rxp.arrowFrame.points == 0, "an arrow the player has put somewhere is not moved")
+    local bottom = { activeTheme = "RXP Blue", framePositions = { arrowFrame = { { "BOTTOM", "UIParent", "BOTTOM", 0, 0 } } } }
+    rxp = Run({ rxpThemes = true, rxpSetup = true }, bottom, "Player-A2b", true)
+    Check(bottom.framePositions.arrowFrame[1][1] == "BOTTOM" and #rxp.arrowFrame.points == 0,
+        "one the player put at the bottom is not RestedXP's place either")
+    local fresh = { activeTheme = "RXP Blue" }
+    Run({ rxpThemes = true, rxpSetup = true }, fresh, "Player-A3", true)
+    Check(fresh.framePositions and fresh.framePositions.arrowFrame[1][1] == "CENTER",
+        "a profile with no places yet has it in the middle")
+    local seen = { activeTheme = "RXP Blue", framePositions = { arrowFrame = { { "TOP", "UIParent", "TOP", 0, 0 } } } }
+    rxp = Run({ rxpThemes = true, rxpSetup = true, rxpSetUp = { ["Player-A4"] = true } }, seen, "Player-A4", true)
+    Check(seen.framePositions.arrowFrame[1][1] == "TOP" and #rxp.arrowFrame.points == 0,
+        "a character already set up: the arrow is left where it is")
+    local by_hand = { activeTheme = "RXP Blue", framePositions = { arrowFrame = { { "TOP", "UIParent", "TOP", 0, 0 } } } }
+    local _, handNs = Run({ rxpSetUp = { ["Player-A5"] = true } }, by_hand, "Player-A5", true)
+    handNs.RXPSetUpCharacter()
+    Check(by_hand.framePositions.arrowFrame[1][1] == "CENTER", "the button sets it up again, the arrow with it")
+
+    -- already as it should be
+    local done = { activeTheme = CURRENT, enableBetaFeatures = true, enableV2Interface = true }
+    rxp, _, confirms = Run({ rxpThemes = true, rxpSetup = true }, done, "Player-5", true)
+    Check(#confirms == 0 and #rxp.reloads == 0, "a character that is as it should be: nothing is asked")
+
+    -- nothing wished for at all
+    local none = { activeTheme = "RXP Blue" }
+    _, _, confirms = Run({ rxpSetup = true }, none, "Player-6", false)
+    Check(none.activeTheme == "RXP Blue" and none.enableV2Interface == nil and #confirms == 0,
+        "set up on, with no theme and no window wished for: nothing to set")
+
+    -- a theme of RestedXP's own choosing is not ours to keep, but the player's own pick of ours is
+    local picked = { activeTheme = "NaowhForever:crimson" }
+    Run({ rxpThemes = true, rxpSetup = true }, picked, "Player-7", false)
+    Check(picked.activeTheme == "NaowhForever:crimson", "a theme of ours already picked is not changed")
+
+    -- by hand, with it off and the character seen
+    local manual = { activeTheme = "RXP Blue" }
+    account = { rxpThemes = true, rxpWindow = true, rxpSetUp = { ["Player-8"] = true } }
+    _, ns, confirms = Run(account, manual, "Player-8", true)
+    Check(manual.enableV2Interface == nil and manual.activeTheme == "RXP Blue", "off and seen: login sets nothing")
+    local result = ns.RXPSetUpCharacter()
+    Check(result == "reload" and manual.enableV2Interface == true and manual.activeTheme == CURRENT and #confirms == 1,
+        "the button sets it, wished for or not, seen or not")
+
+    -- what is missing raises nothing
+    _, _, confirms = Run({ rxpThemes = true, rxpSetup = true }, nil, "Player-9", true)
+    Check(#confirms == 0, "no profile: nothing")
+    _, ns, confirms = Run({ rxpThemes = true, rxpSetup = true }, { activeTheme = "RXP Blue" }, nil, true)
+    Check(#confirms == 0, "no character to say who it is: nothing")
+    ns.RXPSetUpEnabled()
+    ns.SetRXPSetUp(true)
+    Check(ns.RXPSetUpEnabled() == true, "the setting is kept")
+    ns.SetRXPSetUp(false)
+    Check(ns.AccountSettings().rxpSetup == nil and ns.RXPSetUpEnabled() == false, "and the default is not")
+end
+
+-- the old theme, the arrow and the window are each their own, and the theme and the window are never both on
+do
+    local function Arrow()
+        local arrow = { orientation = 0, distance = 0, wrongContinent = false }
+        arrow.texture = { path = "Interface/x" }
+        function arrow.texture:GetTexture() return self.path end
+        function arrow.texture:SetTexture(path) self.path = path end
+        function arrow.texture:SetVertexColor() end
+        function arrow.texture:SetRotation() end
+        function arrow.texture:ClearAllPoints() end
+        function arrow.texture:SetPoint() end
+        function arrow.texture:SetAllPoints() end
+        arrow.text = {}
+        function arrow.text:Hide() self.hidden = true end
+        function arrow.text:Show() self.hidden = false end
+        function arrow.text:GetFont() return "Fonts\\x.ttf", 9, "" end
+        function arrow.text:SetFont() end
+        function arrow.text:SetText() end
+        function arrow.text:SetWidth() end
+        function arrow.text:GetPoint() return "TOP", nil, "BOTTOM", 0, 0 end
+        function arrow.text:SetPoint() end
+        function arrow:UpdateVisuals() end
+        function arrow:GetFrameLevel() return 1 end
+        function arrow:GetSize() return 32, 32 end
+        function arrow:HookScript() end
+        return arrow
+    end
+    local function Boot(account, window)
+        local env, ns, frames, boot = Load(account, true)
+        env.RXPG_ARROW = Arrow()
+        env.RXP = { activeTheme = { name = "RXP Blue" }, themes = {}, settings = { profile = {} } }
+        if window ~= nil then ns.RXPWindowEnabled = function() return window end end
+        Fire(frames, "NaowhForever")
+        Login(boot)
+        return env, ns, frames, boot
+    end
+    local function Layers(frames, arrow)
+        local count = 0
+        for _, f in ipairs(frames) do
+            if f.parent == arrow then count = count + 1 end
+        end
+        return count
+    end
+
+    -- the arrow alone, with the theme off
+    local env, ns, frames = Boot({ rxpArrowOn = true })
+    Check(ns.RXPThemesEnabled() == false and ns.RXPArrowEnabled() == true, "the arrow on, the theme off")
+    Check(#env.hooked >= 1 and Layers(frames, env.RXPG_ARROW) == 1, "the arrow is hooked and styled on its own")
+
+    -- the theme with the arrow off
+    env, ns, frames = Boot({ rxpThemes = true, rxpArrowOn = false })
+    Check(ns.RXPThemesEnabled() == true and ns.RXPArrowEnabled() == false, "the theme on, the arrow off")
+    Check(#env.hooked == 0 and Layers(frames, env.RXPG_ARROW) == 0, "the arrow is left alone")
+
+    -- as it was: the theme on and nothing said of the arrow
+    env, ns = Boot({ rxpThemes = true })
+    Check(ns.RXPArrowEnabled() == true and #env.hooked >= 1, "nothing said of the arrow: it follows the theme that was on")
+    env, ns = Boot({})
+    Check(ns.RXPArrowEnabled() == false and #env.hooked == 0, "and with neither on, it is off")
+
+    -- the window on: the old theme is off, and the arrow is its own
+    ns = select(2, Boot({ rxpThemes = true, rxpWindow = true }, true))
+    Check(ns.RXPThemesEnabled() == false, "the window on: the old theme is not used, whatever was saved")
+    env, ns = Boot({ rxpArrowOn = true }, true)
+    Check(ns.RXPArrowEnabled() == true and #env.hooked >= 1, "and the arrow is, if it is on")
+
+    -- switched on while playing: hooked once
+    local function Updates(e)
+        local count = 0
+        for _, h in ipairs(e.hooked) do
+            if h[2] == "UpdateVisuals" then count = count + 1 end
+        end
+        return count
+    end
+    env, ns = Boot({})
+    Check(#env.hooked == 0, "off to start: nothing hooked")
+    ns.SetRXPArrow(true)
+    Check(Updates(env) == 1 and ns.AccountSettings().rxpArrowOn == true, "turned on: RestedXP's redraw is hooked at once")
+    ns.SetRXPArrow(true)
+    Check(Updates(env) == 1, "and not hooked again")
+    ns.SetRXPArrow(false)
+    Check(ns.AccountSettings().rxpArrowOn == false and ns.RXPArrowEnabled() == false, "off is kept as off")
+
+    -- switched off while playing: the layer goes, the image and the text are RestedXP's again
+    local on, onNs, onFrames = Boot({ rxpArrowOn = true, rxpArrow = "layer", rxpArrowText = false })
+    local arrowOn = on.RXPG_ARROW
+    local shown = false
+    for _, f in ipairs(onFrames) do
+        if f.parent == arrowOn and f.shown then shown = true end
+    end
+    Check(shown and arrowOn.text.hidden == true, "arrow on: the layer is shown, and the text is hidden as it was set")
+    onNs.SetRXPArrow(false)
+    shown = false
+    for _, f in ipairs(onFrames) do
+        if f.parent == arrowOn and f.shown then shown = true end
+    end
+    Check(not shown and arrowOn.text.hidden == false, "switched off: the layer is hidden, and the text is shown")
+
+    -- the arrow's text and font are only touched while it is on
+    local function Counting(account)
+        local e, n = Boot(account)
+        local a = e.RXPG_ARROW
+        a.text.sets, a.text.fonts = 0, 0
+        function a.text:SetText() self.sets = self.sets + 1 end
+        function a.text:SetFont() self.fonts = self.fonts + 1 end
+        a.distance = 100
+        return e, n, a
+    end
+    local e2, n2, a2 = Counting({ rxpArrowOn = true, rxpArrowObjective = true })
+    for _, h in ipairs(e2.hooked) do
+        if h[1] == a2.text and h[2] == "SetText" then h[3]() end
+    end
+    Check(a2.text.sets == 1, "on, with the objective wished for: the text is composed")
+    n2.SetRXPArrow(false)
+    a2.text.sets = 0
+    for _, h in ipairs(e2.hooked) do
+        if h[1] == a2.text and h[2] == "SetText" then h[3]() end
+    end
+    Check(a2.text.sets == 0, "off: it is not")
+    local e3, n3, a3 = Counting({ rxpArrowOn = true })
+    for _, h in ipairs(e3.hooked) do
+        if h[1] == a3.text and h[2] == "SetFont" then h[3]() end
+    end
+    Check(a3.text.fonts == 1, "on: its font is set to the Addon Font")
+    n3.SetRXPArrow(false)
+    a3.text.fonts = 0
+    for _, h in ipairs(e3.hooked) do
+        if h[1] == a3.text and h[2] == "SetFont" then h[3]() end
+    end
+    Check(a3.text.fonts == 0, "off: it is not set")
+
+    -- the theme or the window switched does not take the arrow with it
+    local keep = { rxpThemes = true }
+    local _, keepNs = Load(keep, true)
+    Check(keepNs.RXPArrowEnabled() == true, "the arrow follows the theme that was on, to start")
+    keepNs.SetRXPThemes(false)
+    Check(keep.rxpArrowOn == true and keepNs.RXPArrowEnabled() == true, "the theme turned off leaves the arrow as it was")
+    local kept = { rxpArrowOn = false, rxpThemes = true }
+    local _, keptNs = Load(kept, true)
+    keptNs.SetRXPThemes(false)
+    Check(kept.rxpArrowOn == false, "and an arrow that was set is not changed")
+
+    -- each of the two is the other's off
+    local account = { rxpWindow = true }
+    ns = select(2, Load(account, true))
+    local turnedOff
+    ns.RXPWindowEnabled = function() return account.rxpWindow == true end
+    ns.SetRXPWindow = function(enabled)
+        turnedOff = enabled == false
+        account.rxpWindow = enabled and true or nil
+    end
+    ns.SetRXPThemes(true)
+    Check(account.rxpThemes == true and turnedOff == true and account.rxpWindow == nil,
+        "the old theme turned on turns the window off")
+    turnedOff = nil
+    ns.SetRXPThemes(false)
+    Check(turnedOff == nil and account.rxpThemes == nil, "and off turns nothing")
+
+    -- the arrow's own font
+    account = {}
+    ns = select(2, Load(account, true))
+    Check(ns.RXPArrowFontEnabled() == true and account.rxpArrowFont == nil, "its font is on by default")
+    ns.SetRXPArrowFont(false)
+    Check(ns.RXPArrowFontEnabled() == false and account.rxpArrowFont == false and ns.RXPFontEnabled() == true,
+        "off is its own: the theme's font is as it was")
+    ns.SetRXPFont(false)
+    ns.SetRXPArrowFont(true)
+    Check(ns.RXPFontEnabled() == false and ns.RXPArrowFontEnabled() == true, "and the theme's is its own")
 end
 
 print("PASS rxp themes: " .. cases .. " checks")

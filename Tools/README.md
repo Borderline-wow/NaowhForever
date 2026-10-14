@@ -117,6 +117,7 @@ purpose.
 | --- | --- |
 | `make_media.py` | Draws our icons into `Core/Media/*.tga`, and the RestedXP themes' art into `Core/Integrations/RestedXP/Media/`. Change an icon in its function, then run it. |
 | `make_navigation.py` | Draws the navigation glyphs into `Core/Media/Navigation/`. |
+| `make_rxp_icons.py` | Draws RestedXP's step icons, in a line and a filled style, into `Core/Integrations/RestedXP/Media/Icons/`. Change a glyph in its table, then run it. |
 | `generate-voice-clips.ps1` | Rebuilds the English voice clips in `Core/Media/Voice/` on Windows. |
 
 ## release/, hooks/ and the tests
