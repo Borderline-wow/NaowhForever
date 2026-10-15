@@ -12,6 +12,7 @@ local TABS_MARGIN = 24
 local TABS_GAP = 8
 local DEFAULT_H = 150
 local TABS_WIDTH = 1
+local FOREVER_TABS_IN = 12
 
 local shownState = {}
 
@@ -78,8 +79,12 @@ end
 local function PaintTabs(row, states, state)
     local many = #states > 1
     if many and not row.tabs then
-        row.tabs = Parts.Tabs(row, TABS_WIDTH, states, function(key) TabPicked(row, key) end)
-        row.tabs:SetPoint("TOPRIGHT", -PAD, -TOP)
+        row.tabs = Parts.Tabs(row, TABS_WIDTH, states, function(key) TabPicked(row, key) end, true)
+        if ns.foreverSkin then
+            row.tabs:SetPoint("BOTTOMRIGHT", row.stage, "TOPRIGHT", -FOREVER_TABS_IN, 0)
+        else
+            row.tabs:SetPoint("TOPRIGHT", -PAD, -TOP)
+        end
     end
     if row.tabs then
         row.tabs:SetShown(many)
@@ -88,7 +93,7 @@ local function PaintTabs(row, states, state)
             Parts.PaintTabs(row.tabs, state)
         end
     end
-    return many and (row.tabs:GetHeight() + TABS_GAP) or 0
+    return many and (row.tabs:GetHeight() + (ns.foreverSkin and 0 or TABS_GAP)) or 0
 end
 
 local function SetStudio(row, card)

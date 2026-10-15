@@ -250,11 +250,11 @@ local function AllAtlases(St)
         for _, name in ipairs(list) do Add(name) end
     end
     for _, group in ipairs({ St.FOREVER_CLOSE_ATLAS, St.FOREVER_TAB_ATLAS, St.FOREVER_ACTIVE_TAB_ATLAS,
-        St.FOREVER_SIDE_TAB_ATLAS, St.FOREVER_SEARCH_ATLAS }) do
+        St.FOREVER_SEARCH_ATLAS }) do
         for _, name in pairs(group) do Add(name) end
     end
-    for _, name in ipairs({ St.FOREVER_PILL_ATLAS, St.FOREVER_BAND_ATLAS, St.FOREVER_BAR_ATLAS, St.FOREVER_PLUS_ATLAS,
-        St.FOREVER_MINUS_ATLAS, St.FOREVER_DROPDOWN_ATLAS }) do Add(name) end
+    for _, name in ipairs({ St.FOREVER_BAR_ATLAS, St.FOREVER_PLUS_ATLAS, St.FOREVER_MINUS_ATLAS,
+        St.FOREVER_DROPDOWN_ATLAS }) do Add(name) end
     local red = St.FOREVER_RED_BUTTON_ATLAS
     for _, suffix in ipairs(St.FOREVER_RED_BUTTON_STATES) do
         Add(red.left .. suffix); Add(red.center .. suffix); Add(red.right .. suffix)

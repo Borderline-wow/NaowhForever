@@ -204,10 +204,6 @@ local function NewSetting(view)
     row.label:SetPoint("LEFT", PAD, 0)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(false)
-    if ns.foreverSkin then
-        row.band = Parts.ForeverBand(row)
-        row.rule:Hide()
-    end
     row.why = ns.Font(row, SMALL_SIZE, nil, T.muted)
     row.why:SetJustifyH("RIGHT")
     row.why:SetWordWrap(false)
@@ -237,19 +233,8 @@ local function PlaceLabel(row, control, why)
     row.label:SetPoint("RIGHT", why and row.why or control, "LEFT", -CONTROL_GAP, 0)
 end
 
-local function Band(row)
-    local view = row:GetParent()
-    if view.cursor ~= view.bandTop then view.bandTop, view.banded = view.cursor, not view.banded end
-    row.band:SetShown(view.banded)
-end
-
-local function RestartBands(view)
-    view.bandTop, view.banded = nil, true
-end
-
 local function SetSetting(row, setting, split)
     row.setting = setting
-    if row.band then Band(row) end
     local control = ShowControl(row, setting.kind)
     Control.Bind(control, setting)
     row.label:SetText(Marked(row, ns.L(setting.label)))
@@ -379,7 +364,6 @@ local function SetForeverHead(head, card, isOpen, held)
     head.summary:SetPoint("LEFT", head.name, "RIGHT", SUMMARY_GAP, 0)
     head.summary:SetPoint("RIGHT", head.sign, "LEFT", -CONTROL_GAP, 0)
     head.summary:SetText(Summary(card) or "")
-    RestartBands(head:GetParent())
     return SS.FOREVER_CARD_BAR_H
 end
 
@@ -407,9 +391,8 @@ local function NewGroup(view)
     row.text:SetPoint("BOTTOMLEFT", PAD, GROUP_RISE)
     local rule = Rule(row)
     if ns.foreverSkin then
-        row.pill = Parts.ForeverPill(row, LABEL_SIZE)
-        row.pill:SetSize(SS.FOREVER_PILL_W, GROUP_H - 2 * SS.FOREVER_PILL_PAD)
-        row.pill:SetPoint("LEFT", SS.FOREVER_PILL_INSET, 0)
+        row.heading = Parts.ForeverHeading(row, LABEL_SIZE, PAD)
+        row.heading:SetAllPoints()
         row.text:Hide()
         rule:Hide()
     end
@@ -417,9 +400,8 @@ local function NewGroup(view)
 end
 
 local function SetGroup(row, title)
-    if row.pill then
-        row.pill.text:SetText(title)
-        RestartBands(row:GetParent())
+    if row.heading then
+        row.heading.text:SetText(ns.L(title))
         return GROUP_H
     end
     local label = groupLabels[title]

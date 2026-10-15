@@ -44,7 +44,7 @@ local GLIDE_RATE = 14
 local GLIDE_DONE = 0.5
 local TIP = { w = 240, pad = 8, size = 10, spacing = 3, gap = 4, cursorX = 16, cursorY = -12, alpha = 0.98 }
 local TOGGLE = { w = 40, h = 20, knobShare = 0.7, insetShare = 0.15, minInset = 2 }
-local FOLD = { arrow = 14, inset = 22, switchGap = 12 }
+local FOLD = { arrow = 14, inset = 22, switchGap = 12, barTextX = 12 }
 local NOTE = { size = 12, inset = 20, top = 12, room = 24, fallbackW = 960 }
 local SCROLL = { slimW = 6, slimGap = 6, trackAlpha = 0.6, thumbAlpha = 0.8, minThumb = 24, sync = 0.5 }
 local SHARE_DEPTH = 4
@@ -306,12 +306,14 @@ function UI.BuildDropdownControl(parent, ddW, fLevel, values, order, get, set)
     end
     btn.HandlesGlobalMouseEvent = DropdownHandlesMouse
     btn:SetScript("OnMouseDown", OnDropdownMouseDown)
-    btn:SetScript("OnEnter", function()
-        border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
-    end)
-    btn:SetScript("OnLeave", function()
-        border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1)
-    end)
+    if not ns.foreverSkin then
+        btn:SetScript("OnEnter", function()
+            border:SetColor(T.accent.r, T.accent.g, T.accent.b, 1)
+        end)
+        btn:SetScript("OnLeave", function()
+            border:SetColor(BLACK.r, BLACK.g, BLACK.b, 1)
+        end)
+    end
     btn._refreshLabel()
     btn._refreshValue = btn._refreshLabel
     btn:SetScript("OnHide", OnDropdownHide)
@@ -340,8 +342,10 @@ local function SliderValueBox(parent, inputW, inputH, inputFontSz, inputAlpha)
     local boxBg = ns.Solid(valBox, "BACKGROUND", T.bg, 1)
     boxBg:SetAllPoints()
     local boxBorder = ns.Border(valBox, BLACK)
-    valBox:SetScript("OnEnter", function() boxBorder:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
-    valBox:SetScript("OnLeave", function() boxBorder:SetColor(BLACK.r, BLACK.g, BLACK.b, 1) end)
+    if not ns.foreverSkin then
+        valBox:SetScript("OnEnter", function() boxBorder:SetColor(T.accent.r, T.accent.g, T.accent.b, 1) end)
+        valBox:SetScript("OnLeave", function() boxBorder:SetColor(BLACK.r, BLACK.g, BLACK.b, 1) end)
+    end
     return valBox, boxBg, boxBorder
 end
 
@@ -880,7 +884,26 @@ function W:DualRow(parent, yOffset, leftCfg, rightCfg)
     return Collapsed(parent, row, ROW_H)
 end
 
-function W:SectionHeader(parent, text, yOffset, inset)
+local function ForeverHeader(f, text, fold)
+    local Parts = ns.Shared.Parts
+    if not fold then
+        local heading = Parts.ForeverHeading(f, LABEL_SIZE, CONTENT_PAD)
+        heading:SetAllPoints()
+        heading.text:SetText(ns.L(text))
+        return
+    end
+    local bar = CreateFrame("Frame", nil, f)
+    bar:SetPoint("LEFT"); bar:SetPoint("RIGHT")
+    bar:SetHeight(ns.Shared.Style.FOREVER_CARD_BAR_H)
+    Parts.ForeverBar(bar)
+    bar.sign:SetPoint("CENTER", bar, "RIGHT", -ns.Shared.Style.FOREVER_SIGN_RIGHT, 0)
+    bar.name = ns.Font(bar, LABEL_SIZE, nil, T.accent, true)
+    bar.name:SetPoint("LEFT", FOLD.barTextX, 0)
+    bar.name:SetText(ns.L(text))
+    f.bar = bar
+end
+
+function W:SectionHeader(parent, text, yOffset, inset, fold)
     parent._nsuiCollapsed = nil
     local f = CachedRow(parent, "header:" .. text) or CreateFrame("Frame", nil, parent)
     PlaceRow(f, parent, yOffset, HEADER_H)
@@ -896,11 +919,7 @@ function W:SectionHeader(parent, text, yOffset, inset)
     sep:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
     ns.Hairline(sep, "h")
     if ns.foreverSkin then
-        local pill = ns.Shared.Parts.ForeverPill(f, LABEL_SIZE)
-        pill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, ns.Shared.Style.FOREVER_PILL_PAD)
-        pill:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, HEADER_H - HEADER_TEXT_Y)
-        pill.text:SetText(text)
-        f._pill = pill
+        ForeverHeader(f, text, fold)
         lbl:Hide()
         sep:Hide()
     end
@@ -915,7 +934,7 @@ local function OnFoldClick(hit)
 end
 
 function W:FoldHeader(parent, text, yOffset, forceOpen)
-    local f, h = W:SectionHeader(parent, text, yOffset, FOLD.inset)
+    local f, h = W:SectionHeader(parent, text, yOffset, FOLD.inset, true)
     if not f.hit then
         f.arrow = f:CreateTexture(nil, "ARTWORK")
         f.arrow:SetTexture(CHEVRON)
@@ -931,6 +950,11 @@ function W:FoldHeader(parent, text, yOffset, forceOpen)
     f.hit._id = text
     local open = forceOpen or openFolds[text]
     f.arrow:SetRotation(open and CHEVRON_DOWN or 0)
+    f._open = open
+    if f.bar then
+        f.arrow:Hide()
+        ns.Shared.Parts.PaintForeverBar(f.bar, open, true)
+    end
     parent._nsuiCollapsed = not open or nil
     return f, h
 end
@@ -944,12 +968,19 @@ function W:SwitchFold(parent, text, yOffset, cfg)
                 if v then openFolds[text] = true end
                 f._set(v)
             end)
-        f.switch:SetPoint("LEFT", f._pill and f._pill.text or f._label, "RIGHT", FOLD.switchGap, 0)
+        if f.bar then
+            f.switch:SetPoint("LEFT", f.bar, "LEFT", FOLD.barTextX, 0)
+            f.bar.name:ClearAllPoints()
+            f.bar.name:SetPoint("LEFT", f.switch, "RIGHT", FOLD.switchGap, 0)
+        else
+            f.switch:SetPoint("LEFT", f._label, "RIGHT", FOLD.switchGap, 0)
+        end
     end
     f.switch._refreshValue()
     if cfg.tooltip then ns.Tooltip(f.switch, ns.L(text), ns.L(cfg.tooltip)) end
-    f.arrow:SetShown(cfg.rows == true)
+    f.arrow:SetShown(cfg.rows == true and not f.bar)
     f.hit:SetShown(cfg.rows == true)
+    if f.bar then ns.Shared.Parts.PaintForeverBar(f.bar, f._open, cfg.rows == true) end
     if not cfg.rows then parent._nsuiCollapsed = nil end
     return f, h
 end
@@ -1207,7 +1238,8 @@ local function ScrollGrip(bar, thumb, scroll)
     local grip = CreateFrame("Frame", nil, bar)
     grip:SetAllPoints()
     grip:EnableMouse(true)
-    grip:SetScript("OnEnter", function() thumb:SetColorTexture(T.accent.r, T.accent.g, T.accent.b, 1) end)
+    local lit = ns.foreverSkin and ns.Shared.Style.FOREVER_RAIL_RGB[1] or T.accent
+    grip:SetScript("OnEnter", function() thumb:SetColorTexture(lit.r, lit.g, lit.b, 1) end)
     grip:SetScript("OnLeave", function()
         thumb:SetColorTexture(T.muted.r, T.muted.g, T.muted.b, SCROLL.thumbAlpha)
     end)

@@ -855,7 +855,7 @@ function ns.NewEditBox(parent, opts)
     local edge = opts.border or BLACK
     box._border = ns.Border(box, edge)
     box.border = box._border
-    if opts.hover ~= false then
+    if opts.hover ~= false and not ns.foreverSkin then
         box:HookScript("OnEnter", function()
             local a = ns.THEME.accent
             box._border:SetColor(a.r, a.g, a.b, 1)

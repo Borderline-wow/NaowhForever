@@ -94,8 +94,9 @@ local lastFilter, searchJump
 local NO_TABS = {}
 local Off = { group = ns.L("TURNED OFF"), page = ns.L("%s is turned off. Turn it on to change these settings."),
     row = "%s / %s" }
-local Forever = { tabs = {}, insetLeft = 3, insetRight = 4, insetBottom = 6, tabTop = 8, titleY = 8, crumbGap = 4,
-    subGap = 12, headRoom = 560, edge = 16, buttonGap = 10, switchGap = 18, labelGap = 8, buttonH = 26, navText = 15 }
+local Forever = { insetLeft = 3, insetRight = 4, insetBottom = 6, tabTop = 8, titleY = 8, crumbGap = 4,
+    subGap = 12, headRoom = 560, edge = 16, buttonGap = 10, switchGap = 18, labelGap = 8, buttonH = 26, navText = 15,
+    itemX = 24, groupGap = 6, groupBelow = 2, railOut = 6 }
 
 function ns.VersionText()
     return TEXT_VERSION .. (ns.CODE_BUILD or C_AddOns.GetAddOnMetadata(ns.MODULE_KEY, "Version") or TEXT_UNKNOWN)
@@ -197,7 +198,7 @@ local function LayoutNav()
 end
 
 function Off.Layout()
-    local y, shown = Off.top - SIDE.groupStep, false
+    local y, shown = Off.top - Off.headH, false
     for _, mod in ipairs(Off.mods) do
         local btn = navButtons[mod.name]
         local found = (btn.found or 0) > 0
@@ -222,7 +223,7 @@ local function PaintNavButton(btn, hover)
     btn.label:SetTextColor(c.r, c.g, c.b, a)
     if btn.icon then btn.icon:SetVertexColor(c.r, c.g, c.b, a) end
     if btn.open then btn.open:SetAlpha((active or hover) and 1 or NAV_OPEN_DIM) end
-    if btn.forever then ns.Shared.Parts.PaintForeverNav(btn, active) end
+    if btn.forever then ns.Shared.Parts.PaintForeverNav(btn, active, hover) end
     if btn.dot then btn.dot:SetShown(off and not UI.filter) end
     btn.count:SetText(found and found > 0 and found or "")
 end
@@ -250,7 +251,6 @@ local function PaintNav()
     end
     Off.Layout()
     for _, bar in pairs(tabStrips) do PaintTabs(bar, currentPage, filter) end
-    for key, tab in pairs(Forever.tabs) do ns.Shared.Parts.SetForeverSideTab(tab, key == nav) end
 end
 
 local function LayoutHeader(page, mod, headerH)
@@ -548,7 +548,7 @@ local function TabStrip(parent, mod, onPick, maxW)
     local items = {}
     for i, tab in ipairs(mod.tabs) do items[i] = { key = tab.key, label = ns.L(tab.name) } end
     local Parts = ns.Shared.Parts
-    local bar = Parts.Tabs(parent, 1, items, onPick)
+    local bar = Parts.Tabs(parent, 1, items, onPick, true)
     Parts.FitTabs(bar, items, TAB_MARGIN, maxW)
     return bar
 end
@@ -599,8 +599,9 @@ local function NavIcon(btn, icon)
     btn.icon:SetVertexColor(T.muted.r, T.muted.g, T.muted.b, 1)
 end
 
-local function NavigationButton(parent, label, y, onClick, icon)
+local function NavigationButton(parent, label, y, onClick, icon, listed)
     if ns.foreverSkin then icon = nil end
+    local lined = ns.foreverSkin and listed
     local btn = CreateFrame("Button", nil, parent)
     btn:SetPoint("TOPLEFT", NAV_INSET, y)
     btn:SetPoint("TOPRIGHT", -NAV_INSET, y)
@@ -611,9 +612,13 @@ local function NavigationButton(parent, label, y, onClick, icon)
     btn.marker = ns.Solid(btn, "ARTWORK", T.accent, 1)
     btn.marker:SetPoint("TOPLEFT"); btn.marker:SetPoint("BOTTOMLEFT"); btn.marker:SetWidth(NAV_MARKER_W)
     btn.marker:Hide()
-    if ns.foreverSkin then ns.Shared.Parts.ForeverNavButton(btn) end
+    if lined then
+        ns.Shared.Parts.ForeverNavLine(btn)
+    elseif ns.foreverSkin then
+        ns.Shared.Parts.ForeverNavButton(btn)
+    end
     btn.label = ns.Font(btn, ns.foreverSkin and Forever.navText or NAV_TEXT_SIZE, nil, T.muted, true)
-    btn.label:SetPoint("LEFT", icon and NAV_LABEL_X or NAV_TEXT_X, 0)
+    btn.label:SetPoint("LEFT", lined and Forever.itemX or icon and NAV_LABEL_X or NAV_TEXT_X, 0)
     btn.label:SetPoint("RIGHT", -NAV_TEXT_RIGHT, 0)
     btn.label:SetJustifyH("LEFT")
     btn.label:SetWordWrap(false)
@@ -772,15 +777,26 @@ function Off.First(mod)
 end
 
 function Off.Build(nav, top)
-    local label = ns.Font(nav, SIDE.groupSize, nil, T.muted, true)
-    label:SetPoint("TOPLEFT", SIDE.groupX, top - SIDE.groupY)
-    label:SetText(Off.group)
+    local label, headH
+    if ns.foreverSkin then
+        label = CreateFrame("Frame", nil, nav)
+        label:SetPoint("TOPLEFT", NAV_INSET, top - Forever.groupGap)
+        label:SetPoint("TOPRIGHT", -NAV_INSET, top - Forever.groupGap)
+        label:SetHeight(NAV_ROW)
+        ns.Shared.Parts.ForeverGroupBar(label, Off.group)
+        headH = Forever.groupGap + NAV_ROW + Forever.groupBelow
+    else
+        label = ns.Font(nav, SIDE.groupSize, nil, T.muted, true)
+        label:SetPoint("TOPLEFT", SIDE.groupX, top - SIDE.groupY)
+        label:SetText(Off.group)
+        headH = SIDE.groupStep
+    end
     label:Hide()
     local mods = {}
     for _, mod in ipairs(MODULES) do
         if Ready(mod) and not Loaded(mod) then
             local btn = NavigationButton(nav, DisplayName(mod), top, function() ShowPage(Off.First(mod)) end,
-                mod.navIcon)
+                mod.navIcon, true)
             btn:SetHeight(NAV_ROW)
             btn.mod = mod
             btn:Hide()
@@ -788,14 +804,21 @@ function Off.Build(nav, top)
             mods[#mods + 1] = mod
         end
     end
-    Off.nav, Off.top, Off.label, Off.mods = nav, top, label, mods
+    Off.nav, Off.top, Off.label, Off.headH, Off.mods = nav, top, label, headH, mods
 end
 
 local function ModuleNav(nav)
     local groups, grouped = NavGroups()
     local ny = 0
     for _, group in ipairs(groups) do
-        if group ~= "" then
+        if group ~= "" and ns.foreverSkin then
+            local bar = CreateFrame("Frame", nil, nav)
+            bar:SetPoint("TOPLEFT", NAV_INSET, ny - Forever.groupGap)
+            bar:SetPoint("TOPRIGHT", -NAV_INSET, ny - Forever.groupGap)
+            bar:SetHeight(NAV_ROW)
+            ns.Shared.Parts.ForeverGroupBar(bar, ns.L(group))
+            ny = ny - Forever.groupGap - NAV_ROW - Forever.groupBelow
+        elseif group ~= "" then
             local label = ns.Font(nav, SIDE.groupSize, nil, T.muted, true)
             label:SetPoint("TOPLEFT", SIDE.groupX, ny - SIDE.groupY); label:SetText(ns.L(group))
             ny = ny - SIDE.groupStep
@@ -803,7 +826,7 @@ local function ModuleNav(nav)
         navBlocks[#navBlocks + 1] = { top = ny, mods = grouped[group] }
         for _, mod in ipairs(grouped[group]) do
             local btn = NavigationButton(nav, DisplayName(mod), ny,
-                function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon)
+                function() ShowPage(lastPages[mod.name] or mod.tabs[1].key) end, mod.navIcon, true)
             btn:SetHeight(NAV_ROW)
             NavExtras(btn, mod)
             navButtons[mod.name] = btn
@@ -855,19 +878,6 @@ function Forever.Frame()
     ns.Shared.Parts.ForeverPanes(window, ns.Shared.Style.FOREVER_BAND_H, SIDEBAR_W)
 end
 
-function Forever.SideTabs()
-    local St = ns.Shared.Style
-    local y = -St.FOREVER_SIDE_TAB_TOP
-    for _, entry in ipairs(SYSTEM_NAV) do
-        local key = entry[1]
-        local tab = ns.Shared.Parts.ForeverSideTab(window, entry[2], function() ShowPage(key) end)
-        tab:SetPoint("TOPLEFT", window, "TOPRIGHT", St.FOREVER_SIDE, y)
-        ns.Tooltip(tab, ns.L(key))
-        Forever.tabs[key] = tab
-        y = y - tab:GetHeight() - St.FOREVER_SIDE_TAB_GAP
-    end
-end
-
 local function Sidebar()
     local sidebar = CreateFrame("Frame", nil, window)
     sidebar:SetPoint("TOPLEFT", 0, -(window.forever and Forever.Top() or TOP_H)); sidebar:SetPoint("BOTTOMLEFT")
@@ -880,10 +890,10 @@ local function Sidebar()
     searchBox:SetPoint("TOPRIGHT", -SEARCH.right, -SEARCH.top)
     searchBox:SetHeight(SEARCH.h)
     local top = SEARCH.top + SEARCH.h + SEARCH.gap
-    local bottom = window.forever and FOOTER_H_SIDEBAR or FOOTER_H_SIDEBAR + SIDE.utilityRoom + NAV_STEP * #SYSTEM_NAV
+    local bottom = FOOTER_H_SIDEBAR + SIDE.utilityRoom + NAV_STEP * #SYSTEM_NAV
     local nav = NavigationScroll(sidebar, top, bottom, SIDEBAR_W)
     ModuleNav(nav)
-    if window.forever then Forever.SideTabs() else SystemNav(sidebar) end
+    SystemNav(sidebar)
     SidebarFooter(sidebar)
 end
 
@@ -957,16 +967,22 @@ function Forever.Header()
     headerSub:SetPoint("RIGHT", contentHeader, "RIGHT", -Forever.headRoom, 0)
     Forever.Buttons()
     local tabX = SIDEBAR_W + St.FOREVER_RAIL + CONTENT_X
+    local tabY = Forever.Top() + Forever.tabTop
     for _, bar in pairs(tabStrips) do
         bar:ClearAllPoints()
-        bar:SetPoint("TOPLEFT", window, "TOPLEFT", tabX, -(Forever.Top() + Forever.tabTop))
+        bar:SetPoint("TOPLEFT", window, "TOPLEFT", tabX, -tabY)
     end
     tabLine:Hide()
+    Forever.tabRail = ns.Shared.Parts.ForeverRail(window)
+    Forever.tabRail:SetPoint("TOPLEFT", window, "TOPLEFT", tabX - Forever.railOut, -(tabY + St.TAB_H))
+    Forever.tabRail:SetPoint("TOPRIGHT", window, "TOPRIGHT", -CONTENT_RIGHT, -(tabY + St.TAB_H))
+    Forever.tabRail:Hide()
 end
 
 function Forever.Layout(page, mod, nested)
     LayoutHeader(page, mod)
     for name, strip in pairs(tabStrips) do strip:SetShown(nested and name == mod.name or false) end
+    Forever.tabRail:SetShown(nested and true or false)
     local top = Forever.Top() + (nested and Forever.tabTop + TAB_H or 0)
     scrollFrame:ClearAllPoints()
     scrollFrame:SetPoint("TOPLEFT", window, "TOPLEFT", SIDEBAR_W + ns.Shared.Style.FOREVER_RAIL + SCROLL_X,

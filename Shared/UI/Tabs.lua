@@ -131,7 +131,7 @@ local function FitForeverTabs(bar, count, width)
     total = 0
     for i = 1, count do
         local button = bar.buttons[i]
-        local cut = math.min(trim, math.max(0, button.pad - 2 * St.FOREVER_TAB_PAD))
+        local cut = math.min(trim, math.max(0, button.pad - 2 * St.FOREVER_TAB_TIGHT))
         button.fit, button.pad = button.fit - cut, button.pad - cut
         total = total + button.fit
         fitOrder[i] = button
@@ -142,10 +142,19 @@ local function FitForeverTabs(bar, count, width)
     CutWidest(count, room, total)
 end
 
+local function PlaceRail(bar, rowW)
+    local rail = bar.rail
+    if not rail then return end
+    rail:SetShown(rowW > 0)
+    rail:ClearAllPoints()
+    rail:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", -St.FOREVER_TAB_RAIL_OUT, 0)
+    rail:SetWidth(rowW + 2 * St.FOREVER_TAB_RAIL_OUT)
+end
+
 function Parts.SetTabs(bar, items)
     local width = bar:GetWidth()
     local words = FillTabs(bar, items)
-    if #items == 0 then return end
+    if #items == 0 then return PlaceRail(bar, 0) end
     if ns.foreverSkin then FitForeverTabs(bar, #items, width) end
     local spare, x = (width - words) / #items, 0
     for i = 1, #items do
@@ -157,6 +166,7 @@ function Parts.SetTabs(bar, items)
         if i > 1 and not ns.foreverSkin then Split(bar, i, x) end
         x = x + w + (ns.foreverSkin and St.FOREVER_TAB_GAP or 0)
     end
+    PlaceRail(bar, x - St.FOREVER_TAB_GAP)
 end
 
 function Parts.FitTabs(bar, items, margin, maxW)
@@ -167,12 +177,14 @@ function Parts.FitTabs(bar, items, margin, maxW)
     Parts.SetTabs(bar, items)
 end
 
-function Parts.Tabs(parent, width, items, onPick)
+function Parts.Tabs(parent, width, items, onPick, noRail)
     local bar = CreateFrame("Frame", nil, parent)
     bar:SetSize(width, TAB_H)
     if not ns.foreverSkin then
         ns.Solid(bar, "BACKGROUND", T.panel, 1):SetAllPoints()
         ns.Border(bar, BORDER_RGB)
+    elseif not noRail then
+        bar.rail = Parts.ForeverRail(bar)
     end
     bar.buttons, bar.splits, bar.onPick = {}, {}, onPick
     Parts.SetTabs(bar, items)
@@ -195,8 +207,10 @@ function Parts.SearchBox(parent, hint, onSearch, columns)
     box.hint:ClearAllPoints()
     box.hint:SetPoint("LEFT", textLeft, 0)
     Edge(box, BORDER_RGB)
-    box:HookScript("OnEditFocusGained", SearchFocus)
-    box:HookScript("OnEditFocusLost", SearchBlur)
+    if not ns.foreverSkin then
+        box:HookScript("OnEditFocusGained", SearchFocus)
+        box:HookScript("OnEditFocusLost", SearchBlur)
+    end
     if ns.foreverSkin then Parts.ForeverSearch(box, fill, icon) end
     return box
 end

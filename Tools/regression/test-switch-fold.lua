@@ -171,29 +171,32 @@ do
     check("when something follows it again, it folds", again.arrow.shown == true and again.hit.shown == true)
 end
 
--- on the Forever skin the header is a banner with its text in the middle: the switch is after the text
+-- on the Forever skin a folding header is a card's list bar: the switch at its left, as a card's,
+-- its name after the switch, and the bar's sign only when something folds under it
 do
     ns.foreverSkin = true
     ns.Shared.Parts = ns.Shared.Parts or {}
-    local pill
-    ns.Shared.Parts.ForeverPill = function(parent)
-        pill = New("Frame", parent)
-        pill.text = New("FontString", pill)
-        return pill
+    ns.Shared.Parts.ForeverBar = function(bar)
+        bar.sign = New("Texture", bar)
+        return bar
     end
+    ns.Shared.Parts.PaintForeverBar = function(bar, open, openable) bar.open, bar.openable = open, openable end
     ns.Shared.Parts.ForeverCheck = function(t)
         return New("Texture", t), New("Texture", t), { r = 0, g = 0, b = 0 }
     end
-    local parent = Page()
-    local f = W:SwitchFold(parent, "Skinned Thing", 0, cfg)
+    local f = W:SwitchFold(Page(), "Skinned Thing", 0, { get = cfg.get, set = cfg.set })
     local at = f.switch.points[#f.switch.points]
-    check("the banner is the header's", f._pill == pill)
-    check("the switch follows its text, not the title that is hidden",
-        at and at[1] == "LEFT" and at[2] == pill.text and at[3] == "RIGHT")
+    local name = f.bar and f.bar.name.points[#f.bar.name.points]
+    check("the header is a list bar", f.bar ~= nil and not f.arrow.shown)
+    check("the switch at the bar's left, its name after it", at and at[1] == "LEFT" and at[2] == f.bar
+        and name and name[2] == f.switch and name[3] == "RIGHT")
+    check("no rows under it: no sign on the bar", f.bar.openable == false)
+    local folds = W:SwitchFold(Page(), "Skinned Folds", 0, cfg)
+    check("rows under it: the bar's sign", folds.bar.openable == true)
     ns.foreverSkin = nil
     local plain = W:SwitchFold(Page(), "Plain Thing", 0, cfg)
     local lead = plain.switch.points[#plain.switch.points]
-    check("and without the skin it follows the title", plain._pill == nil and lead[2] == plain._label)
+    check("and without the skin it follows the title", plain.bar == nil and lead[2] == plain._label)
 end
 
 print("PASS switch fold: " .. checks .. " checks")

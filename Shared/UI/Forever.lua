@@ -11,21 +11,17 @@ local TEXT_ADDON = "Naowh Forever"
 local TEXT_PLUS, TEXT_MINUS = "+", "-"
 local FRAME_RINGS = { BLACK, St.FOREVER_BRONZE_DARK_RGB, St.FOREVER_BRONZE_RGB, St.FOREVER_BRONZE_DEEP_RGB, BLACK }
 local SWATCH_RINGS = { St.FOREVER_SWATCH_RIM_RGB, BLACK }
-local TIP_RINGS = { YELLOW, YELLOW, BLACK }
 local CLOSE_ATLASES = { St.FOREVER_CLOSE_ATLAS.normal, St.FOREVER_CLOSE_ATLAS.pushed, St.FOREVER_CLOSE_ATLAS.highlight }
 local TAB_ATLASES = { St.FOREVER_TAB_ATLAS.left, St.FOREVER_TAB_ATLAS.middle, St.FOREVER_TAB_ATLAS.right,
     St.FOREVER_ACTIVE_TAB_ATLAS.left, St.FOREVER_ACTIVE_TAB_ATLAS.middle, St.FOREVER_ACTIVE_TAB_ATLAS.right }
-local SIDE_ATLASES = { St.FOREVER_SIDE_TAB_ATLAS.normal, St.FOREVER_SIDE_TAB_ATLAS.selected,
-    St.FOREVER_SIDE_TAB_ATLAS.hover, St.FOREVER_SIDE_TAB_ATLAS.mask }
 local SEARCH_ATLASES = { St.FOREVER_SEARCH_ATLAS.left, St.FOREVER_SEARCH_ATLAS.middle, St.FOREVER_SEARCH_ATLAS.right }
 local SIGN_ATLASES = { St.FOREVER_PLUS_ATLAS, St.FOREVER_MINUS_ATLAS }
 local TITLE_SUBLEVEL = 7
 local PORTRAIT_ART = { logo = 0.94, glow = 0.7, glowAlpha = 0.45, shade = 1, shadeAlpha = 0.55 }
-local SIDE_ICON_X = -4
 local KNOB_RAISE = 2
 local KNOB_EDGE = 2
 local RING_EDGE = 1
-local RING_LAYERS = { black = 0, bronze = 1, deep = 2 }
+local RING_LAYERS = { black = 0, light = 1, dark = 2, inner = 3 }
 local KNOB_EDGE_SUBLEVEL = -1
 local FILL_ALPHA = 0.6
 local CHEVRON_DOWN = -math.pi / 2
@@ -170,7 +166,7 @@ local function Title(chrome, text, left)
     return title
 end
 
-local function Portrait(chrome, drawn)
+local function Portrait(chrome)
     local holder = CreateFrame("Frame", nil, chrome)
     holder:SetFrameLevel(chrome:GetFrameLevel() + St.FOREVER_PORTRAIT_LEVEL)
     holder:SetSize(St.FOREVER_PORTRAIT, St.FOREVER_PORTRAIT)
@@ -179,12 +175,13 @@ local function Portrait(chrome, drawn)
     local middle = CreateFrame("Frame", nil, holder)
     middle:SetSize(disc, St.FOREVER_PORTRAIT - St.FOREVER_MASK_DROP)
     middle:SetPoint("TOPLEFT", St.FOREVER_MASK_IN, 0)
-    if drawn then
-        local ring = St.FOREVER_PORTRAIT_RING
-        Round(middle, "BACKGROUND", disc + 2 * ring, BLACK, RING_LAYERS.black):SetPoint("CENTER")
-        Round(middle, "BACKGROUND", disc + 2 * (ring - RING_EDGE), St.FOREVER_BRONZE_RGB, RING_LAYERS.bronze):SetPoint("CENTER")
-        Round(middle, "BACKGROUND", disc + 2 * RING_EDGE, St.FOREVER_BRONZE_DEEP_RGB, RING_LAYERS.deep):SetPoint("CENTER")
-    end
+    local ring = St.FOREVER_PORTRAIT_RING
+    holder.ring = Round(middle, "BACKGROUND", disc + 2 * ring, BLACK, RING_LAYERS.black)
+    holder.ring:SetPoint("CENTER")
+    local metal = St.FOREVER_RAIL_RGB
+    Round(middle, "BACKGROUND", disc + 2 * (ring - RING_EDGE), metal[1], RING_LAYERS.light):SetPoint("CENTER")
+    Round(middle, "BACKGROUND", disc + 4 * RING_EDGE, metal[2], RING_LAYERS.dark):SetPoint("CENTER")
+    Round(middle, "BACKGROUND", disc + 2 * RING_EDGE, BLACK, RING_LAYERS.inner):SetPoint("CENTER")
     holder.disc = Round(middle, "ARTWORK", disc, St.FOREVER_PORTRAIT_RGB)
     holder.disc:SetPoint("CENTER")
     holder.glow = Round(middle, "ARTWORK", disc * PORTRAIT_ART.glow, St.FOREVER_PORTRAIT_GLOW_RGB, 1)
@@ -281,7 +278,7 @@ function Parts.ForeverFrame(window, opts)
         ns.Hairline(chrome.rule, "h")
     end
     chrome.title = Title(chrome, opts and opts.title, bare and St.FOREVER_TITLE_RIGHT or St.FOREVER_TITLE_LEFT)
-    if not bare then chrome.portrait = Portrait(chrome, not chrome.art) end
+    if not bare then chrome.portrait = Portrait(chrome) end
     if not preview then chrome.strip = Strip(chrome, window) end
     chrome.close = Close(chrome, window, opts and opts.onClose)
     if preview then chrome.close:EnableMouse(false) end
@@ -525,7 +522,7 @@ local function TabPieces(button, atlas, leftX, rightX)
         local piece = button:CreateTexture(nil, "BACKGROUND")
         Atlas(piece, name, true)
         piece:SetTexCoord(0, 1, 1, St.FOREVER_TOP_TAB_CROP)
-        piece:SetHeight(piece:GetHeight() * St.FOREVER_TOP_TAB_SHARE)
+        piece:SetHeight(piece:GetHeight() * St.FOREVER_TOP_TAB_TALL)
         if i ~= 2 then piece:SetWidth(piece:GetWidth() * St.FOREVER_TOP_TAB_SHARE) end
         pieces[i] = piece
     end
@@ -572,54 +569,6 @@ function Parts.PaintForeverTab(button, on)
     end
     local c = on and St.FOREVER_TAB_ON_RGB or St.FOREVER_MUTED_RGB
     button.text:SetTextColor(c.r, c.g, c.b)
-end
-
-function Parts.ForeverSideTab(parent, iconName, onClick)
-    local tab = CreateFrame("Button", nil, parent)
-    tab.icon = tab:CreateTexture(nil, "ARTWORK")
-    local path = St.CLASSIC_ICONS[iconName]
-    if path then tab.icon:SetTexture(St.CLASSIC_ICON_PATH .. path) end
-    local atlas = St.FOREVER_SIDE_TAB_ATLAS
-    if HasAtlases(SIDE_ATLASES) then
-        local bg = tab:CreateTexture(nil, "BACKGROUND")
-        Atlas(bg, atlas.normal, true)
-        bg:SetPoint("CENTER")
-        tab:SetSize(bg:GetWidth(), bg:GetHeight() - St.FOREVER_SIDE_TAB_TRIM)
-        tab.selected = tab:CreateTexture(nil, "OVERLAY")
-        Atlas(tab.selected, atlas.selected, true)
-        tab.selected:SetPoint("CENTER")
-        local hover = tab:CreateTexture(nil, "HIGHLIGHT")
-        Atlas(hover, atlas.hover, true)
-        hover:SetPoint("CENTER")
-        local mask = tab:CreateMaskTexture()
-        Atlas(mask, atlas.mask, true)
-        mask:SetPoint("CENTER", SIDE_ICON_X, 0)
-        tab.icon:SetAllPoints(mask)
-        tab.icon:AddMaskTexture(mask)
-        tab.art = true
-    else
-        tab:SetSize(St.FOREVER_SIDE_TAB, St.FOREVER_SIDE_TAB)
-        ns.Solid(tab, "BACKGROUND", St.FOREVER_SIDE_RGB, 1):SetAllPoints()
-        ns.Border(tab, BLACK)
-        tab.rim = Rim(tab, St.FOREVER_SWATCH_RIM_RGB)
-        tab.selected = tab:CreateTexture(nil, "OVERLAY")
-        tab.selected:SetAllPoints()
-        tab.selected:SetTexture(St.FOREVER_HIGHLIGHT)
-        tab.selected:SetBlendMode("ADD")
-        tab.selected:SetAlpha(St.FOREVER_GLOW_ALPHA)
-        tab.icon:SetSize(St.FOREVER_SIDE_TAB_ICON, St.FOREVER_SIDE_TAB_ICON)
-        tab.icon:SetPoint("CENTER")
-        local crop = St.CLASSIC_ICON_CROP
-        tab.icon:SetTexCoord(crop, 1 - crop, crop, 1 - crop)
-    end
-    tab.selected:Hide()
-    tab:SetScript("OnClick", onClick)
-    return tab
-end
-
-function Parts.SetForeverSideTab(tab, on)
-    tab.selected:SetShown(on)
-    if tab.rim then Paint(tab.rim, on and YELLOW or St.FOREVER_SWATCH_RIM_RGB) end
 end
 
 local function BarArt(bar, gap)
@@ -677,40 +626,18 @@ function Parts.PaintForeverBar(bar, open, openable)
     Paint(bar.barRim, open and St.FOREVER_BRONZE_RGB or St.FOREVER_BAR_RIM_RGB)
 end
 
-local function Diamond(pill, point, x)
-    local gem = pill:CreateTexture(nil, "OVERLAY")
-    gem:SetTexture(St.GEM, nil, nil, "TRILINEAR")
-    gem:SetSize(St.FOREVER_PILL_DIAMOND, St.FOREVER_PILL_DIAMOND)
-    gem:SetPoint("CENTER", pill, point, x, 0)
-    Tint(gem, St.FOREVER_BRONZE_RGB)
-    return gem
-end
-
-function Parts.ForeverPill(parent, size)
-    local pill = CreateFrame("Frame", nil, parent)
-    local art = pill:CreateTexture(nil, "BACKGROUND")
-    art:SetAllPoints()
-    if Atlas(art, St.FOREVER_PILL_ATLAS) then
-        pill.art = true
-    else
-        Gradient(art, St.FOREVER_PILL_RGB)
-        ns.Border(pill, BLACK)
-        Rim(pill, St.FOREVER_PILL_RIM_RGB)
-        Diamond(pill, "LEFT", 0)
-        Diamond(pill, "RIGHT", 0)
-    end
-    pill.text = ns.Font(pill, size or St.TEXT_SIZE, nil, St.FOREVER_LIGHT_RGB, true)
-    pill.text:SetPoint("CENTER")
-    pill.text:SetWordWrap(false)
-    return pill
-end
-
-function Parts.ForeverBand(row)
-    local band = row:CreateTexture(nil, "BACKGROUND")
-    band:SetAllPoints()
-    if not Atlas(band, St.FOREVER_BAND_ATLAS) then band:SetColorTexture(1, 1, 1, St.FOREVER_BAND_ALPHA) end
-    band:Hide()
-    return band
+function Parts.ForeverHeading(parent, size, textX)
+    local heading = CreateFrame("Frame", nil, parent)
+    local brown = St.FOREVER_BRONZE_DARK_RGB
+    heading.line = heading:CreateTexture(nil, "ARTWORK")
+    heading.line:SetColorTexture(brown.r, brown.g, brown.b, 1)
+    heading.line:SetPoint("BOTTOMLEFT")
+    heading.line:SetPoint("BOTTOMRIGHT")
+    heading.line:SetHeight(St.FOREVER_HEADING_LINE)
+    heading.text = ns.Font(heading, size or St.TEXT_SIZE, nil, St.FOREVER_LIGHT_RGB, true)
+    heading.text:SetPoint("BOTTOMLEFT", heading.line, "TOPLEFT", textX or 0, St.FOREVER_HEADING_GAP)
+    heading.text:SetWordWrap(false)
+    return heading
 end
 
 local function Tick(parent, size)
@@ -782,9 +709,20 @@ function Parts.ForeverCheck(t)
     return t.checkTick, rim, St.FOREVER_CHECK_RIM_RGB
 end
 
+local function Sheen(owner, layer)
+    local sheen = owner:CreateTexture(nil, layer)
+    sheen:SetAllPoints()
+    sheen:SetColorTexture(1, 1, 1, 1)
+    sheen:SetBlendMode("ADD")
+    local s = St.FOREVER_HOVER_SHEEN
+    sheen:SetGradient("VERTICAL", CreateColor(1, 1, 1, s.bottom), CreateColor(1, 1, 1, s.top))
+    return sheen
+end
+
 function Parts.ForeverDropdown(btn, bg, lbl, arrow)
     Gradient(bg, St.FOREVER_FIELD_FILL_RGB)
     Rim(btn, St.FOREVER_FIELD_RIM_RGB)
+    btn.glow = Sheen(btn, "HIGHLIGHT")
     lbl:SetTextColor(WHITE.r, WHITE.g, WHITE.b, 1)
     lbl:SetPoint("RIGHT", -(St.FOREVER_ARROW_BUTTON + 2 * St.FOREVER_PILL_PAD), 0)
     arrow:ClearAllPoints()
@@ -810,6 +748,10 @@ function Parts.ForeverDropdown(btn, bg, lbl, arrow)
     return false
 end
 
+local function SliderEnter(track) track.glow:Show() end
+
+local function SliderLeave(track) track.glow:Hide() end
+
 function Parts.ForeverSlider(track, rail, fill, thumb, valBox, thumbSz)
     local field, bronze = St.FOREVER_FIELD_RGB, St.FOREVER_BRONZE_DARK_RGB
     rail:SetColorTexture(field.r, field.g, field.b, 1)
@@ -818,6 +760,10 @@ function Parts.ForeverSlider(track, rail, fill, thumb, valBox, thumbSz)
     groove:SetAllPoints(rail)
     ns.Border(groove, BLACK)
     Rim(groove, St.FOREVER_FIELD_RIM_RGB)
+    track.glow = Sheen(groove, "OVERLAY")
+    track.glow:Hide()
+    track:HookScript("OnEnter", SliderEnter)
+    track:HookScript("OnLeave", SliderLeave)
     local knob = CreateFrame("Frame", nil, track)
     knob:SetAllPoints()
     knob:SetFrameLevel(groove:GetFrameLevel() + KNOB_RAISE)
@@ -908,10 +854,10 @@ end
 function Parts.ForeverTip(card)
     Fill(card, St.FOREVER_TIP_RGB)
     ns.Border(card, BLACK)
-    Rings(card, TIP_RINGS)
+    Rings(card, FRAME_RINGS)
     card.arrow = card:CreateTexture(nil, "OVERLAY")
     card.arrow:SetSize(St.FOREVER_TIP_ARROW_W, St.FOREVER_TIP_ARROW_H)
-    card.arrow:SetPoint("TOP", card, "BOTTOM", 0, -St.FOREVER_TIP_EDGE)
+    card.arrow:SetPoint("TOP", card, "BOTTOM", 0, -#FRAME_RINGS)
     if card.arrow:SetTexture(St.FOREVER_TIP_ARROW) then
         local c = St.FOREVER_TIP_ARROW_COORDS
         card.arrow:SetTexCoord(c[1], c[2], c[3], c[4])
@@ -925,32 +871,100 @@ function Parts.ForeverTip(card)
     return card
 end
 
+local function LeafBar(bar)
+    BarArt(bar, St.FOREVER_BAR_GAP)
+end
+
+function Parts.ForeverGroupBar(bar, text)
+    LeafBar(bar)
+    bar.label = ns.Font(bar, St.FOREVER_GROUP_SIZE, nil, St.FOREVER_TAB_ON_RGB, true)
+    bar.label:SetPoint("LEFT", St.FOREVER_GROUP_X, 0)
+    bar.label:SetText(text)
+    return bar
+end
+
+local HALF_POINTS = {
+    top = { { "TOPLEFT", "TOPLEFT", "TOPRIGHT", "TOP" }, { "TOPLEFT", "TOP", "TOPRIGHT", "TOPRIGHT" } },
+    bottom = { { "BOTTOMLEFT", "BOTTOMLEFT", "BOTTOMRIGHT", "BOTTOM" }, { "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT", "BOTTOMRIGHT" } },
+    fill = { { "TOPLEFT", "TOPLEFT", "BOTTOMRIGHT", "BOTTOM" }, { "TOPLEFT", "TOP", "BOTTOMRIGHT", "BOTTOMRIGHT" } },
+}
+local fades
+
+local function Halves(btn, layer, where)
+    local pair = {}
+    for i, p in ipairs(HALF_POINTS[where]) do
+        local half = btn:CreateTexture(nil, layer)
+        half:SetColorTexture(1, 1, 1, 1)
+        half:SetPoint(p[1], btn, p[2])
+        half:SetPoint(p[3], btn, p[4])
+        if where ~= "fill" then half:SetHeight(St.FOREVER_NAV_LINE) end
+        half:Hide()
+        pair[i] = half
+    end
+    return pair
+end
+
+local function Fades()
+    if not fades then
+        local function Pair(c, a) return { CreateColor(c.r, c.g, c.b, 0), CreateColor(c.r, c.g, c.b, a) } end
+        fades = { pick = Pair(YELLOW, 1), fill = Pair(YELLOW, St.FOREVER_NAV_FILL_ALPHA),
+            hover = Pair(St.FOREVER_NAV_HOVER_RGB, St.FOREVER_NAV_HOVER_ALPHA) }
+    end
+    return fades
+end
+
+local function ShowFade(pair, fade)
+    for i = 1, 2 do pair[i]:SetShown(fade ~= nil) end
+    if not fade then return end
+    pair[1]:SetGradient("HORIZONTAL", fade[1], fade[2])
+    pair[2]:SetGradient("HORIZONTAL", fade[2], fade[1])
+end
+
+function Parts.ForeverNavLine(btn)
+    btn.forever = true
+    btn.fill:SetColorTexture(0, 0, 0, 0)
+    btn.marker:SetColorTexture(0, 0, 0, 0)
+    btn.lines = { Halves(btn, "ARTWORK", "top"), Halves(btn, "ARTWORK", "bottom") }
+    btn.lineFill = Halves(btn, "BACKGROUND", "fill")
+    return btn
+end
+
+local function PaintNavLine(btn, active, hover)
+    local f = Fades()
+    local line = active and f.pick or hover and f.hover or nil
+    ShowFade(btn.lines[1], line)
+    ShowFade(btn.lines[2], line)
+    ShowFade(btn.lineFill, active and f.fill or nil)
+end
+
 function Parts.ForeverNavButton(btn)
-    BarArt(btn, St.FOREVER_BAR_GAP)
+    LeafBar(btn)
     btn.forever = true
     btn.fill:ClearAllPoints()
     btn.fill:SetAllPoints(btn.barArt)
     btn.fill:SetDrawLayer("BACKGROUND", PICK_SUBLEVEL)
     btn.marker:SetColorTexture(0, 0, 0, 0)
     if not btn.art then
-        Gradient(btn.barArt, St.FOREVER_NAV_RGB)
         Gradient(btn.fill, St.FOREVER_NAV_PICK_RGB)
         return btn
     end
-    local shade = St.FOREVER_LEAF_SHADE
-    btn.barArt:SetVertexColor(shade, shade, shade, 1)
     Atlas(btn.fill, St.FOREVER_BAR_ATLAS)
-    btn.fill:SetVertexColor(1, 1, 1, 1)
-    btn.pickEdge = CreateFrame("Frame", nil, btn)
-    btn.pickEdge:SetAllPoints(btn.barArt)
-    ns.Border(btn.pickEdge, St.FOREVER_PICK_RIM_RGB)
-    btn.pickEdge:Hide()
+    Tint(btn.fill, St.FOREVER_NAV_LIT_RGB)
+    btn.glow = Parts.ForeverPick(btn)
+    btn.glow:ClearAllPoints()
+    btn.glow:SetAllPoints(btn.barArt)
+    btn.glow:SetDrawLayer("ARTWORK")
+    local shape = btn:CreateMaskTexture()
+    Atlas(shape, St.FOREVER_BAR_ATLAS)
+    shape:SetAllPoints(btn.barArt)
+    btn.glow:AddMaskTexture(shape)
     return btn
 end
 
-function Parts.PaintForeverNav(btn, active)
+function Parts.PaintForeverNav(btn, active, hover)
+    if btn.lines then return PaintNavLine(btn, active, hover) end
     if btn.barRim then Paint(btn.barRim, active and St.FOREVER_PICK_RIM_RGB or St.FOREVER_BAR_RIM_RGB) end
-    if btn.pickEdge then btn.pickEdge:SetShown(active) end
+    if btn.glow then btn.glow:SetShown(active) end
 end
 
 local function ArrowClicked(arrow)
@@ -994,9 +1008,14 @@ function Parts.ForeverRail(parent, vertical)
     local rail = CreateFrame("Frame", nil, parent)
     local edge = St.FOREVER_RAIL_EDGE
     ns.Solid(rail, "ARTWORK", BLACK, 1):SetAllPoints()
-    local bronze = St.FOREVER_BRONZE_RGB
     rail.core = rail:CreateTexture(nil, "ARTWORK", nil, RAIL_SUBLEVEL)
-    rail.core:SetColorTexture(bronze.r, bronze.g, bronze.b, 1)
+    local metal = Colors(St.FOREVER_RAIL_RGB)
+    rail.core:SetColorTexture(1, 1, 1, 1)
+    if vertical then
+        rail.core:SetGradient("HORIZONTAL", metal[1], metal[2])
+    else
+        rail.core:SetGradient("VERTICAL", metal[2], metal[1])
+    end
     if vertical then
         rail:SetWidth(St.FOREVER_RAIL)
         rail.core:SetPoint("TOPLEFT", edge, 0)
