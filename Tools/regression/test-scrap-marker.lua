@@ -87,6 +87,7 @@ local ITEMS = {
     [205] = { "Green Belt", 4, 2, "INVTYPE_WAIST", 2, 20, 50 },
     [206] = { "Wolf Fang", 15, 0, "", 0, 0, 20 },
     [207] = { "Apprentice Wand", 2, 19, "INVTYPE_RANGEDRIGHT", 2, 15, 30 },
+    [5092] = { "Charred Razormane Wand", 2, 19, "INVTYPE_RANGEDRIGHT", 2, 23, 30 },
     [208] = { "Worn Shortsword", 2, 7, "INVTYPE_WEAPON", 1, 5, 10 },
     [209] = { "Plate Helm", 4, 4, "INVTYPE_HEAD", 3, 28, 100 },
     [210] = { "Mail Boots", 4, 3, "INVTYPE_FEET", 2, 25, 80 },
@@ -631,6 +632,11 @@ check("gear a warrior can wear is not picked", Scrap.IsScrap(205) == false and S
 state.bis[207] = true
 check("a protected item never matches a rule", Scrap.IsScrap(207) == false)
 state.bis[207] = nil
+check("quest gear never matches a rule", Scrap.RuleMatch(5092) == nil and Scrap.IsScrap(5092) == false)
+state.account.scrapItems[5092] = true
+check("nor is it scrap from an old mark", Scrap.IsScrap(5092) == false)
+state.account.scrapItems[5092] = nil
+check("and it can't be marked", Scrap.Refusal(5092):find("quest item", 1, true) ~= nil)
 Set("scrapRuleOld", true)
 check("Old Common Gear: a white sword 25 levels below you is scrap, and level-ups are listened for",
     Scrap.IsScrap(208) == true and Registered("PLAYER_LEVEL_UP") and Mark(sword).shown == true)

@@ -56,6 +56,7 @@ local CAN_WEAR = {
 }
 local NEVER_RULED = { [""] = true, INVTYPE_BODY = true, INVTYPE_TABARD = true, INVTYPE_BAG = true,
     INVTYPE_QUIVER = true, INVTYPE_NON_EQUIP_IGNORE = true }
+local QUEST_GEAR = { [5092] = true, [5093] = true, [5094] = true }
 
 local RULE_WEAR, RULE_OLD = ns.L("Can't wear"), ns.L("Outlevelled")
 local TIPS = {
@@ -183,7 +184,7 @@ end
 
 local function RuleMatch(id)
     local wear, old = S.Get("scrapRuleWear"), S.Get("scrapRuleOld")
-    if not (wear or old) or Kept()[id] then return nil end
+    if not (wear or old) or Kept()[id] or QUEST_GEAR[id] then return nil end
     local _, _, _, equipLoc, _, classID, sub = GetItemInfoInstant(id)
     if (classID ~= WEAPON and classID ~= ARMOR) or NEVER_RULED[equipLoc or ""] then return nil end
     local name, _, quality, itemLevel, minLevel, _, _, _, _, _, price = GetItemInfo(id)
@@ -197,6 +198,7 @@ end
 Scrap.RuleMatch = RuleMatch
 
 local function State(id)
+    if QUEST_GEAR[id] then return nil end
     if AccountMarks()[id] or CharMarks()[id] then return MARKED end
     if RuleMatch(id) then return RULED end
 end
@@ -221,7 +223,7 @@ end
 
 local function Refusal(id, bag, slot)
     local _, _, _, _, _, classID = GetItemInfoInstant(id)
-    if classID == QUEST_CLASS then return NOT_SCRAP.quest end
+    if classID == QUEST_CLASS or QUEST_GEAR[id] then return NOT_SCRAP.quest end
     if classID == KEY_CLASS then return NOT_SCRAP.key end
     local info = bag and GetContainerItemInfo(bag, slot)
     if (info and info.hasNoValue) or SellPrice(id) == 0 then return NOT_SCRAP.value end
