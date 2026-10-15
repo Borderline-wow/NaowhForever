@@ -225,8 +225,31 @@ local function OnHide()
     events:UnregisterAllEvents()
 end
 
+local function OnKeyDown(keys, key)
+    if InCombatLockdown() then return end
+    local escape = key == "ESCAPE"
+    keys:SetPropagateKeyboardInput(not escape)
+    if escape then window:Hide() end
+end
+
+local function OnKeysShow(keys)
+    if not InCombatLockdown() then keys:SetPropagateKeyboardInput(true) end
+end
+
+-- Disenchant All makes the window protected, and a protected frame refuses EnableKeyboard from addon code,
+-- so the window would keep every key. Escape lives on a plain child instead.
+local function BuildKeys()
+    window:SetScript("OnKeyDown", nil)
+    window:EnableKeyboard(false)
+    local keys = CreateFrame("Frame", nil, window)
+    keys:SetAllPoints()
+    keys:SetScript("OnKeyDown", OnKeyDown)
+    keys:SetScript("OnShow", OnKeysShow)
+end
+
 local function Build()
     window = Parts.Window(WIDTH, HEIGHT, "disenchantWindow")
+    BuildKeys()
     window.backdrop:Card(CARD_INSET, HEADER + CARD_INSET, CARD_INSET, FOOTER + CARD_INSET)
     Parts.TitleBar(window, TEXT_TITLE, TEXT_SUBTITLE, PAGE)
     Parts.FooterBrand(window, PAGE)
@@ -234,7 +257,7 @@ local function Build()
     BuildFooter()
     events = CreateFrame("Frame")
     events:SetScript("OnEvent", OnEvent)
-    window:HookScript("OnShow", OnShow)
+    window:SetScript("OnShow", OnShow)
     window:HookScript("OnHide", OnHide)
 end
 
