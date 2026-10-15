@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.1.19
+
+### Changed
+- Consumable Bar, Food Bar, Gear Sets, Trinkets, Group Buttons and the Finder role buttons hover and
+  press with the same flat look as the Blessings bar, without Blizzard's square border.
+
+### Fixed
+- Scrap Marker: the Razormane Backstabber, Charred Razormane Wand and Razormane War Shield, needed
+  for Weapons of Choice, are never marked as scrap or sold.
 
 ## 1.1.18
 
