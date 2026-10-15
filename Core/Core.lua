@@ -16,7 +16,7 @@ local WARNING = { r = 1, g = 0.35, b = 0.35 }
 local BLACK = { r = 0, g = 0, b = 0 }
 local NO_OPTS, BORDER_EDGES = {}, 4
 local LIBRARIES = { "CallbackHandler-1.0", "LibDataBroker-1.1", "LibDBIcon-1.0", "LibSharedMedia-3.0",
-    "LibCustomGlow-1.0", "LibGetFrame-1.0", "LibDeflate", "LibSerialize" }
+    "LibCustomGlow-1.0", "LibDeflate", "LibSerialize" }
 local RELOAD_GLOW_ALPHA = 0.08
 local STEM_INSET = 0.075
 local MAX_FRAME_LEVEL = 9999
