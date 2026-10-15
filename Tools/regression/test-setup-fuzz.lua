@@ -186,9 +186,10 @@ for i = 1, RUNS do
     local reload = preset or plan.skinChanged
     for _, id in ipairs(items) do
         local item = Setup.ITEMS[id]
-        local loaded, enabled = w.loaded[item.addon], w.enabled[item.addon]
+        local host = w.ns.ModuleHost(item.addon)
+        local loaded, enabled = w.loaded[host or item.addon], w.enabled[host or item.addon]
         if picks.modules[id] and not loaded then reload = true end
-        if not picks.modules[id] and loaded and (preset and enabled or w.On(id)) then reload = true end
+        if not picks.modules[id] and loaded and not host and (preset and enabled or w.On(id)) then reload = true end
     end
     check("it knows whether a reload is needed", plan.reload == (reload == true))
     check("it changes something exactly when the summary shows something", plan.changes
@@ -216,7 +217,14 @@ for i = 1, RUNS do
         for _, id in ipairs(items) do
             local item = Setup.ITEMS[id]
             check(id .. ": on exactly as picked", w.On(id) == picks.modules[id])
-            if picks.modules[id] or preset then
+            local host = w.ns.ModuleHost(item.addon)
+            if host then
+                local any = false
+                for _, other in ipairs(items) do
+                    if picks.modules[other] and w.ns.ModuleHost(Setup.ITEMS[other].addon) == host then any = true end
+                end
+                check(id .. ": its host enabled exactly while one of its modules is picked", w.enabled[host] == any)
+            elseif picks.modules[id] or preset then
                 check(id .. ": its addon enabled exactly as picked", w.enabled[item.addon] == picks.modules[id])
             end
         end

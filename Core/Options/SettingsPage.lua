@@ -73,7 +73,7 @@ local function ModuleRow(mod)
     return { type = "toggle", text = O.DisplayName(mod), module = mod,
         tooltip = mod.needs and NeedsTip(mod) or mod.subtitle,
         getValue = function()
-            if not Loaded(mod) then return C_AddOns.GetAddOnEnableState(mod.addon, UnitGUID("player")) > 0 end
+            if not Loaded(mod) then return ns.ModuleListed(mod.addon) end
             return ModuleOn(mod)
         end,
         setValue = function(v) SetModuleOn(mod, v) end }

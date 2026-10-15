@@ -12,16 +12,11 @@ move-folders:
   NaowhForever/NaowhForever_GroupInspect: NaowhForever_GroupInspect
   NaowhForever/NaowhForever_Discovery: NaowhForever_Discovery
   NaowhForever/NaowhForever_DiscoveryData: NaowhForever_DiscoveryData
-  NaowhForever/NaowhForever_GearSets: NaowhForever_GearSets
-  NaowhForever/NaowhForever_Blessings: NaowhForever_Blessings
   NaowhForever/NaowhForever_Macros: NaowhForever_Macros
   NaowhForever/NaowhForever_ActionBars: NaowhForever_ActionBars
-  NaowhForever/NaowhForever_AuraBuffs: NaowhForever_AuraBuffs
-  NaowhForever/NaowhForever_ThreatMeter: NaowhForever_ThreatMeter
-  NaowhForever/NaowhForever_SwingTimer: NaowhForever_SwingTimer
   NaowhForever/NaowhForever_ConsumableBar: NaowhForever_ConsumableBar
-  NaowhForever/NaowhForever_PvP: NaowhForever_PvP
   NaowhForever/NaowhForever_QoL: NaowhForever_QoL
+  NaowhForever/NaowhForever_Combat: NaowhForever_Combat
   NaowhForever/NaowhForever_InstanceTracker: NaowhForever_InstanceTracker
   NaowhForever/NaowhForever_Journeys: NaowhForever_Journeys
   NaowhForever/NaowhForever_JourneysData: NaowhForever_JourneysData

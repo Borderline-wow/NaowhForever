@@ -110,10 +110,10 @@ end
 
 do
     local enabled = All(true)
-    enabled.NaowhForever_PvP, enabled.NaowhForever_QoL = false, false
+    enabled.NaowhForever_Training, enabled.NaowhForever_QoL = false, false
     local w = Game({ enabled = enabled, root = { discovery = { enabled = true }, journal = { enabled = false } } })
     local mine = w.ns.Setup.ModuleDefaults(w.ns.Setup.KEEP)
-    check("keep mine: a module whose addon is off is off", mine.pvp == false)
+    check("keep mine: a module whose addon is off is off", mine.training == false)
     check("one switched on in the profile is on, one switched off is off", mine.discovery and mine.journal == false)
     check("one left alone follows its default", mine.threatMeter == true and mine.groupInspect == false)
 end
@@ -151,13 +151,18 @@ do
     plan = Setup.Plan(picks)
     check("a loaded module switched on: listed, no reload", plan.changes and Names(plan.on) == "PvP"
         and not plan.reload)
-    w.loaded.NaowhForever_PvP = false
+    w.loaded.NaowhForever_Combat = false
     check("not loaded: it needs a reload", Setup.Plan(picks).reload)
-    w.loaded.NaowhForever_PvP = true
+    w.loaded.NaowhForever_Combat = true
     Setup.Toggle(picks, "pvp", false)
+    Setup.Toggle(picks, "actionBars", false)
+    plan = Setup.Plan(picks)
+    check("a loaded module turned off: listed, with a reload", Names(plan.off) == "Action Bars" and plan.reload)
+    Setup.Toggle(picks, "actionBars", true)
     Setup.Toggle(picks, "swingTimer", false)
     plan = Setup.Plan(picks)
-    check("a loaded module turned off: listed, with a reload", Names(plan.off) == "Swing Timer" and plan.reload)
+    check("a Combat module turned off while Combat is loaded: listed, no reload", Names(plan.off) == "Swing Timer"
+        and not plan.reload)
     Setup.Toggle(picks, "swingTimer", true)
     picks.skin = "forever"
     plan = Setup.Plan(picks)
@@ -193,9 +198,9 @@ do
     local plan = Applied(w, picks)
     check("Minimalist: the summary turns off every other module that was on, and on the rest of its own",
         #plan.off == wasOn and wasOn > 0 and #plan.on == wasOff)
-    for id, item in pairs(Setup.ITEMS) do
+    for id in pairs(Setup.ITEMS) do
         check("Minimalist, applied: " .. id .. (MINIMALIST_ON[id] and " enabled" or " disabled"),
-            w.enabled[item.addon] == (MINIMALIST_ON[id] == true))
+            w.On(id) == (MINIMALIST_ON[id] == true))
     end
     check("for every character", w.others.NaowhForever_Discovery == false and w.others.NaowhForever_QoL == true)
     check("no call named a character", (function()
@@ -217,7 +222,7 @@ do
     end
     check("and it can be undone", Setup.CanRestore() and Setup.Restore())
     check("undone: the profile, the addons and the skin as they were", w.root.qol.preset == nil
-        and w.root.qol.xpBar == false and w.enabled.NaowhForever_PvP and w.others.NaowhForever_PvP
+        and w.root.qol.xpBar == false and w.enabled.NaowhForever_Combat and w.others.NaowhForever_Combat
         and w.account.skin == nil and w.account.setupBefore == nil and not Setup.CanRestore())
 end
 
@@ -229,8 +234,8 @@ do
     local picks = Setup.Fresh()
     Setup.PickProfile(picks, "minimalist")
     Applied(w, picks)
-    for id, item in pairs(Setup.ITEMS) do
-        check("Minimalist for one character: " .. id, w.enabled[item.addon] == (MINIMALIST_ON[id] == true))
+    for id in pairs(Setup.ITEMS) do
+        check("Minimalist for one character: " .. id, w.On(id) == (MINIMALIST_ON[id] == true))
     end
     local same = true
     for k, v in pairs(others) do same = same and w.others[k] == v end
@@ -242,7 +247,7 @@ do
     check("the backup knows whose it was", w.account.setupBefore.character == w.GUID)
     w.calls = {}
     Setup.ForCharacter(false)
-    check("restored for that character, whatever the mode now", Setup.Restore() and w.enabled.NaowhForever_PvP
+    check("restored for that character, whatever the mode now", Setup.Restore() and w.enabled.NaowhForever_Combat
         and (function()
             for _, c in ipairs(w.calls) do if not w.ForMe(c) then return false end end
             return #w.calls > 0
@@ -333,6 +338,22 @@ do
     w.ns.UsePreset("minimalist", false)
     check("the Setups card enables the addons it turns on, and only those", w.enabled.NaowhForever_DungeonJournal
         and not w.enabled.NaowhForever_Discovery and w.root.journal.enabled == true)
+end
+
+do
+    local enabled = All(true)
+    enabled.NaowhForever_Combat = false
+    local w = Game({ enabled = enabled, character = true, account = { welcomeSeen = true },
+        root = { qol = { blessings = true }, pvp = { enabled = false } } })
+    local Setup = w.ns.Setup
+    local picks = Setup.Fresh()
+    check("Combat disabled here: its modules start off, whatever their switches", picks.modules.blessings == false
+        and picks.modules.swingTimer == false)
+    Setup.Toggle(picks, "pvp", true)
+    Applied(w, picks)
+    check("one Combat module on brings Combat back for this character", w.enabled.NaowhForever_Combat and w.On("pvp"))
+    check("and the ones left off stay off, their switches cleared", not w.On("blessings") and not w.On("swingTimer")
+        and w.root.qol.blessings == false)
 end
 
 print("PASS setup plan: " .. checks .. " checks")

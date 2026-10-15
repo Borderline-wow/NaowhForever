@@ -2,6 +2,7 @@
 -- and checks which reminder icons show. Run from the repo root:
 -- lua Tools/regression/test-buff-reminders.lua
 -- Stands in for a secret value: any field or method use raises, as the client does.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local SECRET = setmetatable({}, { __index = function() error("attempt to index a secret value") end })
 local function Read(path)
     local f = assert(io.open(path, "rb"))
@@ -9,15 +10,15 @@ local function Read(path)
     return source
 end
 local MODULE = {}
-for i, path in ipairs({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
-    "NaowhForever_AuraBuffs/Constants.lua", "Shared/Game/Consumables.lua",
-        "NaowhForever_AuraBuffs/Data/BuffReminders.lua", "NaowhForever_AuraBuffs/BuffReminders.lua",
-    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/Glow.lua",
-    "NaowhForever_AuraBuffs/View/BuffCell.lua",
-    "NaowhForever_AuraBuffs/UI/BuffMenu.lua", "NaowhForever_AuraBuffs/UI/BuffReminders.lua" }) do
+for i, path in ipairs({ "Core/Features.lua", "NaowhForever_Combat/AuraBuffs/AuraBuffs.lua",
+    "NaowhForever_Combat/AuraBuffs/Constants.lua", "Shared/Game/Consumables.lua",
+        "NaowhForever_Combat/AuraBuffs/Data/BuffReminders.lua", "NaowhForever_Combat/AuraBuffs/BuffReminders.lua",
+    "NaowhForever_Combat/AuraBuffs/View/Style.lua", "NaowhForever_Combat/AuraBuffs/View/Glow.lua",
+    "NaowhForever_Combat/AuraBuffs/View/BuffCell.lua",
+    "NaowhForever_Combat/AuraBuffs/UI/BuffMenu.lua", "NaowhForever_Combat/AuraBuffs/UI/BuffReminders.lua" }) do
     MODULE[i] = Read(path)
 end
-local CARD = Read("NaowhForever_AuraBuffs/UI/GlowRows.lua") .. "\n" .. Read("NaowhForever_AuraBuffs/UI/BuffsCard.lua")
+local CARD = Read("NaowhForever_Combat/AuraBuffs/UI/GlowRows.lua") .. "\n" .. Read("NaowhForever_Combat/AuraBuffs/UI/BuffsCard.lua")
 local SETTINGS = Read("Shared/Settings/Settings.lua")
 
 -- itemID -> use spell, for the food scan.
@@ -1322,9 +1323,9 @@ do
         tbl[key] = function(...) orig(...); fn(...) end
     end
     for _, path in ipairs({ "Core/Core.lua", "Shared/Shared.lua", "Shared/Style.lua", "Core/Options/Widgets.lua",
-        "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua", "NaowhForever_AuraBuffs/Constants.lua",
-        "Shared/Game/Consumables.lua", "NaowhForever_AuraBuffs/Data/BuffReminders.lua",
-        "NaowhForever_AuraBuffs/BuffReminders.lua", "NaowhForever_AuraBuffs/UI/WindowPages.lua" }) do
+        "Core/Features.lua", "NaowhForever_Combat/AuraBuffs/AuraBuffs.lua", "NaowhForever_Combat/AuraBuffs/Constants.lua",
+        "Shared/Game/Consumables.lua", "NaowhForever_Combat/AuraBuffs/Data/BuffReminders.lua",
+        "NaowhForever_Combat/AuraBuffs/BuffReminders.lua", "NaowhForever_Combat/AuraBuffs/UI/WindowPages.lua" }) do
         local chunk = assert(loadstring(Read(path), path))
         setfenv(chunk, env)
         chunk("NaowhForever", env.NaowhForever)

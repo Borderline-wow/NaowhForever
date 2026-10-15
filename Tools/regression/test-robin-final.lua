@@ -1,4 +1,5 @@
 -- Run with Lua 5.1 from the repository root. Hardware actions are recorded, not executed.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local TocFiles = dofile('Tools/regression/toc_files.lua')
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
@@ -127,7 +128,7 @@ end
 
 do
     local s = fixture('gear')
-    s.loadModule('NaowhForever_GearSets'); s.fire('PLAYER_LOGIN')
+    s.loadModule('NaowhForever_Combat/GearSets'); s.fire('PLAYER_LOGIN')
     check('hidden set bar stays hidden', not s.named.NaowhForeverGearBar.shown)
     local swaps = false
     for _, f in ipairs(s.frames) do if f.events.PLAYER_MOUNT_DISPLAY_CHANGED then swaps = true end end
@@ -159,7 +160,7 @@ end
 do
     local s = fixture('gear')
     s.settings.trinketBar = false
-    s.loadModule('NaowhForever_GearSets'); s.fire('PLAYER_LOGIN')
+    s.loadModule('NaowhForever_Combat/GearSets'); s.fire('PLAYER_LOGIN')
     local function Listening(e)
         for _, f in ipairs(s.frames) do if f.events[e] then return f end end
     end
@@ -181,7 +182,7 @@ end
 do
     local s = fixture('gear')
     s.settings.gearBarVisible, s.settings.gearBarShow, s.settings.trinketBar = true, 'nocombat', false
-    s.loadModule('NaowhForever_GearSets'); s.fire('PLAYER_LOGIN')
+    s.loadModule('NaowhForever_Combat/GearSets'); s.fire('PLAYER_LOGIN')
     local bar = s.named.NaowhForeverGearBar
     check('Show Out of Combat: shown out of combat', bar.shown)
     s.fire('PLAYER_REGEN_DISABLED'); s.combat = true
@@ -204,8 +205,8 @@ end
 
 do
     local s = fixture('camp')
-    s.load('Core/Features.lua'); s.load('NaowhForever_AuraBuffs/AuraBuffs.lua')
-    s.load('NaowhForever_AuraBuffs/Constants.lua')
+    s.load('Core/Features.lua'); s.load('NaowhForever_Combat/AuraBuffs/AuraBuffs.lua')
+    s.load('NaowhForever_Combat/AuraBuffs/Constants.lua')
     local parse = s.ns.ParseConsumableEntry
     check('explicit item and buff IDs parse', parse('food', '123, 456, 789').auras[2] == 789)
     local alone = parse('food', '123')
@@ -227,7 +228,7 @@ do
     s.S.Set('campShowUnder', false)
     for _, file in ipairs({ 'Data/Campfire.lua', 'CampReader.lua', 'View/Style.lua', 'View/Glow.lua', 'View/CampIcon.lua',
         'View/CampBar.lua', 'View/CampAlert.lua', 'UI/Campfire.lua', 'UI/CampfireCards.lua' }) do
-        s.load('NaowhForever_AuraBuffs/' .. file)
+        s.load('NaowhForever_Combat/AuraBuffs/' .. file)
     end
     s.fire('PLAYER_LOGIN')
     local icon = s.named.NaowhForeverCampfire
@@ -253,8 +254,8 @@ do
     local s = fixture('profile')
     local active = {}
     s.ns.DB = function() return active end
-    s.load('Core/Features.lua'); s.load('NaowhForever_AuraBuffs/AuraBuffs.lua')
-    s.load('NaowhForever_AuraBuffs/Constants.lua')
+    s.load('Core/Features.lua'); s.load('NaowhForever_Combat/AuraBuffs/AuraBuffs.lua')
+    s.load('NaowhForever_Combat/AuraBuffs/Constants.lua')
     local entry = { category = "food", itemID = 123, auras = { 456 } }
     s.S.Set("consumableEntries", { entry })
     check('editor writes profile-backed definitions', active.utilityReminders.consumables[1] == entry)

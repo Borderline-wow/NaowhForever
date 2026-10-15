@@ -131,6 +131,7 @@ local function Fixture(qol, pvp)
     env.Hooked = function(name) return hooks[name] ~= nil end
     env.combat = false
     env.InCombatLockdown = function() return env.combat end
+    env.C_AddOns = { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end }
     local now = 100
     env.GetTime = function() return now end
     env.Advance = function(s) now = now + s end
@@ -212,7 +213,7 @@ local function Fixture(qol, pvp)
     env.NaowhForever = ns
     env._G = env
     Load({ "Core/Features.lua" }, env)
-    local files = TocFiles("^NaowhForever_PvP/.*%.lua$")
+    local files = TocFiles("^NaowhForever_Combat/PvP/.*%.lua$")
     files[#files + 1] = "NaowhForever_QoL/Combat/CursorCooldown.lua"
     Load(files, env)
     env.Fire("PLAYER_LOGIN")

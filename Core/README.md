@@ -495,6 +495,10 @@ Module state
 - A module on without what it needs is turned off (`Setup.Settle`), and turning a module on or off
   from Settings brings or takes the linked ones (`ns.LinkedAddons`), as before.
 - The Top Bar is part of QoL, with no item and no AddOn list entry of its own: its switch is its card's.
+- A module with a `host` (the six in NaowhForever_Combat) has no AddOn list entry of its own: it is on
+  when its host is enabled and its switch is on. `ns.SetModuleState`, `ns.ReconcileModules` and the
+  onboarding's Apply keep the host enabled for this character while any of its modules is on and
+  disable it once none is; switching one while its host is loaded needs no reload.
 - A change to the list takes a reload: one prompt (`ns.ConfirmReload`) after a pass that changed
   something, held until combat ends. Settings > Modules and the module windows read this character's
   list together with the switch, so they agree with the game's AddOn list.

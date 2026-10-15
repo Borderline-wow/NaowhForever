@@ -6,7 +6,9 @@ local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
 local World = dofile("Tools/regression/setup_world.lua")
-local MACROS, GEAR, BLESS = "NaowhForever_Macros", "NaowhForever_GearSets", "NaowhForever_Blessings"
+local MACROS, BARS, JOURNAL = "NaowhForever_Macros", "NaowhForever_ActionBars", "NaowhForever_DungeonJournal"
+local GEAR, COMBAT = "NaowhForever_GearSets", "NaowhForever_Combat"
+local COMBAT_IDS = { "gearSets", "blessings", "auraBuffs", "threatMeter", "pvp", "swingTimer" }
 local BIS, INSPECT, DISC = "NaowhForever_BiS", "NaowhForever_GroupInspect", "NaowhForever_Discovery"
 local QOL = "NaowhForever_QoL"
 
@@ -42,24 +44,24 @@ do
 end
 
 do
-    local w = Game({ macros = { enabled = false }, qol = { gearSets = false } })
+    local w = Game({ macros = { enabled = false }, actionBars = { enabled = false } })
     check("a new character follows the profile: two modules off", w.ns.ReconcileModules() == 2)
-    check("in its own AddOn list", not w.enabled[MACROS] and not w.enabled[GEAR] and w.enabled[BLESS])
+    check("in its own AddOn list", not w.enabled[MACROS] and not w.enabled[BARS] and w.enabled[JOURNAL])
     check("naming the character, never every character", #Writes(w) == 2 and Count(Writes(w), w.ForMe) == 2)
-    check("the profile is as it was", w.root.macros.enabled == false and w.root.qol.gearSets == false)
+    check("the profile is as it was", w.root.macros.enabled == false and w.root.actionBars.enabled == false)
     check("and one reload is offered", #w.reloads == 1)
     check("nothing differs at the next check: no call, no prompt", w.ns.ReconcileModules() == 0
         and #Writes(w) == 2 and #w.reloads == 1)
 end
 
 do
-    local w = Game({ qol = { gearSets = true } })
-    w.enabled[GEAR] = false
+    local w = Game({ actionBars = { enabled = true } })
+    w.enabled[BARS] = false
     check("an addon turned off before this change, its switch left on: adopted, not turned back on",
-        w.ns.ReconcileModules() == 0 and #Writes(w) == 0 and #w.reloads == 0 and w.root.qol.gearSets == false)
-    w.enabled[BLESS] = false
+        w.ns.ReconcileModules() == 0 and #Writes(w) == 0 and #w.reloads == 0 and w.root.actionBars.enabled == false)
+    w.enabled[JOURNAL] = false
     w.ns.ReconcileModules()
-    check("a module that was never switched takes the list's state", w.root.qol.blessings == false)
+    check("a module that was never switched takes the list's state", w.root.journal.enabled == false)
     check("a module off by default, its addon on, is left as it is", w.root.journeys == nil
         and w.enabled.NaowhForever_Journeys)
 end
@@ -67,12 +69,12 @@ end
 do
     local w = Game()
     w.ns.ReconcileModules()
-    w.enabled[BLESS] = false
+    w.enabled[JOURNAL] = false
     check("an AddOn list changed by hand since: the profile adopts it", w.ns.ReconcileModules() == 0
-        and w.root.qol.blessings == false and #Writes(w) == 0)
-    w.enabled[BLESS] = true
+        and w.root.journal.enabled == false and #Writes(w) == 0)
+    w.enabled[JOURNAL] = true
     w.ns.ReconcileModules()
-    check("and adopts it going back on", w.root.qol.blessings == true and w.enabled[BLESS] and #Writes(w) == 0)
+    check("and adopts it going back on", w.root.journal.enabled == true and w.enabled[JOURNAL] and #Writes(w) == 0)
 end
 
 do
@@ -94,6 +96,33 @@ do
     w.root.qol.bis = true
     w.ns.ReconcileModules()
     check("the module that needs it stays off until it is turned on", w.enabled[BIS] and not w.enabled[INSPECT])
+end
+
+do
+    local w = Game({ qol = { gearSets = false } })
+    check("a Combat module its profile turns off: its switch only, the Combat addon stays for the rest",
+        w.ns.ReconcileModules() == 0 and w.enabled[COMBAT] and #Writes(w) == 0 and not w.On("gearSets")
+        and w.On("blessings"))
+    w.ns.SetModuleState(w.Item("pvp").addon, false)
+    check("one switched off: its switch only, Combat stays on for the rest", w.enabled[COMBAT] and not w.On("pvp")
+        and w.On("swingTimer"))
+    for _, id in ipairs(COMBAT_IDS) do w.ns.SetModuleState(w.Item(id).addon, false) end
+    local last = Writes(w)[#Writes(w)]
+    check("all six off: the Combat addon goes off for this character", not w.enabled[COMBAT]
+        and last.name == "DisableAddOn" and last.addon == COMBAT and w.ForMe(last) and w.root.pvp.enabled == false)
+    w.ns.SetModuleState(GEAR, true)
+    check("one back on brings the Combat addon back", w.enabled[COMBAT] and w.On("gearSets") and not w.On("pvp"))
+end
+
+do
+    local w = Game({ qol = { gearSets = false, blessings = false }, auraBuffs = { enabled = false },
+        threatMeter = { enabled = false }, pvp = { enabled = false }, swingTimer = { enabled = false } })
+    check("a profile with all six Combat modules off takes the Combat addon out of the list",
+        w.ns.ReconcileModules() == 1 and not w.enabled[COMBAT] and #w.reloads == 1)
+    check("and the next check is quiet", w.ns.ReconcileModules() == 0 and #w.reloads == 1)
+    w.root.pvp.enabled = true
+    check("a profile that turns one back on puts the Combat addon back", w.ns.ReconcileModules() == 1
+        and w.enabled[COMBAT] and w.On("pvp") and not w.On("swingTimer"))
 end
 
 do
@@ -132,11 +161,11 @@ do
         and Writes(w)[#Writes(w)].who == "Player-4613-006EB819")
     w.ns.SetModuleState(MACROS, true)
     check("and back on", w.enabled[MACROS] and w.root.macros.enabled == true)
-    w.loaded[GEAR] = false
+    w.loaded[BARS] = false
     w.Session()
-    w.ns.SetModuleState(GEAR, false)
-    w.ns.SetModuleState(GEAR, true)
-    check("a module whose addon is not loaded keeps its switch in the profile too", w.root.qol.gearSets == true)
+    w.ns.SetModuleState(BARS, false)
+    w.ns.SetModuleState(BARS, true)
+    check("a module whose addon is not loaded keeps its switch in the profile too", w.root.actionBars.enabled == true)
     w.ns.SetModuleState("NaowhForever_Discovery", true)
     check("including one that is off by default", w.root.discovery.enabled == true)
     w.ns.ReconcileModules()

@@ -1,6 +1,7 @@
 -- Run with Lua 5.1 from the repository root: the Low Health reminder and the Tracking reminder
 -- keep today's text until Font, Font Size or Outline change it, on the real frame and the
 -- card's preview alike. Frames are stubs that record what is set on them.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local checks = 0
 local function check(label, value) assert(value, label); checks = checks + 1 end
 
@@ -88,11 +89,11 @@ do
     local settings = { enabled = true, lowHealth = true, lowHealthBelow = 35, lowHealthItem = "auto",
         lowHealthIconSize = 48, lowHealthGlow = false, lowHealthSound = false,
         lowHealthFont = "", lowHealthFontSize = 16, lowHealthOutline = "OUTLINE" }
-    local S, fonts = Load({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
-        "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/LowHealth.lua", "NaowhForever_AuraBuffs/View/Style.lua",
-        "NaowhForever_AuraBuffs/View/Glow.lua", "NaowhForever_AuraBuffs/View/LowHealthLook.lua",
-        "NaowhForever_AuraBuffs/UI/GlowRows.lua", "NaowhForever_AuraBuffs/UI/LowHealth.lua",
-        "NaowhForever_AuraBuffs/UI/LowHealthCard.lua" }, settings)
+    local S, fonts = Load({ "Core/Features.lua", "NaowhForever_Combat/AuraBuffs/AuraBuffs.lua",
+        "NaowhForever_Combat/AuraBuffs/Constants.lua", "NaowhForever_Combat/AuraBuffs/LowHealth.lua", "NaowhForever_Combat/AuraBuffs/View/Style.lua",
+        "NaowhForever_Combat/AuraBuffs/View/Glow.lua", "NaowhForever_Combat/AuraBuffs/View/LowHealthLook.lua",
+        "NaowhForever_Combat/AuraBuffs/UI/GlowRows.lua", "NaowhForever_Combat/AuraBuffs/UI/LowHealth.lua",
+        "NaowhForever_Combat/AuraBuffs/UI/LowHealthCard.lua" }, settings)
     local label, count = Find(fonts, "LOW HEALTH"), fonts[1]
     check("Low Health: the warning as today", label.font == "" and label.size == 16 and label.outline == "OUTLINE")
     check("Low Health: the count as today", count ~= label and count.size == 14 and count.outline == "OUTLINE")
@@ -114,10 +115,10 @@ do
         { __index = function(_, k) if k == "lowHealthGlowType" then reads = reads + 1; return "pixel" end end })
     local starts, stops = 0, 0
     local LCG = { PixelGlow_Start = function() starts = starts + 1 end, PixelGlow_Stop = function() stops = stops + 1 end }
-    local S, _, frames = Load({ "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
-        "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/LowHealth.lua", "NaowhForever_AuraBuffs/View/Style.lua",
-        "NaowhForever_AuraBuffs/View/Glow.lua", "NaowhForever_AuraBuffs/View/LowHealthLook.lua",
-        "NaowhForever_AuraBuffs/UI/GlowRows.lua", "NaowhForever_AuraBuffs/UI/LowHealth.lua" }, settings,
+    local S, _, frames = Load({ "Core/Features.lua", "NaowhForever_Combat/AuraBuffs/AuraBuffs.lua",
+        "NaowhForever_Combat/AuraBuffs/Constants.lua", "NaowhForever_Combat/AuraBuffs/LowHealth.lua", "NaowhForever_Combat/AuraBuffs/View/Style.lua",
+        "NaowhForever_Combat/AuraBuffs/View/Glow.lua", "NaowhForever_Combat/AuraBuffs/View/LowHealthLook.lua",
+        "NaowhForever_Combat/AuraBuffs/UI/GlowRows.lua", "NaowhForever_Combat/AuraBuffs/UI/LowHealth.lua" }, settings,
         { LibStub = function() return LCG end, UnitHealthPercent = function() return 0.2 end })
     local events
     for _, f in ipairs(frames) do

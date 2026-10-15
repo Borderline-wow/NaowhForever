@@ -2,6 +2,7 @@
 -- do to us. Bombs, cycles, shared tables, deep nesting, numbers that do not save, escape codes in
 -- names, flooding and claims made for someone else are each refused without an error and without
 -- touching saved data. Offline: no client taint, rendering or real addon channel.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 strmatch = string.match
 dofile("Libs/LibStub/LibStub.lua")
 dofile("Libs/LibDeflate/LibDeflate.lua")
@@ -243,7 +244,7 @@ do
         UnitIsGroupLeader = function() return false end, UnitIsGroupAssistant = function() return false end,
     }, { __index = _G })
     env._G = env
-    for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Blessings/.*%.lua$")) do
+    for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Combat/Blessings/.*%.lua$")) do
         if not path:find("/UI/Window%.lua$") then
             local chunk = assert(loadfile(path))
             setfenv(chunk, env)

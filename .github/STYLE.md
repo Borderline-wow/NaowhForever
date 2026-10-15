@@ -51,7 +51,7 @@ NaowhForever_<Name>/
   ```
 
 **A one-file module** (the Swing Timer) maps onto the same layout inside its one file:
-`NaowhForever_SwingTimer.toc` lists `SwingTimer.xml`, which loads its file; the file runs in
+`NaowhForever_Combat/SwingTimer/SwingTimer.xml` loads its file; the file runs in
 layer order (settings and API, rules, drawing, the settings page last), its numbers at the
 top, its look from `Shared/Style.lua`. When a part grows into a job of its own (a settings
 page, a second bar), it moves into its own file in the folder its layer names, listed in
@@ -87,7 +87,7 @@ edits it**: a file is added to its area's XML.
 - **Art lives with its owner.** `Core/Media` holds what everyone uses: the icon set
   `Tools/media/make_media.py` draws, the fonts, links, navigation glyphs and voice clips. Art
   only one area uses sits in that area's `Media/` (`Core/Badges/Media`, `Core/Onboarding/Media`,
-  `Core/Integrations/RestedXP/Media`, `NaowhForever_AuraBuffs/Media`, `NaowhForever_DungeonJournal/Media`,
+  `Core/Integrations/RestedXP/Media`, `NaowhForever_Combat/AuraBuffs/Media`, `NaowhForever_DungeonJournal/Media`,
   `NaowhForever_QoL/Media`), so a module's art travels with its folder,
   and its README's Layout lists it.
 

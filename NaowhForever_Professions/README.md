@@ -185,7 +185,7 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   drink come from vendors, so they are not on it. The stones, oils and bandages are read from those modules
   when they are loaded. `WEAPON_ITEMS` and `BANDAGES` here are a copy used only while the Buff Reminders or
   the Smart Macros addon is off, so those groups still show; keep them in step with
-  `NaowhForever_AuraBuffs/Data/BuffReminders.lua` and `NaowhForever_Macros/Data/Items.lua`. Only the oils'
+  `NaowhForever_Combat/AuraBuffs/Data/BuffReminders.lua` and `NaowhForever_Macros/Data/Items.lua`. Only the oils'
   stats are kept here (`WEAPON_STATS`); every other weapon item is for attack power.
 - What suits your class is `CLASS_STATS`: warriors strength, agility and attack power; rogues agility and
   attack power; hunters those and intellect; mages and warlocks intellect, spirit and spell power; priests

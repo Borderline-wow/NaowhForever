@@ -522,10 +522,9 @@ check("after the fight it is ready again", Said("Apply after your fight.") == ni
 Find("Apply").Click()
 check("applied: the window closes and the reload is offered", not window.shown and s.reloadAsked ~= nil)
 check("its modules on, the rest off, Forever, Minimalist", w.enabled.NaowhForever_QoL and w.enabled.NaowhForever_BiS
-    and w.enabled.NaowhForever_DungeonJournal and not w.enabled.NaowhForever_ThreatMeter
-    and not w.enabled.NaowhForever_PvP and not w.enabled.NaowhForever_Discovery
-    and not w.enabled.NaowhForever_GroupInspect
-    and not w.enabled.NaowhForever_SwingTimer and not w.enabled.NaowhForever_ConsumableBar
+    and w.enabled.NaowhForever_DungeonJournal and not w.enabled.NaowhForever_Combat
+    and not w.enabled.NaowhForever_Discovery and not w.enabled.NaowhForever_GroupInspect
+    and not w.enabled.NaowhForever_ConsumableBar
     and w.account.skin == "forever" and w.root.qol.preset == "minimalist" and w.account.setupBefore ~= nil)
 check("closed: the onboarding is seen, so it never opens by itself again", w.account.onboardingSeen == true
     and w.account.welcomeSeen == true)
@@ -640,8 +639,8 @@ Clicked(Tile("PvP"))
 Clicked(Tile("Threat Meter"))
 Find("Next").Click()
 Find("Apply").Click()
-check("applied for this character: PvP on, Threat Meter off", w.enabled.NaowhForever_PvP
-    and not w.enabled.NaowhForever_ThreatMeter and w.others.NaowhForever_ThreatMeter)
+check("applied for this character: PvP on, Threat Meter off", w.On("pvp") and not w.On("threatMeter")
+    and w.enabled.NaowhForever_Combat and w.others.NaowhForever_Combat)
 local named = #w.calls > 0
 for _, c in ipairs(w.calls) do named = named and w.ForMe(c) end
 check("every C_AddOns call named this character", named)

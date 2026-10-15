@@ -47,9 +47,10 @@ end
 local MODULES = assert(loadstring(Read("Core/Options/Modules.lua"):match("\n(local MODULES = {.-\n}\n)")
     .. "\nreturn MODULES"))()
 for _, mod in ipairs(MODULES) do
-    for line in Read(mod.addon .. "/" .. mod.addon .. ".toc"):gmatch("[^\n]+") do
+    local addon = mod.host or mod.addon
+    for line in Read(addon .. "/" .. addon .. ".toc"):gmatch("[^\n]+") do
         local file = line:match("^%s*(.-)%s*$")
-        if not file:match("^#") and file:match("%.%a+$") then Own(mod.addon, mod.addon .. "/" .. file:gsub("\\", "/")) end
+        if not file:match("^#") and file:match("%.%a+$") then Own(addon, addon .. "/" .. file:gsub("\\", "/")) end
     end
 end
 
@@ -84,6 +85,16 @@ return function(opts)
         local other = (opts.others or opts.enabled or {})[addon]
         w.others[addon] = other == true
         w.loaded[addon] = (opts.loaded or {})[addon] == true
+        local host = mod.host
+        if host then
+            local function Host(given, members)
+                if given[host] ~= nil then return given[host] == true end
+                return members[host] or members[addon]
+            end
+            w.enabled[host] = Host(opts.enabled or {}, w.enabled)
+            w.others[host] = Host(opts.others or opts.enabled or {}, w.others)
+            w.loaded[host] = Host(opts.loaded or {}, w.loaded)
+        end
     end
     local ns = opts.ns or {}
     ns.UI = ns.UI or {}
@@ -168,13 +179,15 @@ return function(opts)
         return v == true
     end
     function w.On(id)
-        return w.enabled[ns.Setup.ITEMS[id].addon] and w.Switch(id)
+        local addon = ns.Setup.ITEMS[id].addon
+        return w.enabled[ns.ModuleHost(addon) or addon] and w.Switch(id)
     end
     function w.Reload()
         for _, mod in ipairs(MODULES) do
-            local ok = w.enabled[mod.addon]
+            local addon = mod.host or mod.addon
+            local ok = w.enabled[addon]
             for _, need in ipairs(mod.needs or {}) do ok = ok and w.enabled[need] end
-            w.loaded[mod.addon] = ok == true
+            w.loaded[addon] = ok == true
         end
         w.Session()
     end

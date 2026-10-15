@@ -63,8 +63,8 @@ end
 
 -- Every ThemeTint call is inside a function, so it is read when a frame is built or
 -- refreshed and never at file load.
-local files = { "NaowhForever_ThreatMeter/View/Meter.lua", "NaowhForever_QoL/TopBar/View/Look.lua", "NaowhForever_QoL/TopBar/UI/Tooltips.lua",
-    "NaowhForever_AuraBuffs/View/CampIcon.lua", "NaowhForever_QoL/Loot/LootFeed.lua",
+local files = { "NaowhForever_Combat/ThreatMeter/View/Meter.lua", "NaowhForever_QoL/TopBar/View/Look.lua", "NaowhForever_QoL/TopBar/UI/Tooltips.lua",
+    "NaowhForever_Combat/AuraBuffs/View/CampIcon.lua", "NaowhForever_QoL/Loot/LootFeed.lua",
     "NaowhForever_Discovery/UI/BookTracker.lua", "NaowhForever_Discovery/UI/BookPins.lua",
     "NaowhForever_QoL/Interface/TownMap.lua", "NaowhForever_QoL/Combat/CombatTimer.lua" }
 for _, path in ipairs(files) do
@@ -81,7 +81,7 @@ end
 
 -- Campfire plate.
 do
-    local source = Read("NaowhForever_AuraBuffs/View/CampIcon.lua")
+    local source = Read("NaowhForever_Combat/AuraBuffs/View/CampIcon.lua")
     local PLATE = Const(source, "PLATE")
     Check(IsRGB(PLATE, 0.14, 0.15, 0.16), "plate literal is the original")
     local stmt = assert(source:match('(local plate = ns%.ThemeTint%("panel", PLATE%)\n[^\n]*)'))
@@ -133,7 +133,7 @@ end
 
 -- ThreatMeter: the literals, the token each surface follows, and what stays as it was.
 do
-    local source = Read("NaowhForever_ThreatMeter/View/Meter.lua")
+    local source = Read("NaowhForever_Combat/ThreatMeter/View/Meter.lua")
     Check(IsRGB(Const(source, "WINDOW_BG"), 0.025, 0.04, 0.055), "window literal is the original")
     Check(IsRGB(Const(source, "WINDOW_EDGE"), 0.10, 0.19, 0.24), "border literal is the original")
     Check(IsRGB(Const(source, "HEADER_BG"), 0.04, 0.075, 0.095), "header literal is the original")
@@ -203,7 +203,7 @@ do
 end
 
 do
-    local source = Read("NaowhForever_ThreatMeter/View/Meter.lua")
+    local source = Read("NaowhForever_Combat/ThreatMeter/View/Meter.lua")
     local block = assert(source:match('(if own then\n%s+local mark = ns%.ThemeTint%("accent", nil%).-\n    end)'))
     local OWN_ROW = Const(source, "OWN_ROW")
     local OWN_DARKEN = tonumber((assert(source:match("\nlocal OWN_DARKEN = ([%d%.]+)\r?\n"), "OWN_DARKEN is missing")))
@@ -453,8 +453,8 @@ end
 -- Apply Theme to Your Bar (Threat Meter): off by default, the picked color; on, a darker shade of the
 -- theme's Accent for your bar only. The tank and pull aggro bars keep their picked colors.
 do
-    local path = "NaowhForever_ThreatMeter/View/Meter.lua"
-    local source = Read(path) .. "\n" .. Read("NaowhForever_ThreatMeter/UI/SettingsPage.lua")
+    local path = "NaowhForever_Combat/ThreatMeter/View/Meter.lua"
+    local source = Read(path) .. "\n" .. Read("NaowhForever_Combat/ThreatMeter/UI/SettingsPage.lua")
     local helper = assert(source:match("(local function ThemedColor%(key%).-\nend\n\nlocal function BarColor%(key%).-\nend)"), path .. ": BarColor")
     local YOUR_SHADE = tonumber((assert(source:match("\nlocal YOUR_SHADE = ([%d%.]+)\r?\n"), "YOUR_SHADE is missing")))
     local PICKED = { playerColor = { r = 0.97, g = 0.44, b = 0.44 }, tankColor = { r = 0.3, g = 0.82, b = 0.48 },
@@ -488,8 +488,8 @@ end
 -- Apply Theme to Bar Colours (Swing Timer): off by default, the picked colors; on, the theme's
 -- Accent, lighter Accent and a deeper Accent for the main hand, off hand and ranged bars.
 do
-    local path = "NaowhForever_SwingTimer/SwingTimer.lua"
-    local source = Read(path) .. "\n" .. Read("NaowhForever_SwingTimer/UI/SettingsPage.lua")
+    local path = "NaowhForever_Combat/SwingTimer/SwingTimer.lua"
+    local source = Read(path) .. "\n" .. Read("NaowhForever_Combat/SwingTimer/UI/SettingsPage.lua")
     local helper = assert(source:match("(local function ThemedBar%(key%).-\nend\n\nlocal function Color%(key%).-\nend)"), path .. ": Color")
     local RANGED_SHADE = tonumber((assert(source:match("\nlocal RANGED_SHADE = ([%d%.]+)\r?\n"), "RANGED_SHADE is missing")))
     local PICKED = { mhColor = { r = 0.9, g = 0.7, b = 0.27 }, ohColor = { r = 0.9, g = 0.45, b = 0.27 }, rColor = { r = 0.27, g = 0.73, b = 0.9 } }

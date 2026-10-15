@@ -108,9 +108,10 @@ local function Split(text)
     return parts
 end
 
--- A field a module's folder sets once (`PAGE = "..."`), for a mover that names `C.PAGE`.
+-- A field a module's folder sets once (`PAGE = "..."`), for a mover that names `C.PAGE`. A module
+-- inside NaowhForever_Combat has its own folder there.
 local function FolderField(path, field)
-    local folder = path:match("^[^/]+/")
+    local folder = path:match("^NaowhForever_Combat/[^/]+/") or path:match("^[^/]+/")
     local found
     for other, s in pairs(sources) do
         if other:sub(1, #folder) == folder then

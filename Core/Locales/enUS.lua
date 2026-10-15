@@ -695,6 +695,8 @@ L["%s is not a macro the game can hold: a name is 1 to 16 bytes, its text 1 to 2
 L["%s is not on %s any more."] = true
 L["%s is now bound to %s instead of %s."] = true
 L["%s is now part of Quality of Life: delete its old folder from your AddOns folder."] = true
+L["%s is now part of Naowh Forever: Combat: delete its old folder from your AddOns folder."] = true
+L["Old Naowh Forever folders were switched off. Reload now to finish?"] = true
 L["%s is on your bars where %s keeps it."] = true
 L["%s is ready for %s%s|r. %s%s. Open %s for a waypoint."] = true
 L["%s is switched off. Turn it on under Settings > Modules."] = true

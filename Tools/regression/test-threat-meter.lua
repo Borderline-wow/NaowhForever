@@ -1,4 +1,5 @@
 -- Offline behavior checks; these do not emulate client taint or rendering.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local TocFiles = dofile('Tools/regression/toc_files.lua')
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
@@ -113,7 +114,7 @@ local function fixture(settings, withSettings)
             Page=function() return {Window=function() end,Card=function(_,c) s.cards[c.id]=c end} end}
     end
     setmetatable(env,{__index=_G})
-    local files=TocFiles('^NaowhForever_ThreatMeter/.*%.lua$')
+    local files=TocFiles('^NaowhForever_Combat/ThreatMeter/.*%.lua$')
     table.insert(files,1,'Core/Features.lua')
     for _,path in ipairs(files) do local chunk=assert(loadfile(path));setfenv(chunk,env);chunk() end
     s.ns=ns

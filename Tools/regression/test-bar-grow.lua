@@ -61,7 +61,7 @@ check("a column is as tall as its buttons", w == 30 and h == 98)
 local G = { C = { TRINKET_SLOTS = { 13, 14 } }, Style = { ICON_CROP = 0, ICON_INSET = 1, EMPTY_ICON = 1, BLACK = {} } }
 ns.GearSets = G
 env.GetInventoryItemTexture = function() return 1 end
-Load("NaowhForever_GearSets/View/Look.lua")
+Load("NaowhForever_Combat/GearSets/View/Look.lua")
 local Look = G.Look
 
 local frame, add = Button(), Button()

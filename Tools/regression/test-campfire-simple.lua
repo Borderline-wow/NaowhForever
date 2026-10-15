@@ -15,15 +15,16 @@
 -- merge, and an empty tooltip is tried again every few seconds until it lists something. The bare
 -- alert is sized to its words with the time inline, at the bottom of the Alerts group, and a right-click hides
 -- it until you leave the campfire while left clicks pass through.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 
 local Load = dofile("Tools/regression/load_files.lua")
 -- The AuraBuffs files the Campfire reminder and its cards are made of, in AuraBuffs.xml's order.
-local CAMP_FILES = { "Core/Features.lua", "NaowhForever_AuraBuffs/AuraBuffs.lua",
-    "NaowhForever_AuraBuffs/Constants.lua", "NaowhForever_AuraBuffs/Data/Campfire.lua", "NaowhForever_AuraBuffs/CampReader.lua",
-    "NaowhForever_AuraBuffs/View/Style.lua", "NaowhForever_AuraBuffs/View/Glow.lua", "NaowhForever_AuraBuffs/View/CampIcon.lua",
-    "NaowhForever_AuraBuffs/View/CampBar.lua", "NaowhForever_AuraBuffs/View/CampAlert.lua",
-    "NaowhForever_AuraBuffs/UI/SettingsPage.lua", "NaowhForever_AuraBuffs/UI/GlowRows.lua", "NaowhForever_AuraBuffs/UI/Campfire.lua",
-    "NaowhForever_AuraBuffs/UI/CampfireCards.lua" }
+local CAMP_FILES = { "Core/Features.lua", "NaowhForever_Combat/AuraBuffs/AuraBuffs.lua",
+    "NaowhForever_Combat/AuraBuffs/Constants.lua", "NaowhForever_Combat/AuraBuffs/Data/Campfire.lua", "NaowhForever_Combat/AuraBuffs/CampReader.lua",
+    "NaowhForever_Combat/AuraBuffs/View/Style.lua", "NaowhForever_Combat/AuraBuffs/View/Glow.lua", "NaowhForever_Combat/AuraBuffs/View/CampIcon.lua",
+    "NaowhForever_Combat/AuraBuffs/View/CampBar.lua", "NaowhForever_Combat/AuraBuffs/View/CampAlert.lua",
+    "NaowhForever_Combat/AuraBuffs/UI/SettingsPage.lua", "NaowhForever_Combat/AuraBuffs/UI/GlowRows.lua", "NaowhForever_Combat/AuraBuffs/UI/Campfire.lua",
+    "NaowhForever_Combat/AuraBuffs/UI/CampfireCards.lua" }
 local TocFiles = dofile("Tools/regression/toc_files.lua")
 local Measure = dofile("Tools/regression/measure.lua")
 

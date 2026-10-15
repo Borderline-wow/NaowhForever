@@ -1,5 +1,5 @@
 -- PvP Battleground Displays: the game's scores and start countdown in the HUD Editor. Loads
--- NaowhForever_PvP/Displays.lua and its settings card on stub frames; does not emulate taint or rendering.
+-- NaowhForever_Combat/PvP/Displays.lua and its settings card on stub frames; does not emulate taint or rendering.
 -- From the repo root: lua5.1 Tools/regression/test-pvp-displays.lua
 local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
@@ -27,7 +27,7 @@ local function Load(withFrames)
     local s = { built = {}, movers = {}, placed = 0, settings = settings }
     local S = { Get = function(k) return settings[k] end }
     function S.Set(k, v) settings[k] = v end
-    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, PvPSettings = S, Apply = function() end,
+    local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, PvPSettings = S, PvP = {}, Apply = function() end,
         ShowUnlockMode = function() end, HideUnlockMode = function() end,
         PlaceTopCentreWidgets = function() s.placed = s.placed + 1 end,
         UI = { AttachMover = function(holder, label, save, page, feature)
@@ -54,7 +54,7 @@ local function Load(withFrames)
             local old = t[k]
             t[k] = function(...) local r = old(...); fn(...); return r end
         end }, { __index = _G })
-    for _, path in ipairs({ "NaowhForever_PvP/Displays.lua", "NaowhForever_PvP/UI/BattlegroundsPage.lua" }) do
+    for _, path in ipairs({ "NaowhForever_Combat/PvP/Displays.lua", "NaowhForever_Combat/PvP/UI/BattlegroundsPage.lua" }) do
         local chunk = assert(loadfile(path))
         setfenv(chunk, env)
         chunk()

@@ -102,7 +102,7 @@ local function SwitchOn(m)
 end
 
 local function Enabled(m)
-    return EnableState(m.addon, character) > 0
+    return EnableState(m.host or m.addon, character) > 0
 end
 
 local function IsOn(m)
@@ -136,7 +136,7 @@ local function Settle(modules, list)
     return modules
 end
 
-Setup.Settle, Setup.SetSwitch = Settle, SetSwitch
+Setup.Settle, Setup.SetSwitch, Setup.SwitchOn = Settle, SetSwitch, SwitchOn
 
 function Setup.Modules()
     local list = {}
@@ -144,8 +144,8 @@ function Setup.Modules()
         local id = byAddon[mod.addon]
         local item = id and Setup.ITEMS[id]
         if item then
-            list[#list + 1] = { id = id, name = mod.name, addon = mod.addon, navIcon = mod.navIcon, store = mod.store,
-                db = item.db, key = item.key, blurb = item.blurb }
+            list[#list + 1] = { id = id, name = mod.name, addon = mod.addon, host = ns.ModuleHost(mod.addon),
+                navIcon = mod.navIcon, store = mod.store, db = item.db, key = item.key, blurb = item.blurb }
         end
     end
     return list
@@ -202,7 +202,7 @@ function Setup.Toggle(picks, id, on)
 end
 
 local function Loaded(m)
-    return C_AddOns.IsAddOnLoaded(m.addon)
+    return C_AddOns.IsAddOnLoaded(m.host or m.addon)
 end
 
 function Setup.Plan(picks)
@@ -218,7 +218,7 @@ function Setup.Plan(picks)
             local names = want and plan.on or plan.off
             names[#names + 1] = m.name
         end
-        if (want and not Loaded(m)) or (not want and Loaded(m) and (preset and Enabled(m) or IsOn(m))) then
+        if (want and not Loaded(m)) or (not want and Loaded(m) and not m.host and (preset and Enabled(m) or IsOn(m))) then
             plan.reload = true
         end
     end
@@ -251,7 +251,8 @@ function Setup.Restore()
     for k in pairs(root) do root[k] = nil end
     for k, v in pairs(saved.root) do root[k] = type(v) == "table" and CopyTable(v) or v end
     for addon, on in pairs(saved.addons) do
-        if (EnableState(addon, saved.character) > 0) ~= on then SetAddOn(addon, on, saved.character) end
+        local real = ns.ModuleHost(addon) or addon
+        if (EnableState(real, saved.character) > 0) ~= on then SetAddOn(real, on, saved.character) end
     end
     if saved.skin ~= nil then account.skin = saved.skin ~= SKIN_NAOWH and saved.skin or nil end
     account.setupBefore = nil
@@ -260,14 +261,28 @@ end
 
 local function ApplyModule(m, want, preset)
     if want then
-        if not Enabled(m) then SetAddOn(m.addon, true, character) end
+        if not Enabled(m) then SetAddOn(m.host or m.addon, true, character) end
         if not SwitchOn(m) then SetSwitch(m, true) end
         return not Loaded(m)
+    end
+    if m.host then
+        if SwitchOn(m) then SetSwitch(m, false) end
+        return false
     end
     if not (preset and Enabled(m) or IsOn(m)) then return false end
     SetAddOn(m.addon, false, character)
     SetSwitch(m, false)
     return Loaded(m)
+end
+
+local function SettleHosts(list, picks)
+    local wanted = {}
+    for _, m in ipairs(list) do
+        if m.host then wanted[m.host] = wanted[m.host] or picks.modules[m.id] == true end
+    end
+    for host, on in pairs(wanted) do
+        if not on and EnableState(host, character) > 0 then SetAddOn(host, false, character) end
+    end
 end
 
 local function PickPanels(picks)
@@ -295,6 +310,7 @@ function Setup.Apply(picks)
         if want ~= base[m.id] then custom = true end
         if ApplyModule(m, want, preset) then reload = true end
     end
+    SettleHosts(list, picks)
     if custom then ns.QoLSettings.Set(PRESET_KEY, CUSTOM) end
     PickPanels(picks)
     return reload

@@ -55,8 +55,13 @@ local LOGIN_APPLY_DELAY = 1
 local DAMAGE_METER_ADDON, GAME_METER_CVAR, GAME_METER_SAVED = "NaowhForever_DamageMeter", "damageMeterEnabled",
     "damageMeterGameWas"
 local GLIMMER_ADDON, GLIMMER_SAVED = "NaowhForever_QoL", { "glimmerSoftCVars", "glimmerSparkleCVars" }
-local RETIRED_ADDONS = { "NaowhForever_Glimmer", "NaowhForever_GlimmerData", "NaowhForever_TopBar" }
+local RETIRED_ADDONS = { "NaowhForever_Glimmer", "NaowhForever_GlimmerData", "NaowhForever_TopBar", "NaowhForever_GearSets",
+    "NaowhForever_Blessings", "NaowhForever_AuraBuffs", "NaowhForever_ThreatMeter", "NaowhForever_PvP", "NaowhForever_SwingTimer" }
+local RETIRED_TO_COMBAT = { NaowhForever_GearSets = true, NaowhForever_Blessings = true, NaowhForever_AuraBuffs = true,
+    NaowhForever_ThreatMeter = true, NaowhForever_PvP = true, NaowhForever_SwingTimer = true }
 local TEXT_RETIRED = "%s is now part of Quality of Life: delete its old folder from your AddOns folder."
+local TEXT_RETIRED_COMBAT = "%s is now part of Naowh Forever: Combat: delete its old folder from your AddOns folder."
+local TEXT_RETIRED_RELOAD = "Old Naowh Forever folders were switched off. Reload now to finish?"
 local ERR_NO_PROFILE = "no such profile"
 local TEXT_SECRET = "(withheld: this line contained a secret value)"
 local TEXT_LIBRARIES_MISSING = "Libraries missing (%s), so parts of the addon will not work. Download Naowh "
@@ -412,16 +417,15 @@ local function RestoreGlimmerSettings()
 end
 
 local function RetireOldFolders()
+    local reload = false
     for _, addon in ipairs(RETIRED_ADDONS) do
         if C_AddOns.DoesAddOnExist(addon) then
             C_AddOns.DisableAddOn(addon)
-            if C_AddOns.IsAddOnLoaded(addon) then
-                ns.ConfirmReload(ns.L(TEXT_RETIRED):format(addon))
-            else
-                ns.Print(ns.L(TEXT_RETIRED):format(addon))
-            end
+            ns.Print(ns.L(RETIRED_TO_COMBAT[addon] and TEXT_RETIRED_COMBAT or TEXT_RETIRED):format(addon))
+            reload = reload or C_AddOns.IsAddOnLoaded(addon)
         end
     end
+    if reload then ns.ConfirmReload(ns.L(TEXT_RETIRED_RELOAD)) end
 end
 
 local meterCheck = CreateFrame("Frame")

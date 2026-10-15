@@ -101,7 +101,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Gear & Trinkets", group = "COMBAT", navIcon = "shield", settings = "QoLSettings", enabledKey = "gearSets",
-      addon = "NaowhForever_GearSets",
+      addon = "NaowhForever_GearSets", host = "NaowhForever_Combat",
       open = "ToggleGearSetsWindow",
       command = "gear", short = "Gear", icon = "Interface\\Icons\\INV_Chest_Plate04",
       subtitle = "Swap equipment sets from a bar, or on their own while you ride or rest.",
@@ -109,7 +109,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Blessings", group = "COMBAT", navIcon = "spark", settings = "QoLSettings", enabledKey = "blessings",
-      addon = "NaowhForever_Blessings",
+      addon = "NaowhForever_Blessings", host = "NaowhForever_Combat",
       open = "ToggleBlessingsWindow",
       command = "bless", short = "Bless", icon = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
       subtitle = "Paladin blessings by class and player, shared with the group's paladins.",
@@ -150,7 +150,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "AuraBuffs", group = "COMBAT", navIcon = "aura", settings = "AuraBuffSettings",
-      addon = "NaowhForever_AuraBuffs",
+      addon = "NaowhForever_AuraBuffs", host = "NaowhForever_Combat",
       open = "ToggleAuraBuffsWindow",
       command = "buffs", short = "Buffs", icon = "Interface\\Icons\\Spell_Holy_WordFortitude",
       subtitle = "Buff, consumable and campfire reminders, and a low health warning.",
@@ -158,14 +158,14 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Threat Meter", group = "COMBAT", navIcon = "bars", settings = "ThreatMeterSettings",
-      addon = "NaowhForever_ThreatMeter",
+      addon = "NaowhForever_ThreatMeter", host = "NaowhForever_Combat",
       command = "threat", short = "Threat", icon = "Interface\\Icons\\Ability_Warrior_Sunder",
       subtitle = "Threat on your target for the whole group, and a warning before you pull.",
       tabs = {
           { name = "Settings", reuse = true },
       } },
     { name = "PvP", group = "COMBAT", navIcon = "swords", settings = "PvPSettings",
-      addon = "NaowhForever_PvP",
+      addon = "NaowhForever_PvP", host = "NaowhForever_Combat",
       command = "pvp", short = "PvP", icon = "Interface\\Icons\\INV_Sword_27",
       subtitle = "What your target is doing in a fight: their short buffs and the crowd control on them.",
       tabs = {
@@ -174,7 +174,7 @@ local MODULES = {
           { name = "Flag", reuse = true },
       } },
     { name = "Swing Timer", group = "COMBAT", navIcon = "infinity", settings = "SwingTimerSettings",
-      addon = "NaowhForever_SwingTimer",
+      addon = "NaowhForever_SwingTimer", host = "NaowhForever_Combat",
       subtitle = "Your swings from the game's own swing timer, with marks for timing around them.",
       tabs = {
           { name = "Settings", reuse = true },
@@ -192,7 +192,7 @@ local function DisplayName(mod)
 end
 
 local function Loaded(mod)
-    return not mod.addon or C_AddOns.IsAddOnLoaded(mod.addon)
+    return not mod.addon or C_AddOns.IsAddOnLoaded(mod.host or mod.addon)
 end
 
 local function Has(list, value)
@@ -261,7 +261,7 @@ local function EnableState(addon, who)
 end
 
 local function ModuleOn(mod, who)
-    if mod.addon and EnableState(mod.addon, who) == 0 then return false end
+    if mod.addon and EnableState(mod.host or mod.addon, who) == 0 then return false end
     if mod.settings then
         local store = ns[mod.settings]
         return store ~= nil and store.Get(mod.enabledKey or "enabled")
@@ -303,7 +303,17 @@ function ns.LinkedAddons(addon, on)
     return { addon }
 end
 
+function ns.ModuleHost(addon)
+    for _, mod in ipairs(MODULES) do
+        if mod.addon == addon then return mod.host end
+    end
+end
+
 local function SetModuleOn(mod, on)
+    if mod.host and Loaded(mod) then
+        ns.SetModuleState(mod.addon, on)
+        return UI:RefreshPage(true)
+    end
     if mod.addon and not on then return SwitchModuleAddon(mod, false) end
     local store = mod.settings and ns[mod.settings]
     if mod.settings and not store or not Loaded(mod) then return SwitchModuleAddon(mod, true) end

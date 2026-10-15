@@ -68,7 +68,7 @@ function ns.UsePreset(key, ask)
         if ns.Setup then
             local want = ns.Setup.ModuleDefaults(key)
             for _, m in ipairs(ns.Setup.Modules()) do
-                if want[m.id] then C_AddOns.EnableAddOn(m.addon) end
+                if want[m.id] then C_AddOns.EnableAddOn(m.host or m.addon) end
             end
             ns.ReconcileModules(true)
         end

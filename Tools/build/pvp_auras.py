@@ -14,7 +14,7 @@ An entry is found by its spell name, or by spell ID where Forever's name is too 
 on ("Silenced"); names are matched here only, the addon reads IDs. Every entry must find at
 least one spell, or the build stops: a renamed spell is caught here, not in game.
 
-Writes NaowhForever_PvP/Data/Spells.lua.
+Writes NaowhForever_Combat/PvP/Data/Spells.lua.
 
 Usage: python Tools/build/pvp_auras.py
 """
@@ -26,7 +26,7 @@ import paths  # noqa: E402
 import wago  # noqa: E402
 
 ROOT = paths.ROOT
-OUT = ROOT / "NaowhForever_PvP" / "Data" / "Spells.lua"
+OUT = ROOT / "NaowhForever_Combat" / "PvP" / "Data" / "Spells.lua"
 
 # SpellEffect.EffectAura values that take control away: possess, confuse, charm, fear, stun,
 # root, silence, pacify and silence, disarm.

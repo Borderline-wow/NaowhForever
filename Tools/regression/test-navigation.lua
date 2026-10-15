@@ -753,6 +753,15 @@ Check(switch._get() == false, "the switch reads off while the disable waits for 
 switch.scripts.OnClick(); Flush()
 Check(not disabled.NaowhForever_DungeonJournal and switch._get() == true,
     "switching it back on before the reload cancels the disable")
+confirmText, reloadText = nil, nil
+Click(Button("Swing Timer")); Flush()
+local swingWas = ns.SwingTimerSettings.Get("enabled")
+switch.scripts.OnClick(); Flush()
+Check(confirmText == nil and reloadText == nil and ns.SwingTimerSettings.Get("enabled") == not swingWas,
+    "a Combat module switches at once: no confirm, no reload")
+switch.scripts.OnClick(); Flush()
+Check(ns.SwingTimerSettings.Get("enabled") == swingWas and confirmText == nil and reloadText == nil
+    and not disabled.NaowhForever_Combat, "and back the same way, with Combat left on for the others")
 confirmText = nil
 Click(Button("Professions")); Flush()
 switch.scripts.OnClick(); Flush()
@@ -805,7 +814,7 @@ do
                 and f.parent._cfg.module.name == "Threat Meter" and f.parent._control == f then return f end
         end
     end
-    missingAddOns.NaowhForever_ThreatMeter = true
+    missingAddOns.NaowhForever_Combat = true
     local enabled = ns.ThreatMeterSettings.Get("enabled")
     local enable, load = env.C_AddOns.EnableAddOn, env.C_AddOns.LoadAddOn
     local calls = 0
@@ -827,12 +836,12 @@ do
     searchInput:SetText("pull"); Flush()
     searchInput:SetText(""); Flush()
     Check(ThreatSwitch(), "clearing search preserves a previously open module fold")
-    Check(calls == 0 and missingAddOns.NaowhForever_ThreatMeter
+    Check(calls == 0 and missingAddOns.NaowhForever_Combat
         and ns.ThreatMeterSettings.Get("enabled") == enabled,
         "search never enables or loads the module or changes its profile switch")
     Click(Text("MODULES").parent.hit); Flush()
     env.C_AddOns.EnableAddOn, env.C_AddOns.LoadAddOn = enable, load
-    missingAddOns.NaowhForever_ThreatMeter = nil
+    missingAddOns.NaowhForever_Combat = nil
 end
 Click(Text("MODULES").parent.hit); Flush()
 Click(Text("MINIMAP ICONS").parent.hit); Flush()
@@ -882,10 +891,12 @@ for key, page in pairs(Settings.pages) do
         end
     end
 end
--- With Consumable Bar, Gear & Trinkets and Blessings off, AuraBuffs is the first COMBAT module;
--- the group still sits above UTILITIES.
+-- With Consumable Bar, Gear & Trinkets and Blessings off (the last two ship in NaowhForever_Combat, so
+-- their switch is what turns them off), AuraBuffs is the first COMBAT module; the group still sits
+-- above UTILITIES.
 missingAddOns.NaowhForever_ConsumableBar = true
-missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = true, true
+ns.QoLSettings.Set("gearSets", false)
+ns.QoLSettings.Set("blessings", false)
 missingAddOns.NaowhForever_InstanceTracker = true
 local built = #frames
 LoadWindow()
@@ -898,7 +909,8 @@ for i = built + 1, #frames do
 end
 Check(headY.COMBAT and headY.UTILITIES and headY.COMBAT > headY.UTILITIES, "COMBAT stays above UTILITIES with its first modules off")
 Check(not trackerNav, "Instance Tracker is left out of the sidebar while its addon is not loaded")
-missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = nil, nil
+ns.QoLSettings.Set("gearSets", true)
+ns.QoLSettings.Set("blessings", true)
 missingAddOns.NaowhForever_ConsumableBar, missingAddOns.NaowhForever_InstanceTracker = nil, nil
 
 -- Quality of Life is its own addon, with the Top Bar inside it (its card sits on QoL > Interface);

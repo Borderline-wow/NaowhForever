@@ -190,7 +190,7 @@ check("weapons and bandages are not item groups of the data", D.ITEMS.weapon == 
 -- The fallback copies match the lists their modules own.
 local owners = { NaowhForever = { Macros = {} } }
 owners._G = owners
-Load({ "NaowhForever_AuraBuffs/Data/BuffReminders.lua", "NaowhForever_Macros/Data/Items.lua" },
+Load({ "NaowhForever_Combat/AuraBuffs/Data/BuffReminders.lua", "NaowhForever_Macros/Data/Items.lua" },
     setmetatable(owners, { __index = _G }))
 local function Same(a, b)
     if #a ~= #b then return false end

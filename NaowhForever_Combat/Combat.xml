@@ -1,0 +1,9 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Combat.xml: each Combat module's own XML, in load order. -->
+    <Include file="GearSets\GearSets.xml"/>
+    <Include file="Blessings\Blessings.xml"/>
+    <Include file="AuraBuffs\AuraBuffs.xml"/>
+    <Include file="ThreatMeter\ThreatMeter.xml"/>
+    <Include file="PvP\PvP.xml"/>
+    <Include file="SwingTimer\SwingTimer.xml"/>
+</Ui>

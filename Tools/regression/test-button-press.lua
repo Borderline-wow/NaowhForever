@@ -43,9 +43,9 @@ local function Source(path)
     f:close()
     return s
 end
-for path, count in pairs({ ["Shared/UI/ItemBar.lua"] = 1, ["NaowhForever_Blessings/UI/Recipient.lua"] = 1,
-    ["NaowhForever_Blessings/UI/Bar.lua"] = 1, ["NaowhForever_GearSets/UI/Bar.lua"] = 1,
-    ["NaowhForever_GearSets/UI/TrinketBar.lua"] = 2, ["NaowhForever_QoL/Questing/GroupButtons.lua"] = 1 }) do
+for path, count in pairs({ ["Shared/UI/ItemBar.lua"] = 1, ["NaowhForever_Combat/Blessings/UI/Recipient.lua"] = 1,
+    ["NaowhForever_Combat/Blessings/UI/Bar.lua"] = 1, ["NaowhForever_Combat/GearSets/UI/Bar.lua"] = 1,
+    ["NaowhForever_Combat/GearSets/UI/TrinketBar.lua"] = 2, ["NaowhForever_QoL/Questing/GroupButtons.lua"] = 1 }) do
     local source = Source(path)
     local _, found = source:gsub("Parts%.Press%(", "")
     check(path .. " dresses its buttons with Parts.Press", found == count)
