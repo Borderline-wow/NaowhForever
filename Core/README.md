@@ -361,6 +361,12 @@ Senders
   dropped.
 
 Search
+- The sidebar search offers seven reusable result rows with module/section paths. Up/Down and
+  Enter navigate the results; selecting one clears the filter, reveals the setting and briefly
+  highlights its row. Carried settings pages use the host page's view for the same jump.
+- Pending reload changes mark every Reload UI button with an asterisk and keep the reason in
+  its tooltip, even after the confirmation is dismissed. The mark lasts until the UI reloads.
+- `ns.PrimaryButton(button)` applies the Naowh accent fill; the HUD Editor uses this treatment.
 - Every typed word has to start a word of the target, or be close to a word of its name: its
   letters in order (a Lua pattern, `^()t.-()o.-`) in a word that starts with the same letter and is
   at most twice as long, from three letters typed. Help is matched only by word starts: matched

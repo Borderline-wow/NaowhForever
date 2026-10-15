@@ -272,6 +272,7 @@ end
 
 local function ColorsChanged()
     colorsPending = true
+    ns.MarkReloadRequired(TEXT_COLORS_RELOAD)
     UI:RefreshPage(true)
 end
 
@@ -358,6 +359,7 @@ end
 
 local function RxpChanged()
     rxpPending = true
+    ns.MarkReloadRequired(TEXT_RXP_RELOAD)
     UI:RefreshPage(true)
 end
 

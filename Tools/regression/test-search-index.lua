@@ -299,9 +299,14 @@ do
     local refreshed = 0
     function UI.RefreshPage() refreshed = refreshed + 1 end
     local input
+    local function Region()
+        return setmetatable({ GetFrameLevel = function() return 0 end }, { __index = function() return function() end end })
+    end
+    env.CreateFrame = Region
+    ns.Solid, ns.Font, ns.Border = Region, Region, Region
     ns.Shared.Parts = { SearchBox = function(_, _, onText)
         input = onText
-        return { SetText = function() end, GetText = function() return "" end, ClearFocus = function() end }
+        return Region()
     end }
     function UI.RegisterOnHide() end
     UI.AttachSearchBox({}, function() end)

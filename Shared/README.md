@@ -490,8 +490,16 @@ What a comment in the code used to say, in short. The house rules behind it are 
 - A hidden row is set on the card's preview instead; it is still searched, counted and reset. A
   search match on a hidden row shows the card whole, and part of a card shows no reset, which
   would reset what is left out too.
+- The Naowh options skin uses solid surfaces and open settings groups. `Parts.Tabs` accepts
+  a sixth `plain` argument for text tabs with an accent underline; the Forever skin keeps its art.
+- `Settings.Reset` and `Settings.ResetRow` retain one session-only undo, exposed through
+  `CanUndoReset(card)` and `UndoReset(card)`. Undo copies raw values back through each store,
+  once per key. A different profile or a subsequent edit to any affected key invalidates it.
+- `Settings.Dependency(row)` resolves declared dependencies to their controlling row or card;
+  computed conditions keep their explanation without a guessed destination.
 - A slider being dragged holds the settings redraw until it is let go (`DRAG_WAIT`): the redraw
-  hides and shows the rows, and hiding the slider ended its drag after one step.
+  hides and shows the rows, and hiding the slider ended its drag after one step. Visible studio
+  previews repaint during that wait without rebuilding the slider.
 - A preview is drawn by the module's own drawing code on plain frames, never on its real
   (secure) frames. An edit zone runs nothing per frame except while it is dragged.
 - A row's icons (its cog first) are made once per declared row, so drawing them makes no tables.
