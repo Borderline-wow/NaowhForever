@@ -16,9 +16,9 @@ local CHEVRON, CHECK, CROSS = MEDIA .. "chevron", MEDIA .. "check", MEDIA .. "cr
 local PIN, MARK, ARROW = 36, 12, 18
 local MARK_LAYER = 2
 local FILL_ALPHA = 0.2
-local CARD_W, CARD_PAD, CARD_GAP, STRIP = 180, 8, 8, 2
+local CARD_W, CARD_PAD, CARD_GAP = 180, 8, 8
 local NAME_SIZE, NOTE_SIZE, DIST_SIZE, TIME_SIZE, LINE_GAP, TIME_GAP = 14, 11, 18, 11, 3, 8
-local CARD_H = 2 * CARD_PAD + STRIP + NAME_SIZE + LINE_GAP + DIST_SIZE
+local CARD_H = 2 * CARD_PAD + NAME_SIZE + LINE_GAP + DIST_SIZE
 local CARD_ICON, ICON_GAP, ICON_CROP = NAME_SIZE + LINE_GAP + DIST_SIZE, 8, St.ICON_CROP
 local BEAM_W, BEAM_H, BEAM_ALPHA = 2, 80, 0.55
 local GROUND_W, GROUND_H = 44, 12
@@ -30,6 +30,7 @@ local FADE_FLOOR = 0.25
 local RUN_SPEED = 7
 local SAMPLE_EVERY, SMOOTH, MIN_CLOSING, MAX_CLOSING = 1, 0.5, 1, 60
 local NAV_W, NAV_H, NAV_PAD, NAV_ICON, NAV_ARROW = 320, 40, 10, 20, 14
+local STRIP = 2
 local NAV_NAME, NAV_SUB, NAV_DIST = 14, 11, 16
 local NAV_Y = -70
 local NAV_NAME_LIFT, NAV_SUB_GAP, CUE_TEXT_GAP = 2, 1, 2
@@ -101,10 +102,6 @@ local function Card(parent, width)
     local card = CreateFrame("Frame", nil, parent)
     card:SetSize(width, CARD_H)
     Parts.HudBackdrop(card)
-    local strip = ns.Solid(card, "ARTWORK", T.accent, 1)
-    strip:SetPoint("TOPLEFT")
-    strip:SetPoint("TOPRIGHT")
-    strip:SetHeight(STRIP)
     return card
 end
 
@@ -135,15 +132,15 @@ function Look.NewPin(parent)
     local card = Card(pin, CARD_W)
     card.icon = card:CreateTexture(nil, "ARTWORK")
     card.icon:SetSize(CARD_ICON, CARD_ICON)
-    card.icon:SetPoint("TOPLEFT", CARD_PAD, -(CARD_PAD + STRIP))
+    card.icon:SetPoint("TOPLEFT", CARD_PAD, -CARD_PAD)
     card.icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
     card.name = Parts.HudText(ns.Font(card, NAME_SIZE))
-    card.name:SetJustifyH("LEFT")
+    card.name:SetJustifyH("CENTER")
     card.name:SetWordWrap(false)
     card.note = Parts.HudText(ns.Font(card, NOTE_SIZE, nil, T.muted))
     card.note:SetPoint("TOPLEFT", card.name, "BOTTOMLEFT", 0, -LINE_GAP)
     card.note:SetPoint("RIGHT", card.name, "RIGHT")
-    card.note:SetJustifyH("LEFT")
+    card.note:SetJustifyH("CENTER")
     card.note:SetWordWrap(false)
     card.dist = Parts.HudText(ns.Font(card, DIST_SIZE, nil, T.accent))
     card.time = Parts.HudText(ns.Font(card, TIME_SIZE, nil, T.muted))
@@ -176,17 +173,21 @@ function Look.PaintPin(pin, o)
     if o.icon then
         card.name:SetPoint("TOPLEFT", card.icon, "TOPRIGHT", ICON_GAP, 0)
     else
-        card.name:SetPoint("TOPLEFT", CARD_PAD, -(CARD_PAD + STRIP))
+        card.name:SetPoint("TOPLEFT", CARD_PAD, -CARD_PAD)
     end
     card.name:SetPoint("RIGHT", -CARD_PAD, 0)
     card.name:SetText(o.name)
     card.note:SetShown(o.note ~= nil)
     card.note:SetText(o.note or "")
-    card.dist:ClearAllPoints()
-    card.dist:SetPoint("TOPLEFT", o.note and card.note or card.name, "BOTTOMLEFT", 0, -LINE_GAP)
     card:SetHeight(CARD_H + (o.note and NOTE_SIZE + LINE_GAP or 0))
+    local walk = o.seconds and not arrived and Walk(o.seconds) or ""
     card.dist:SetText(arrived and TEXT_ARRIVED or Yards(o.yards))
-    card.time:SetText(o.seconds and not arrived and Walk(o.seconds) or "")
+    card.time:SetText(walk)
+    local row = card.dist:GetStringWidth() + (walk ~= "" and TIME_GAP + card.time:GetStringWidth() or 0)
+    local left = o.icon and CARD_PAD + CARD_ICON + ICON_GAP or CARD_PAD
+    card.dist:ClearAllPoints()
+    card.dist:SetPoint("TOPLEFT", o.note and card.note or card.name, "BOTTOMLEFT",
+        math.floor(math.max(CARD_W - left - CARD_PAD - row, 0) / 2 + ROUND), -LINE_GAP)
     Look.PlaceCard(pin, card, edge, o.angle or 0)
 end
 

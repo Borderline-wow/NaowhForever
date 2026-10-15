@@ -12,6 +12,7 @@ local W, H = 1920, 1080
 local EDGE_ROOM = 250
 local NOOP = function() end
 local made = {}
+local GLYPH_W = 6
 local Frame = {}
 local FrameMeta = { __index = function(_, k)
     if Frame[k] then return Frame[k] end
@@ -40,6 +41,8 @@ function Frame:SetPoint(...)
 end
 function Frame:SetText(t) self.text = t end
 function Frame:GetText() return self.text end
+function Frame:GetStringWidth() return #(self.text or "") * GLYPH_W end
+function Frame:SetJustifyH(j) self.justify = j end
 function Frame:SetRotation(r) self.rotation = r end
 function Frame:SetTexture(t) self.texture = t end
 function Frame:SetHeight(h) self.height = h end
@@ -203,6 +206,13 @@ Check(pin.point[2] == navFrame and pin.point[5] == 0, "with no line it sits on t
 S.Set("waypointBeam", nil)
 Check(pin.card.name.text == "Mage Trainer" and pin.card.dist.text == "312 yd", "named as placed, with its distance")
 Check(pin.card.time.text == "about 0:45", "standing still, the walking time is at running pace")
+local function Centred(card)
+    local row = #card.dist.text * GLYPH_W + (card.time.text ~= "" and 8 + #card.time.text * GLYPH_W or 0)
+    local left = card.icon.shown and 8 + 35 + 8 or 8
+    return card.name.justify == "CENTER" and card.note.justify == "CENTER"
+        and card.dist.point[4] == math.floor(math.max(180 - left - 8 - row, 0) / 2 + 0.5)
+end
+Check(Centred(pin.card), "the name, and the distance with its time, sit centred on the card")
 speed = 14
 driver.scripts.OnUpdate(driver, 0)
 Check(pin.card.time.text == "about 0:22", "moving, at your own speed")
@@ -251,6 +261,12 @@ driver.scripts.OnUpdate(driver, 0)
 Check(pin.card.note.shown and pin.card.note.text == "Weapon Master" and pin.card.height > plainH,
     "the note on its own line, the card taller")
 Check(pin.card.icon.shown and pin.card.icon.texture == 132 and pin.card.name.points[1][2] == pin.card.icon, "the icon beside the name")
+Check(Centred(pin.card), "with an icon, the text centres in the room beside it")
+nav.distance = 23456
+driver.scripts.OnUpdate(driver, 0)
+Check(pin.card.dist.point[4] == 0, "a row too long to centre starts at the column's edge, never over the icon")
+nav.distance = 312
+driver.scripts.OnUpdate(driver, 0)
 Check(navBar.sub.text == "Weapon Master . Thunder Bluff" and navBar.icon.shown and navBar.icon.texture == 132
     and not navBar.fill.shown, "the navigator: note and zone, the icon in place of the shape")
 ns.placedWaypoint.note, ns.placedWaypoint.icon = nil, nil
