@@ -204,8 +204,7 @@ end
 local function SkinTitle(title)
     SkinBox(title)
     local text = title.text
-    local _, size = text:GetFont()
-    Faced(text, size or BOX_TITLE_TEXT)
+    Faced(text, BOX_TITLE_TEXT)
     Coloured(text, "title")
     title:SetSize(text:GetStringWidth() + BOX_TITLE_ROOM, BOX_TITLE_HEIGHT)
 end
