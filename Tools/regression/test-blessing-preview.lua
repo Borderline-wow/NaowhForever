@@ -83,7 +83,8 @@ local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.up
     Shared = {
         Style = setmetatable({ PLUS = "plus", CROSS = "cross", OPACITY_MIN = 20 },
             { __index = dofile("Tools/regression/shared_style.lua") }),
-        Parts = { HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end },
+        Parts = { HudFont = function(fs, font, size, outline) fs.font, fs.size, fs.outline = font, size, outline end,
+            Hover = function(button) button.flatHover = true end },
         Anchor = { Rows = function(spec) return { { anchor = spec } } end },
         Settings = {
             Group = function(name) return { group = name } end,
@@ -164,49 +165,18 @@ local function Stage()
     return stage
 end
 
--- The bar's buttons keep their 1px black border: Look.Hover repaints the game's square glow and
--- quickslot depress (Parts.Press) as flat fills inside the border, with no other texture made.
-local function Region()
-    local r = {}
-    function r:SetColorTexture(cr, cg, cb, a) self.rgba = { cr, cg, cb, a } end
-    function r:SetBlendMode(mode) self.blend = mode end
-    return r
-end
-local inset = {}
-local realInset = ns.PixelInset
-ns.PixelInset = function(region, n) inset[region] = n end
-local made = 0
-local realSolid = ns.Solid
-ns.Solid = function(...) made = made + 1; return realSolid(...) end
-local glow, depress = Region(), Region()
-glow.blend = "ADD"
-local secure = { GetHighlightTexture = function() return glow end, GetPushedTexture = function() return depress end,
-    SetHighlightTexture = function() error("the glow is repainted, not replaced") end }
-B.Look.Hover(secure)
-check("hover: the game's glow becomes a faint flat white", glow.rgba[1] == 1 and glow.rgba[4] > 0
-    and glow.rgba[4] < 0.5 and glow.blend == "BLEND")
-check("pressed: the depress becomes a flat black shade", depress.rgba[1] == 0 and depress.rgba[3] == 0
-    and depress.rgba[4] > glow.rgba[4] and depress.blend == "BLEND")
-check("both sit inside the 1px black border", inset[glow] == 1 and inset[depress] == 1)
-check("no texture is added beside the game's ones", made == 0)
-local plain = { level = 0, GetHighlightTexture = function() return nil end, GetPushedTexture = function() return nil end }
-function plain:SetHighlightTexture(t) self.highlight = t end
-B.Look.Hover(plain)
-check("a plain preview button gets the same hover, made once", made == 1 and plain.highlight ~= nil
-    and inset[plain.highlight] == 1)
-ns.PixelInset, ns.Solid = realInset, realSolid
+-- The bar's buttons take the shared flat hover and pressed look (Parts.Press), with none of their own.
 local barSource = io.open("NaowhForever_Combat/Blessings/UI/Bar.lua", "rb"):read("*a")
 local recipientSource = io.open("NaowhForever_Combat/Blessings/UI/Recipient.lua", "rb"):read("*a")
-check("the aura and Righteous Fury buttons are repainted after Parts.Press",
-    barSource:find("Parts%.Press%(btn%)\r?\n%s*Look%.Hover%(btn%)") ~= nil)
-check("so are the class buttons",
-    recipientSource:find("Parts%.Press%(button%)\r?\n%s*B%.Look%.Hover%(button%)") ~= nil)
-check("the preview has no game glow left", not io.open("NaowhForever_Combat/Blessings/UI/SettingsPage.lua", "rb"):read("*a")
-    :find("ButtonHilight", 1, true) and not io.open("NaowhForever_Combat/Blessings/View/Look.lua", "rb"):read("*a")
-    :find("ButtonHilight", 1, true))
+local lookSource = io.open("NaowhForever_Combat/Blessings/View/Look.lua", "rb"):read("*a")
+check("the aura and Righteous Fury buttons use Parts.Press", barSource:find("Parts%.Press%(btn%)") ~= nil)
+check("so do the class buttons", recipientSource:find("Parts%.Press%(button%)") ~= nil)
+check("Blessings has no hover look of its own", not (barSource .. recipientSource .. lookSource)
+    :find("Look%.Hover"))
 
 -- A warrior's view: the bar as a sample, still editable for its look.
 local preview = studio.new(Stage())
+check("the preview's buttons hover like the bar's", preview.aura.flatHover and preview.plus.flatHover)
 studio.paint(preview, "group")
 check("the preview is plain frames, no secure template", templated == 0)
 check("the aura button shows, Righteous Fury is off by default", preview.aura.shown and not preview.fury.shown)

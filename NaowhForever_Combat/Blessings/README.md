@@ -39,10 +39,8 @@ NaowhForever_Combat/Blessings/
 
 ## Why
 
-- A bar button's hover and pressed look are flat fills inside its 1px black border (`HOVER_ALPHA` white,
-  `PUSHED_ALPHA` black), not the game's square glow and quickslot depress, which drew a Blizzard frame
-  over the border. `Parts.Press` still sets them and keeps the pressed state; `Look.Hover` repaints the
-  same textures, so no Blizzard texture is left behind to show.
+- A bar button's hover and pressed look are the shared flat fills (`Parts.Press`), and the preview's
+  buttons hover the same way (`Parts.Hover`).
 - `blessLayout` is the bar's Growth Direction, on the Anchor card beside where the bar sits. It keeps its old saved values: `horizontal` grows Right and
   `vertical` grows Down (`ItemBar.GrowOf`), beside the new `LEFT` and `UP`, so no saved profile changes.
 - The ranks are lowest first, from Forever's spell data (build 1.60.1.69913).

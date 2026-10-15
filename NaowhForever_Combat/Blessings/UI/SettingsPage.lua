@@ -5,6 +5,7 @@ local S = ns.QoLSettings
 local T = ns.THEME
 local St = ns.Shared.Style
 local ItemBar = ns.Shared.ItemBar
+local Parts = ns.Shared.Parts
 local B = ns.Blessings
 local Look = B.Look
 
@@ -225,7 +226,7 @@ local function NewButton(preview, onClick)
     local button = CreateFrame("Button", nil, preview.bar)
     button.preview = preview
     Look.Icon(button)
-    Look.Hover(button)
+    Parts.Hover(button)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:SetScript("OnClick", onClick)
     button:SetScript("OnMouseWheel", Wheel)
@@ -263,7 +264,7 @@ local function NewPlus(preview)
     plus.icon:SetSize(PLUS_ICON, PLUS_ICON)
     plus.icon:SetPoint("CENTER")
     PlusLeave(plus)
-    Look.Hover(plus)
+    Parts.Hover(plus)
     plus:SetScript("OnEnter", PlusEnter)
     plus:SetScript("OnLeave", PlusLeave)
     plus:SetScript("OnClick", PlusClick)

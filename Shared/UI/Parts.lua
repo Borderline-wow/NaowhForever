@@ -1,4 +1,4 @@
--- Parts.lua: the small parts a page is made of (ns.Shared.Parts): icons in text, smooth textures, hover cards, the chevron, links, icon buttons, the game's hover glow and pressed look for a bar button, pills, the worn bar and the Wowhead copy card.
+-- Parts.lua: the small parts a page is made of (ns.Shared.Parts): icons in text, smooth textures, hover cards, the chevron, links, icon buttons, the flat hover and pressed look for a bar button, pills, the worn bar and the Wowhead copy card.
 local ns = _G.NaowhForever
 local T = ns.THEME
 local Shared = ns.Shared
@@ -17,8 +17,8 @@ local TIP_TITLE = 1
 local ID_LABELS = { item = ns.L("Item ID"), spell = ns.L("Spell ID"), quest = ns.L("Quest ID"), npc = ns.L("NPC ID"), object = ns.L("Object ID") }
 local TEXT_ID = ns.L("ID")
 local COPY_FIELD = "url"
-local BUTTON_HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
-local BUTTON_PUSHED = "Interface\\Buttons\\UI-Quickslot-Depress"
+local HOVER_ALPHA, PUSHED_ALPHA = 0.15, 0.35
+local FLAT_BLEND = "BLEND"
 local PUSHED_LAYER, PUSHED_SUBLEVEL = "ARTWORK", 1
 
 local function Tip(owner, anchor, x, y)
@@ -103,10 +103,27 @@ local function SyncPushed(button, _, down)
     button:SetButtonState(down and "PUSHED" or "NORMAL")
 end
 
+local function Flat(texture, colour, alpha)
+    texture:SetColorTexture(colour.r, colour.g, colour.b, alpha)
+    texture:SetBlendMode(FLAT_BLEND)
+    ns.PixelInset(texture, 1)
+end
+
+function Parts.Hover(button)
+    local hover = button:GetHighlightTexture()
+    if not hover then
+        hover = ns.Solid(button, "HIGHLIGHT")
+        button:SetHighlightTexture(hover)
+    end
+    Flat(hover, T.fg, HOVER_ALPHA)
+    local pushed = button:GetPushedTexture()
+    if pushed then Flat(pushed, St.BORDER_RGB, PUSHED_ALPHA) end
+end
+
 function Parts.Press(button)
-    button:SetHighlightTexture(BUTTON_HIGHLIGHT, "ADD")
-    button:SetPushedTexture(BUTTON_PUSHED)
+    button:SetPushedTexture(ns.Solid(button, PUSHED_LAYER))
     button:GetPushedTexture():SetDrawLayer(PUSHED_LAYER, PUSHED_SUBLEVEL)
+    Parts.Hover(button)
     button:HookScript("OnClick", SyncPushed)
 end
 
