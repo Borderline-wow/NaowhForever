@@ -386,8 +386,8 @@ local list = assert(core:match("local MODULES = (%b{})"))
 local MODULES = assert(loadstring("return " .. list))()
 local module
 for _, mod in ipairs(MODULES) do if mod.name == "Group Inspect" then module = mod end end
-check("a module addon of its own under Combat, needing BiS, switched by groupInspect", module
-    and module.group == "COMBAT" and module.addon == "NaowhForever_GroupInspect" and module.needs[1] == "NaowhForever_BiS"
+check("a module addon of its own under Utilities, needing BiS, switched by groupInspect", module
+    and module.group == "UTILITIES" and module.addon == "NaowhForever_GroupInspect" and module.needs[1] == "NaowhForever_BiS"
     and module.settings == "QoLSettings" and module.enabledKey == "groupInspect")
 local toc = Source("NaowhForever_GroupInspect/NaowhForever_GroupInspect.toc")
 local djToc = Source("NaowhForever_DungeonJournal/NaowhForever_DungeonJournal.toc")

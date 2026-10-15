@@ -430,6 +430,21 @@ for _, child in ipairs(strip.children) do
     end
 end
 Check(tabs == 11, "every QoL category has a tab, Glimmer's too")
+local qolTabs = {}
+for _, tab in ipairs(ns.Options.MODULES[1].tabs) do qolTabs[#qolTabs + 1] = tab.name end
+Check(table.concat(qolTabs, "|", #qolTabs - 2) == "System|Cursor & Crosshair|Damage Meter",
+    "Cursor & Crosshair and Damage Meter are the last QoL tabs, after System")
+local grouped = {}
+for _, mod in ipairs(ns.Options.MODULES) do
+    if mod.group then
+        grouped[mod.group] = grouped[mod.group] or {}
+        table.insert(grouped[mod.group], mod.name)
+    end
+end
+Check(grouped.COMBAT[1] == "Consumable Bar" and grouped.COMBAT[2] == "Gear & Trinkets",
+    "Consumable Bar heads COMBAT, above Gear & Trinkets")
+Check(table.concat(grouped.UTILITIES, "|"):find("Macros|Group Inspect|Action Bars", 1, true) ~= nil,
+    "Group Inspect sits in UTILITIES, where Consumable Bar was")
 Check(strip.buttons and strip:GetWidth() <= 1440 - 240 - 56, "the tabs are the boxed switch, inside the content width")
 Click(Button("Combat")); Flush()
 Check(Text("Quality of Life / Combat") ~= nil, "category navigation works")
@@ -857,8 +872,9 @@ for key, page in pairs(Settings.pages) do
         end
     end
 end
--- With Gear & Trinkets and Blessings off, AuraBuffs is the first COMBAT module, listed after
--- Macros; the group still sits above UTILITIES.
+-- With Consumable Bar, Gear & Trinkets and Blessings off, AuraBuffs is the first COMBAT module;
+-- the group still sits above UTILITIES.
+missingAddOns.NaowhForever_ConsumableBar = true
 missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = true, true
 missingAddOns.NaowhForever_InstanceTracker = true
 local built = #frames
@@ -873,7 +889,7 @@ end
 Check(headY.COMBAT and headY.UTILITIES and headY.COMBAT > headY.UTILITIES, "COMBAT stays above UTILITIES with its first modules off")
 Check(not trackerNav, "Instance Tracker is left out of the sidebar while its addon is not loaded")
 missingAddOns.NaowhForever_GearSets, missingAddOns.NaowhForever_Blessings = nil, nil
-missingAddOns.NaowhForever_InstanceTracker = nil
+missingAddOns.NaowhForever_ConsumableBar, missingAddOns.NaowhForever_InstanceTracker = nil, nil
 
 -- Quality of Life is its own addon, with the Top Bar inside it (its card sits on QoL > Interface);
 -- while QoL is not loaded, the sidebar drops it and its pages land on Settings.
