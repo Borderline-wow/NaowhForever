@@ -27,7 +27,7 @@ NaowhForever_Professions/
   LinkView.lua         another player's profession opened from a trade link, and when it ends (P.Links)
   Recipes.lua          the open profession, reagents, what a recipe makes, bag counts (P.Recipes, ns.ProfWindowAPI)
   Vendors.lua          vendor reagents and prices learned at merchants, buying there (P.Vendors)
-  Prices.lua           buy prices, a craft's value and profit (P.Prices)
+  Prices.lua           buy prices, a craft's value, profit and return on investment (P.Prices)
   Favorites.lua        favourite recipes (P.Favorites, ns.ProfFavorites)
   RecipeFinder.lua     the unlearned recipes, what they need and where they come from (ns.RecipeFinder)
   RankAlert.lua        a profession ready for its next rank, in the window and once in chat (ns.ProfessionRank)
@@ -132,6 +132,9 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   at the last scan; the auction house keeps 5% of a sale. Profit is cached per recipe until the next
   full draw, so scrolling and the filter do not price every recipe again. Reagents unchecked in the
   pane are ones you have, left out of every recipe's cost.
+- ROI is profit divided by the materials' cost. It starts off and shows only under the selected
+  recipe's profit, losses in red: the list rows have no room for it beside a full profit. Grey below
+  10% and green from 30% leave the middle band yellow; both thresholds are player settings.
 - Merchants teach the vendor reagents: trade goods sold for gold without a stock limit are kept
   account-wide, with their price when Crafting Profit is on. Merchant events are registered only
   while the module and one of Crafts with Vendor Buys, Crafting Profit or Buy at Vendor are on.

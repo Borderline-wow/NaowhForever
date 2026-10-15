@@ -162,6 +162,7 @@ ns.FEATURES = {
         craftProfit = false,
         craftProfitList = false,
         recipeAvailability = false,
+        craftROI = false,
         buyMaterials = false,
         buyVendor = false,
         disenchant = false,

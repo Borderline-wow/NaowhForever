@@ -11,6 +11,7 @@ local GATHER_LIFT = 8
 local GATHER_STAGE_H = 130
 local CRAFT_STAGE_H = 100
 local TIP_RANGE, ICON_RANGE, TEXT_RANGE = { 0, 50, 1 }, { 24, 80, 1 }, ns.Shared.Style.HUD_TEXT_RANGE
+local ROI_RANGE = { 0, 100, 1 }
 local ORDER_RECIPES, ORDER_ORDERS, ORDER_CRAFT_TIMER, ORDER_BUYING, ORDER_GATHER = 10, 20, 30, 40, 50
 local ORDER_DISENCHANT = 60
 local SAMPLE_ICON = "Interface\\Icons\\INV_Ingot_02"
@@ -42,6 +43,10 @@ end
 
 local function ProfitOn()
     return On() and S.Get("craftProfit") == true
+end
+
+local function ROIOn()
+    return ProfitOn() and S.Get("craftROI") == true
 end
 
 local function FavoriteSearchOn()
@@ -188,6 +193,17 @@ page:Card({
           help = "Shows small markers on recipe rows when the result is in your bags or bank, or the recipe "
               .. "is already on the Shopping List. Hover a marker for its exact count. Equipped items do not "
               .. "count as bag contents." },
+        Group("Return on Investment"),
+        { key = "craftROI", label = "Show ROI", toggle = true, needs = ProfitOn,
+          why = "Needs Crafting Profit",
+          help = "Shows the selected recipe's profit as a percentage of the materials' cost, under its "
+              .. "profit." },
+        { key = "roiGreyBelow", label = "Grey Below", slider = ROI_RANGE, unit = "%", needs = ROIOn,
+          why = "Needs Show ROI",
+          help = "ROI below this percentage is grey." },
+        { key = "roiGreenFrom", label = "Green From", slider = ROI_RANGE, unit = "%", needs = ROIOn,
+          why = "Needs Show ROI",
+          help = "ROI from this percentage is green; the range below it is yellow." },
         Group("Auction House"),
         { key = "ahShiftClick", label = "Shift-Click Searches AH", toggle = true, needs = On,
           why = TEXT_OFF,

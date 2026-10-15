@@ -152,7 +152,7 @@ local function FillReagents(l, r, y)
     local ok, reagents = pcall(R.Reagents, r.spell)
     if not ok then reagents = {} end
     local height = l:GetHeight() > 0 and l:GetHeight() or (Style.MIN_H + Style.TOP_Y - Style.PAD)
-    local fit = math.floor((height + y - REAGENTS_GAP - (Style.PROFIT_H + FOOT_ROOM)) / Style.REAGENT_H)
+    local fit = math.floor((height + y - REAGENTS_GAP - (P.Lines.ProfitHeight() + FOOT_ROOM)) / Style.REAGENT_H)
     l.reagentsLabel:SetShown(#reagents > 0 and fit > 0)
     l.reagentsLabel:ClearAllPoints()
     l.reagentsLabel:SetPoint("TOPLEFT", Style.PANE_EDGE, y - REAGENTS_GAP)
