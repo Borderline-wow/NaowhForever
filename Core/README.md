@@ -361,14 +361,23 @@ Senders
   dropped.
 
 Search
-- Every typed word has to start a word of the target. A module with one tab does not add its tab's
-  name (mostly "Settings", which would match "set" everywhere).
+- Every typed word has to start a word of the target, or be close to a word of its name: its
+  letters in order (a Lua pattern, `^()t.-()o.-`) in a word that starts with the same letter and is
+  at most twice as long, from three letters typed. Help is matched only by word starts: matched
+  closely it found something in almost every help text. Close matches come after every exact one,
+  the ones whose word was most fully typed first. A pattern holds at most 32 captures, so a longer
+  typed word is only matched exactly.
+- A module with one tab does not add its tab's name (mostly "Settings", which would match "set"
+  everywhere).
 - A setting's module and tab names can narrow it ("journal minimap") but never find it alone, or
   typing a module's name would count every setting it has.
 - A page its own builder draws (Settings, Profiles) names what is on it through `terms`; the
   Settings page runs its own sections into a recorder, so what is searched is what is drawn.
-- A module that is not loaded has no pages to search; its name is found on the Settings page,
-  which says it is off.
+- A module that is not loaded declares no pages, so it is searched from the generated index in the
+  load-on-demand `NaowhForever_SearchIndex` addon, loaded by the first search while a module is off.
+  Its matches put it in a Turned Off group at the bottom of the sidebar, shown only while the search
+  finds something in it; its page lists them and its header switch turns it on. Its name is also
+  found on the Settings page, which says it is off.
 - A window card is searched by its button and its fixed text, never by a headline function: those
   read live state and some do real work.
 

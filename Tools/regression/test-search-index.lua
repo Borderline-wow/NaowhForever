@@ -68,6 +68,8 @@ solo.tabs = { pages[4] }
 qol.tabs = { pages[5] }
 ---@diagnostic disable-next-line: duplicate-set-field
 function UI.SearchPages() return pages end
+---@diagnostic disable-next-line: duplicate-set-field
+function UI.SearchOffPages() return {} end
 
 local list = UI.Search.Collect()
 Check(frames == 0, "collecting builds no frames")
@@ -117,6 +119,52 @@ Check(Names("swing history") == "Open Swing Log" and Names("open swing") == "Ope
 Check(Names("changes") == "" and Names("release") == "" and Names("fixed") == "", "but not its live text, nor an info card")
 Check(Names("naowh's") == "Naowh's Tips" and Names("naowh") == "Naowh's Tips", "punctuation splits words")
 Check(Names("zzz") == "" and Names("   ") == "", "nothing typed or nothing found, no matches")
+
+-- A typed word close to a word of a target's name (its letters in order) still finds it.
+Check(Names("sze") == "Bar Size" and Names("sond") == "Timer Sound|Alert Sound", "a letter left out still finds the name")
+Check(Names("alrt") == "Parry Alert|Alert Sound|Alert Color", "a card's name too")
+Check(Names("ound") == "" and Names("sz") == "" and Names("sd") == "",
+    "a close word starts with the same letter and has three letters or more")
+Check(Names("pg") == "" and Names("plys") == "", "help is matched only by a word's start")
+Check(Names("sizzz") == "", "every letter typed is in the word")
+Check(UI.Search.Mark(UI.Search.Build(list, "sze"), "Bar Size") == "Bar <accent:S>i<accent:ze>",
+    "the letters a close word matched are lit")
+do
+    local Search = dofile("Tools/regression/settings_search.lua")({ ["Misc/Page"] = { { id = "talk", name = "Talk",
+        rows = { { key = "cheat", label = "Cheat Sheet", toggle = true }, { key = "frame", label = "Chat Frame", toggle = true } } } } })
+    local function Labels(query)
+        local out = {}
+        for i, hit in ipairs(Search(query)) do out[i] = hit.label end
+        return table.concat(out, "|")
+    end
+    Check(Labels("chat frame") == "Chat Frame", "each word matches exactly or closely")
+    Check(Labels("chat") == "Chat Frame|Cheat Sheet", "exact matches come before close ones")
+    Check(Labels("cht") == "Chat Frame|Cheat Sheet", "and close ones rank by how close they are")
+end
+
+-- A module that is turned off is searched from the generated index (ns.SEARCH_INDEX) through its pages.
+do
+    local planner = { name = "Planner" }
+    local offPage = { key = "Planner/Settings", name = "Settings", module = planner }
+    planner.tabs = { offPage }
+    ns.SEARCH_INDEX = { ["Planner/Settings"] = {
+        { "toast", false, "A toast when you level.", "Level-Up Toast", false },
+        { "toast", "Toast Sound", "Plays a sound with the toast.", "Level-Up Toast", "Sound" },
+    } }
+    UI.SearchOffPages = function() return { offPage } end
+    local offList = UI.Search.Collect()
+    UI.SearchOffPages, ns.SEARCH_INDEX = function() return {} end, nil
+    local Build, OffRows = UI.Search.Build, UI.Search.OffRows
+    local f = Build(offList, "toast sound")
+    local rows = OffRows(f, "Planner/Settings")
+    Check(f.count["Planner/Settings"] == 1 and #rows == 1 and rows[1].label == "Toast Sound"
+        and rows[1].trail == "Level-Up Toast" and not rows[1].isCard, "a setting of a module that is off is found")
+    rows = OffRows(Build(offList, "level"), "Planner/Settings")
+    Check(#rows == 2 and rows[1].isCard and rows[1].label == "Level-Up Toast", "and its card, by the card's name")
+    rows = OffRows(Build(offList, "planner"), "Planner/Settings")
+    Check(#rows == 2, "the module's name lists all of its settings")
+    Check(#OffRows(Build(offList, "zzz"), "Planner/Settings") == 0, "nothing found, nothing listed")
+end
 
 -- Translated names are found and shown.
 do

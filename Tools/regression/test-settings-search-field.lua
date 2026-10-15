@@ -40,6 +40,8 @@ local pages = { { key = "Planner/Settings", name = "Settings", module = planner 
 planner.tabs = pages
 ---@diagnostic disable-next-line: duplicate-set-field
 function UI.SearchPages() return pages end
+---@diagnostic disable-next-line: duplicate-set-field
+function UI.SearchOffPages() return {} end
 
 local list = UI.Search.Collect()
 local function Names(query)

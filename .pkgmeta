@@ -25,6 +25,7 @@ move-folders:
   NaowhForever/NaowhForever_InstanceTracker: NaowhForever_InstanceTracker
   NaowhForever/NaowhForever_Journeys: NaowhForever_Journeys
   NaowhForever/NaowhForever_JourneysData: NaowhForever_JourneysData
+  NaowhForever/NaowhForever_SearchIndex: NaowhForever_SearchIndex
 
 externals:
   Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1

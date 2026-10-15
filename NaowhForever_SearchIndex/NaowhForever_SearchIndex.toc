@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: |cff0091edNaowh|r Forever: Search Index
+## Notes: Every module's settings, so the options window's search finds the ones of a module that is turned off.
+## Author: Naowh
+## Version: 1.1.17
+## Dependencies: NaowhForever
+## LoadOnDemand: 1
+## Group: NaowhForever
+## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
+
+SearchIndex.xml

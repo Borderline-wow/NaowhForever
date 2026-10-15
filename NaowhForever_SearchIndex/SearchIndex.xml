@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- SearchIndex.xml: the generated search entries of every module page. -->
+    <Script file="SearchIndex.lua"/>
+</Ui>

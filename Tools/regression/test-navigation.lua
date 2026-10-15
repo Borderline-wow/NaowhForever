@@ -134,12 +134,20 @@ env.C_Timer = { After = function(_, f) timers[#timers + 1] = f end,
     NewTicker = function() return { Cancel = function() end } end }
 -- missingAddOns: not loaded this session. disabled: switched off for the next reload.
 local missingAddOns, disabled = { NaowhForever_TopBar = true }, {}
+local indexLoads = 0
+local Load
 env.C_AddOns = { GetAddOnMetadata = function() return "test" end,
     DoesAddOnExist = function(name) return not missingAddOns[name] end,
     IsAddOnLoaded = function(name) return not missingAddOns[name] end,
     GetAddOnEnableState = function(name) return (missingAddOns[name] or disabled[name]) and 0 or 2 end,
     DisableAddOn = function(name) disabled[name] = true end,
-    EnableAddOn = function(name) disabled[name] = nil end }
+    EnableAddOn = function(name) disabled[name] = nil end,
+    LoadAddOn = function(name)
+        if name ~= "NaowhForever_SearchIndex" then return false end
+        indexLoads = indexLoads + 1
+        Load("NaowhForever_SearchIndex/SearchIndex.lua")
+        return true
+    end }
 env.SlashCmdList = {}
 env.InCombatLockdown = function() return false end
 env.LibStub = function() return nil end
@@ -151,7 +159,7 @@ env.GetRealmName = function() return "Preview" end
 env.GetTime = function() return 0 end
 env.UNKNOWNOBJECT = "Unknown"
 env.STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
-local function Load(path)
+function Load(path)
     local f = assert(loadfile(path)); setfenv(f, env); f("NaowhForever")
 end
 Load("Core/Core.lua")
@@ -925,6 +933,38 @@ for i = built + 1, #frames do
 end
 Check(not qolShown, "with QoL not loaded, Quality of Life leaves the sidebar")
 Check(Text("MODULES") ~= nil, "and the window opens on Settings instead of QoL > Interface")
+
+-- A module that is off is still searched, from the generated index, and waits in a group of its own.
+local function TextHas(...)
+    for _, f in ipairs(frames) do
+        if type(f.text) == "string" and f:IsShown() then
+            local plain, all = f.text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), true
+            for i = 1, select("#", ...) do all = all and plain:find((select(i, ...)), 1, true) ~= nil end
+            if all then return f end
+        end
+    end
+end
+local function OffButton(name)
+    for i = built + 1, #frames do
+        local f = frames[i]
+        if f.text == name and f:IsShown() and f.parent and f.parent.mod and f.parent.scripts.OnClick then return f.parent end
+    end
+end
+local input
+for i = built + 1, #frames do
+    if frames[i].text == "Search settings" then input = frames[i].parent end
+end
+Check(not Text("TURNED OFF"), "the turned-off group stays hidden with nothing searched")
+input:SetText("auto repair"); Flush()
+Check(ns.SEARCH_INDEX ~= nil and indexLoads == 1, "the first search with a module off loads the index, once")
+Check(Text("TURNED OFF") and OffButton("Quality of Life"), "a match in a module that is off shows it under Turned Off")
+Click(OffButton("Quality of Life")); Flush()
+Check(Text("Quality of Life is turned off. Turn it on to change these settings.") and TextHas("Auto Repair"),
+    "its page says it is off and lists the settings found")
+input:SetText("auto rpair"); Flush()
+Check(TextHas("Auto Repair"), "a letter left out still finds the setting")
+input:SetText(""); Flush()
+Check(not Text("TURNED OFF") and Text("MODULES"), "cleared, the group hides and the page goes back to Settings")
 missingAddOns.NaowhForever_QoL = nil
 
 print(cases .. " navigation checks passed")
