@@ -2,6 +2,12 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["Flip Row Direction"] = true
+L["Gives the icons their own height, cropped to fit instead of stretched."] = true
+L["How tall the icons are, with Icon Size as their width."] = true
+L["Icon Height"] = true
+L["New rows go above the first instead of below it, or left instead of right."] = true
+L["Rectangular Icons"] = true
 L["A thin bar at the edge of the list that shows how far it is scrolled."] = true
 L["Bar Border Color"] = true
 L["Bar Border Size"] = true

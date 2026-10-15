@@ -439,7 +439,11 @@ What a comment in the code used to say, in short. The house rules behind it are 
 ### Item bars (`UI/ItemBar.lua`, `UI/Anchor.lua`, `Game/ActionKeys.lua`)
 
 - A bar's icons are cropped (`ItemBar.CropIcon`, `Style.ICON_CROP`) like the addon's other item
-  icons, cutting off the rounded border the game draws into the item art.
+  icons, cutting off the rounded border the game draws into the item art. A rectangular button
+  (`ItemBar.Shape`) crops its art further along its longer side, so the art keeps its shape.
+- `ItemBar.Place` and `ItemBar.Size` take an optional icon height (square without one) and
+  `Place` an optional flip that starts each new row on the other side of the first; a bar that
+  passes neither lays out as it always has.
 - A bar's settings share one prefix (`consumableBar`, `foodBar`): its count and key text, its
   anchor and where it was dragged are `<prefix>Font`, `<prefix>Anchor`, `<prefix>Pos` and so on, so
   one set of rows and one placement serve every bar.
