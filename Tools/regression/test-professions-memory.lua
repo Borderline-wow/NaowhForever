@@ -286,10 +286,11 @@ ah.SearchBar = { SetSearchText = Noop, StartSearch = Noop }
 local professionsFrame = Widget()
 local childInfo = { professionID = PROF, professionName = "Tailoring", skillLevel = 150, maxSkillLevel = 225 }
 local itemKeys = {}
+local patternItems = {}
 
 local settings = { enabled = true, recipeFinder = true, vendorMaterials = true, craftProfit = true,
     craftProfitList = true, ahSearch = true, bagReagents = true, bankReagents = true,
-    buyMaterials = true, shoppingList = true, searchFavoritesAH = true }
+    buyMaterials = true, shoppingList = true, searchFavoritesAH = true, manualPatternScan = true }
 local defaults = {}
 local db = {}
 local account = {}
@@ -406,7 +407,10 @@ env = {
     C_Item = {
         GetItemNameByID = function(id) if loaded[id] then return ItemNameOf(id) end end,
         RequestLoadItemDataByID = RequestLoad,
-        GetItemCount = function(id, bank) return (id % 5) + (bank and 3 or 0) end,
+        GetItemCount = function(id, bank)
+            if patternItems[id] then return 0 end
+            return (id % 5) + (bank and 3 or 0)
+        end,
         GetItemIconByID = function(id) return id end,
         GetItemInfo = function(id)
             if not loaded[id] then return nil end
@@ -427,7 +431,7 @@ env = {
             if not k then k = { itemID = id }; itemKeys[id] = k end
             return k
         end,
-        SendSearchQuery = Noop,
+        SendSearchQuery = function() Count("SendSearchQuery") end,
         IsThrottledMessageSystemReady = function() return true end,
     },
     C_TradeSkillUI = {
@@ -480,15 +484,17 @@ ns.RecipeFinder.Unlearned = function(learned)
     return unlearned(learned)
 end
 
--- Two favourite patterns to look up at the auction house, one of them an item that never
--- loads; and a shopping list with that item on it too.
+-- Ten favourite patterns to look up at the auction house, one of them an item that never
+-- loads, exercise two pages; the shopping list has that item on it too.
+local FAVORITE_PATTERNS = 10
 local favorites, favCount = {}, 0
 for i = LEARNED_N + 1, #recipes do
     local r = recipes[i]
-    if r.recipe and favCount < 2 then
+    if r.recipe and favCount < FAVORITE_PATTERNS then
         favorites[r.spell] = true
         favCount = favCount + 1
         if favCount == 2 then loaded[r.recipe] = nil; r.recipe = BROKEN end
+        patternItems[r.recipe] = true
     end
 end
 db.craftFavorites = favorites
@@ -514,6 +520,42 @@ Advance(0.5)
 local win = env.NaowhForeverProfessions
 assert(win and win:IsShown(), "the window opens")
 check("the window lists recipes", calls.render > 0)
+check("manual favourite scanning sends nothing before Scan", calls.SendSearchQuery == 0)
+local patternWindow = ns.FavoritePatternsFrames()
+check("manual favourite scanning builds its Scan button", patternWindow and patternWindow.scan)
+check("manual favourite scanning pages every pattern", patternWindow.pageCount == 2)
+patternWindow.hooks.OnMouseWheel[1](patternWindow, -1)
+check("the mouse wheel reaches the next pattern page", patternWindow.pager.label.text == "2 / 2")
+patternWindow.hooks.OnMouseWheel[1](patternWindow, 1)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+check("Scan starts with one auction search", calls.SendSearchQuery == 1)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+Advance(3.5)
+check("Pause stops before the next auction search", calls.SendSearchQuery == 1)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+check("Resume continues the queued auction searches", calls.SendSearchQuery == 2)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+
+-- Searches that time out are tried again: the scan stops at Resume, not done with them unsearched.
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+Advance(60)
+check("a scan whose searches timed out waits to resume", patternWindow.scan.label.text == "Resume Scan")
+local sent = calls.SendSearchQuery
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+check("Resume searches the timed-out patterns again", calls.SendSearchQuery == sent + 1)
+
+-- A new scan's search is not cut short by the timeout of one from before a reset.
+ns.Professions.Settings.Set("manualPatternScan", true)
+Advance(0.5)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+Advance(1)
+ns.Professions.Settings.Set("manualPatternScan", true)
+Advance(0.5)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
+sent = calls.SendSearchQuery
+Advance(2)
+check("an earlier search's timeout leaves the new search running", calls.SendSearchQuery == sent)
+patternWindow.scan.scripts.OnClick(patternWindow.scan)
 
 settings.recipeAvailability = true
 local bagReads = calls.GetContainerItemInfo

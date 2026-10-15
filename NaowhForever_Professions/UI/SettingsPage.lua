@@ -44,6 +44,10 @@ local function ProfitOn()
     return On() and S.Get("craftProfit") == true
 end
 
+local function FavoriteSearchOn()
+    return On() and S.Get("searchFavoritesAH") == true
+end
+
 local function ProfessionLine(index)
     if not index then return nil end
     local name, _, rank, maxRank = GetProfessionInfo(index)
@@ -204,6 +208,9 @@ page:Card({
           help = "At the auction house, a window beside it lists the patterns, plans and manuals of your "
               .. "favourite recipes that you have not learned or bought, with what they cost now. Buy finds "
               .. "the cheapest and asks before Accept buys it." },
+        { key = "manualPatternScan", label = "Manual Favorite Scans", toggle = true, needs = FavoriteSearchOn,
+          why = "Needs Search Favorites AH",
+          help = "Adds Scan, Pause and Resume controls instead of searching every favourite automatically." },
         { key = "shoppingList", label = "Shopping List", toggle = true, needs = On, why = TEXT_OFF,
           help = "Adds \"- [1] + Add to List\" under a recipe's reagents: the materials Buy on AH would buy for "
               .. "that many crafts go on a shopping list, from anywhere. At the auction house the list shows "

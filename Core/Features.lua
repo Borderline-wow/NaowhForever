@@ -155,6 +155,7 @@ ns.FEATURES = {
         shoppingList = false,
         trainFavorites = false,
         searchFavoritesAH = false,
+        manualPatternScan = false,
         gatherReminder = false,
         ahSearch = false,
         ahShiftClick = false,
