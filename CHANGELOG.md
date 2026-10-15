@@ -1,6 +1,114 @@
 # Changelog
 
-## Unreleased
+## 1.1.18
+
+### Added
+- RestedXP: a RestedXP Naowh Window (V2) in Settings, with the guide's progress, the active step and
+  the steps after it in one window in your theme, resizable from its corner, with a Window Theme of
+  its own, the Forever look, and a bar under a row that counts. Added: RestedXP: Step Icons in the
+  RestedXP Naowh Window (V2) settings, Naowh's own step icons in a line or a filled style, in place
+  of RestedXP's, in its windows, tooltips and quest log, in the window's Accent Color. Added:
+  RestedXP: Set Up New Characters in the RestedXP Naowh Window (V2) settings, off to start, that
+  turns on RestedXP's new interface and the Naowh theme for a character the first time you play it
+  and puts the waypoint arrow in the middle of the screen, and a button to do it for the one you are
+  playing. Added: RestedXP: the Active Targets and Active Items windows take the look of the window,
+  and the chat bubble and sword on a target button are our icons. Added: RestedXP: an Arrow Shows
+  Objective switch, so the text under the arrow says the distance and the objective (Talk to Duokna)
+  in place of the step number, wrapped under the arrow, and an Arrow Text Size. Changed: RestedXP:
+  the theme (V1) and the Naowh window (V2) are separate folds with a switch on their title and
+  cannot both be on, and the waypoint arrow's options are in both (and on their own while neither
+  is).
+- Gamble: This feature adds in two gambling modes (Classic and Deathroll) to play with friends in
+  party or raid chat.
+- Performance: HDR and Peak Brightness settings, under QoL > System, for HDR monitors.
+- Waypoint Pin: an Arrival Distance slider for how close counts as arriving (QoL > Interface).
+- AuraBuffs: Worn Gear Reminder (Buffs & Consumables, off by default) shows an icon while you wear
+  Cloak of Hermitic Bliss in Wailing Caverns, with the cloak's effects in its tooltip.
+- AuraBuffs window: drag an item from your bags onto a section to add it.
+- Glimmer: Quest Givers is its own category under Objects, so you can keep quest objects lit without
+  the nameplate bar on quest givers.
+- Buffs & Reminders: click a reminder icon to use the food, flask, elixir, scroll, stone or oil it
+  shows, without opening its item menu.
+- Scrap Marker: choose Alt or Ctrl as the marking modifier in QoL > Loot & Items.
+- Professions: Show Normal Cast Bar in Total Craft Timer settings keeps individual craft progress
+  visible alongside the batch timer.
+- Professions: optional recipe-row markers for Shopping List quantities and bag or bank stock.
+- Professions: optional Scan, Pause and Resume controls with paging for Favorite Patterns at the
+  auction house.
+- Professions: optional crafting ROI display with configurable colour thresholds.
+- Settings search: a word with a letter missing still finds the setting, after the exact matches,
+  with the matching letters lit.
+- Settings search: modules that are turned off are searched too. Their matches show under Turned Off
+  at the bottom of the sidebar, with a switch to turn the module on.
+
+### Changed
+- Glimmer: the Sparkles effect has twice as many stars.
+- Campfire: click anywhere on Camp Nearby, the bar or the alert, to sit.
+- Campfire: Alert Size shows a number instead of a percent.
+- Dungeon Journal: a waypoint to a dungeon's entrance clears once you are inside the dungeon.
+- The Window Opacity option is gone from every module's window and title bar; the windows are always
+  fully solid.
+- Buffs & Reminders: the item menu you get by hovering a reminder icon now uses the row's Icon Size
+  and opens centred under the icon you hovered, above it when there is no room below.
+- Options: every section starts folded when you open a tab, except on Damage Meter, Glimmer and Top
+  Bar, which still open their first section.
+- Buffs & Reminders: pressing a reminder icon or an item in its menu makes it glow, so you can see
+  the press went through.
+- Buffs & Reminders: the reminder row no longer updates during combat: a consumable that runs low or
+  expires mid-fight appears once combat ends, and one used in combat stays on the row until then.
+- AuraBuffs: the Weapon Enhancement Reminder shows each stone, weightstone and oil with its classic
+  icon, and a Rough Sharpening Stone when you carry none.
+- The Top Bar is now part of Quality of Life and no longer has its own line in the AddOns list. Turn
+  it on or off on its card under QoL > Interface.
+- Options: Cursor & Crosshair and Damage Meter are now the last Quality of Life tabs, after System.
+- Options: Consumable Bar moves to the top of Combat, and Group Inspect moves to Utilities.
+- Gear & Trinkets, Blessings, AuraBuffs, Threat Meter, PvP and Swing Timer are now one line in the
+  AddOns list, Naowh Forever: Combat. Turn each one on or off under Settings > Modules, and it takes
+  effect without a reload.
+- Forever skin: Settings, Profiles, Patch Notes and Credits are back at the bottom of the sidebar.
+- Forever skin: the options sidebar lists modules as gold text under group bars, with the picked one
+  between gold lines, as the game's Options window does.
+- Forever skin: section headings are plain bold text over a brown line, and every options page has
+  the same row lines.
+- Forever skin: folding sections on the Settings page look like the other collapsible bars.
+- Forever skin: the window's lines, the logo ring, the help tip and tab rows all use the border's
+  bronze metal.
+- Forever skin: dropdowns and sliders get a soft sheen under the mouse instead of a yellow edge, and
+  the scroll bar no longer lights bright yellow.
+- The Naowh Forever: Language addon is gone; the language you pick in Settings is saved with the
+  rest of Naowh Forever's settings. If you had picked a language other than your game's, pick it
+  again once.
+
+### Fixed
+- Glimmer: herbs, ore and other objects light up on every setup; on some, the game never showed the
+  nameplate Glimmer's effect needs.
+- Waypoint Pin: hides when you are at a tracked quest's area and comes back when you walk away.
+- Waypoint Pin: the walking time is right on a mount, instead of about double.
+- Flight Point Reminder now alerts once when entering a zone with an unlearned flight point and adds
+  a learn hint to existing flight-master pin tooltips.
+- Flight Point Reminder remembers opened flight maps across reloads, including existing saved flight
+  points.
+- Flight Point Reminder no longer repeats "the" in reminders for The Sepulcher and other towns whose
+  names start with "The ".
+- Buff Thanks thanks the player who buffed you with its emote and skips unknown casters.
+- Settings search reveals the module switch when a disabled module matches its description.
+- AuraBuffs window: an added consumable shows its icon and name instead of its item ID.
+- Forever skin: Quality of Life's tabs fit inside the window instead of running off its right edge.
+- Campfire: on the Round reminder, clicking the "Click to sit" words makes you sit, not just the
+  icon.
+- Buffs & Reminders: the reminder icons and their item menu now take the theme's Borders & Lines
+  color for their edges.
+- AuraBuffs: the Buffs & Consumables preview no longer shows Arcane Intellect (or any raid buff) you
+  do not track.
+- AuraBuffs: with Icon set to Last Used, the Weapon Enhancement Reminder shows and uses the stone or
+  oil you used last when you carry it.
+- Restock Reminder: counts equipped Rogue and Warrior thrown weapons as ammo, and groups ammo after
+  Class Reagents under class-coloured headings.
+- The Gear & Trinkets and Blessings bars no longer stay on screen after being switched off around
+  Unlock Mode.
+- Forever skin: every Quality of Life tab shows its full name.
+- Map: mount vendors such as Veron Amberstill no longer show as innkeeper pins.
+- Professions: the Disenchant window no longer blocks keyboard input while it is open.
 
 ## 1.1.17
 
