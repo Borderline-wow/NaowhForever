@@ -26,7 +26,7 @@ Shared/
   Game/Gear.lua    gear helpers on Shared.Items: gear slots, what fits where, what you wear, weapons in
                    short ("1h Sword"), what a class can use (ns.ClassCanUse)
   Game/Bags.lua    the item buttons in your bags, the game's, EllesmereUI's and Baganator's, for
-                   the marks painted on them (Bag Marks, Scrap Marker)
+                   the marks painted on them (Bag Marks, Junk Marker)
   Game/Consumables.lua your best food and drink in your bags (ns.BestFoodAndDrink), the healthstones,
                    healing and mana potions, best first (ns.HEALTHSTONES, ns.HEALING_POTIONS,
                    ns.MANA_POTIONS), the food spells and Well Fed buffs (ns.FOOD_SPELLS, ns.WELL_FED),

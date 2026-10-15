@@ -109,8 +109,8 @@ NaowhForever_QoL/
     Alts.lua            your characters per realm and faction (ns.AltRealm, ns.AltList, ns.OpenForgetAltMenu)
     LootFeed.lua        the Loot Feed, gold per hour and quick loot (ns.ResetLootFeedSession)
     Restock.lua         the Restock Reminder, Auto Repair and Auto Sell Junk
-    ScrapMarker.lua     the Scrap Marker (ns.ScrapMarker), read by Bag Space and the Scrap List
-    ScrapList.lua       the Scrap List window (ns.OpenScrapList, /nf scrap)
+    ScrapMarker.lua     the Junk Marker (ns.ScrapMarker), read by Bag Space and the Junk List
+    ScrapList.lua       the Junk List window (ns.OpenScrapList, /nf junk)
     Mail.lua            Alts and Attach buttons at the mailbox, the expiring mail warning
   Travel/
     FlightData.lua      each flight route's flown length (ns.FLIGHT_ROUTES), generated
@@ -594,7 +594,7 @@ NaowhForever_QoL/
   (`Parts.HudBackdrop`); the icons keep their own edges in each. Its Font Size is the header's
   (12 is the size its other measures are drawn for); the bag, the header line and the prices
   scale with it. The card is the house panel at the Flight Timer's fill (0.85) round a slim
-  header (the bag, free slots out of your total, Scrap Marker's "+N", the Stack button) over a
+  header (the bag, free slots out of your total, Junk Marker's "+N", the Stack button) over a
   cell per item (its icon, its marks, its price under it).
 - Bag Space's cells and gap shrink with the Icon Size below 36 (the size the rest is drawn for):
   the gap, the price column and the price font follow it, to a floor, so a small row stays
@@ -706,23 +706,26 @@ NaowhForever_QoL/
 - Quick Attach puts in one stack at a time, from a scan made at the click: each is checked in its bag slot and on the cursor before it goes in, and the next goes only once the last has landed (MAIL_SEND_INFO_UPDATE).
 - Its one `C_Container.PickupContainerItem` runs only from a click at the open mailbox, which is why the taint scan allows it.
 
-### Scrap Marker and Scrap List
+### Junk Marker and Junk List
+- Players see Junk Marker and Junk List; the code, setting keys (`scrap*`), saved marks, the `NFSCRAP:1:` share
+  string and Baganator's plugin id (`NaowhForeverScrap`) keep the old Scrap name, so saved settings, marks and
+  shared lists carry over. `/nf scrap` still opens the list.
 - Items are marked by ID, never by name: for the account (`scrapItems`) or for one character by its GUID (`scrapChars`).
 - With Save Marks off (the default) a mark lasts only while you hold the item: on `BAG_UPDATE_DELAYED`, a marked ID
   this character has had in its bags this session and no longer has loses its mark. Only IDs seen in the bags this
   session are dropped, so a login before the bags are read, another character's account mark, or a mark added from
-  the Scrap List for an item you do not carry are all kept.
-- Scrap sells `BATCH` (6) items at a time, `STEP_DELAY` (0.25 s) apart, and each sale checks again that you are still at the vendor, out of combat, with the same item in that slot. That is why the taint scan allows its one `C_Container.UseContainerItem`; keep that check right before the call.
+  the Junk List for an item you do not carry are all kept.
+- The Junk Marker sells `BATCH` (6) items at a time, `STEP_DELAY` (0.25 s) apart, and each sale checks again that you are still at the vendor, out of combat, with the same item in that slot. That is why the taint scan allows its one `C_Container.UseContainerItem`; keep that check right before the call.
 - A generation number drops a step left over from an earlier sale, so closing the vendor or entering combat ends a sale cleanly.
 - The X on a rule match keeps it (`scrapKeep`), so the rule leaves it alone until you mark it yourself.
 - `QUEST_GEAR` is gear a quest takes but the game files as a weapon or armour, not a quest item, so a rule
   would sell it: the Razormane wand, dagger and shield (5092-5094) for Weapons of Choice in the Barrens.
-  It is never scrap, even with an old mark, and can't be marked.
+  It is never junk, even with an old mark, and can't be marked.
 - Bag buttons, the game's, EllesmereUI's and Baganator's, are hooked once with HookScript, and only out of combat.
 - Marking Modifier is Alt or Ctrl. The game's own modified click still runs after the hook, so with Ctrl a click on gear also opens the dressing room (DRESSUP is Ctrl by default); the setting's help says so instead of blocking the game's handler.
-- Baganator gets the mark as a corner widget and the marks as a junk plugin, through `Baganator.API`. Neither can be taken back, so both are registered once, the first time the Scrap Marker is on, and answer nothing while it is off.
+- Baganator gets the mark as a corner widget and the marks as a junk plugin, through `Baganator.API`. Neither can be taken back, so both are registered once, the first time the Junk Marker is on, and answer nothing while it is off.
 - Baganator pools its item buttons and moves them between slots, so a marking click reads the button's bag and slot when it lands, not at the last paint. Its buttons for other characters' bags have no bag, so they get no click and no mark.
-- Baganator's junk plugin takes over its junk detection, so ours counts grey items with a sell price as junk too, as Baganator's own Poor quality does, and adds scrap on top.
+- Baganator's junk plugin takes over its junk detection, so ours counts grey items with a sell price as junk too, as Baganator's own Poor quality does, and adds marked junk on top.
 - `MAX_ITEM_ID` caps an imported ID at the largest 32-bit signed number, so a pasted list cannot ask for an impossible item.
 
 ### Skyborne Spots
