@@ -2,6 +2,10 @@
 local L = _G.NaowhForeverLocale or {}
 _G.NaowhForeverLocale = L
 
+L["Apply %s to every setting? Your positions, lists, notes and saved picks stay. Cannot be undone."] = true
+L["Applying a setup leaves your frames where you put them."] = true
+L["Keep My Positions"] = true
+L["Your frames stay where you put them"] = true
 L["Flip Row Direction"] = true
 L["Gives the icons their own height, cropped to fit instead of stretched."] = true
 L["How tall the icons are, with Icon Size as their width."] = true
