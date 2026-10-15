@@ -74,6 +74,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # As the release builds it (release.yml), so the zip check sees it.
+      - name: Build the search index
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q lua5.1
+          lua5.1 Tools/build/search_index.lua
+
       # -d: no upload. -l: skip the localization fetch, which needs the release secrets.
       - name: Package
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1

@@ -59,6 +59,13 @@ repos:
         files: \.(lua|toc|xml)$
         exclude: ^Core/Locales/|^NaowhForever_([a-zA-Z]{4}|Locales)/[a-zA-Z]{4}\.lua$|^NaowhForever_BiS/BiS/Data/BiS\.lua$
 
+      # The release builds the search index; git keeps only its empty placeholder.
+      - id: search-index-placeholder
+        name: search index stays the placeholder
+        language: pygrep
+        entry: 'SEARCH_INDEX = \{\s*$'
+        files: ^NaowhForever_SearchIndex/SearchIndex\.lua$
+
       - id: toc-files
         name: TOC files exist
         language: python

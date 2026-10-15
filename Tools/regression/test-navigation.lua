@@ -145,7 +145,9 @@ env.C_AddOns = { GetAddOnMetadata = function() return "test" end,
     LoadAddOn = function(name)
         if name ~= "NaowhForever_SearchIndex" then return false end
         indexLoads = indexLoads + 1
-        Load("NaowhForever_SearchIndex/SearchIndex.lua")
+        local index = assert(loadstring(dofile("Tools/build/search_index.lua"), "SearchIndex.lua"))
+        setfenv(index, env)
+        index()
         return true
     end }
 env.SlashCmdList = {}

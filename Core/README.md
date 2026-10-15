@@ -374,7 +374,7 @@ Search
 - A page its own builder draws (Settings, Profiles) names what is on it through `terms`; the
   Settings page runs its own sections into a recorder, so what is searched is what is drawn.
 - A module that is not loaded declares no pages, so it is searched from the generated index in the
-  load-on-demand `NaowhForever_SearchIndex` addon, loaded by the first search while a module is off.
+  load-on-demand `NaowhForever_SearchIndex` addon (built at release), loaded by the first search while a module is off.
   Its matches put it in a Turned Off group at the bottom of the sidebar, shown only while the search
   finds something in it; its page lists them and its header switch turns it on. Its name is also
   found on the Settings page, which says it is off.

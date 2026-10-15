@@ -185,6 +185,12 @@ jobs:
             printf 'Development build of %s.\n' "$GITHUB_SHA" > RELEASE_NOTES.md
           fi
 
+      # Built here over the committed placeholder (NaowhForever_SearchIndex/README.md).
+      - name: Build the search index
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q lua5.1
+          lua5.1 Tools/build/search_index.lua
+
       - name: Release
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
         with:

@@ -10,7 +10,7 @@ who never searches, or has every module on, never loads it.
 NaowhForever_SearchIndex/
   NaowhForever_SearchIndex.toc  its metadata (LoadOnDemand), and SearchIndex.xml
   SearchIndex.xml               every file, in load order
-  SearchIndex.lua               each module page's cards and rows (ns.SEARCH_INDEX), generated
+  SearchIndex.lua               each module page's cards and rows (ns.SEARCH_INDEX), built at release; git keeps an empty placeholder
 ```
 
 ## Why
@@ -19,6 +19,11 @@ NaowhForever_SearchIndex/
   nothing of its own to read. The build runs every module's files against stubs to declare them.
 - Each entry is a card id, the row's label (`false` for the card itself), its help, the card's name
   and the row's group, in English: the search translates them as it does a loaded page's.
-- `Tools/regression/test-search-index-current.lua` rebuilds the file and fails when it differs, so a
-  settings change that skips the rebuild is caught. Rebuild from the repo root with `Libs/`:
-  `lua5.1 Tools/build/search_index.lua`.
+- Git keeps `SearchIndex.lua` as an empty placeholder: the release (and the pull request `package`
+  check) builds the real one over it just before packaging. Committed in full, it went stale with
+  every settings change merged ahead of it. The packager leaves untracked files out, so the
+  placeholder has to stay tracked. A checkout searches no turned-off module until you build it from
+  the repo root, `lua5.1 Tools/build/search_index.lua`; don't commit the result (the
+  `search-index-placeholder` pre-commit hook refuses it).
+- `Tools/regression/test-search-index-build.lua` builds it on every pull request, so a file that no
+  longer loads against the build's stubs fails there, not at release.
