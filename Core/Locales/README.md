@@ -10,9 +10,6 @@ when the language in use is not English.
 ```
 Core/Locales/
   enUS.lua   the English catalog, and the fallback for every locale
-NaowhForever_Language/      always loaded, listed first in NaowhForever.toc's own Dependencies
-  Language.xml
-  Language.lua   nothing to run: the addon holds NaowhForeverLanguageDB, the language picked in Settings
 NaowhForever_Locales/        load on demand, one addon for every language
   NaowhForever_Locales.toc   lists every <code>.lua
   deDE.lua    the strings
@@ -30,13 +27,17 @@ NaowhForever_Locales/        load on demand, one addon for every language
 ## Why
 
 - The language is the one picked in Settings (Language), else the client's. Core.lua picks it before
-  any file reads a string, because most files translate their strings once, as they load. A pick
-  saved in Naowh Forever's own saved variables would come too late: they load after its files run.
-  So the pick lives in `NaowhForever_Language`, a tiny addon Naowh Forever requires (`##
-  Dependencies`), whose saved variables are loaded before Naowh Forever's first file. It ships in
-  every release the same as any other part of the addon, so this is a real requirement, not an
-  OptionalDep: if it is ever missing the whole addon stays off instead of silently losing a saved
-  language. A new pick needs a /reload.
+  any file reads a string, because most files translate their strings once, as they load. The pick
+  is saved for this computer, in `NaowhForeverDB.account.language`, and `NaowhForever.toc` has
+  `## LoadSavedVariablesFirst: 1`, so the game loads `NaowhForeverDB` before the addon's first
+  file and Core.lua can read it there (`ns.LANGUAGE_PICK`). The Forever client's own addons use the
+  same TOC line. A new pick needs a /reload.
+- The pick used to live in its own always-loaded addon, `NaowhForever_Language`
+  (`NaowhForeverLanguageDB`), because without that TOC line the saved variables load after the
+  files. An old folder left behind loads after Naowh Forever now; at login its pick is copied into
+  `account.language` when none is saved yet, and the folder is retired with a reload offered, so
+  that pick is in use after the reload. Where the update removed the folder, its saved file is no
+  longer read and the language starts from the client's again.
 - The languages are one load-on-demand addon whose TOC lists every language file; Core.lua loads it
   with a single `LoadAddOn`, and only when the language is not English, so an English client parses
   none of it (EllesmereUI's locales addon works the same way). Every file in the TOC runs, but each

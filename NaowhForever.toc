@@ -3,7 +3,7 @@
 ## Notes: Naowh's Forever companion: the window every module shares.
 ## Author: Naowh
 ## Version: 1.1.17
-## Dependencies: NaowhForever_Language
+## LoadSavedVariablesFirst: 1
 ## OptionalDeps: NaowhUI_Media
 ## SavedVariables: NaowhForeverDB
 ## Group: NaowhForever

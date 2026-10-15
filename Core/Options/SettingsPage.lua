@@ -177,8 +177,7 @@ local LANGUAGE_VALUES, LANGUAGE_ORDER = (function()
         values[code] = ns.L(ns.LANGUAGE_NAMES[code])
         order[#order + 1] = code
     end
-    local saved = _G.NaowhForeverLanguageDB and _G.NaowhForeverLanguageDB.locale
-    return UI.KeepMissing(values, order, saved)
+    return UI.KeepMissing(values, order, ns.LANGUAGE_PICK)
 end)()
 
 local function WindowSection(W, parent, y)
@@ -194,10 +193,9 @@ local function WindowSection(W, parent, y)
         { type = "dropdown", text = "Language", values = LANGUAGE_VALUES, order = LANGUAGE_ORDER,
           tooltip = "The language of this addon. Game Language follows your game client. Saved for this "
           .. "computer.|n|nTakes effect after a /reload.",
-          getValue = function() return NaowhForeverLanguageDB and NaowhForeverLanguageDB.locale or AUTO end,
+          getValue = function() return ns.AccountSettings().language or AUTO end,
           setValue = function(v)
-              NaowhForeverLanguageDB = NaowhForeverLanguageDB or {}
-              NaowhForeverLanguageDB.locale = v ~= AUTO and v or nil
+              ns.AccountSettings().language = v ~= AUTO and v or nil
               ns.ConfirmReload(TEXT_LANGUAGE_RELOAD)
           end }
     )

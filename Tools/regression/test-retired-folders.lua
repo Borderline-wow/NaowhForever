@@ -10,10 +10,10 @@ local source = f:read("*a"):gsub("\r\n", "\n")
 f:close()
 
 local retired = assert(loadstring("return " .. assert(source:match("\nlocal RETIRED_ADDONS = (%b{})\n"), "RETIRED_ADDONS")))()
-local toCombat = assert(loadstring("return " .. assert(source:match("\nlocal RETIRED_TO_COMBAT = (%b{})\n"),
-    "RETIRED_TO_COMBAT")))()
 local text = assert(source:match('\nlocal TEXT_RETIRED = "([^"]+)"\n'), "TEXT_RETIRED")
 local combatText = assert(source:match('\nlocal TEXT_RETIRED_COMBAT = "([^"]+)"\n'), "TEXT_RETIRED_COMBAT")
+local retiredText = assert(loadstring("local TEXT_RETIRED_COMBAT = ...\nreturn "
+    .. assert(source:match("\nlocal RETIRED_TEXT = (%b{})\n"), "RETIRED_TEXT")))(combatText)
 local reloadText = assert(source:match('\nlocal TEXT_RETIRED_RELOAD = "([^"]+)"\n'), "TEXT_RETIRED_RELOAD")
 local body = assert(source:match("\n(local function RetireOldFolders%(%)\n.-\nend)\n"), "RetireOldFolders")
 
@@ -40,9 +40,9 @@ local function Run(exists, loaded)
         IsAddOnLoaded = function(addon) return loaded[addon] == true end,
         DisableAddOn = function(addon, who) w.disabled[addon] = who == nil end,
     }
-    local chunk = assert(loadstring("local ns, C_AddOns, RETIRED_ADDONS, RETIRED_TO_COMBAT, TEXT_RETIRED, "
-        .. "TEXT_RETIRED_COMBAT, TEXT_RETIRED_RELOAD = ...\n" .. body .. "\nRetireOldFolders()"))
-    chunk(ns, C_AddOns, retired, toCombat, text, combatText, reloadText)
+    local chunk = assert(loadstring("local ns, C_AddOns, RETIRED_ADDONS, RETIRED_TEXT, TEXT_RETIRED, "
+        .. "TEXT_RETIRED_RELOAD = ...\n" .. body .. "\nRetireOldFolders()"))
+    chunk(ns, C_AddOns, retired, retiredText, text, reloadText)
     return w
 end
 
@@ -62,7 +62,18 @@ check("and a reload is offered, the chat line still said", #w.reloads == 1 and w
 w = Run({ NaowhForever_SwingTimer = true }, {})
 check("an old Combat module's folder is said to be in Combat, not Quality of Life",
     #w.printed == 1 and w.printed[1] == combatText:format("NaowhForever_SwingTimer"))
-for addon in pairs(toCombat) do check(addon .. " is one of the retired folders", listed[addon]) end
+for addon in pairs(retiredText) do check(addon .. " is one of the retired folders", listed[addon]) end
+
+w = Run({ NaowhForever_Language = true }, { NaowhForever_Language = true })
+check("the old Language folder is said to be part of Naowh Forever, and a reload offered", #w.printed == 1
+    and w.printed[1] == retiredText.NaowhForever_Language:format("NaowhForever_Language")
+    and w.printed[1]:find("part of Naowh Forever:", 1, true) and #w.reloads == 1 and w.disabled.NaowhForever_Language)
+local tocFile = assert(io.open("NaowhForever.toc", "rb"))
+local toc = tocFile:read("*a")
+tocFile:close()
+check("the language pick loads with Naowh Forever's own saved variables, before its first file",
+    toc:find("\n## LoadSavedVariablesFirst: 1\r?\n") and not toc:find("NaowhForever_Language", 1, true)
+    and io.open("NaowhForever_Language/NaowhForever_Language.toc") == nil)
 
 w = Run({ NaowhForever_PvP = true, NaowhForever_SwingTimer = true, NaowhForever_TopBar = true },
     { NaowhForever_PvP = true, NaowhForever_SwingTimer = true, NaowhForever_TopBar = true })

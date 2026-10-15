@@ -56,11 +56,14 @@ local DAMAGE_METER_ADDON, GAME_METER_CVAR, GAME_METER_SAVED = "NaowhForever_Dama
     "damageMeterGameWas"
 local GLIMMER_ADDON, GLIMMER_SAVED = "NaowhForever_QoL", { "glimmerSoftCVars", "glimmerSparkleCVars" }
 local RETIRED_ADDONS = { "NaowhForever_Glimmer", "NaowhForever_GlimmerData", "NaowhForever_TopBar", "NaowhForever_GearSets",
-    "NaowhForever_Blessings", "NaowhForever_AuraBuffs", "NaowhForever_ThreatMeter", "NaowhForever_PvP", "NaowhForever_SwingTimer" }
-local RETIRED_TO_COMBAT = { NaowhForever_GearSets = true, NaowhForever_Blessings = true, NaowhForever_AuraBuffs = true,
-    NaowhForever_ThreatMeter = true, NaowhForever_PvP = true, NaowhForever_SwingTimer = true }
+    "NaowhForever_Blessings", "NaowhForever_AuraBuffs", "NaowhForever_ThreatMeter", "NaowhForever_PvP", "NaowhForever_SwingTimer",
+    "NaowhForever_Language" }
 local TEXT_RETIRED = "%s is now part of Quality of Life: delete its old folder from your AddOns folder."
 local TEXT_RETIRED_COMBAT = "%s is now part of Naowh Forever: Combat: delete its old folder from your AddOns folder."
+local RETIRED_TEXT = { NaowhForever_GearSets = TEXT_RETIRED_COMBAT, NaowhForever_Blessings = TEXT_RETIRED_COMBAT,
+    NaowhForever_AuraBuffs = TEXT_RETIRED_COMBAT, NaowhForever_ThreatMeter = TEXT_RETIRED_COMBAT,
+    NaowhForever_PvP = TEXT_RETIRED_COMBAT, NaowhForever_SwingTimer = TEXT_RETIRED_COMBAT,
+    NaowhForever_Language = "%s is now part of Naowh Forever: delete its old folder from your AddOns folder." }
 local TEXT_RETIRED_RELOAD = "Old Naowh Forever folders were switched off. Reload now to finish?"
 local ERR_NO_PROFILE = "no such profile"
 local TEXT_SECRET = "(withheld: this line contained a secret value)"
@@ -80,8 +83,10 @@ ns.MODULE_KEY = MODULE_KEY
 ns.MEDIA = MEDIA
 
 local function PickLocale()
-    local saved = _G.NaowhForeverLanguageDB
-    local pick = saved and saved.locale
+    local sv = _G.NaowhForeverDB
+    local account = type(sv) == "table" and sv.account
+    local pick = type(account) == "table" and account.language or nil
+    ns.LANGUAGE_PICK = pick
     if LANGUAGE_NAMES[pick or ""] then return pick end
     local client = GetLocale and GetLocale() or ENGLISH
     return LANGUAGE_NAMES[client] and client or ENGLISH
@@ -421,7 +426,7 @@ local function RetireOldFolders()
     for _, addon in ipairs(RETIRED_ADDONS) do
         if C_AddOns.DoesAddOnExist(addon) then
             C_AddOns.DisableAddOn(addon)
-            ns.Print(ns.L(RETIRED_TO_COMBAT[addon] and TEXT_RETIRED_COMBAT or TEXT_RETIRED):format(addon))
+            ns.Print(ns.L(RETIRED_TEXT[addon] or TEXT_RETIRED):format(addon))
             reload = reload or C_AddOns.IsAddOnLoaded(addon)
         end
     end
@@ -431,6 +436,8 @@ end
 local meterCheck = CreateFrame("Frame")
 meterCheck:RegisterEvent("PLAYER_LOGIN")
 meterCheck:SetScript("OnEvent", function()
+    local oldLanguage, account = _G.NaowhForeverLanguageDB, ns.AccountSettings()
+    if type(oldLanguage) == "table" and account.language == nil then account.language = oldLanguage.locale end
     RetireOldFolders()
     RestoreGameMeter()
     RestoreGlimmerSettings()

@@ -1,5 +1,5 @@
 -- Offline checks for the language Naowh Forever runs in: the client's or the one picked in Settings
--- (NaowhForever_Language), the translation addon Core.lua loads, and the fonts for
+-- (NaowhForeverDB.account.language, loaded before the first file), the translation addon Core.lua loads, and the fonts for
 -- CJK and Cyrillic text. Run from the repo root: lua Tools/regression/test-locales.lua
 
 local FONT_CLASSIC = "Friz Quadrata TT"
@@ -26,7 +26,7 @@ local function Load(client, picked)
     local loaded, filesRead = {}, {}
     local env = setmetatable({
         GetLocale = function() return client end,
-        NaowhForeverLanguageDB = picked and { locale = picked } or nil,
+        NaowhForeverDB = picked and { account = { language = picked } } or nil,
         STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF",
         CreateFrame = function()
             return setmetatable({}, { __index = function() return function() end end })
@@ -119,5 +119,19 @@ local values, order = wui.KeepMissing({ en = "English" }, { "en" }, "ghostCode")
 check("KeepMissing adds a stale saved value back in", values.ghostCode ~= nil and order[#order] == "ghostCode")
 local _, order2 = wui.KeepMissing({ en = "English" }, { "en" }, "en")
 check("and leaves a known value alone", order2[#order2] == "en" and #order2 == 1)
+
+-- An old NaowhForever_Language folder left behind loads after Naowh Forever; at login its pick is
+-- copied into the account once, when none is saved there yet.
+local login = assert((Read("Core/Core.lua"):gsub("\r\n", "\n")):match("\n    (local oldLanguage, account = .-\n    if .- end)\n"),
+    "the old pick's copy at login")
+local function Migrate(old, saved)
+    local account = { language = saved }
+    local chunk = assert(loadstring("local _G, ns = ...\n" .. login))
+    chunk({ NaowhForeverLanguageDB = old }, { AccountSettings = function() return account end })
+    return account.language
+end
+check("an old Language folder's pick moves into the account", Migrate({ locale = "deDE" }, nil) == "deDE")
+check("a pick already saved in the account stays", Migrate({ locale = "deDE" }, "frFR") == "frFR")
+check("no old folder: nothing changes", Migrate(nil, nil) == nil and Migrate(nil, "itIT") == "itIT")
 
 print(checks .. " locale checks passed")

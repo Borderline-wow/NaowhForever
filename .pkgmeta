@@ -3,7 +3,6 @@ package-as: NaowhForever
 # Modules shipped as their own addons, beside NaowhForever/ in the zip. Listed so each one
 # follows the modules it needs; the tests load them in this order.
 move-folders:
-  NaowhForever/NaowhForever_Language: NaowhForever_Language
   NaowhForever/NaowhForever_Locales: NaowhForever_Locales
   NaowhForever/NaowhForever_Professions: NaowhForever_Professions
   NaowhForever/NaowhForever_Training: NaowhForever_Training
