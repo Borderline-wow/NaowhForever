@@ -661,16 +661,26 @@ function ns.Border(frame, color, alpha)
         t:SetColorTexture(c.r, c.g, c.b, a)
         edges[i] = t
     end
-    edges[1]:SetPoint("TOPLEFT"); edges[1]:SetPoint("TOPRIGHT"); ns.Hairline(edges[1], "h")
-    edges[2]:SetPoint("BOTTOMLEFT"); edges[2]:SetPoint("BOTTOMRIGHT"); ns.Hairline(edges[2], "h")
-    edges[3]:SetPoint("TOPLEFT"); edges[3]:SetPoint("BOTTOMLEFT"); ns.Hairline(edges[3], "v")
-    edges[4]:SetPoint("TOPRIGHT"); edges[4]:SetPoint("BOTTOMRIGHT"); ns.Hairline(edges[4], "v")
-    return {
-        _frame = bf,
-        SetColor = function(_, r, g, b, a2)
-            for i = 1, BORDER_EDGES do edges[i]:SetColorTexture(r, g, b, a2 or 1) end
-        end,
-    }
+    local border = { _frame = bf, pixels = 1 }
+    local function Fit(edge, axis)
+        Register(edge, function(px)
+            local size = border.pixels * px
+            if axis == "h" then edge:SetHeight(size) else edge:SetWidth(size) end
+        end)
+    end
+    edges[1]:SetPoint("TOPLEFT"); edges[1]:SetPoint("TOPRIGHT"); Fit(edges[1], "h")
+    edges[2]:SetPoint("BOTTOMLEFT"); edges[2]:SetPoint("BOTTOMRIGHT"); Fit(edges[2], "h")
+    edges[3]:SetPoint("TOPLEFT"); edges[3]:SetPoint("BOTTOMLEFT"); Fit(edges[3], "v")
+    edges[4]:SetPoint("TOPRIGHT"); edges[4]:SetPoint("BOTTOMRIGHT"); Fit(edges[4], "v")
+    function border.SetColor(_, r, g, b, a2)
+        for i = 1, BORDER_EDGES do edges[i]:SetColorTexture(r, g, b, a2 or 1) end
+    end
+    function border.SetPixels(self, pixels)
+        if self.pixels == pixels then return end
+        self.pixels = pixels
+        FitOwner(bf)
+    end
+    return border
 end
 
 function ns.Solid(parent, layer, color, alpha)
