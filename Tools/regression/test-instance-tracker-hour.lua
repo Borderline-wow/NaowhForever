@@ -11,7 +11,7 @@ local function Slice(source, a, b)
     return source:sub(first, assert(source:find(b, first + #a, true), b) - 1)
 end
 
-local tracker = Read("NaowhForever_InstanceTracker/InstanceTracker.lua")
+local tracker = Read("NaowhForever_Utilities/InstanceTracker/InstanceTracker.lua")
 local code = Slice(tracker, "local function AccountHour(lists, now, hour)", "\nlocal function HourLists")
 assert(not code:find("trackAlts", 1, true), "Track Alts is not an input to the account count")
 code = code .. "\nreturn AccountHour\n"

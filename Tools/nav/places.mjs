@@ -9,7 +9,7 @@ import { pack } from './pack.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const map = Number(process.argv[2]);
 const r = await pack(map);
-const lua = await readFile(join(HERE, '..', '..', 'NaowhForever_Journeys', 'Data', 'Network.lua'), 'utf8');
+const lua = await readFile(join(HERE, '..', '..', 'NaowhForever_Utilities', 'Journeys', 'Data', 'Network.lua'), 'utf8');
 const names = {};
 for (const m of lua.matchAll(/\[(\d+)\] = \{ "((?:[^"\\]|\\.)*)"/g)) names[`f${m[1]}`] = m[2];
 const groups = [];

@@ -16,7 +16,7 @@ assert(loadfile("Libs/LibStub/LibStub.lua"))()
 assert(loadfile("Libs/LibSerialize/LibSerialize.lua"))()
 assert(loadfile("Libs/LibDeflate/LibDeflate.lua"))()
 
-local tracker = Read("NaowhForever_InstanceTracker/InstanceTracker.lua")
+local tracker = Read("NaowhForever_Utilities/InstanceTracker/InstanceTracker.lua")
 local code = Slice(tracker, "local NIT_PREFIX = ", "\n-- end Nova reset wire format")
     .. "\nreturn { Encode = NitEncode, Wire = NitWire, Decode = NitDecode,"
     .. " Incoming = NitIncoming, Outbound = NitOutbound, Announce = NitAnnounce,"

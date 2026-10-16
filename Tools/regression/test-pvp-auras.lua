@@ -190,6 +190,8 @@ local function Fixture(qol, pvp)
     env.opened = {}
     ns.OpenFromOptions = function(open) env.opened[#env.opened + 1] = "from options"; open() end
     ns.OpenMacroWindow = function(view) env.opened[#env.opened + 1] = view end
+    env.macrosOn = true
+    ns.ModuleOn = function(addon) return addon == "NaowhForever_Macros" and env.macrosOn end
     ns.Solid = function() return Frame("Texture") end
     ns.Border = function() return Frame("Border") end
     ns.Font = function() return Frame("FontString") end
@@ -422,10 +424,9 @@ do
     Check(forge and forge.needs() and forge.help:find("NF Focus", 1, true), "the Focus group points to NF Focus")
     forge.button()
     Check(env.opened[1] == "smart" and #env.opened == 1, "the button opens Macros on its Smart Macros tab")
-    local openMacros = ns.OpenMacroWindow
-    ns.OpenMacroWindow = nil
-    Check(not forge.needs(), "without the Macros module the button is greyed out")
-    ns.OpenMacroWindow = openMacros
+    env.macrosOn = false
+    Check(not forge.needs(), "with the Macros module off, though its addon is loaded, the button is greyed out")
+    env.macrosOn = true
 
     local function Keys(card)
         local keys, groups = {}, {}

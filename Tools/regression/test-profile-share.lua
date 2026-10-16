@@ -81,7 +81,9 @@ local function World()
         end,
         SwitchProfile = function(name) w.switched, w.active = name, name end,
         RefreshRuntime = function() w.refreshed = w.refreshed + 1 end,
+        ModuleOn = function(addon) return w.off[addon] ~= true end,
     }
+    w.off = {}
     w.ns = ns
     local env = setmetatable({ _G = { NaowhForever = ns }, UnitName = function() return "Glyadin" end,
         date = os.date, CopyTable = Copy }, { __index = _G })
@@ -405,6 +407,15 @@ Case("Library macros join yours; a name you have, or one that is no macro, stays
     assert(mine.PALADIN[1].body == "/cast Seal", "yours kept")
     assert(mine.PALADIN[3].name == "Wingsr" and mine.PALADIN[3].icon == nil and mine.PALADIN[3].pack == nil)
     assert(mine.MAGE[1].name == "Blink" and #mine.PALADIN == 3)
+end)
+
+Case("with Macros switched off, though its addon is loaded, no library macro is added", function()
+    local w = World()
+    local payload = Payload(w)
+    payload.parts.library.MAGE = { { name = "Blink", body = "/cast Blink" } }
+    w.off.NaowhForever_Macros = true
+    local _, added = w.ns.ImportProfile(payload, { library = true }, "L")
+    assert(added.library == 0 and w.db.account.libraryMacros.MAGE == nil, "nothing joins a switched-off Macros")
 end)
 
 Case("talent builds join yours when they can be taken; a class with no tree stays out", function()

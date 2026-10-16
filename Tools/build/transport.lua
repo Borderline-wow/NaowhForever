@@ -6,8 +6,8 @@ local function Load(path)
     setfenv(chunk, { _G = { NaowhForever = ns } })
     chunk()
 end
-Load("NaowhForever_Journeys/Constants.lua")
-Load("NaowhForever_Journeys/Data/Network.lua")
+Load("NaowhForever_Utilities/Journeys/Constants.lua")
+Load("NaowhForever_Utilities/Journeys/Data/Network.lua")
 Load("NaowhForever_QoL/Interface/TownTravel.lua")
 
 local timings = {}

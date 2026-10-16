@@ -523,8 +523,7 @@ Find("Apply").Click()
 check("applied: the window closes and the reload is offered", not window.shown and s.reloadAsked ~= nil)
 check("its modules on, the rest off, Forever, Minimalist", w.enabled.NaowhForever_QoL and w.enabled.NaowhForever_BiS
     and w.enabled.NaowhForever_DungeonJournal and not w.enabled.NaowhForever_Combat
-    and not w.enabled.NaowhForever_Discovery and not w.enabled.NaowhForever_GroupInspect
-    and not w.enabled.NaowhForever_ConsumableBar
+    and not w.enabled.NaowhForever_Discovery and not w.enabled.NaowhForever_Utilities
     and w.account.skin == "forever" and w.root.qol.preset == "minimalist" and w.account.setupBefore ~= nil)
 check("closed: the onboarding is seen, so it never opens by itself again", w.account.onboardingSeen == true
     and w.account.welcomeSeen == true)

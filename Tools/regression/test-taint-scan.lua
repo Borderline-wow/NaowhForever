@@ -65,14 +65,14 @@ local UNGUARDED_ALLOWED = {
         calls = { ["C_Container.PickupContainerItem"] = 1 } },
     ["NaowhForever_QoL/Loot/ScrapMarker.lua"] = { why = "CanSell checks the merchant and combat each item",
         calls = { ["C_Container.UseContainerItem"] = 1 } },
-    ["NaowhForever_ActionBars/Import.lua"] = {
+    ["NaowhForever_Utilities/ActionBars/Import.lua"] = {
         why = "Run is reached only through Sets.lua's Ready(), which refuses in combat, or as a test that changes nothing",
         calls = { CreateMacro = 1, SetBinding = 1, ["C_Spell.PickupSpell"] = 3, PickupMacro = 1,
             PickupAction = 2, PlaceAction = 1 } },
-    ["NaowhForever_ActionBars/Pending.lua"] = {
+    ["NaowhForever_Utilities/ActionBars/Pending.lua"] = {
         why = "FillPending runs from SpellsReady, which waits for PLAYER_REGEN_ENABLED in combat",
         calls = { PickupAction = 1, PlaceAction = 1 } },
-    ["NaowhForever_Macros/Smart.lua"] = { why = "Update() and the Pickup entry points refuse in combat",
+    ["NaowhForever_Utilities/Macros/Smart.lua"] = { why = "Update() and the Pickup entry points refuse in combat",
         calls = { EditMacro = 1, CreateMacro = 1 } },
     ["Core/Options/GameMenu.lua"] = { why = "our game menu button's own click",
         calls = { HideUIPanel = 1 } },

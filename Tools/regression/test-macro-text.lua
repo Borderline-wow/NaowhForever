@@ -8,7 +8,7 @@ local env = setmetatable({
     strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end,
 }, { __index = _G })
 env._G = env
-dofile("Tools/regression/load_files.lua")({ "NaowhForever_Macros/Constants.lua", "NaowhForever_Macros/Text.lua" }, env)
+dofile("Tools/regression/load_files.lua")({ "NaowhForever_Utilities/Macros/Constants.lua", "NaowhForever_Utilities/Macros/Text.lua" }, env)
 local Text = ns.MacroText
 
 local KNOWN = {}

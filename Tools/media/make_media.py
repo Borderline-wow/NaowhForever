@@ -845,7 +845,7 @@ for name, pixel in SETUP_ICONS.items():
     write_tga(os.path.join(SETUP_OUT, name + ".tga"), 64, pixel)
 
 
-JOURNEYS_OUT = os.path.join(paths.ROOT, "NaowhForever_Journeys", "Media")
+JOURNEYS_OUT = os.path.join(paths.ROOT, "NaowhForever_Utilities", "Journeys", "Media")
 JOURNEY_ICONS = {
     "walk": line_icon(dot(0.5, 0.2, 0.085), path([(0.5, 0.34), (0.5, 0.58)]), path([(0.5, 0.58), (0.36, 0.86)]),
                       path([(0.5, 0.58), (0.64, 0.86)]), path([(0.32, 0.46), (0.68, 0.46)]), width=0.095),

@@ -12,8 +12,9 @@ f:close()
 local retired = assert(loadstring("return " .. assert(source:match("\nlocal RETIRED_ADDONS = (%b{})\n"), "RETIRED_ADDONS")))()
 local text = assert(source:match('\nlocal TEXT_RETIRED = "([^"]+)"\n'), "TEXT_RETIRED")
 local combatText = assert(source:match('\nlocal TEXT_RETIRED_COMBAT = "([^"]+)"\n'), "TEXT_RETIRED_COMBAT")
-local retiredText = assert(loadstring("local TEXT_RETIRED_COMBAT = ...\nreturn "
-    .. assert(source:match("\nlocal RETIRED_TEXT = (%b{})\n"), "RETIRED_TEXT")))(combatText)
+local utilitiesText = assert(source:match('\nlocal TEXT_RETIRED_UTILITIES = "([^"]+)"\n'), "TEXT_RETIRED_UTILITIES")
+local retiredText = assert(loadstring("local TEXT_RETIRED_COMBAT, TEXT_RETIRED_UTILITIES = ...\nreturn "
+    .. assert(source:match("\nlocal RETIRED_TEXT = (%b{})\n"), "RETIRED_TEXT")))(combatText, utilitiesText)
 local reloadText = assert(source:match('\nlocal TEXT_RETIRED_RELOAD = "([^"]+)"\n'), "TEXT_RETIRED_RELOAD")
 local body = assert(source:match("\n(local function RetireOldFolders%(%)\n.-\nend)\n"), "RetireOldFolders")
 
@@ -22,10 +23,15 @@ for _, addon in ipairs(retired) do listed[addon] = true end
 check("the old Top Bar folder is retired", listed.NaowhForever_TopBar)
 check("as are the old Glimmer folders", listed.NaowhForever_Glimmer and listed.NaowhForever_GlimmerData)
 check("and the Top Bar ships no addon of its own", io.open("NaowhForever_TopBar/NaowhForever_TopBar.toc") == nil)
-for _, name in ipairs({ "GearSets", "Blessings", "AuraBuffs", "ThreatMeter", "PvP", "SwingTimer" }) do
+local HOSTED = { GearSets = "Combat", Blessings = "Combat", AuraBuffs = "Combat", ThreatMeter = "Combat", PvP = "Combat",
+    SwingTimer = "Combat", ConsumableBar = "Combat", InstanceTracker = "Utilities", Journeys = "Utilities",
+    Macros = "Utilities", GroupInspect = "Utilities", ActionBars = "Utilities" }
+for name, host in pairs(HOSTED) do
     local addon = "NaowhForever_" .. name
-    check(addon .. " is retired: it ships inside NaowhForever_Combat now", listed[addon]
-        and io.open(addon .. "/" .. addon .. ".toc") == nil and io.open("NaowhForever_Combat/" .. name .. "/" .. name .. ".xml") ~= nil)
+    check(addon .. " is retired: it ships inside NaowhForever_" .. host .. " now", listed[addon]
+        and io.open(addon .. "/" .. addon .. ".toc") == nil
+        and io.open("NaowhForever_" .. host .. "/" .. name .. "/" .. name .. ".xml") ~= nil
+        and retiredText[addon] == (host == "Combat" and combatText or utilitiesText))
 end
 
 local function Run(exists, loaded)
@@ -62,6 +68,10 @@ check("and a reload is offered, the chat line still said", #w.reloads == 1 and w
 w = Run({ NaowhForever_SwingTimer = true }, {})
 check("an old Combat module's folder is said to be in Combat, not Quality of Life",
     #w.printed == 1 and w.printed[1] == combatText:format("NaowhForever_SwingTimer"))
+w = Run({ NaowhForever_Macros = true }, { NaowhForever_Macros = true })
+check("an old Utilities module's folder is said to be in Utilities, and a reload offered",
+    #w.printed == 1 and w.printed[1] == utilitiesText:format("NaowhForever_Macros")
+    and w.printed[1]:find("Naowh Forever: Utilities", 1, true) and #w.reloads == 1 and w.disabled.NaowhForever_Macros)
 for addon in pairs(retiredText) do check(addon .. " is one of the retired folders", listed[addon]) end
 
 w = Run({ NaowhForever_Language = true }, { NaowhForever_Language = true })
@@ -122,8 +132,8 @@ on, cards = Guard(true, true, true)
 check("the old addon loaded this session: the QoL Top Bar stays off", not on)
 check("and leaves the card to the old addon, which declares it after QoL", cards == 0)
 
--- The Combat modules do the same: each asks once, as it loads, whether its old folder is enabled
--- (OLD_COPY on its table). While it is, its switch reads off and its card files declare nothing.
+-- The Combat and Utilities modules do the same: each asks once, as it loads, whether its old folder is
+-- enabled (OLD_COPY on its table). While it is, its switch reads off and its card files declare nothing.
 local function Source(path)
     local file = assert(io.open(path, "rb"))
     local s = file:read("*a"):gsub("\r\n", "\n")
@@ -131,16 +141,17 @@ local function Source(path)
     return s
 end
 
-local COMBAT = { GearSets = { "GearSets", "G" }, Blessings = { "Blessings", "B" }, AuraBuffs = { "AuraBuffs", "A" },
-    ThreatMeter = { "ThreatMeter", "TM" }, PvP = { "PvP", "P" }, SwingTimer = { "SwingTimer", "ST" } }
+local SHORT = { GearSets = "G", Blessings = "B", AuraBuffs = "A", ThreatMeter = "TM", PvP = "P", SwingTimer = "ST",
+    ConsumableBar = "CB", InstanceTracker = "IT", Journeys = "Jy", Macros = "M", GroupInspect = "GI", ActionBars = "A" }
 local TocFiles = dofile("Tools/regression/toc_files.lua")
-for name, info in pairs(COMBAT) do
-    local main = Source("NaowhForever_Combat/" .. name .. "/" .. info[1] .. ".lua")
+for name, host in pairs(HOSTED) do
+    local info, folder = { name, SHORT[name] }, "NaowhForever_" .. host .. "/" .. name .. "/"
+    local main = Source(folder .. info[1] .. ".lua")
     check(name .. " asks whether its old folder is enabled", main:find('\nlocal OLD_ADDON = "NaowhForever_' .. name
         .. '"\nlocal OLD_COPY = C_AddOns.DoesAddOnExist(OLD_ADDON) and C_AddOns.GetAddOnEnableState(OLD_ADDON) > 0\n',
         1, true) and main:find("OLD_COPY = OLD_COPY", 1, true))
     local pages = 0
-    for _, path in ipairs(TocFiles("^NaowhForever_Combat/" .. name .. "/.*%.lua$")) do
+    for _, path in ipairs(TocFiles("^" .. folder .. ".*%.lua$")) do
         local s = Source(path)
         local at = s:find("Settings.Page(", 1, true)
         if at then
@@ -172,5 +183,25 @@ check("PvP with its old folder switched off: on as its switch says", pvpOn == tr
 pvpOn, auras = PvP(true)
 check("PvP with its old folder enabled: its switch reads off, its other settings as saved", pvpOn == false
     and auras ~= nil)
+
+local function ActionBars(enabled)
+    local ns = { FEATURES = { actionBars = { enabled = true } },
+        UI = { ModuleSettings = function(_, defaults) return { Get = function(k) return defaults[k] end } end } }
+    local env = setmetatable({ NaowhForever = ns, C_AddOns = {
+        DoesAddOnExist = function(addon) return addon == "NaowhForever_ActionBars" end,
+        GetAddOnEnableState = function(addon) return addon == "NaowhForever_ActionBars" and enabled and 2 or 0 end,
+    } }, { __index = _G })
+    env._G = env
+    local chunk = assert(loadfile("NaowhForever_Utilities/ActionBars/ActionBars.lua"))
+    setfenv(chunk, env)
+    chunk()
+    return ns.ActionBars.On(), ns.ActionBarSettings.Get("importMacros")
+end
+
+local barsOn, macros = ActionBars(false)
+check("Action Bars with its old folder switched off: on as its switch says", barsOn == true and macros == true)
+barsOn, macros = ActionBars(true)
+check("Action Bars with its old folder enabled: its switch reads off, its other settings as saved", barsOn == false
+    and macros == true)
 
 print(("test-retired-folders: %d checks passed"):format(checks))

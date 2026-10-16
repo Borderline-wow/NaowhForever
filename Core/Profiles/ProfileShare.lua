@@ -17,6 +17,7 @@ local MAX_PICKS = 50
 local MAX_QUEST_REWARDS = 2000
 local ZERO = "\0"
 local DEFAULT_PROFILE = "Default"
+local MACROS_ADDON = "NaowhForever_Macros"
 local IMPORTED_PROFILE = ns.L("Imported Profile")
 local IMPORTED_BUILD, IMPORTED_SPEC = ns.L("Imported Build"), ns.L("Imported")
 local SR_KEY, MACROS_KEY = "tankReminder", "macros"
@@ -739,7 +740,9 @@ function ns.ImportProfile(payload, wanted, name, overwrite)
     end
     local added = { bisLists = 0, library = 0, builds = 0 }
     if wanted.bisLists and type(parts.bisLists) == "table" then added.bisLists = AddBisLists(parts.bisLists) end
-    if wanted.library and ns.Macros and type(parts.library) == "table" then added.library = AddLibrary(parts.library) end
+    if wanted.library and ns.ModuleOn(MACROS_ADDON) and type(parts.library) == "table" then
+        added.library = AddLibrary(parts.library)
+    end
     if wanted.builds and ns.Training and type(parts.builds) == "table" then added.builds = AddBuilds(parts.builds) end
     if wanted.look and type(parts.look) == "table" then ImportLook(parts.look) end
     if kept then ns.PutPositionsBack(root, kept) end

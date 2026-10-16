@@ -1,6 +1,7 @@
 -- Loads the shared food lists, QoL's Food & Drink Bar and the Macros module's rules (Macros.lua through Smart.lua)
 -- against stubbed macro, bag and item APIs and checks what they write. Run from the repo root:
 -- lua Tools/regression/test-macros.lua
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local function Read(path)
     local f = assert(io.open(path, "rb"))
     local text = f:read("*a"); f:close()
@@ -20,7 +21,7 @@ local FOOD_DEFAULTS = (function()
     setfenv(chunk, { F = { foodBar = false } })
     return chunk()
 end)()
-for _, file in ipairs(MACRO_FILES) do sources[#sources + 1] = Read("NaowhForever_Macros/" .. file) end
+for _, file in ipairs(MACRO_FILES) do sources[#sources + 1] = Read("NaowhForever_Utilities/Macros/" .. file) end
 
 local FOOD, DRINK = "Food", "Drink"
 -- itemID -> { spell, required level }

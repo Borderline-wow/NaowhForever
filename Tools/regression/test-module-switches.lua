@@ -30,7 +30,7 @@ local ns = {
     Confirm = function(text, yes) confirms[#confirms + 1] = { text = text, yes = yes } end,
     ConfirmReload = function(text) reloads[#reloads + 1] = text end,
     AccountSettings = function() return {} end,
-    SettingsRoot = function() return {} end,
+    SettingsRoot = function() return { qol = qol, journal = journal } end,
 }
 local env = setmetatable({
     NaowhForever = ns,
@@ -55,7 +55,7 @@ local modules = assert(loadstring(Read("Core/Options/Modules.lua"), "Modules"))
 setfenv(modules, env)
 modules()
 local O = ns.Options
-for _, path in ipairs({ "Core/Onboarding/Setup.lua", "Core/Onboarding/ModuleState.lua" }) do
+for _, path in ipairs({ "Core/Features.lua", "Core/Onboarding/Setup.lua", "Core/Onboarding/ModuleState.lua" }) do
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()
@@ -93,10 +93,10 @@ qol.groupInspect = false
 check("its addon off: reads off", row.getValue() == false)
 row.setValue(true)
 check("its addon not loaded: turned on through the reload prompt, nothing changed until confirmed",
-    #confirms == 1 and qol.groupInspect == false and not enabled.NaowhForever_GroupInspect)
+    #confirms == 1 and qol.groupInspect == false and not enabled.NaowhForever_Utilities)
 confirms[1].yes()
 check("confirmed: its addon enabled, its setting on for after the reload, and a reload offered",
-    enabled.NaowhForever_GroupInspect == true and qol.groupInspect == true and #reloads == 1)
+    enabled.NaowhForever_Utilities == true and qol.groupInspect == true and #reloads == 1)
 
 local training = Module("Training Planner")
 enabled.NaowhForever_Training = true
@@ -114,5 +114,34 @@ enabled.NaowhForever_DungeonJournal, others.NaowhForever_DungeonJournal = nil, t
 loaded.NaowhForever_DungeonJournal, journal.enabled = true, true
 check("on for another character only: Settings reads it off, as this character's AddOn list does",
     row.getValue() == false and O.ModuleOn(journalMod) == false)
+
+loaded.NaowhForever_Utilities, loaded.NaowhForever_BiS, qol.groupInspect = true, false, false
+row = ModuleRow(inspect)
+row.setValue(true)
+check("Utilities loaded without the BiS List it needs: Group Inspect still turns on through the reload prompt",
+    #confirms == 3 and qol.groupInspect == false and not O.Loaded(inspect))
+loaded.NaowhForever_BiS = true
+local reloadsWas = #reloads
+row.setValue(true)
+check("with the BiS List loaded too: on at once, no prompt and no reload", #confirms == 3 and qol.groupInspect == true
+    and #reloads == reloadsWas and enabled.NaowhForever_Utilities and row.getValue() == true)
+row.setValue(false)
+check("and off at once, Utilities left enabled", #confirms == 3 and qol.groupInspect == false
+    and enabled.NaowhForever_Utilities and #reloads == reloadsWas)
+
+enabled.NaowhForever_BiS, qol.bis = nil, false
+row.setValue(true)
+check("the BiS List switched off earlier, still loaded: Group Inspect on brings it back, at once", #confirms == 3
+    and qol.groupInspect == true and qol.bis == true and enabled.NaowhForever_BiS and #reloads == reloadsWas)
+
+loaded.NaowhForever_BiS = false
+row.setValue(false)
+check("off without the BiS List loaded: its switch only, no prompt, no reload", #confirms == 3
+    and qol.groupInspect == false and #reloads == reloadsWas and enabled.NaowhForever_Utilities)
+qol.groupInspect, enabled.NaowhForever_BiS = true, nil
+check("its switch on but the BiS List out of the AddOn list: the row reads off, as nothing of it runs",
+    row.getValue() == false)
+enabled.NaowhForever_BiS = true
+check("the BiS List listed again: on after the reload", row.getValue() == true)
 
 print(("test-module-switches: %d checks passed"):format(checks))

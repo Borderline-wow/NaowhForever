@@ -202,7 +202,10 @@ function Setup.Toggle(picks, id, on)
 end
 
 local function Loaded(m)
-    return C_AddOns.IsAddOnLoaded(m.host or m.addon)
+    for _, addon in ipairs(ns.LinkedAddons(m.addon, true)) do
+        if not C_AddOns.IsAddOnLoaded(ns.ModuleHost(addon) or addon) then return false end
+    end
+    return true
 end
 
 function Setup.Plan(picks)

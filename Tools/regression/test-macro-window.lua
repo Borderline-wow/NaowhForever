@@ -3,6 +3,7 @@
 -- game's macros. Every tab is drawn and its controls used: My Macros with Simple's form and Advanced's
 -- Build and Simulate, the Smart Macros, the Library that starts empty and fills from the pack and from
 -- the player's own, and a share string that round-trips.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local Load = dofile("Tools/regression/load_files.lua")
 
 local checks = 0
@@ -290,7 +291,7 @@ env.issecurevariable = function(key) return key ~= "SLASH_DBM1" end
 
 -- The module's files as Macros.xml lists them, all but its settings page (no Shared Settings here).
 local MACRO_FILES = {}
-for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Macros/.*%.lua$")) do
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Utilities/Macros/.*%.lua$")) do
     if not path:find("SettingsPage%.lua$") then MACRO_FILES[#MACRO_FILES + 1] = path end
 end
 -- Shared as Shared.xml lists it, all but its settings pages and the item data the window never reads.

@@ -146,10 +146,11 @@ comment, sent back for changes, or merged and fixed up by me.
   `.pkgmeta` after the modules it needs, `addon =` on its entry in `MODULES`
   (`Core/Options/Modules.lua`; `needs =` too when it cannot work without another module),
   and its item in the onboarding's list (`Core/Onboarding/Setup.lua`).
-- A module can instead ship inside a combined addon, as the Combat modules do: its folder goes
-  inside that addon and its XML in the addon's XML, and its `MODULES` entry keeps its own
+- A module can instead ship inside a combined addon, as the Combat and Utilities modules do: its
+  folder goes inside that addon and its XML in the addon's XML, and its `MODULES` entry keeps its own
   `addon =` name and adds `host =` with the combined addon. `NaowhForever_Combat/README.md` has
-  how its switch and the combined addon's AddOns list entry follow each other.
+  how its switch and the combined addon's AddOns list entry follow each other, and
+  `NaowhForever_Utilities/README.md` how a module there that `needs` another addon stays inert without it.
 - A new global the addon writes goes in `globals` in `.luacheckrc`, a new game API it
   reads in `read_globals`.
 

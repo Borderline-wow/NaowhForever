@@ -2,7 +2,9 @@
 -- addon its TOC lists under Dependencies, so turning any other module off cannot break it. The
 -- core and every module may read a field from elsewhere only behind a nil guard (ns.X and,
 -- if ns.X then, if not ns.X then return, ns.X ~= nil, type(ns.X), ns.X or, or a local copy of
--- ns.X checked before its first use). Quality of Life (NaowhForever_QoL) is optional too: with it
+-- ns.X checked before its first use). A module inside a combined addon may also read what the addons
+-- its MODULES entry `needs` define: it loads nothing while one is missing (test-group-inspect-data.lua
+-- checks Group Inspect without the BiS List). Quality of Life (NaowhForever_QoL) is optional too: with it
 -- off, nothing else may read its fields unguarded or at load, so the base and every module that
 -- does not list it load and run without it. Run from the repo root:
 --   lua5.1 Tools/regression/test-module-boundaries.lua
@@ -23,7 +25,7 @@ local ALLOWED = {
     { addon = "NaowhForever_DungeonJournal", field = "RemoveBisItem", file = "NaowhForever_DungeonJournal/View/ItemMenu.lua",
       reason = "the item menu offers it only when Loot.BisOn: the BiS List loaded and on" },
     { addon = "NaowhForever", field = "Macros", file = "Core/Profiles/ProfileShare.lua",
-      reason = "AddLibrary runs only behind wanted.library and ns.Macros" },
+      reason = "AddLibrary runs only behind wanted.library and ns.ModuleOn, the Macros module on" },
     { addon = "NaowhForever", field = "TrainingBuilds", file = "Core/Profiles/ProfileShare.lua",
       reason = "AddBuilds runs only behind ns.Training, which the same addon defines" },
     { addon = "NaowhForever", field = "Training", file = "Core/Profiles/ProfileShare.lua",
@@ -47,7 +49,7 @@ local ALLOWED = {
     { addon = "NaowhForever_Combat", field = "[BUILD[shown]]", file = "NaowhForever_Combat/AuraBuffs/UI/Window.lua",
       reason = "both page builders BUILD names are defined in UI/WindowPages.lua, the same addon" },
     { addon = "NaowhForever_Combat", field = "OpenMacroWindow", file = "NaowhForever_Combat/PvP/UI/AurasPage.lua",
-      reason = "the Open Forge button is disabled unless ForgeReady sees ns.OpenMacroWindow" },
+      reason = "the Open Forge button is disabled unless ForgeReady sees the Macros module on (ns.ModuleOn)" },
 }
 
 local KNOWN = {}
@@ -337,6 +339,19 @@ local function Closure(a)
     return set
 end
 
+local MODULES = assert(loadstring("return " .. assert(Read("Core/Options/Modules.lua"):match("\nlocal MODULES = (%b{})\n"),
+    "MODULES")))()
+local NEEDS = {}
+for _, mod in ipairs(MODULES) do
+    if mod.host and mod.needs then NEEDS[mod.host .. "/" .. (mod.addon:gsub("^NaowhForever_", "")) .. "/"] = mod.needs end
+end
+
+local function NeedsOf(path)
+    for folder, needs in pairs(NEEDS) do
+        if path:sub(1, #folder) == folder then return needs end
+    end
+end
+
 local function Lookup(list, addon, field, file)
     for _, entry in ipairs(list) do
         if entry.addon == addon and entry.field == field and entry.file == file then return entry end
@@ -367,6 +382,11 @@ for _, a in ipairs(addons) do
         if not ok then
             for name in pairs(loaded) do
                 if byName[name] and byName[name].defines[r.field] then ok = true break end
+            end
+        end
+        for _, need in ipairs(not ok and NeedsOf(r.file) or {}) do
+            for name in pairs(byName[need] and Closure(byName[need]) or {}) do
+                if byName[name].defines[r.field] then ok = true end
             end
         end
         if not ok then

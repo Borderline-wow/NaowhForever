@@ -92,8 +92,8 @@ untilReset = 3 * 86400
 dofile("NaowhForever_QoL/Travel/TransportData.lua")
 dofile("NaowhForever_QoL/Interface/TownTravel.lua")
 ns.Journeys = {}
-dofile("NaowhForever_Journeys/Constants.lua")
-dofile("NaowhForever_Journeys/Data/Network.lua")
+dofile("NaowhForever_Utilities/Journeys/Constants.lua")
+dofile("NaowhForever_Utilities/Journeys/Data/Network.lua")
 local total, stops = 0, {}
 for map, pins in pairs(ns.TownTravel) do
     for index, pin in ipairs(pins) do

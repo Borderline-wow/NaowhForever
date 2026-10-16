@@ -37,13 +37,13 @@ local function RunTimers()
 end
 env.debugprofilestop = function() return 0 end
 
-Load("NaowhForever_Journeys/Constants.lua")
-Load("NaowhForever_Journeys/Data/Network.lua")
+Load("NaowhForever_Utilities/Journeys/Constants.lua")
+Load("NaowhForever_Utilities/Journeys/Data/Network.lua")
 Load("NaowhForever_JourneysData/Data.lua")
 for line in Read("NaowhForever_JourneysData/JourneysData.xml"):gmatch('file="Data\\(Map2991[^"]*)"') do
     Load("NaowhForever_JourneysData/Data/" .. line)
 end
-Load("NaowhForever_Journeys/Walk.lua")
+Load("NaowhForever_Utilities/Journeys/Walk.lua")
 local Walk = ns.Journeys.Walk
 
 local ZEPHRAS = 2991

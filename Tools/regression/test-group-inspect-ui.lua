@@ -322,7 +322,7 @@ env._G = env
 -------------------------------------------------------------------------------
 --  Loading: off, nothing made, nothing listened to
 -------------------------------------------------------------------------------
-local mine = TocFiles("^NaowhForever_GroupInspect/.*%.lua$")
+local mine = TocFiles("^NaowhForever_Utilities/GroupInspect/.*%.lua$")
 local ORDER = { "/GroupInspect%.lua$", "/Constants%.lua$", "/Data/Preview%.lua$", "/Records%.lua$", "/Inspect%.lua$",
     "/PreviewGroup%.lua$", "/Stats%.lua$", "/OwnStats%.lua$", "/Message%.lua$", "/Share%.lua$", "/View/Style%.lua$",
     "/View/Texts%.lua$", "/View/Parts%.lua$", "/View/Pill%.lua$", "/View/Gear%.lua$", "/View/Card%.lua$",
@@ -386,18 +386,21 @@ local list = assert(core:match("local MODULES = (%b{})"))
 local MODULES = assert(loadstring("return " .. list))()
 local module
 for _, mod in ipairs(MODULES) do if mod.name == "Group Inspect" then module = mod end end
-check("a module addon of its own under Utilities, needing BiS, switched by groupInspect", module
-    and module.group == "UTILITIES" and module.addon == "NaowhForever_GroupInspect" and module.needs[1] == "NaowhForever_BiS"
+check("a module of the Utilities addon, under Utilities, needing BiS, switched by groupInspect", module
+    and module.group == "UTILITIES" and module.addon == "NaowhForever_GroupInspect"
+    and module.host == "NaowhForever_Utilities" and module.needs[1] == "NaowhForever_BiS"
     and module.settings == "QoLSettings" and module.enabledKey == "groupInspect")
-local toc = Source("NaowhForever_GroupInspect/NaowhForever_GroupInspect.toc")
+local toc = Source("NaowhForever_Utilities/NaowhForever_Utilities.toc")
 local djToc = Source("NaowhForever_DungeonJournal/NaowhForever_DungeonJournal.toc")
-check("its TOC: the journal's Interface and Version, needing NaowhForever and BiS, loading its XML",
+check("Utilities' TOC: the journal's Interface and Version, needing only NaowhForever, BiS loaded first when it is on",
     toc:match("## Interface:[^%c]*") == djToc:match("## Interface:[^%c]*")
     and toc:match("## Version:[^%c]*") == djToc:match("## Version:[^%c]*")
-    and toc:find("## Dependencies: NaowhForever, NaowhForever_BiS", 1, true)
-    and toc:find("## Group: NaowhForever", 1, true) and toc:find("GroupInspect.xml", 1, true))
-check("packaged as its own addon, and no longer loaded by BiS", Source(".pkgmeta"):find(
-    "NaowhForever/NaowhForever_GroupInspect: NaowhForever_GroupInspect", 1, true)
+    and toc:find("## Dependencies: NaowhForever\r?\n") and toc:find("## OptionalDeps: NaowhForever_BiS", 1, true)
+    and toc:find("## Group: NaowhForever", 1, true)
+    and Source("NaowhForever_Utilities/Utilities.xml"):find('<Include file="GroupInspect\\GroupInspect.xml"/>', 1, true))
+check("packaged inside Utilities, and not loaded by BiS", Source(".pkgmeta"):find(
+    "NaowhForever/NaowhForever_Utilities: NaowhForever_Utilities", 1, true)
+    and not Source(".pkgmeta"):find("NaowhForever_GroupInspect", 1, true)
     and not Source("NaowhForever_BiS/NaowhForever_BiS.toc"):find("GroupInspect", 1, true))
 check("its window from /nfgroup, the Top Bar and its minimap button", module.command == "group"
     and module.short == "Group" and module.open == "ToggleGroupInspect" and module.icon ~= nil

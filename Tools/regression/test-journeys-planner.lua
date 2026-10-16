@@ -13,8 +13,8 @@ local function Check(ok, label) assert(ok, label); checks = checks + 1 end
 
 local ns = { Journeys = {} }
 local env = setmetatable({ _G = { NaowhForever = ns } }, { __index = _G })
-for _, path in ipairs({ "NaowhForever_Journeys/Constants.lua", "NaowhForever_Journeys/Data/Network.lua",
-        "NaowhForever_Journeys/Planner.lua" }) do
+for _, path in ipairs({ "NaowhForever_Utilities/Journeys/Constants.lua", "NaowhForever_Utilities/Journeys/Data/Network.lua",
+        "NaowhForever_Utilities/Journeys/Planner.lua" }) do
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()
@@ -133,7 +133,7 @@ local ship = ns.JourneyNetwork.ships[3]
 Check(math.abs(P.Sail(nil, ship, 1, 2) + P.Sail(nil, ship, 2, 1) + ship[3][6] + ship[4][6] - P.Period(nil, ship)) < 0.01,
     "there and back again is one period")
 
-local planner = Read("NaowhForever_Journeys/Planner.lua")
+local planner = Read("NaowhForever_Utilities/Journeys/Planner.lua")
 Check(not planner:find("ship.docks", 1, true), "the shared network table is never written")
 
 print(("journeys planner: %d checks passed"):format(checks))

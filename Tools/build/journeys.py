@@ -9,7 +9,7 @@ lists by hand (ROUTES): each dock is a node of the path with a delay.
 Positions stay in world yards (x north, y west, as the game gives them); the addon turns them
 into map positions with C_Map when it needs to.
 
-Writes NaowhForever_Journeys/Data/Network.lua.
+Writes NaowhForever_Utilities/Journeys/Data/Network.lua.
 
 Usage: python Tools/build/journeys.py [--build 1.60.1.70338]
 """
@@ -26,7 +26,7 @@ from journal import ROOT, header, write  # noqa: E402
 from travel import ROUTES, stops  # noqa: E402
 from wowhead import lua_string  # noqa: E402
 
-OUT = ROOT / "NaowhForever_Journeys" / "Data" / "Network.lua"
+OUT = ROOT / "NaowhForever_Utilities" / "Journeys" / "Data" / "Network.lua"
 TOWNS = ROOT / "Shared" / "Game" / "Towns.lua"
 NPC_REACH = 200   # yards: a flight master this close to a flight point, on its side, is the one you talk to
 CONTINENTS = (0, 1, 2991)

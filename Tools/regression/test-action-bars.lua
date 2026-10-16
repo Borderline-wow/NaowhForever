@@ -1,8 +1,9 @@
 -- Bar sets against a small fake of the action bars, spellbook, macros and cursor, driven
 -- through the /nf bars command the way a player would.
 -- The module's rules as ActionBars.xml lists them, and the saved sets page; not its window.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local FILES = { "Core/Features.lua" }
-for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_ActionBars/.*%.lua$")) do
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Utilities/ActionBars/.*%.lua$")) do
     if not path:find("/View/") and (not path:find("/UI/") or path:find("/UI/SetsPage%.lua$")) then
         FILES[#FILES + 1] = path
     end

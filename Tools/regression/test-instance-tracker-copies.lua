@@ -11,7 +11,7 @@ local function Slice(source, a, b)
     return source:sub(first, assert(source:find(b, first + #a, true), b) - 1)
 end
 
-local tracker = Read("NaowhForever_InstanceTracker/InstanceTracker.lua")
+local tracker = Read("NaowhForever_Utilities/InstanceTracker/InstanceTracker.lua")
 local code = Slice(tracker, "local function SamePlace(open, name, mapID, difficulty)", "\n\nlocal function LastRun")
     .. "\n"
     .. Slice(tracker, "local function CopyKey(mapID, difficulty, name)", "\n\nlocal function ByAt")

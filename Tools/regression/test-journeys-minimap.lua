@@ -58,7 +58,7 @@ local env = setmetatable({
     end,
 }, { __index = _G })
 env._G = env
-for _, path in ipairs({ "NaowhForever_Journeys/UI/MapRoute.lua", "NaowhForever_Journeys/UI/MinimapRoute.lua" }) do
+for _, path in ipairs({ "NaowhForever_Utilities/Journeys/UI/MapRoute.lua", "NaowhForever_Utilities/Journeys/UI/MinimapRoute.lua" }) do
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()

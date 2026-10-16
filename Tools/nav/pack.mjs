@@ -18,7 +18,7 @@ import { AREA_WATER, AREA_OCEAN } from './tile.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
-const NETWORK = join(ROOT, 'NaowhForever_Journeys', 'Data', 'Network.lua');
+const NETWORK = join(ROOT, 'NaowhForever_Utilities', 'Journeys', 'Data', 'Network.lua');
 const Q = 1;
 const ATTACH_REACH = 200;
 const PIER_REACH = 60;

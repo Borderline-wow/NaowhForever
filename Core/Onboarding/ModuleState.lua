@@ -54,9 +54,12 @@ local function Prompt()
 end
 
 function ns.ModuleListed(addon)
-    local m, me = byAddon[addon], UnitGUID("player")
-    if m then return Listed(m, me) end
-    return C_AddOns.GetAddOnEnableState(addon, me) > 0
+    local me = UnitGUID("player")
+    for _, name in ipairs(ns.LinkedAddons(addon, true)) do
+        local m = byAddon[name]
+        if m and not Listed(m, me) or not m and C_AddOns.GetAddOnEnableState(name, me) == 0 then return false end
+    end
+    return true
 end
 
 function ns.SetModuleState(addon, on)

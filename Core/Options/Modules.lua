@@ -53,7 +53,7 @@ local MODULES = {
           { name = "Map", reuse = true },
       } },
     { name = "Instance Tracker", group = "UTILITIES", navIcon = "person", settings = "InstanceTrackerSettings",
-      addon = "NaowhForever_InstanceTracker",
+      addon = "NaowhForever_InstanceTracker", host = "NaowhForever_Utilities",
       open = "ToggleInstanceTrackerWindow",
       command = "instance", short = "Instance", icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
       subtitle = "Visits, and how many new instances this account has entered this hour.",
@@ -78,7 +78,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Journeys", group = "UTILITIES", navIcon = "compass", settings = "JourneysSettings",
-      addon = "NaowhForever_Journeys",
+      addon = "NaowhForever_Journeys", host = "NaowhForever_Utilities",
       subtitle = "The fastest way anywhere: walking, flights, boats, zeppelins, the tram, portals and your Hearthstone.",
       tabs = {
           { name = "Settings", reuse = true },
@@ -95,7 +95,7 @@ local MODULES = {
           { name = "Rares", reuse = true },
       } },
     { name = "Consumable Bar", group = "COMBAT", navIcon = "heart", settings = "QoLSettings",
-      enabledKey = "consumableBar", addon = "NaowhForever_ConsumableBar",
+      enabledKey = "consumableBar", addon = "NaowhForever_ConsumableBar", host = "NaowhForever_Combat",
       subtitle = "Your consumables on a bar you can click.",
       tabs = {
           { name = "Settings", reuse = true },
@@ -123,7 +123,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Macros", group = "UTILITIES", navIcon = "pen", settings = "MacroSettings",
-      addon = "NaowhForever_Macros",
+      addon = "NaowhForever_Macros", host = "NaowhForever_Utilities",
       open = "OpenMacroWindow",
       command = "macros", short = "Macros", icon = "Interface\\Icons\\INV_Misc_Note_01",
       subtitle = "Your macros, checked and explained, and macros kept current for you.",
@@ -134,7 +134,8 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Group Inspect", group = "UTILITIES", navIcon = "group", settings = "QoLSettings",
-      enabledKey = "groupInspect", addon = "NaowhForever_GroupInspect", needs = { "NaowhForever_BiS" },
+      enabledKey = "groupInspect", addon = "NaowhForever_GroupInspect", host = "NaowhForever_Utilities",
+      needs = { "NaowhForever_BiS" },
       open = "ToggleGroupInspect",
       command = "group", short = "Group", icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
       subtitle = "Everyone in your party or raid: their Naowh Score, gear, talents and stats.",
@@ -142,7 +143,7 @@ local MODULES = {
           { name = "Settings", reuse = true },
       } },
     { name = "Action Bars", group = "UTILITIES", navIcon = "grid", settings = "ActionBarSettings",
-      addon = "NaowhForever_ActionBars",
+      addon = "NaowhForever_ActionBars", host = "NaowhForever_Utilities",
       open = "ToggleActionBarsWindow",
       command = "bars", short = "Bars", icon = "Interface\\Icons\\INV_Misc_Gear_01",
       subtitle = "Your action bars saved by name and put back whenever you want them.",
@@ -192,7 +193,11 @@ local function DisplayName(mod)
 end
 
 local function Loaded(mod)
-    return not mod.addon or C_AddOns.IsAddOnLoaded(mod.host or mod.addon)
+    if not mod.addon then return true end
+    for _, need in ipairs(mod.needs or {}) do
+        if not C_AddOns.IsAddOnLoaded(need) then return false end
+    end
+    return C_AddOns.IsAddOnLoaded(mod.host or mod.addon)
 end
 
 local function Has(list, value)
@@ -309,9 +314,16 @@ function ns.ModuleHost(addon)
     end
 end
 
+function ns.ModuleOn(addon)
+    for _, mod in ipairs(MODULES) do
+        if mod.addon == addon then return Loaded(mod) and ModuleOn(mod, UnitGUID("player")) == true end
+    end
+    return false
+end
+
 local function SetModuleOn(mod, on)
-    if mod.host and Loaded(mod) then
-        ns.SetModuleState(mod.addon, on)
+    if mod.host and C_AddOns.IsAddOnLoaded(mod.host) and (not on or Loaded(mod)) then
+        for _, m in ipairs(on and Linked(mod, true) or { mod }) do ns.SetModuleState(m.addon, on) end
         return UI:RefreshPage(true)
     end
     if mod.addon and not on then return SwitchModuleAddon(mod, false) end

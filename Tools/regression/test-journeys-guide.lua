@@ -112,7 +112,8 @@ local env = setmetatable({
     CreateVector2D = function(x, y) return { x = x, y = y } end,
     Enum = { UIMapType = { Continent = 2, Zone = 3 }, FlightPathState = { Unreachable = 2 } },
     C_Item = { GetItemCount = function() return 0 end },
-    C_AddOns = { IsAddOnLoaded = function() return false end, LoadAddOn = function() end },
+    C_AddOns = { IsAddOnLoaded = function() return false end, LoadAddOn = function() end,
+        DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end },
     debugprofilestop = function() return 0 end,
     geterrorhandler = function() return error end,
     C_SpellBook = { IsSpellKnown = function() return false end },
@@ -173,10 +174,10 @@ local env = setmetatable({
 env._G = env
 env.WorldMapFrame = nil
 
-for _, path in ipairs({ "Core/Waypoint.lua", "NaowhForever_Journeys/Journeys.lua", "NaowhForever_Journeys/Constants.lua",
-        "NaowhForever_Journeys/Data/Network.lua", "NaowhForever_Journeys/Data/Teleports.lua",
-        "NaowhForever_Journeys/Planner.lua", "NaowhForever_Journeys/World.lua", "NaowhForever_Journeys/Walk.lua",
-        "NaowhForever_Journeys/Guide.lua", "NaowhForever_Journeys/Quests.lua", "NaowhForever_Journeys/Pins.lua" }) do
+for _, path in ipairs({ "Core/Waypoint.lua", "NaowhForever_Utilities/Journeys/Journeys.lua", "NaowhForever_Utilities/Journeys/Constants.lua",
+        "NaowhForever_Utilities/Journeys/Data/Network.lua", "NaowhForever_Utilities/Journeys/Data/Teleports.lua",
+        "NaowhForever_Utilities/Journeys/Planner.lua", "NaowhForever_Utilities/Journeys/World.lua", "NaowhForever_Utilities/Journeys/Walk.lua",
+        "NaowhForever_Utilities/Journeys/Guide.lua", "NaowhForever_Utilities/Journeys/Quests.lua", "NaowhForever_Utilities/Journeys/Pins.lua" }) do
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()

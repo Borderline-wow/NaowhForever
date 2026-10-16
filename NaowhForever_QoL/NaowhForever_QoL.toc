@@ -4,7 +4,7 @@
 ## Author: Naowh
 ## Version: 1.1.21
 ## Dependencies: NaowhForever
-## OptionalDeps: NaowhForever_ConsumableBar
+## OptionalDeps: NaowhForever_Combat
 ## Group: NaowhForever
 ## IconTexture: Interface\AddOns\NaowhForever\Core\Media\LogoAddon.tga
 

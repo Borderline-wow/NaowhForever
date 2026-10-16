@@ -41,7 +41,7 @@ local function Client(me, others, opts)
     opts = opts or {}
     local state = { now = 1000, combat = false, lockdown = false, secret = false, sent = {}, timers = {},
         statsCalls = 0, cachedOff = {}, raid = opts.raid or false,
-        values = { enabled = true, groupInspectShare = opts.share ~= false } }
+        values = { enabled = true, groupInspect = true, groupInspectShare = opts.share ~= false } }
     local listeners = {}
     local S = {
         Get = function(key) return state.values[key] end,
@@ -58,6 +58,7 @@ local function Client(me, others, opts)
     state.units, state.Seat = units, Seat
 
     local GI = { open = false, changed = 0, records = {}, list = {}, listeners = {} }
+    function GI.On() return S.Get("groupInspect") == true end
     function GI.IsOpen() return GI.open end
     function GI.Open() GI.open = true end
     function GI.Close() GI.open = false end
@@ -178,9 +179,9 @@ local function Client(me, others, opts)
     Load({ "Core/Senders.lua", "Core/Features.lua",
         "NaowhForever_BiS/StatWeights/Data/Defaults.lua",
         "NaowhForever_BiS/StatWeights/StatWeights.lua", "NaowhForever_BiS/StatWeights/Worth.lua",
-        "NaowhForever_GroupInspect/Constants.lua", "NaowhForever_GroupInspect/Stats.lua",
-        "NaowhForever_GroupInspect/OwnStats.lua", "NaowhForever_GroupInspect/Message.lua",
-        "NaowhForever_GroupInspect/Share.lua" }, env)
+        "NaowhForever_Utilities/GroupInspect/Constants.lua", "NaowhForever_Utilities/GroupInspect/Stats.lua",
+        "NaowhForever_Utilities/GroupInspect/OwnStats.lua", "NaowhForever_Utilities/GroupInspect/Message.lua",
+        "NaowhForever_Utilities/GroupInspect/Share.lua" }, env)
     state.T = GI._ShareTest
     GI.Roster()
 
@@ -488,6 +489,15 @@ do
     local disabled = Client("Alpha", { "Bravo" })
     disabled.ns.QoLSettings.Set("groupInspectShare", false)
     check("Share Your Stats off: nothing registered", next(disabled.frame.events) == nil)
+
+    local inspectOff = Client("Alpha", { "Bravo" })
+    check("Group Inspect on, sharing on: listening", inspectOff.frame.events.CHAT_MSG_ADDON == true)
+    inspectOff.ns.QoLSettings.Set("groupInspect", false)
+    check("Group Inspect switched off, its addon still loaded: nothing registered", next(inspectOff.frame.events) == nil)
+    inspectOff.T.OnEvent(nil, "CHAT_MSG_ADDON", "NaowhGroup", "1 R", "PARTY", "Bravo")
+    check("and no answer", #inspectOff.timers == 0 and #inspectOff.sent == 0)
+    inspectOff.ns.QoLSettings.Set("groupInspect", true)
+    check("switched back on: sharing again", inspectOff.frame.events.CHAT_MSG_ADDON == true)
 end
 
 print(("test-group-inspect-share: %d checks passed"):format(checks))

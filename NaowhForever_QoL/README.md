@@ -410,8 +410,9 @@ NaowhForever_QoL/
 - The Food & Drink buttons are secure, so the bar is built, shown, hidden and pointed at items
   only out of combat. Its key bindings (Bindings.xml) work once the bar is switched on, as that is
   when the buttons exist.
-- The Food & Drink Bar's card sits on the Consumable Bar's page while that module is on (its addon
-  loaded, before QoL by `OptionalDeps`, and `consumableBar` set), and on Loot & Items otherwise. A
+- The Food & Drink Bar's card sits on the Consumable Bar's page while that module is on
+  (`NaowhForever_Combat` loaded, before QoL by `OptionalDeps`, and `consumableBar` set), and on Loot &
+  Items otherwise. A
   card's page is chosen at load, so switching the Consumable Bar on or off moves it at the next
   reload. Its settings keep their `foodBar*` keys either way.
 - Its count, key text and anchor are the Consumable Bar's own rows and placement

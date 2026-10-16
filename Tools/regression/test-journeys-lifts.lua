@@ -48,7 +48,7 @@ ns.Journeys = {
     Settings = { Get = function(key) return settings[key] end, OnChange = function() end },
     World = { Player = function() return { c = here.c, x = here.x, y = here.y, z = here.z } end },
 }
-for _, path in ipairs({ "NaowhForever_Journeys/Constants.lua", "NaowhForever_Journeys/Lifts.lua" }) do
+for _, path in ipairs({ "NaowhForever_Utilities/Journeys/Constants.lua", "NaowhForever_Utilities/Journeys/Lifts.lua" }) do
     local chunk = assert(loadstring(Read(path), path))
     setfenv(chunk, env)
     chunk()

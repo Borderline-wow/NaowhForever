@@ -15,6 +15,7 @@ local NEEDS_FOCUS = ns.L("Needs Focus Panel")
 local NEEDS_FORGE = ns.L("Needs Focus Panel and the Macros module")
 local TEXT_NOTHING = ns.L("Nothing shown")
 local FORGE_VIEW = "smart"
+local MACROS_ADDON = "NaowhForever_Macros"
 local SIZE_RANGE, WARN_RANGE, LENGTH_RANGE, MAX_RANGE = { 24, 64, 1 }, { 1, 10, 1 }, { 5, 120, 5 }, { 1, 10, 1 }
 
 local Enabled = P.Enabled
@@ -23,7 +24,7 @@ local timerOn, warnOn, focusOn = P.Needs("timer"), P.Needs("warn"), P.Needs("foc
 local summaryParts = {}
 
 local function ForgeReady()
-    return focusOn() and ns.OpenMacroWindow ~= nil
+    return focusOn() and ns.ModuleOn(MACROS_ADDON)
 end
 
 local function OpenForge()

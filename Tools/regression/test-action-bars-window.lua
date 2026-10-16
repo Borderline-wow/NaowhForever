@@ -2,6 +2,7 @@
 -- sets, the set builder and the import preview) built and drawn from the real files against
 -- stubs. Checks that each draws, that the builder's clicks become the saved set's choices,
 -- and that the preview's Import imports.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end })
 local Load = dofile("Tools/regression/load_files.lua")
 
 local checks = 0
@@ -255,7 +256,7 @@ env._G.NaowhForever = ns
 Load({ "Shared/Shared.lua", "Shared/Style.lua", "Shared/UI/Parts.lua", "Shared/UI/Marks.lua", "Shared/UI/Text.lua", "Shared/UI/Hud.lua", "Shared/UI/Timer.lua", "Shared/UI/Share.lua", "Shared/UI/Panels.lua", "Shared/UI/Window.lua", "Shared/UI/Tabs.lua", "Shared/UI/SettingsCard.lua",
     }, env)
 local MODULE = { "Core/Features.lua" }
-for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_ActionBars/.*%.lua$")) do
+for _, path in ipairs(dofile("Tools/regression/toc_files.lua")("^NaowhForever_Utilities/ActionBars/.*%.lua$")) do
     if not path:find("SettingsPage%.lua$") then MODULE[#MODULE + 1] = path end
 end
 Load(MODULE, env)

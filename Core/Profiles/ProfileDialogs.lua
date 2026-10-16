@@ -15,13 +15,13 @@ local NAME_ROW_GAP, NAME_W, NAME_H, NAME_MAX, NAME_GAP = 10, 220, 22, 40, 12
 local BUTTON_GAP = 4
 local UNKNOWN = "?"
 local HANDOFFS = {
-    { prefix = "!NFM1!", button = "Add Macros", module = "Macros", needs = "ImportMacroString",
+    { prefix = "!NFM1!", button = "Add Macros", module = "Macros", addon = "NaowhForever_Macros", needs = "ImportMacroString",
       what = ns.L("These are Library macros. They are added as character macros on this character."),
       go = function(text) ns.ImportMacroString(text) end },
-    { prefix = "!NFB1!", button = "Add Build", module = "Training Planner", needs = "Training",
+    { prefix = "!NFB1!", button = "Add Build", module = "Training Planner", addon = "NaowhForever_Training", needs = "Training",
       what = ns.L("This is a talent build. It is added to your builds in the Training Planner."),
       go = function(text) ns.Training.ImportBuild(text, function() end) end },
-    { prefix = "!NBIS1!", button = "Add BiS List", module = "BiS List", needs = "ImportBisList",
+    { prefix = "!NBIS1!", button = "Add BiS List", module = "BiS List", addon = "NaowhForever_BiS", needs = "ImportBisList",
       what = ns.L("This is a BiS list. It is added next to your own lists."),
       go = function(text) ns.ImportBisList(text) end },
 }
@@ -132,7 +132,7 @@ end
 local function ShowHandoff(handoff)
     import.payload = nil
     import.nameRow:Hide()
-    if handoff.needs and not ns[handoff.needs] then
+    if not (ns[handoff.needs] and ns.ModuleOn(handoff.addon)) then
         import.preview:SetText(TEXT_TURN_ON:format(ns.L(handoff.module)))
         import.go:Hide()
         return

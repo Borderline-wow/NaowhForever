@@ -14,13 +14,14 @@ local function Check(ok, why)
 end
 
 local toc = Read("NaowhForever.toc")
-local moduleToc = Read("NaowhForever_InstanceTracker/NaowhForever_InstanceTracker.toc")
+local moduleToc = Read("NaowhForever_Utilities/NaowhForever_Utilities.toc")
+local hostXml = Read("NaowhForever_Utilities/Utilities.xml")
 local window = Read("Core/Options/Modules.lua")
-local moduleXml = Read("NaowhForever_InstanceTracker/InstanceTracker.xml")
-local tracker = Read("NaowhForever_InstanceTracker/InstanceTracker.lua")
-local page = Read("NaowhForever_InstanceTracker/UI/Pages.lua")
-    .. Read("NaowhForever_InstanceTracker/UI/SettingsPage.lua")
-local lists = Read("NaowhForever_InstanceTracker/UI/Window.lua")
+local moduleXml = Read("NaowhForever_Utilities/InstanceTracker/InstanceTracker.xml")
+local tracker = Read("NaowhForever_Utilities/InstanceTracker/InstanceTracker.lua")
+local page = Read("NaowhForever_Utilities/InstanceTracker/UI/Pages.lua")
+    .. Read("NaowhForever_Utilities/InstanceTracker/UI/SettingsPage.lua")
+local lists = Read("NaowhForever_Utilities/InstanceTracker/UI/Window.lua")
 
 Check(toc:find("InstanceTracker", 1, true) == nil,
     "the core toc does not load the tracker")
@@ -29,8 +30,10 @@ Check(moduleToc:match("## Interface:[^%c]*") == toc:match("## Interface:[^%c]*")
     "its TOC matches the core Interface and Version")
 Check(moduleToc:find("## Dependencies: NaowhForever", 1, true) ~= nil
     and moduleToc:find("## Group: NaowhForever", 1, true) ~= nil,
-    "the module depends on NaowhForever and is grouped with it")
-Check(moduleToc:find("\nInstanceTracker.xml", 1, true) ~= nil, "its TOC loads its XML")
+    "Utilities depends on NaowhForever and is grouped with it")
+Check(moduleToc:find("\nUtilities.xml", 1, true) ~= nil
+    and hostXml:find('<Include file="InstanceTracker\\InstanceTracker.xml"/>', 1, true) ~= nil,
+    "Utilities' TOC loads its XML, which loads the tracker's")
 local trackerAt = moduleXml:find('file="InstanceTracker.lua"', 1, true)
 local pagesAt = moduleXml:find('file="UI\\Pages.lua"', 1, true)
 local windowAt = moduleXml:find('file="UI\\Window.lua"', 1, true)
@@ -78,9 +81,9 @@ Check(lists:find("BuildInstanceHourPage", 1, true) ~= nil
 Check(lists:find("function ns.ToggleInstanceTrackerWindow", 1, true) ~= nil,
     "the slash command can open the window")
 
-Check(window:find('addon = "NaowhForever_InstanceTracker"', 1, true) ~= nil,
-    "the module is its own addon")
-Check(Read(".pkgmeta"):find("NaowhForever/NaowhForever_InstanceTracker: NaowhForever_InstanceTracker", 1, true) ~= nil,
+Check(window:find('addon = "NaowhForever_InstanceTracker", host = "NaowhForever_Utilities"', 1, true) ~= nil,
+    "the module ships inside the Utilities addon")
+Check(Read(".pkgmeta"):find("NaowhForever/NaowhForever_Utilities: NaowhForever_Utilities", 1, true) ~= nil,
     "packaged beside the core")
 Check(window:find('name = "Instance Tracker"[^}]-open = "ToggleInstanceTrackerWindow"', 1) ~= nil,
     "the module opens its own window")

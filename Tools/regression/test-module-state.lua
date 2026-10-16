@@ -6,10 +6,12 @@ local checks = 0
 local function check(label, ok) assert(ok, label); checks = checks + 1 end
 
 local World = dofile("Tools/regression/setup_world.lua")
-local MACROS, BARS, JOURNAL = "NaowhForever_Macros", "NaowhForever_ActionBars", "NaowhForever_DungeonJournal"
+local TRAINING, PROF, JOURNAL = "NaowhForever_Training", "NaowhForever_Professions", "NaowhForever_DungeonJournal"
 local GEAR, COMBAT = "NaowhForever_GearSets", "NaowhForever_Combat"
-local COMBAT_IDS = { "gearSets", "blessings", "auraBuffs", "threatMeter", "pvp", "swingTimer" }
-local BIS, INSPECT, DISC = "NaowhForever_BiS", "NaowhForever_GroupInspect", "NaowhForever_Discovery"
+local COMBAT_IDS = { "consumableBar", "gearSets", "blessings", "auraBuffs", "threatMeter", "pvp", "swingTimer" }
+local MACROS, UTILITIES = "NaowhForever_Macros", "NaowhForever_Utilities"
+local UTILITY_IDS = { "instanceTracker", "journeys", "macros", "groupInspect", "actionBars" }
+local BIS, DISC = "NaowhForever_BiS", "NaowhForever_Discovery"
 local QOL = "NaowhForever_QoL"
 
 local function All(value)
@@ -38,32 +40,32 @@ local function Count(list, pick)
 end
 
 do
-    local w = Game({ macros = { enabled = false } }, {})
+    local w = Game({ training = { enabled = false } }, {})
     check("an account that has not seen the onboarding is left to it", w.ns.ReconcileModules() == 0
         and #Writes(w) == 0 and w.account.moduleList == nil and #w.reloads == 0)
 end
 
 do
-    local w = Game({ macros = { enabled = false }, actionBars = { enabled = false } })
+    local w = Game({ training = { enabled = false }, professions = { enabled = false } })
     check("a new character follows the profile: two modules off", w.ns.ReconcileModules() == 2)
-    check("in its own AddOn list", not w.enabled[MACROS] and not w.enabled[BARS] and w.enabled[JOURNAL])
+    check("in its own AddOn list", not w.enabled[TRAINING] and not w.enabled[PROF] and w.enabled[JOURNAL])
     check("naming the character, never every character", #Writes(w) == 2 and Count(Writes(w), w.ForMe) == 2)
-    check("the profile is as it was", w.root.macros.enabled == false and w.root.actionBars.enabled == false)
+    check("the profile is as it was", w.root.training.enabled == false and w.root.professions.enabled == false)
     check("and one reload is offered", #w.reloads == 1)
     check("nothing differs at the next check: no call, no prompt", w.ns.ReconcileModules() == 0
         and #Writes(w) == 2 and #w.reloads == 1)
 end
 
 do
-    local w = Game({ actionBars = { enabled = true } })
-    w.enabled[BARS] = false
+    local w = Game({ professions = { enabled = true } })
+    w.enabled[PROF] = false
     check("an addon turned off before this change, its switch left on: adopted, not turned back on",
-        w.ns.ReconcileModules() == 0 and #Writes(w) == 0 and #w.reloads == 0 and w.root.actionBars.enabled == false)
+        w.ns.ReconcileModules() == 0 and #Writes(w) == 0 and #w.reloads == 0 and w.root.professions.enabled == false)
     w.enabled[JOURNAL] = false
     w.ns.ReconcileModules()
     check("a module that was never switched takes the list's state", w.root.journal.enabled == false)
-    check("a module off by default, its addon on, is left as it is", w.root.journeys == nil
-        and w.enabled.NaowhForever_Journeys)
+    check("a module off by default, its addon on, is left as it is", w.root.discovery == nil
+        and w.enabled.NaowhForever_Discovery)
 end
 
 do
@@ -80,9 +82,9 @@ end
 do
     local w = Game()
     w.ns.ReconcileModules()
-    w.root.macros = { enabled = false }
+    w.root.training = { enabled = false }
     check("a profile changed since (another character): applied to the list", w.ns.ReconcileModules() == 1
-        and not w.enabled[MACROS] and Count(Writes(w), w.ForMe) == 1 and #w.reloads == 1)
+        and not w.enabled[TRAINING] and Count(Writes(w), w.ForMe) == 1 and #w.reloads == 1)
     check("and the next check is quiet", w.ns.ReconcileModules() == 0 and #w.reloads == 1)
 end
 
@@ -91,11 +93,11 @@ do
     w.ns.ReconcileModules()
     w.root.qol.bis = false
     w.ns.ReconcileModules()
-    check("a module its profile turns off takes the module that needs it", not w.enabled[BIS] and not w.enabled[INSPECT]
-        and w.root.qol.groupInspect == false)
+    check("a module its profile turns off takes the module that needs it", not w.enabled[BIS]
+        and not w.On("groupInspect") and w.root.qol.groupInspect == false)
     w.root.qol.bis = true
     w.ns.ReconcileModules()
-    check("the module that needs it stays off until it is turned on", w.enabled[BIS] and not w.enabled[INSPECT])
+    check("the module that needs it stays off until it is turned on", w.enabled[BIS] and not w.On("groupInspect"))
 end
 
 do
@@ -108,7 +110,7 @@ do
         and w.On("swingTimer"))
     for _, id in ipairs(COMBAT_IDS) do w.ns.SetModuleState(w.Item(id).addon, false) end
     local last = Writes(w)[#Writes(w)]
-    check("all six off: the Combat addon goes off for this character", not w.enabled[COMBAT]
+    check("all seven off: the Combat addon goes off for this character", not w.enabled[COMBAT]
         and last.name == "DisableAddOn" and last.addon == COMBAT and w.ForMe(last) and w.root.pvp.enabled == false)
     w.ns.SetModuleState(GEAR, true)
     check("one back on brings the Combat addon back", w.enabled[COMBAT] and w.On("gearSets") and not w.On("pvp"))
@@ -126,13 +128,36 @@ do
 end
 
 do
-    local w = Game({ macros = { enabled = false } })
-    w.ns.ReconcileModules(true)
-    check("quiet: the list changes, no prompt", not w.enabled[MACROS] and #w.reloads == 0)
+    local w = Game({ qol = { groupInspect = true }, macros = { enabled = false } })
+    check("a Utilities module its profile turns off: its switch only, the Utilities addon stays for the rest",
+        w.ns.ReconcileModules() == 0 and w.enabled[UTILITIES] and #Writes(w) == 0 and not w.On("macros")
+        and w.On("actionBars") and w.On("groupInspect"))
+    for _, id in ipairs(UTILITY_IDS) do w.ns.SetModuleState(w.Item(id).addon, false) end
+    local last = Writes(w)[#Writes(w)]
+    check("all five off: the Utilities addon goes off for this character, Combat stays", not w.enabled[UTILITIES]
+        and last.name == "DisableAddOn" and last.addon == UTILITIES and w.ForMe(last) and w.enabled[COMBAT])
+    w.ns.SetModuleState(MACROS, true)
+    check("one back on brings the Utilities addon back", w.enabled[UTILITIES] and w.On("macros")
+        and not w.On("journeys"))
 end
 
 do
-    local w = Game({ macros = { enabled = false } })
+    local w = Game({ qol = { groupInspect = true }, instanceTracker = { enabled = false },
+        journeys = { enabled = false }, macros = { enabled = false }, actionBars = { enabled = false } })
+    w.root.qol.bis = false
+    check("Utilities' last module on needs a module turned off: it goes off, and the Utilities addon with it",
+        w.ns.ReconcileModules() == 2 and not w.enabled[UTILITIES] and not w.enabled[BIS]
+        and w.root.qol.groupInspect == false)
+end
+
+do
+    local w = Game({ training = { enabled = false } })
+    w.ns.ReconcileModules(true)
+    check("quiet: the list changes, no prompt", not w.enabled[TRAINING] and #w.reloads == 0)
+end
+
+do
+    local w = Game({ training = { enabled = false } })
     w.combat = true
     w.ns.ReconcileModules()
     local watch
@@ -144,28 +169,28 @@ do
 end
 
 do
-    local w = Game({ macros = { enabled = false } })
+    local w = Game({ training = { enabled = false } })
     local login
     for _, frame in ipairs(w.frames) do if frame.events.PLAYER_LOGIN then login = frame end end
     check("the core checks once, at login", login ~= nil and #w.timers == 0)
     login.onEvent(login, "PLAYER_LOGIN")
-    check("a moment after it", #w.timers == 1 and not login.events.PLAYER_LOGIN and w.enabled[MACROS])
+    check("a moment after it", #w.timers == 1 and not login.events.PLAYER_LOGIN and w.enabled[TRAINING])
     w.timers[1]()
-    check("the list matches the profile", not w.enabled[MACROS] and #w.reloads == 1)
+    check("the list matches the profile", not w.enabled[TRAINING] and #w.reloads == 1)
 end
 
 do
     local w = Game()
-    w.ns.SetModuleState(MACROS, false)
-    check("turned off: this character's list and the profile", not w.enabled[MACROS] and w.root.macros.enabled == false
+    w.ns.SetModuleState(TRAINING, false)
+    check("turned off: this character's list and the profile", not w.enabled[TRAINING] and w.root.training.enabled == false
         and Writes(w)[#Writes(w)].who == "Player-4613-006EB819")
-    w.ns.SetModuleState(MACROS, true)
-    check("and back on", w.enabled[MACROS] and w.root.macros.enabled == true)
-    w.loaded[BARS] = false
+    w.ns.SetModuleState(TRAINING, true)
+    check("and back on", w.enabled[TRAINING] and w.root.training.enabled == true)
+    w.loaded[PROF] = false
     w.Session()
-    w.ns.SetModuleState(BARS, false)
-    w.ns.SetModuleState(BARS, true)
-    check("a module whose addon is not loaded keeps its switch in the profile too", w.root.actionBars.enabled == true)
+    w.ns.SetModuleState(PROF, false)
+    w.ns.SetModuleState(PROF, true)
+    check("a module whose addon is not loaded keeps its switch in the profile too", w.root.professions.enabled == true)
     w.ns.SetModuleState("NaowhForever_Discovery", true)
     check("including one that is off by default", w.root.discovery.enabled == true)
     w.ns.ReconcileModules()
@@ -184,7 +209,7 @@ do
     w.ns.ConfirmReload = function(text) w.reloads[#w.reloads + 1] = text end
     w.ns.UsePreset("minimalist", false)
     check("Minimalist from the Setups card also takes its modules out of the AddOn list", not w.enabled[DISC]
-        and not w.enabled["NaowhForever_GroupInspect"] and not w.enabled[MACROS] and w.enabled["NaowhForever_BiS"])
+        and not w.On("groupInspect") and not w.On("macros") and not w.enabled[TRAINING] and w.enabled["NaowhForever_BiS"])
     check("with the one reload prompt", #w.reloads == 1)
 end
 
@@ -192,10 +217,10 @@ do
     local w = Game({}, { welcomeSeen = true })
     local Setup = w.ns.Setup
     local picks = Setup.Fresh()
-    Setup.Toggle(picks, "macros", false)
+    Setup.Toggle(picks, "training", false)
     Setup.Apply(picks)
-    check("the onboarding turning a module off writes the profile's switch", w.root.macros.enabled == false
-        and not w.enabled[MACROS])
+    check("the onboarding turning a module off writes the profile's switch", w.root.training.enabled == false
+        and not w.enabled[TRAINING])
 end
 
 print(("test-module-state: %d checks passed"):format(checks))

@@ -7,6 +7,8 @@
 -- no garbage per roster update or per inspect read. Everyone wears one set (item 100 + slot,
 -- level 30 blues, the chest enchanted, the feet enchantable and bare), its links made once; the
 -- clock moves on with Advance, which runs each timer due by then in order, as the game would.
+rawset(_G, "C_AddOns", { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end,
+    IsAddOnLoaded = function(addon) return addon == "NaowhForever_BiS" end })
 local Load = dofile("Tools/regression/load_files.lua")
 
 local checks = 0
@@ -157,9 +159,9 @@ local function Fixture()
     state.env, state.SECRET = env, {}
     Load({ "NaowhForever_BiS/NaowhScore/Data/Formula.lua", "NaowhForever_BiS/NaowhScore/NaowhScore.lua",
         "NaowhForever_BiS/NaowhScore/Inspect.lua", "NaowhForever_BiS/InspectPanel/Details.lua",
-        "NaowhForever_GroupInspect/GroupInspect.lua", "NaowhForever_GroupInspect/Constants.lua",
-        "NaowhForever_GroupInspect/Data/Preview.lua", "NaowhForever_GroupInspect/Records.lua",
-        "NaowhForever_GroupInspect/Inspect.lua", "NaowhForever_GroupInspect/PreviewGroup.lua" }, env)
+        "NaowhForever_Utilities/GroupInspect/GroupInspect.lua", "NaowhForever_Utilities/GroupInspect/Constants.lua",
+        "NaowhForever_Utilities/GroupInspect/Data/Preview.lua", "NaowhForever_Utilities/GroupInspect/Records.lua",
+        "NaowhForever_Utilities/GroupInspect/Inspect.lua", "NaowhForever_Utilities/GroupInspect/PreviewGroup.lua" }, env)
     function state.Fire(event, ...)
         for _, frame in ipairs(state.frames) do
             if frame.events[event] then frame.onEvent(frame, event, ...) end
@@ -483,6 +485,32 @@ do
     check("preview off: the real roster", GI.Count() == 5 and GI.Members()[2].unit == "party1")
     state.Advance(30)
     check("and the walk on again", state.asked > asked)
+end
+
+-- Group Inspect ships in NaowhForever_Utilities, which does not need the BiS List: with BiS not loaded,
+-- every Group Inspect file, switched on or not, loads without an error and makes, listens to and hooks nothing.
+do
+    local made, hooked, timed = 0, 0, 0
+    local ns = { QoLSettings = { Get = function(key) return key == "groupInspect" end, OnChange = NOTHING } }
+    local env = setmetatable({
+        C_AddOns = { DoesAddOnExist = function() return false end, GetAddOnEnableState = function() return 0 end,
+            IsAddOnLoaded = function() return false end },
+        C_Item = {},
+        CreateFrame = function() made = made + 1 end,
+        hooksecurefunc = function() hooked = hooked + 1 end,
+        C_Timer = { After = function() timed = timed + 1 end },
+    }, { __index = _G })
+    env._G = setmetatable({ NaowhForever = ns }, { __index = env })
+    local files = dofile("Tools/regression/toc_files.lua")("^NaowhForever_Utilities/GroupInspect/.*%.lua$")
+    check("every Group Inspect file is tried", #files > 20)
+    for _, path in ipairs(files) do
+        local chunk = assert(loadfile(path))
+        setfenv(chunk, env)
+        check(path .. " loads without the BiS List", pcall(chunk))
+    end
+    check("without the BiS List: no Group Inspect, no window, frame, hook or timer", ns.GroupInspect == nil
+        and ns.ToggleGroupInspect == nil and env.NaowhForever_ToggleGroupInspect == nil
+        and made == 0 and hooked == 0 and timed == 0)
 end
 
 print(("test-group-inspect-data: %d checks passed"):format(checks))

@@ -264,7 +264,7 @@ do
     local m = fixture('profile')
     m.ns.DB = function() return active end
     m.load('Core/Features.lua')
-    m.load('NaowhForever_Macros/Macros.lua')
+    m.load('NaowhForever_Utilities/Macros/Macros.lua')
     m.S.Set("classMacros", { PALADIN = { { name = "Test", body = "/say test" } } })
     check('class macros use profile-backed data', active.utilityReminders.classMacros.PALADIN[1].name == "Test")
     active = {}

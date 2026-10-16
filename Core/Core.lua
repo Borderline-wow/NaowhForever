@@ -58,12 +58,17 @@ local DAMAGE_METER_ADDON, GAME_METER_CVAR, GAME_METER_SAVED = "NaowhForever_Dama
 local GLIMMER_ADDON, GLIMMER_SAVED = "NaowhForever_QoL", { "glimmerSoftCVars", "glimmerSparkleCVars" }
 local RETIRED_ADDONS = { "NaowhForever_Glimmer", "NaowhForever_GlimmerData", "NaowhForever_TopBar", "NaowhForever_GearSets",
     "NaowhForever_Blessings", "NaowhForever_AuraBuffs", "NaowhForever_ThreatMeter", "NaowhForever_PvP", "NaowhForever_SwingTimer",
-    "NaowhForever_Language" }
+    "NaowhForever_Language", "NaowhForever_ConsumableBar", "NaowhForever_InstanceTracker", "NaowhForever_Journeys",
+    "NaowhForever_Macros", "NaowhForever_GroupInspect", "NaowhForever_ActionBars" }
 local TEXT_RETIRED = "%s is now part of Quality of Life: delete its old folder from your AddOns folder."
 local TEXT_RETIRED_COMBAT = "%s is now part of Naowh Forever: Combat: delete its old folder from your AddOns folder."
+local TEXT_RETIRED_UTILITIES = "%s is now part of Naowh Forever: Utilities: delete its old folder from your AddOns folder."
 local RETIRED_TEXT = { NaowhForever_GearSets = TEXT_RETIRED_COMBAT, NaowhForever_Blessings = TEXT_RETIRED_COMBAT,
     NaowhForever_AuraBuffs = TEXT_RETIRED_COMBAT, NaowhForever_ThreatMeter = TEXT_RETIRED_COMBAT,
     NaowhForever_PvP = TEXT_RETIRED_COMBAT, NaowhForever_SwingTimer = TEXT_RETIRED_COMBAT,
+    NaowhForever_ConsumableBar = TEXT_RETIRED_COMBAT, NaowhForever_InstanceTracker = TEXT_RETIRED_UTILITIES,
+    NaowhForever_Journeys = TEXT_RETIRED_UTILITIES, NaowhForever_Macros = TEXT_RETIRED_UTILITIES,
+    NaowhForever_GroupInspect = TEXT_RETIRED_UTILITIES, NaowhForever_ActionBars = TEXT_RETIRED_UTILITIES,
     NaowhForever_Language = "%s is now part of Naowh Forever: delete its old folder from your AddOns folder." }
 local TEXT_RETIRED_RELOAD = "Old Naowh Forever folders were switched off. Reload now to finish?"
 local ERR_NO_PROFILE = "no such profile"
