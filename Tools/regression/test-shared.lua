@@ -459,7 +459,8 @@ for line in widgets:gmatch("[^\n]+") do
 end
 helpers = table.concat(texts, "\n") .. "\n" .. helpers
 local MEDIA = { font = { Naowh = "naowh.ttf" },
-    statusbar = { Blizzard = "bar.blp", Solid = "solid", ["Naowh Gradient"] = "gradient.tga" } }
+    statusbar = { Blizzard = "bar.blp", Solid = "solid", ["Naowh Gradient"] = "gradient.tga",
+        NaowhGradient = "other.tga" } }
 local LSM = {
     List = function(_, kind)
         local names = {}
@@ -481,7 +482,25 @@ check("then every SharedMedia statusbar", textures.Solid == "Solid" and textures
     and #list == 4)
 textures, list = UI.TextureChoices("Gone", "Naowh Gradient")
 check("an entry named as the element's own is not listed twice", textures["Naowh Gradient"] == nil and #list == 4)
+local spaced, spacedList = UI.TextureChoices("", "Naowh  Gradient")
+check("nor one that only differs in its spacing or case", spaced["Naowh Gradient"] == nil
+    and spaced.NaowhGradient == nil and #spacedList == 3)
+local twice, twiceList = UI.TextureChoices("", "Flat")
+check("two of the list that only differ in spacing are listed once", twice["Naowh Gradient"] == "Naowh Gradient"
+    and twice.NaowhGradient == nil and #twiceList == 4)
+local chosen, chosenList = UI.TextureChoices("NaowhGradient", "Flat")
+check("but the one that is picked is always listed, and is not unavailable", chosen.NaowhGradient == "NaowhGradient"
+    and #chosenList == 5)
+local own, ownList = UI.TextureChoices("NaowhGradient", "Naowh Gradient")
+check("also when it is the element's own under another spelling", own.NaowhGradient == "NaowhGradient"
+    and own[""] == "Naowh Gradient" and #ownList == 4)
 check("a saved texture that has gone stays listed", textures.Gone == "Gone (unavailable)" and list[#list] == "Gone")
+local fonts, fontList = UI.FontChoices("")
+check("font choices: the Addon Font first, then every SharedMedia font", fontList[1] == "" and fonts[""] == "Addon Font"
+    and fonts.Naowh == "Naowh" and #fontList == 2)
+fonts, fontList = UI.FontChoices("", "Game Default")
+check("and a row can name its own first entry, as a texture row does", fonts[""] == "Game Default"
+    and fontList[1] == "" and fonts.Naowh == "Naowh" and #fontList == 2)
 check("texture path: a SharedMedia name", UI.TexturePath("Solid", "own") == "solid")
 check("texture path: the element's own for empty or missing", UI.TexturePath("", "own") == "own"
     and UI.TexturePath("Gone", "own") == "own" and UI.TexturePath(nil, "own") == "own")
@@ -489,7 +508,9 @@ local core = assert(io.open("Core/Core.lua", "rb")):read("*a")
 check("the Naowh Gradient is a SharedMedia statusbar",
     core:find('LSM:Register("statusbar", "Naowh Gradient", NAOWH_GRADIENT)', 1, true)
     and core:find('local MEDIA = "Interface\\\\AddOns\\\\NaowhForever\\\\Core\\\\Media\\\\"', 1, true)
-    and core:find('local NAOWH_GRADIENT = MEDIA .. "NaowhGradient.tga"', 1, true))
+    and core:find('local NAOWH_GRADIENT = MEDIA .. "NaowhGradient.tga"', 1, true)
+    and core:find('LSM:Register("statusbar", "Naowh Reverse Gradient", NAOWH_REVERSE_GRADIENT)', 1, true)
+    and core:find('local NAOWH_REVERSE_GRADIENT = MEDIA .. "NaowhReverseGradient.tga"', 1, true))
 
 local function Keys(entries)
     local out = {}

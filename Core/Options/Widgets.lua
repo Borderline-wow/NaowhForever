@@ -1344,8 +1344,8 @@ function UI.KeepMissing(values, order, selected)
     return values, order
 end
 
-function UI.FontChoices(selected)
-    local values, order = { [""] = TEXT_ADDON_FONT }, { "" }
+function UI.FontChoices(selected, label)
+    local values, order = { [""] = label or TEXT_ADDON_FONT }, { "" }
     local LSM = SharedMedia()
     if LSM then
         for _, name in ipairs(LSM:List("font")) do
@@ -1362,12 +1362,19 @@ function UI.FontPath(name)
     return path and ns.LocaleFont(name, path) or ns.HeadingFontPath()
 end
 
+local function Squashed(name)
+    return (name:gsub("%s", ""):lower())
+end
+
 function UI.TextureChoices(selected, label)
     local values, order = { [""] = label }, { "" }
+    local seen = { [Squashed(label)] = true }
     local LSM = SharedMedia()
     if LSM then
         for _, name in ipairs(LSM:List("statusbar")) do
-            if name ~= label then
+            local same = Squashed(name)
+            if name == selected or not seen[same] then
+                seen[same] = true
                 values[name] = name
                 order[#order + 1] = name
             end

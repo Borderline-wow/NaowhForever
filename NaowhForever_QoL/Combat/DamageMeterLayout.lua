@@ -39,7 +39,7 @@ local SPECS = {
     { name = "ShowSpecIcon", label = "Show Spec Icon", convert = FLAG, default = true,
       help = "A spec icon at the start of each bar." },
     { name = "ShowClassColor", label = "Show Class Color", convert = FLAG, default = true,
-      help = "Colors each bar by class, unless the reskin picks another color." },
+      help = "Colors each bar by class, unless Bar Color picks another color." },
 }
 
 local byName = {}
@@ -54,6 +54,11 @@ end
 
 local function Refresh()
     if ns.UI and ns.UI.RefreshPage then ns.UI:RefreshPage(true) end
+end
+
+local function Changed()
+    local preview = ns.DamageMeterPreview
+    if preview and preview.Refresh then preview.Refresh() end
 end
 
 local function Say(owner, text)
@@ -217,6 +222,7 @@ end
 local function Flush(updates, expect, owner)
     if not Change(updates, owner) then
         for name in pairs(expect) do shown[name] = nil end
+        Changed()
         return
     end
     C_Timer.After(VERIFY, function()
@@ -229,6 +235,7 @@ local function Flush(updates, expect, owner)
         else
             Say(owner, TEXT_RELOAD)
         end
+        Changed()
     end)
 end
 
@@ -236,6 +243,7 @@ local function Request(spec, display)
     if not (spec.enum or spec.convert == FLAG) then display = Clamp(spec, display) end
     shown[spec.name] = display
     status[spec.name] = nil
+    Changed()
     pending[spec.name] = (pending[spec.name] or 0) + 1
     local token = pending[spec.name]
     C_Timer.After(DEBOUNCE, function()
@@ -263,6 +271,7 @@ local function Restore()
         end
     end
     Flush(updates, expect, "Restore")
+    Changed()
     Refresh()
 end
 

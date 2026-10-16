@@ -114,7 +114,9 @@ end
 
 local function ChoiceValues(setting)
     local kind = setting.kind
-    if kind == "font" then return ns.UI.FontChoices(setting.get()) end
+    if kind == "font" then
+        return ns.UI.FontChoices(setting.get(), type(setting.font) == "string" and setting.font or nil)
+    end
     if kind == "texture" then return ns.UI.TextureChoices(setting.get(), setting.texture) end
     if kind == "sound" then return SoundValues() end
     if type(setting.choice) == "function" then return setting.choice() end

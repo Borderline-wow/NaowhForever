@@ -5,6 +5,7 @@ local MODULE_KEY = "NaowhForever"
 local MEDIA = "Interface\\AddOns\\NaowhForever\\Core\\Media\\"
 local NAOWH_FONT = MEDIA .. "Fonts\\Naowh.ttf"
 local NAOWH_GRADIENT = MEDIA .. "NaowhGradient.tga"
+local NAOWH_REVERSE_GRADIENT = MEDIA .. "NaowhReverseGradient.tga"
 local PRINT_LOGO_PATH = MEDIA .. "LogoAddon.tga"
 local PRINT_LOGO_DROP = 1
 local BYTE = 255
@@ -521,6 +522,7 @@ local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
 if LSM then
     LSM:Register("font", "Naowh", NAOWH_FONT, LSM.LOCALE_BIT_ruRU + LSM.LOCALE_BIT_western)
     LSM:Register("statusbar", "Naowh Gradient", NAOWH_GRADIENT)
+    LSM:Register("statusbar", "Naowh Reverse Gradient", NAOWH_REVERSE_GRADIENT)
 end
 
 ns.BLIZZARD_FONT = "__blizzard"

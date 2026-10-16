@@ -36,9 +36,10 @@ end
 
 local function Boot(opts)
     opts = opts or {}
-    local s = { printed = {}, saves = {}, timers = {}, converts = 0, account = {}, refreshes = 0 }
+    local s = { printed = {}, saves = {}, timers = {}, converts = 0, account = {}, refreshes = 0, previews = 0 }
     local ns = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower, Print = function(text) s.printed[#s.printed + 1] = text end,
         UI = { RefreshPage = function() s.refreshes = s.refreshes + 1 end },
+        DamageMeterPreview = { Refresh = function() s.previews = s.previews + 1 end },
         AccountSettings = function() return s.account end }
     s.manager = { layoutInfo = opts.info or Info(), IsShown = function() return s.editOpen == true end }
     local env = { ipairs = ipairs, pairs = pairs, type = type, pcall = pcall, tostring = tostring,
@@ -243,6 +244,26 @@ do
     late.manager.layoutInfo.layouts[3].systems[2].settings[1].value = 15
     late.Row("Restore Game Settings").button()
     check("the rows show the originals before the game has taken them", late.Row("Bar Height").get() == 20)
+end
+
+-- the card's preview is told at once, and again when the save is settled, since the page is not drawn again for these
+do
+    local s = Boot({ apply = true })
+    s.Row("Bar Height").set(30)
+    check("a move of a slider tells the preview at once", s.previews == 1)
+    s.Row("Bar Height").set(32)
+    check("and each move after it", s.previews == 2)
+    s.Flush(); s.Flush()
+    check("when the save is made and checked, once more", s.previews == 3)
+    local refused = Boot({ info = Info(2) })
+    refused.Row("Bar Height").set(30)
+    refused.Flush()
+    check("a save that is refused tells it too, as the value on its way is gone", refused.previews == 2)
+    local back = Boot({ apply = true })
+    back.Row("Bar Height").set(30); back.Flush(); back.Flush()
+    local before = back.previews
+    back.Row("Restore Game Settings").button()
+    check("Restore tells it at once, with the values it is putting back", back.previews == before + 1)
 end
 
 print("PASS damage meter layout: " .. checks .. " checks")
