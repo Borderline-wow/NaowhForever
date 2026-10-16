@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.1.22
+
+### Changed
+- Instance Tracker, Journeys, Macros, Group Inspect and Action Bars are now one line in the AddOns
+  list, Naowh Forever: Utilities, and the Consumable Bar is part of Naowh Forever: Combat. Turn each
+  one on or off under Settings > Modules, and it takes effect without a reload. Restart the game
+  once after updating so the new Naowh Forever: Utilities entry is found.
 
 ## 1.1.21
 
