@@ -1,6 +1,81 @@
 # Changelog
 
-## Unreleased
+## 1.1.21
+
+### Added
+- RestedXP: the Naowh window's list of steps scrolls with the mouse wheel through the whole guide,
+  the steps done above and the ones to come below, and a click goes back to any of them.
+- RestedXP: a Show Scroll Bar setting, off to start, for the thin bar beside the Naowh window's list
+  of steps; the wheel scrolls the list without it.
+- RestedXP: the Naowh window's step box and progress bars have a border with a size and a color of
+  their own, themed and black in the Naowh theme, and the bars a Bar Color and a background color,
+  in Window Look, in any Window Theme.
+- Settings > Minimap Icons: a minimap button for the Professions Shopping List, which the Top Bar
+  can show once it's on.
+- Consumable Bar: Flip Row Direction, in Settings > Bar > Layout, starts new rows above the first
+  (or to its left), so a bar under your unit frame can grow upward.
+- Consumable Bar: Rectangular Icons, in Settings > Bar > Layout, gives the icons their own Icon
+  Height, with the art cropped to fit instead of stretched.
+- Import (Profiles): Keep My Positions, ticked to start, keeps your frames where you put them when
+  you import someone's profile.
+- Profiles > Setups: Keep My Positions leaves your frames where they are when you apply one of
+  Naowh's setups.
+- AuraBuffs: Personal Buff Reminders remind a hunter with no aspect of their own up (Buffs &
+  Consumables card, Aspect).
+- Discovery: Rares: Skull on Click, off by default: clicking the Rare Alert card also puts a skull
+  on the rare.
+- Boat and Zeppelin Timers in QoL > Travel estimate the next arrival or departure at a dock from one
+  recorded sighting, kept for your realm until the weekly reset.
+- Professions: optional Skill-up Thresholds bar beneath the selected recipe, showing its difficulty
+  boundaries and your current skill.
+- German: Gamble, the RestedXP Naowh window, the Simple macro form, crafting ROI and the other new
+  parts up to 1.1.20 now show in German on German clients.
+- Professions: optional recipe markers for your active auctions and a Not Selling filter.
+- Professions: an optional standalone Crafting Queue for prerequisites, missing materials and
+  click-confirmed batches.
+- QoL > Combat > Default Damage Meter: a Theme row to paint the meter in the game's own look, your
+  current theme or any theme, with every color, font and texture still yours to change.
+- Default Damage Meter: every row of the card now also works with Reskin off, on the game's own
+  look.
+- Default Damage Meter: switches to show or hide each part of the title bar, Title and Timer X
+  Offsets, and an optional right-click menu on the title bar.
+- Default Damage Meter: a preview at the top of the card that shows every pick as it is made.
+- A Naowh Reverse Gradient bar texture.
+- Professions: Vendor Items on Shopping List (off by default) puts vendor materials in a Buy from
+  Vendor section of the Shopping List, with Buy and Buy All beside matching merchants.
+
+### Changed
+- RestedXP: Upcoming Steps is now Listed Steps, the number of steps the Naowh window's list shows at
+  once.
+- RestedXP: the Naowh window's step box and bars have a black border in the Naowh theme, in place of
+  the window's border color.
+- RestedXP: the Naowh window's Window Theme starts with Current Theme, in place of Same as the
+  Addon.
+- Restock Reminder (QoL > Loot & Items): the ammo settings are grouped under Ammo: Rogue and Warrior
+  and Ammo: Hunter.
+- Scrap Marker and the Scrap List are now the Junk Marker and the Junk List (QoL > Loot & Items),
+  and /nf junk opens the list (/nf scrap still works).
+- Waypoint Pin: the card above the pin has no blue line on top, and its text is centred.
+- Dungeon Journal: drop chances updated from Wowhead's latest kill counts.
+
+### Fixed
+- RestedXP window: RestedXP's Active Targets and Active Items titles no longer throw a font error.
+- Town Pins: mailboxes and spirit healers on the minimap are as big as the game's own minimap icons,
+  and Town Pin Size (QoL > Map & Pins, or the map's Town Pins button) now sizes them too.
+- The Quest List and its map pins no longer show some Forever quests to the wrong faction (Hearts of
+  the Lost, Strahnbrad Mystery and others).
+- Waypoint Pin: when the spot is off screen or far to one side, the pin points the way from near the
+  middle of the screen instead of sitting on the minimap, quest tracker or bars.
+- Training: the trainer waypoint for a new Skyborne shaman goes to Windshaper Boro on Zephras Isle
+  instead of Thunder Bluff.
+- AuraBuffs: Low Health no longer shows when you carry no healthstone or healing potion; turn on
+  Show When Out on its card to keep the old warning.
+- Gamble: on a German client the Last call announcement no longer puts the German word for party
+  into the English chat line.
+- Professions: the Shopping List's subtitle and empty-list message are no longer cut off when the
+  window is narrow or in a longer language; the Consumables button shows only its icon when the
+  title bar has no room for its label.
+- Default Damage Meter: Themed buttons no longer change the color of the title.
 
 ## 1.1.20
 
