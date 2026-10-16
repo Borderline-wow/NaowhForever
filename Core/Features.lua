@@ -165,6 +165,7 @@ ns.FEATURES = {
         craftProfit = false,
         craftProfitList = false,
         recipeAvailability = false,
+        ownedAuctions = false,
         craftROI = false,
         buyMaterials = false,
         buyVendor = false,

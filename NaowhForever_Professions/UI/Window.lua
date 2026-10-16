@@ -40,6 +40,8 @@ local TEXT_SET_WAYPOINT = ns.L("Click to set a waypoint.")
 local TEXT_WHERE = "%s %.1f, %.1f"
 local TEXT_BANNER = "%s %s\n%s%s|r"
 local TEXT_SCAN_FIRST = ns.L("Scan the auction house (Scan Prices) first.")
+local TEXT_AUCTIONS_FIRST = ns.L("Turn on Your Auctions in Professions settings first.")
+local TEXT_VISIT_AH = ns.L("Visit the Auction House once to read your listings.")
 local TEXT_UNLEARNED = ns.L("Unlearned Recipes")
 local TEXT_RESET = ns.L("Reset Filters")
 local TEXT_SHOW_ROI = ns.L("Show ROI")
@@ -137,11 +139,12 @@ local function AddFilter(root, f)
     if f.divider then root:CreateDivider() end
     local box = root:CreateCheckbox(f.text, function() return S.Get(f.key) == true end,
         function() ToggleSetting(f.key) end)
-    if not (f.profit and not Prices.ProfitShown()) then return end
+    if Filters.Available(f) then return end
     box:SetEnabled(false)
     box:SetTooltip(function(tooltip)
         GameTooltip_SetTitle(tooltip, f.text)
-        GameTooltip_AddNormalLine(tooltip, TEXT_SCAN_FIRST)
+        local reason = f.auctions and (P.Auctions.On() and TEXT_VISIT_AH or TEXT_AUCTIONS_FIRST) or TEXT_SCAN_FIRST
+        GameTooltip_AddNormalLine(tooltip, reason)
     end)
 end
 

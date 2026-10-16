@@ -229,6 +229,9 @@ page:Card({
         { key = "manualPatternScan", label = "Manual Favorite Scans", toggle = true, needs = FavoriteSearchOn,
           why = "Needs Search Favorites AH",
           help = "Adds Scan, Pause and Resume controls instead of searching every favourite automatically." },
+        { key = "ownedAuctions", label = "Your Auctions", toggle = true, needs = On, why = TEXT_OFF,
+          help = "Marks recipe rows whose results you have listed at the auction house.",
+          search = "not selling filter listed" },
         { key = "shoppingList", label = "Shopping List", toggle = true, needs = On, why = TEXT_OFF,
           help = "Adds \"- [1] + Add to List\" under a recipe's reagents: the materials Buy on AH would buy for "
               .. "that many crafts go on a shopping list, from anywhere. At the auction house the list shows "

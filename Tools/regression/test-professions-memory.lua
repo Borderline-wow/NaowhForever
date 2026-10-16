@@ -390,7 +390,7 @@ env = {
     NUM_TOTAL_EQUIPPED_BAG_SLOTS = 4,
     SetItemRef = Noop,
     Enum = { BagIndex = { ReagentBag = 5 }, ItemClass = { Tradegoods = 7 },
-        AuctionHouseSortOrder = { Price = 0 } },
+        AuctionHouseSortOrder = { Price = 0 }, AuctionStatus = { Active = 0 } },
     C_AddOns = { IsAddOnLoaded = function() return true end },
     C_SpellBook = { IsSpellKnown = function() return false end },
     C_Spell = {

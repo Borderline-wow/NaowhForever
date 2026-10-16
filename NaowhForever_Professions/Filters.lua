@@ -7,6 +7,7 @@ local W = P.State
 local R = P.Recipes
 local Prices = P.Prices
 local Favorites = P.Favorites
+local Auctions = P.Auctions
 
 local TRIVIAL = 3
 local BIND_INDEX = 14
@@ -17,13 +18,18 @@ local FILTERS = {
     { key = "filterMaterials", text = ns.L("Have Materials") },
     { key = "filterSkillUp", text = ns.L("Has Skill-Up") },
     { key = "filterProfit", text = ns.L("Profitable"), profit = true },
+    { key = "filterNotSelling", text = ns.L("Not Selling"), auctions = true },
     { key = "filterBoE", text = ns.L("Bind on Equip"), bind = 2, divider = true },
     { key = "filterBoP", text = ns.L("Bind on Pickup"), bind = 1 },
 }
 for _, f in ipairs(FILTERS) do FILTERS[f.key] = f end
 
+local function Available(f)
+    return (not f.profit or Prices.ProfitShown()) and (not f.auctions or Auctions.Ready())
+end
+
 local function FilterOn(f)
-    return S.Get(f.key) and (not f.profit or Prices.ProfitShown())
+    return S.Get(f.key) and Available(f)
 end
 
 local function MadeItem(info, r)
@@ -52,11 +58,12 @@ local function PassesLearned(info)
     if FilterOn(FILTERS.filterProfit) and not Profitable(info.recipeID, R.OutputItem(info.recipeID)) then
         return false
     end
+    if FilterOn(FILTERS.filterNotSelling) and Auctions.Count(R.OutputItem(info.recipeID)) > 0 then return false end
     return true
 end
 
 local function PassesUnlearned(r)
-    if FilterOn(FILTERS.filterMaterials) then return false end
+    if FilterOn(FILTERS.filterMaterials) or FilterOn(FILTERS.filterNotSelling) then return false end
     if FilterOn(FILTERS.filterProfit) then
         local read, made = R.OutputItem(r.spell)
         if not Profitable(r.spell, r.item or read, made) then return false end
@@ -82,6 +89,7 @@ end
 
 P.Filters = {
     LIST = FILTERS,
+    Available = Available,
     Passes = Passes,
     Active = Active,
 }

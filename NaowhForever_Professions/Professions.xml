@@ -14,6 +14,7 @@
     <Script file="Favorites.lua"/>
     <Script file="RecipeFinder.lua"/>
     <Script file="RankAlert.lua"/>
+    <Script file="Auctions.lua"/>
     <Script file="Filters.lua"/>
     <Script file="Entries.lua"/>
     <Script file="Orders.lua"/>

@@ -32,6 +32,7 @@ NaowhForever_Professions/
   Favorites.lua        favourite recipes (P.Favorites, ns.ProfFavorites)
   RecipeFinder.lua     the unlearned recipes, what they need and where they come from (ns.RecipeFinder)
   RankAlert.lua        a profession ready for its next rank, in the window and once in chat (ns.ProfessionRank)
+  Auctions.lua         your active auction quantities, kept per character (P.Auctions)
   Filters.lua          the Filter menu's rules (P.Filters)
   Entries.lua          what the recipe list holds, by category and group (P.Entries)
   Orders.lua           craft orders: value, tip, messages, sending (P.Orders)
@@ -143,6 +144,12 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   switch is on; bag totals are read from bag slots so equipped gear is never counted as bag stock.
   The list redraws on a Shopping List change only while the window is open: `/nf shopping` can
   change the list before the recipe window was ever built.
+- Your Auctions is opt-in. It reads the owner list only while the auction house is open, keeps the
+  latest active item quantities under the character's name and realm, as the Shopping List does, and
+  builds row markers only when needed. It asks for the owner list on opening the auction house and
+  after a post, but not after a cancel: the Auctions tab already asks again then, with the player's
+  sort, and its OWNED_AUCTIONS_UPDATED is read like any other.
+  Not Selling stays unavailable until the auction house has supplied the first complete owner list.
 - The rank banner pushes both columns down 46 while it shows. Filter is 76 wide for "Filter (3)".
   The Buy, Add to List and Create rows share one width, so they line up; the reagent rows end 4
   short of Create, hence the Buy row's 4 overhang.
