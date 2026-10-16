@@ -72,7 +72,7 @@ local TIP_ADD_HELP = ns.L("Puts that many of the item on the list.")
 local TEXT_CONSUMABLES = ns.L("Consumables")
 local TIP_CONSUMABLES_HELP = ns.L("Picks food, flasks, elixirs and more for your class to buy.")
 
-local window, side, scroll, input, qty, empty, total, clear, events
+local window, side, scroll, input, qty, empty, total, clear, picker, pickerFullWidth, events
 local crafts, craftPool, items, itemPool, madeList, madePool = {}, {}, {}, {}, {}, {}
 local pools = { crafts = {}, items = {}, materials = {}, made = {} }
 local heads = {}
@@ -376,7 +376,15 @@ local function DropClick()
     if GetCursorInfo() then OnReceiveDrag() end
 end
 
+local function FitPicker()
+    local text = math.max(window.title:GetUnboundedStringWidth(), window.subtitle:GetUnboundedStringWidth())
+    local fits = text + St.BAR_GAP + pickerFullWidth <= picker:GetRight() - window.title:GetLeft()
+    picker.label:SetShown(fits)
+    picker:SetWidth(fits and pickerFullWidth or picker:GetHeight())
+end
+
 local function OnShow()
+    FitPicker()
     for _, event in ipairs(EVENTS) do events:RegisterEvent(event) end
     RenderWindow()
 end
@@ -387,6 +395,7 @@ end
 
 local function OnSized(_, width)
     side:SetWidth(width - INSET - SCROLLBAR - SCROLL_GAP)
+    if window:IsShown() then FitPicker() end
 end
 
 local function BuildInput()
@@ -420,8 +429,9 @@ local function BuildBody(top)
     Head("materials", TEXT_MATERIALS)
     Head("made", TEXT_MADE)
     empty = ns.Font(window, SUMMARY_SIZE, nil, T.muted)
-    empty:SetPoint("CENTER", scroll, "CENTER")
-    empty:SetWidth(WIDTH - 2 * INSET)
+    empty:SetPoint("LEFT", scroll, "LEFT")
+    empty:SetPoint("RIGHT", scroll, "RIGHT")
+    empty:SetJustifyH("CENTER")
     empty:SetWordWrap(true)
     empty:SetText(TEXT_HINT)
 end
@@ -442,8 +452,9 @@ local function OnConsumables()
 end
 
 local function BuildBar(close)
-    local picker = Parts.BarButton(window, St.BAG, TEXT_CONSUMABLES, TIP_CONSUMABLES_HELP, OnConsumables,
+    picker = Parts.BarButton(window, St.BAG, TEXT_CONSUMABLES, TIP_CONSUMABLES_HELP, OnConsumables,
         TEXT_CONSUMABLES)
+    pickerFullWidth = picker:GetWidth()
     picker:SetPoint("RIGHT", close, "LEFT", -St.BAR_GAP, 0)
     window.subtitle:SetPoint("RIGHT", picker, "LEFT", -St.BAR_GAP, 0)
     window.subtitle:SetWordWrap(false)

@@ -232,6 +232,11 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   offered again.
 - The search box above the list keeps the rows whose name holds what is typed, any case. Typing and a star
   only lay out the rows already picked again, with no new pick; reopening the picker clears the search.
+- The Shopping List's Consumables button keeps its label only while the title, the subtitle and the whole
+  button fit side by side, measured when the window shows and as it is resized, so a longer translation
+  drops the label at a width where English keeps it. Without it the button is the square `Parts.BarIcon`
+  makes, as wide as it is tall. The empty-list message spans the list's current width, not the window's
+  starting one.
 - The shopping list makes a material from its parts, up to 4 levels down, only when whole crafts cost
   less than buying what is needed, and never from a recipe with a cooldown (it makes a few a day; a
   shared cooldown can read 0 on the spell). What was bought counts at every level, and a craft taken
