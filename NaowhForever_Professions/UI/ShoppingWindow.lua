@@ -40,6 +40,7 @@ local EVENTS = { "BAG_UPDATE_DELAYED" }
 local TEXT_TITLE = ns.L("Shopping List")
 local TEXT_SUBTITLE = ns.L("Crafts, other items and what to buy.")
 local TEXT_HINT = ns.L("Add an item above, or click Add to List under a recipe: what you need to buy lands here.")
+local TEXT_QUEUE_HINT = ns.L("Add an item above, or add a recipe to the Crafting Queue: what you need to buy lands here.")
 local TEXT_CRAFTS, TEXT_ITEMS, TEXT_MATERIALS, TEXT_MADE = ns.L("Crafts"), ns.L("Other Items"),
     ns.L("Materials"), ns.L("Make First")
 local TEXT_CLEAR = ns.L("Clear")
@@ -57,7 +58,7 @@ local TEXT_MAKE, TEXT_BUY = ns.L("Make"), ns.L("Buy")
 local TEXT_ADD = ns.L("Add")
 local TEXT_NOT_FOUND = ns.L("No item found for that. Use a link, an item ID, or the name of an item you have seen.")
 local TEXT_OFF = ns.L("Turn on the Shopping List in the Professions settings first.")
-local TIP_CLEAR_HELP = ns.L("Empties the shopping list.")
+local TIP_CLEAR_HELP = ns.L("Empties the Shopping List and the Crafting Queue when it is enabled.")
 local TIP_REMOVE, TIP_REMOVE_HELP = ns.L("Remove"), ns.L("Takes this craft and its materials off the list.")
 local TIP_MORE, TIP_MORE_HELP = ns.L("One More"), ns.L("Adds the materials for one more craft.")
 local TIP_FEWER, TIP_FEWER_HELP = ns.L("One Fewer"), ns.L("Takes the materials for one craft off the list.")
@@ -79,6 +80,10 @@ local heads = {}
 
 local function On()
     return S.Get("enabled") and S.Get("shoppingList")
+end
+
+local function QueueOn()
+    return On() and S.Get("craftQueue")
 end
 
 local function ByCraftName(a, b)
@@ -197,7 +202,8 @@ local function DrawCrafts(y)
         if not row.remove then
             StepButtons(row, Shopping.Remove, Shopping.Step, TIP_REMOVE_HELP, TIP_MORE_HELP, TIP_FEWER_HELP)
         end
-        Widgets.EnableButton(row.minus, e.craft.count > 1)
+        local queued = e.craft.queueCount
+        Widgets.EnableButton(row.minus, e.craft.count - (queued or 0) > (queued and 0 or 1))
         row.key, row.spell, row.item = e.id, e.id, nil
         row.icon:SetTexture(e.craft.icon or C_Spell.GetSpellTexture(e.id))
         row.name:SetText(TEXT_ROW:format(e.craft.count, e.craft.name or TEXT_UNKNOWN))
@@ -335,6 +341,7 @@ local function RenderWindow()
     y = DrawMade(made, plan, y)
     side:SetHeight(math.max(1, -y))
     local listed = #crafts > 0 or #items > 0
+    empty:SetText(QueueOn() and TEXT_QUEUE_HINT or TEXT_HINT)
     empty:SetShown(not listed)
     total:SetText(#materials > 0 and Shopping.Estimate(materials, TEXT_UNPRICED) or "")
     clear:SetShown(listed)

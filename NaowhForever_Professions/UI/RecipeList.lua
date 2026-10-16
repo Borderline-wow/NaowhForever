@@ -13,6 +13,7 @@ local Favorites = P.Favorites
 local Auctions = P.Auctions
 local Entries = P.Entries
 local Orders = P.Orders
+local Queue = P.CraftQueue
 local Text = P.Text
 local Style = P.Style
 local Widgets = P.Widgets
@@ -35,6 +36,7 @@ local STAR_SIZE = 12
 local MARK_GAP = 4
 local BAG_ICON = "Interface\\Icons\\INV_Misc_Bag_08"
 local LIST_ICON = "Interface\\Icons\\INV_Misc_Note_01"
+local QUEUE_ICON = "Interface\\Icons\\Trade_BlackSmithing"
 local AUCTION_ICON = "Interface\\Minimap\\Tracking\\Auctioneer"
 local HEAD_X, SUB_HEAD_X = 4, 14
 local COUNT_X, COUNT_GAP, ICON_X = 4, 6, 24
@@ -46,6 +48,7 @@ local TEXT_REQUIRED = ns.L("Required skill: %d  (%s)")
 local TEXT_BAGS = ns.L("In bags")
 local TEXT_BANK = ns.L("In Bank")
 local TEXT_SHOPPING = ns.L("Shopping List")
+local TEXT_QUEUE = ns.L("Crafting Queue")
 local TEXT_AUCTIONS = ns.L("On Auction House")
 
 local win
@@ -161,16 +164,19 @@ end
 local function MarkerTooltip(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine(self.title, 1, 1, 1)
-    if self.auctions ~= nil then
-        GameTooltip:AddDoubleLine(TEXT_AUCTIONS, tostring(self.auctions), T.fg.r, T.fg.g, T.fg.b,
-            T.accent.r, T.accent.g, T.accent.b)
-    elseif self.bags ~= nil then
+    if self.kind == "bag" then
         GameTooltip:AddDoubleLine(TEXT_BAGS, tostring(self.bags), T.fg.r, T.fg.g, T.fg.b,
             T.accent.r, T.accent.g, T.accent.b)
         GameTooltip:AddDoubleLine(TEXT_BANK, tostring(self.bank), T.fg.r, T.fg.g, T.fg.b,
             T.accent.r, T.accent.g, T.accent.b)
-    else
+    elseif self.kind == "shopping" then
         GameTooltip:AddDoubleLine(TEXT_SHOPPING, tostring(self.count), T.fg.r, T.fg.g, T.fg.b,
+            T.accent.r, T.accent.g, T.accent.b)
+    elseif self.kind == "auction" then
+        GameTooltip:AddDoubleLine(TEXT_AUCTIONS, tostring(self.count), T.fg.r, T.fg.g, T.fg.b,
+            T.accent.r, T.accent.g, T.accent.b)
+    else
+        GameTooltip:AddDoubleLine(TEXT_QUEUE, tostring(self.count), T.fg.r, T.fg.g, T.fg.b,
             T.accent.r, T.accent.g, T.accent.b)
     end
     GameTooltip:Show()
@@ -179,15 +185,21 @@ end
 local function EnsureAuctionMarker(row)
     if row.auction then return end
     row.auction = Widgets.Marker(row, AUCTION_ICON)
+    row.auction.kind = "auction"
     row.auction:SetScript("OnEnter", MarkerTooltip)
 end
 
 local function EnsureMarkers(row)
     if row.bag then return end
     row.bag = Widgets.Marker(row, BAG_ICON)
+    row.bag.kind = "bag"
     row.bag:SetScript("OnEnter", MarkerTooltip)
     row.shopping = Widgets.Marker(row, LIST_ICON)
+    row.shopping.kind = "shopping"
     row.shopping:SetScript("OnEnter", MarkerTooltip)
+    row.queue = Widgets.Marker(row, QUEUE_ICON)
+    row.queue.kind = "queue"
+    row.queue:SetScript("OnEnter", MarkerTooltip)
 end
 
 local function NewRow(i)
@@ -224,7 +236,7 @@ local function NewRow(i)
     return row
 end
 
-local function TextBeforeStatus(row, fav, shopping, bags, bank, auctions)
+local function TextBeforeStatus(row, fav, shopping, bags, bank, queued, auctions)
     row.fav:SetShown(fav)
     local anchor = row.profit
     if fav then
@@ -232,20 +244,28 @@ local function TextBeforeStatus(row, fav, shopping, bags, bank, auctions)
         row.fav:SetPoint("RIGHT", anchor, "LEFT", -STAR_GAP, 0)
         anchor = row.fav
     end
-    local status = S.Get("recipeAvailability") and not W.linked
+    local status = (S.Get("recipeAvailability") or S.Get("craftQueue")) and not W.linked
     if status then
         EnsureMarkers(row)
-        row.shopping:SetShown(shopping > 0)
-        row.bag:SetShown(bags > 0 or bank > 0)
+        local availability = S.Get("recipeAvailability")
+        row.shopping:SetShown(availability and shopping > 0)
+        row.bag:SetShown(availability and (bags > 0 or bank > 0))
+        row.queue:SetShown(queued > 0)
         row.shopping.title, row.shopping.count = TEXT_SHOPPING, shopping
         row.bag.title = row.entry.recipe and row.entry.recipe.name or row.text:GetText()
         row.bag.bags, row.bag.bank = bags, bank
-        if shopping > 0 then
+        row.queue.title, row.queue.count = TEXT_QUEUE, queued
+        if queued > 0 then
+            row.queue:ClearAllPoints()
+            row.queue:SetPoint("RIGHT", anchor, "LEFT", -MARK_GAP, 0)
+            anchor = row.queue
+        end
+        if availability and shopping > 0 then
             row.shopping:ClearAllPoints()
             row.shopping:SetPoint("RIGHT", anchor, "LEFT", -MARK_GAP, 0)
             anchor = row.shopping
         end
-        if bags > 0 or bank > 0 then
+        if availability and (bags > 0 or bank > 0) then
             row.bag:ClearAllPoints()
             row.bag:SetPoint("RIGHT", anchor, "LEFT", -MARK_GAP, 0)
             anchor = row.bag
@@ -253,11 +273,12 @@ local function TextBeforeStatus(row, fav, shopping, bags, bank, auctions)
     elseif row.bag then
         row.bag:Hide()
         row.shopping:Hide()
+        row.queue:Hide()
     end
     if auctions > 0 then
         EnsureAuctionMarker(row)
         row.auction.title = row.entry.recipe and row.entry.recipe.name or row.text:GetText()
-        row.auction.auctions = auctions
+        row.auction.count = auctions
         row.auction:ClearAllPoints()
         row.auction:SetPoint("RIGHT", anchor, "LEFT", -MARK_GAP, 0)
         row.auction:Show()
@@ -265,7 +286,7 @@ local function TextBeforeStatus(row, fav, shopping, bags, bank, auctions)
     elseif row.auction then
         row.auction:Hide()
     end
-    local marked = fav or auctions > 0 or (status and (shopping > 0 or bags > 0 or bank > 0))
+    local marked = fav or auctions > 0 or (status and (shopping > 0 or bags > 0 or bank > 0 or queued > 0))
     row.text:SetPoint("RIGHT", anchor, "LEFT", marked and -MARK_GAP or -TEXT_GAP, 0)
 end
 
@@ -280,6 +301,7 @@ local function FillHeader(row, cat)
     row.fav:Hide()
     if row.bag then row.bag:Hide() end
     if row.shopping then row.shopping:Hide() end
+    if row.queue then row.queue:Hide() end
     if row.auction then row.auction:Hide() end
     row.text:SetPoint("RIGHT", row.profit, "LEFT", -TEXT_GAP, 0)
     row.head:Show()
@@ -299,7 +321,7 @@ local function FillUnlearned(row, r)
     local profit, color = ListProfit(r.spell, r.item or read, made)
     row.profit:SetText(profit)
     SetColor(row.profit, color)
-    TextBeforeStatus(row, Favorites.Is(r), 0, 0, 0, 0)
+    TextBeforeStatus(row, Favorites.Is(r), 0, 0, 0, 0, 0)
     row.head:Hide()
     row.sel:SetShown(r == W.selectedUnlearned)
 end
@@ -312,7 +334,7 @@ local function FillRecipe(row, info)
     row.text:SetText(info.name)
     SetColor(row.text, Style.DIFFICULTY_RGB[info.relativeDifficulty] or T.fg)
     row.count:SetText(W.linked and Orders.Count(info.recipeID) or FormatCraftCount(info))
-    local shoppingCount, bags, bank, auctions = 0, 0, 0, 0
+    local shoppingCount, bags, bank, queued, auctions = 0, 0, 0, 0, 0
     local output = R.OutputItem(info.recipeID)
     if S.Get("recipeAvailability") and not W.linked then
         local shopping = P.Shopping.List()[info.recipeID]
@@ -320,8 +342,9 @@ local function FillRecipe(row, info)
         bags = output and R.BagCount(output) or 0
         bank = output and R.BankCount(output) or 0
     end
+    if S.Get("craftQueue") and not W.linked then queued = Queue.Count(info.recipeID) end
     if not W.linked and Auctions.On() then auctions = Auctions.Count(output) end
-    TextBeforeStatus(row, not W.linked and Favorites.Is(info), shoppingCount, bags, bank, auctions)
+    TextBeforeStatus(row, not W.linked and Favorites.Is(info), shoppingCount, bags, bank, queued, auctions)
     local profit, color = ListProfit(info.recipeID, output)
     row.profit:SetText(profit)
     SetColor(row.profit, color)
@@ -404,6 +427,10 @@ function List.Build(frame, below)
 end
 
 List.RedrawAll = RedrawAll
+
+function List.UpdateQueueMarkers()
+    if win and win:IsShown() and S.Get("craftQueue") then List.Render() end
+end
 
 P.Shopping.OnChange(function()
     if win and win:IsShown() and S.Get("recipeAvailability") then List.Render() end

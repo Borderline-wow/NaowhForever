@@ -22,6 +22,7 @@
     <Script file="BagRoom.lua"/>
     <Script file="ShoppingPlan.lua"/>
     <Script file="Consumables.lua"/>
+    <Script file="CraftQueue.lua"/>
     <Script file="Patterns.lua"/>
     <Script file="Disenchant.lua"/>
     <Script file="View\Style.lua"/>
@@ -43,6 +44,7 @@
     <Script file="UI\ShoppingWindow.lua"/>
     <Script file="UI\ShoppingConsumables.lua"/>
     <Script file="UI\ShoppingList.lua"/>
+    <Script file="UI\CraftQueue.lua"/>
     <Script file="UI\TrainFavorites.lua"/>
     <Script file="UI\FavoritePatterns.lua"/>
     <Script file="UI\CraftTimer.lua"/>

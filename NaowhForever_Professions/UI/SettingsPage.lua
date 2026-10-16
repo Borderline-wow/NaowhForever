@@ -53,6 +53,10 @@ local function FavoriteSearchOn()
     return On() and S.Get("searchFavoritesAH") == true
 end
 
+local function ShoppingOn()
+    return On() and S.Get("shoppingList") == true
+end
+
 local function ProfessionLine(index)
     if not index then return nil end
     local name, _, rank, maxRank = GetProfessionInfo(index)
@@ -239,6 +243,9 @@ page:Card({
               .. "scan, then Buy All goes through the list one material at a time, each bought only when you "
               .. "confirm its final price. A material you can make for less from its parts, such as a bar from "
               .. "ore, has its parts bought instead." },
+        { key = "craftQueue", label = "Crafting Queue", toggle = true, needs = ShoppingOn,
+          why = "Needs Shopping List",
+          help = "Queues crafts and prerequisites, and adds their missing materials to the Shopping List." },
         Group("Vendors"),
         { key = "vendorMaterials", label = "Crafts with Vendor Buys", toggle = true, needs = On,
           why = TEXT_OFF,

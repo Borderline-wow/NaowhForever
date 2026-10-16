@@ -13,6 +13,7 @@ local S = ns.UI.ModuleSettings("professions", {
     craftTimerFont = "", craftTimerFontSize = 14, craftTimerOutline = "OUTLINE", craftTimerTexture = "",
     craftTimerBgAlpha = 0.9,
     shoppingList = F.shoppingList,
+    craftQueue = F.craftQueue,
     trainFavorites = F.trainFavorites, searchFavoritesAH = F.searchFavoritesAH,
     manualPatternScan = F.manualPatternScan,
     gatherReminder = F.gatherReminder, gatherInInstances = false, gatherIconSize = 40, gatherFish = false,

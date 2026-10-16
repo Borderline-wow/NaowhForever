@@ -330,36 +330,52 @@ local function OnChange(fn)
     listeners[#listeners + 1] = fn
 end
 
-local function Add(info, crafts)
+local function Add(info, crafts, got, quiet, fromQueue, defer)
     local need = Needs(info.recipeID)
-    if next(need) == nil then return end
+    if next(need) == nil then return false end
     local list = List()
     local craft = list[info.recipeID]
     if craft then
         craft.count = craft.count + crafts
+        if fromQueue then craft.queueCount = (tonumber(craft.queueCount) or 0) + crafts end
         craft.icon = craft.icon or info.icon
         for item, per in pairs(need) do craft.need[item] = per end
+        if got then
+            craft.got = craft.got or {}
+            for item, qty in pairs(got) do craft.got[item] = (craft.got[item] or 0) + qty end
+        end
+        craft.fromQueue = craft.queueCount ~= nil and craft.queueCount == craft.count
     else
-        list[info.recipeID] = { name = info.name, icon = info.icon, count = crafts, need = need }
+        list[info.recipeID] = { name = info.name, icon = info.icon, count = crafts, need = need, got = got,
+            fromQueue = fromQueue and true or false, queueCount = fromQueue and crafts or nil }
     end
     local parts = {}
     for item, per in pairs(need) do
         parts[#parts + 1] = TEXT_PART:format(per * crafts, ItemName(item) or (TEXT_ITEM .. item))
     end
-    ns.Print(TEXT_ADDED:format(info.name, crafts, crafts == 1 and TEXT_CRAFT or TEXT_CRAFTS, table.concat(parts, ", ")))
-    Redraw()
+    if not quiet then
+        ns.Print(TEXT_ADDED:format(info.name, crafts, crafts == 1 and TEXT_CRAFT or TEXT_CRAFTS,
+            table.concat(parts, ", ")))
+    end
+    if not defer then Redraw() end
+    return true
 end
 
 local function Step(recipeID, by)
     local craft = recipeID and List()[recipeID]
     if not craft then return end
-    craft.count = math.max(1, math.min(C.MAX_CRAFTS, craft.count + by))
+    local queued = craft.queueCount or 0
+    local own = math.max(queued > 0 and 0 or 1, math.min(C.MAX_CRAFTS, craft.count - queued + by))
+    craft.count = queued + own
+    if queued > 0 then craft.fromQueue = own == 0 end
     Trim()
     Redraw()
 end
 
 local function Remove(recipeID)
+    local craft = recipeID and List()[recipeID]
     List()[recipeID] = nil
+    if craft and craft.queueCount then return P.CraftQueue.RemoveCraft(recipeID) end
     Trim()
     Redraw()
 end
@@ -391,6 +407,8 @@ local function RemoveItem(item)
 end
 
 local function Clear()
+    local queue = P.Settings and P.Settings.Get("craftQueue") and P.CraftQueue
+    if queue then queue.Clear() end
     wipe(List())
     wipe(Manual())
     Trim()

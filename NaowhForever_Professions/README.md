@@ -40,6 +40,7 @@ NaowhForever_Professions/
   BagRoom.lua          how many crafts the bags have room for (ns.CraftBagRoom)
   ShoppingPlan.lua     the shopping list's store (crafts and other items) and make-or-buy plan (P.Shopping)
   Consumables.lua      the consumables that suit you, by class, mana and level, the best marked (P.Consumables)
+  CraftQueue.lua       queued crafts, prerequisites, missing materials and click-driven execution (P.CraftQueue)
   Patterns.lua         favourites at a trainer, and their patterns to buy (P.Patterns, ns.TrainerServiceInfo)
   Disenchant.lua       the bag items Disenchant can take, the ones you keep, the next one (P.Disenchant)
   View/
@@ -63,6 +64,7 @@ NaowhForever_Professions/
     ShoppingWindow.lua the Shopping List window: crafts, other items, materials (ns.ToggleShoppingList)
     ShoppingConsumables.lua the Consumables picker beside the Shopping List: search and favourites
     ShoppingList.lua   the shopping list beside the auction house: check and buy
+    CraftQueue.lua     the standalone Crafting Queue window (ns.ToggleCraftQueue)
     TrainFavorites.lua Train Favorites beside the trainer
     FavoritePatterns.lua Search Favorites AH beside the auction house
     CraftTimer.lua     Total Craft Timer
@@ -208,6 +210,16 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   bought as they are, never made from parts; what was bought counts against them. Shift-click, a drag
   from the bags, an ID or an exact name adds one; the window is built on first open and listens to bag
   changes only while it shows.
+- The Crafting Queue starts off and creates no frames or hooks until first use. Adding a recipe queues its
+  cheaper prerequisites before the final craft and puts its missing auction-house materials on the
+  Shopping List. Start Queue only selects the next ready entry, and each Craft Next hardware click starts
+  one batch because Blizzard does not allow automated profession opening or unattended crafting. The
+  window stays open when the profession window closes.
+- The queue's Shopping List demand is derived: every finished craft and bag change during a run re-syncs
+  it, so a crafted queue leaves nothing behind. A row's +/- on the Shopping List changes only your own
+  count on top of the queue's, and X takes the row off, the queued craft included. The next entry is
+  selected only when its own profession is open; otherwise the open profession keeps its selection and
+  the queue waits on Open First. The `ns.Apply` hook acts only when the queue turns on or off.
 - The Consumables picker offers the Well Fed food, flasks, elixirs and stat scrolls of Naowh's consumables
   list (the one in his profile, from Wowhead Forever), the Buff Reminders' weapon stones and oils, the
   healing and mana potions in `Shared/Game/Consumables.lua` and the Smart Macros' bandages. Plain food and
@@ -299,6 +311,7 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
 - The window's slices: `test-profession-combat-close.lua`, `test-profession-window-drag.lua`
   (Takeover.lua), `test-profession-link-view.lua` (LinkView.lua), `test-profession-shift-click.lua`
   (AuctionHouse.lua), `test-profession-merchant-events.lua` (Vendors.lua),
-  `test-shopping-list-plan.lua` (ShoppingPlan.lua), `test-shopping-consumables.lua` (Consumables.lua),
+  `test-shopping-list-plan.lua` (ShoppingPlan.lua), `test-profession-craft-queue.lua` (CraftQueue.lua),
+  `test-shopping-consumables.lua` (Consumables.lua),
   and the looks in `test-icon-look.lua` and
   `test-qol-bars-look.lua`.
