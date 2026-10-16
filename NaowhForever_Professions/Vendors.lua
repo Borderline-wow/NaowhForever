@@ -12,9 +12,14 @@ local TEXT_TOO_DEAR = ns.L("Buy at Vendor: that costs %s, more than you have.")
 local TEXT_BOUGHT = ns.L("Bought %s for %s.")
 local TEXT_PART = "%dx %s"
 local MERCHANT_EVENTS = { "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED" }
-local MERCHANT_KEYS = { enabled = true, vendorMaterials = true, craftProfit = true, buyVendor = true }
+local MERCHANT_KEYS = { enabled = true, shoppingList = true, shoppingVendor = true, vendorMaterials = true,
+    craftProfit = true, buyVendor = true }
+local WAIT_EVENTS = { "BAG_UPDATE_DELAYED", "UI_ERROR_MESSAGE" }
 
 local merchant
+local shoppingList, shoppingPool, buyList, buyPool, buyParts = {}, {}, {}, {}, {}
+local expected, counted = {}, {}
+local waiting = false
 
 local function LearnedVendorItems()
     local account = ns.AccountSettings()
@@ -42,8 +47,13 @@ local function MerchantInfo(i)
     return price, stack, available, extended
 end
 
+local function ShoppingOn()
+    return S.Get("shoppingList") and S.Get("shoppingVendor")
+end
+
 local function ScanMerchant()
-    local learn, price = S.Get("vendorMaterials"), S.Get("craftProfit")
+    local shopping = ShoppingOn()
+    local learn, price = S.Get("vendorMaterials") or shopping, S.Get("craftProfit") or shopping
     if not (learn or price) then return end
     local learned, prices = LearnedVendorItems(), VendorPrices()
     for i = 1, GetMerchantNumItems() do
@@ -57,9 +67,54 @@ local function ScanMerchant()
     end
 end
 
+local function StopWaiting()
+    wipe(expected)
+    waiting = false
+    if merchant then
+        for _, event in ipairs(WAIT_EVENTS) do merchant:UnregisterEvent(event) end
+    end
+end
+
+local function Expect(itemID, count)
+    if not expected[itemID] then counted[itemID] = R.ItemCount(itemID) end
+    expected[itemID] = (expected[itemID] or 0) + count
+    waiting = true
+    for _, event in ipairs(WAIT_EVENTS) do merchant:RegisterEvent(event) end
+end
+
+local function Settle()
+    for itemID, left in pairs(expected) do
+        local now = R.ItemCount(itemID)
+        local got = math.min(left, now - counted[itemID])
+        if got > 0 then
+            counted[itemID] = now
+            expected[itemID] = left > got and left - got or nil
+            P.Shopping.Bought(itemID, got)
+        end
+    end
+    if next(expected) == nil then StopWaiting() end
+end
+
 local function OnMerchantEvent(_, event)
-    if event ~= "MERCHANT_CLOSED" then ScanMerchant() end
+    if event == "BAG_UPDATE_DELAYED" then
+        Settle()
+        return P.Shopping.Redraw()
+    end
+    if event == "UI_ERROR_MESSAGE" then
+        waiting = false
+        merchant:UnregisterEvent(event)
+        return P.ShoppingVendorView.OnMerchantEvent(event)
+    end
+    if event == "MERCHANT_CLOSED" then
+        Settle()
+        StopWaiting()
+    else
+        ScanMerchant()
+    end
     if event ~= "MERCHANT_UPDATE" and S.Get("buyVendor") and ns.ProfWindowRefresh then ns.ProfWindowRefresh() end
+    if not ShoppingOn() then return end
+    P.Shopping.Redraw()
+    P.ShoppingVendorView.OnMerchantEvent(event)
 end
 
 local function CraftableWithVendor(info)
@@ -90,6 +145,64 @@ local function Find(itemID)
     end
 end
 
+local function ShoppingNeeds(onlyItem)
+    local n, total = 0, 0
+    for _, material in ipairs(P.Shopping.VendorMaterials()) do
+        if not onlyItem or material.item == onlyItem then
+            local index, price, stack, available = Find(material.item)
+            if index then
+                local buys = math.ceil(material.qty / stack)
+                if available >= 0 then buys = math.min(buys, available) end
+                if buys > 0 then
+                    n = n + 1
+                    local entry = shoppingPool[n] or {}
+                    shoppingPool[n] = entry
+                    entry.index, entry.itemID = index, material.item
+                    entry.want, entry.count = material.qty, buys * stack
+                    entry.cost, entry.short = buys * price, available >= 0 and buys * stack < material.qty
+                    shoppingList[n] = entry
+                    total = total + entry.cost
+                end
+            end
+        end
+    end
+    for i = n + 1, #shoppingList do shoppingList[i] = nil end
+    return shoppingList, total
+end
+
+local function BuyEntries(list, total, trackShopping)
+    if #list == 0 then return false end
+    if GetMoney() < total then
+        ns.Print(TEXT_TOO_DEAR:format(Text.Money(total)))
+        return false
+    end
+    if trackShopping and C_Container.CalculateTotalNumberOfFreeBagSlots() == 0 then
+        ns.Print(ERR_INV_FULL)
+        return false
+    end
+    for index, entry in ipairs(list) do
+        local purchase = buyPool[index] or {}
+        buyPool[index] = purchase
+        purchase.index, purchase.itemID, purchase.count = entry.index, entry.itemID, entry.count
+        buyList[index] = purchase
+    end
+    for index = #list + 1, #buyList do buyList[index] = nil end
+    wipe(buyParts)
+    for _, entry in ipairs(buyList) do
+        local left = entry.count
+        local most = math.max(1, GetMerchantItemMaxStack(entry.index) or left)
+        if trackShopping then Expect(entry.itemID, entry.count) end
+        while left > 0 do
+            local count = math.min(left, most)
+            BuyMerchantItem(entry.index, count)
+            left = left - count
+        end
+        buyParts[#buyParts + 1] = TEXT_PART:format(entry.count, R.Link(entry.itemID))
+    end
+    ns.Print(TEXT_BOUGHT:format(table.concat(buyParts, ", "), Text.Money(total)))
+    return true
+end
+
 local function List(recipeID, crafts, topUp)
     local out, total, owned = {}, 0, R.Owned()
     local ok, reagents = pcall(R.Reagents, recipeID)
@@ -115,20 +228,21 @@ end
 
 local function Buy(recipeID, crafts, topUp)
     local list, total = List(recipeID, crafts, topUp)
-    if #list == 0 then return end
-    if GetMoney() < total then return ns.Print(TEXT_TOO_DEAR:format(Text.Money(total))) end
-    local parts = {}
-    for _, e in ipairs(list) do
-        local left = e.count
-        local most = math.max(1, GetMerchantItemMaxStack(e.index) or left)
-        while left > 0 do
-            local n = math.min(left, most)
-            BuyMerchantItem(e.index, n)
-            left = left - n
-        end
-        parts[#parts + 1] = TEXT_PART:format(e.count, R.Link(e.itemID))
-    end
-    ns.Print(TEXT_BOUGHT:format(table.concat(parts, ", "), Text.Money(total)))
+    return BuyEntries(list, total)
+end
+
+local function BuyShoppingItem(itemID)
+    local list, total = ShoppingNeeds(itemID)
+    return BuyEntries(list, total, true)
+end
+
+local function BuyShoppingAll()
+    local list, total = ShoppingNeeds()
+    return BuyEntries(list, total, true)
+end
+
+local function Waiting()
+    return waiting
 end
 
 P.Vendors = {
@@ -139,15 +253,23 @@ P.Vendors = {
     List = List,
     Sells = Sells,
     Buy = Buy,
+    ShoppingNeeds = ShoppingNeeds,
+    BuyShoppingItem = BuyShoppingItem,
+    BuyShoppingAll = BuyShoppingAll,
+    Waiting = Waiting,
 }
 
 ns.ProfWindowAPI.IsVendorItem = IsVendorItem
 
 local function MerchantWanted()
-    return P.On() and (S.Get("vendorMaterials") or S.Get("craftProfit") or S.Get("buyVendor"))
+    return P.On() and (ShoppingOn() or S.Get("vendorMaterials") or S.Get("craftProfit") or S.Get("buyVendor"))
 end
 
 local function Apply()
+    if not (P.On() and ShoppingOn()) then
+        StopWaiting()
+        if P.ShoppingVendorView then P.ShoppingVendorView.Hide() end
+    end
     if not MerchantWanted() then
         if merchant then merchant:UnregisterAllEvents() end
         return
@@ -157,10 +279,12 @@ local function Apply()
         merchant:SetScript("OnEvent", OnMerchantEvent)
     end
     for _, event in ipairs(MERCHANT_EVENTS) do merchant:RegisterEvent(event) end
+    if Open() then OnMerchantEvent(merchant, "MERCHANT_SHOW") end
 end
 
 local function OnSettingChanged(key)
     if MERCHANT_KEYS[key] then Apply() end
+    if key == "shoppingVendor" then P.Shopping.Redraw() end
 end
 
 S.OnChange(OnSettingChanged)

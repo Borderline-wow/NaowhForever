@@ -43,6 +43,7 @@
     <Script file="UI\ShoppingAdd.lua"/>
     <Script file="UI\ShoppingWindow.lua"/>
     <Script file="UI\ShoppingConsumables.lua"/>
+    <Script file="UI\ShoppingVendor.lua"/>
     <Script file="UI\ShoppingList.lua"/>
     <Script file="UI\CraftQueue.lua"/>
     <Script file="UI\TrainFavorites.lua"/>

@@ -63,6 +63,7 @@ NaowhForever_Professions/
     ShoppingAdd.lua    Add to List under a recipe, and the button that opens the shopping list
     ShoppingWindow.lua the Shopping List window: crafts, other items, materials (ns.ToggleShoppingList)
     ShoppingConsumables.lua the Consumables picker beside the Shopping List: search and favourites
+    ShoppingVendor.lua Shopping List materials sold by the open merchant, with Buy and Buy All
     ShoppingList.lua   the shopping list beside the auction house: check and buy
     CraftQueue.lua     the standalone Crafting Queue window (ns.ToggleCraftQueue)
     TrainFavorites.lua Train Favorites beside the trainer
@@ -261,6 +262,21 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   shared cooldown can read 0 on the spell). What was bought counts at every level, and a craft taken
   off takes its purchases along. Every craft fires TRADE_SKILL_LIST_UPDATE, so the recipes known are
   recorded again only when they changed, 0.5s after the list settles.
+- Vendor Items on Shopping List is opt-in so the list stays as it was for everyone else: off, vendor
+  reagents are left off the list as before. On, missing vendor items from recipes and manually added
+  items stay in the Shopping List. They go to Buy from Vendor unless the last auction scan and a known
+  vendor price show the auction house is strictly cheaper; only auction-routed materials reach Check
+  Prices and Buy All at the auction house. An unknown vendor price stays on the vendor side until that
+  merchant is seen.
+- When an open merchant sells a vendor-routed Shopping List material, a compact window appears beside it.
+  It is built only while the setting is on and a matching merchant is open. Buying remains click-driven;
+  merchant stack sizes and limited stock are respected, and the close button dismisses it until another
+  merchant opens.
+- BuyMerchantItem gives no result, and a merchant can refuse a purchase (full bags, sold out), so a vendor
+  purchase counts on the Shopping List only once it lands: the bag count at the click is kept, and each
+  BAG_UPDATE_DELAYED counts what arrived, up to what was bought. Buy and Buy All wait until it lands or
+  the game shows an error; a purchase still on its way when the merchant closes is not counted, and stays
+  on the list. With no free bag slot nothing is bought.
 - Herbalism and Skinning have no recipes: their ranks are Mining's (same skill and cost) and their
   trainers come from the town map data. A rank needs level 10, 20 and 35 for caps 150, 225 and 300
   unless its data says otherwise.
@@ -315,3 +331,4 @@ Each layer uses only the ones above it, or reads a later one's table at call tim
   `test-shopping-consumables.lua` (Consumables.lua),
   and the looks in `test-icon-look.lua` and
   `test-qol-bars-look.lua`.
+- Vendor Shopping List routing and purchases: `test-profession-shopping-vendor.lua`.

@@ -157,6 +157,7 @@ ns.FEATURES = {
         craftTimerShowCastBar = false,
         shoppingList = false,
         craftQueue = false,
+        shoppingVendor = false,
         trainFavorites = false,
         searchFavoritesAH = false,
         manualPatternScan = false,

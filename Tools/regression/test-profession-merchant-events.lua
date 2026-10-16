@@ -1,5 +1,6 @@
 -- Run with Lua 5.1 from the repository root: the Professions module listens to merchants only
--- while a feature that reads them is on (Crafts with Vendor Buys, Crafting Profit, Buy at Vendor),
+-- while a feature that reads them is on (Vendor Items on Shopping List, Crafts with Vendor Buys,
+-- Crafting Profit, Buy at Vendor),
 -- so a player with none of them on pays nothing at a merchant. Loads the real feature switches,
 -- the module's settings and Vendors.lua against stubs, then turns the switches on and off.
 local Load = dofile("Tools/regression/load_files.lua")
@@ -70,11 +71,18 @@ local env = setmetatable({
         if t == ns and name == "Apply" then applyHooks[#applyHooks + 1] = fn end
     end,
     GetMerchantNumItems = function() scanned = scanned + 1; return 0 end,
+    wipe = function(t) for k in pairs(t) do t[k] = nil end end,
 }, { __index = _G })
 env._G = env
 
 Load({ "Core/Features.lua", "NaowhForever_Professions/Professions.lua", "NaowhForever_Professions/Vendors.lua" }, env)
 local S = ns.ProfessionSettings
+local hidden, redraws, viewEvents = 0, 0, 0
+ns.Professions.ShoppingVendorView = {
+    Hide = function() hidden = hidden + 1 end,
+    OnMerchantEvent = function() viewEvents = viewEvents + 1 end,
+}
+ns.Professions.Shopping = { Redraw = function() redraws = redraws + 1 end }
 
 check("on its defaults, nothing listens to merchants", Listening() == 0 and made == 0)
 
@@ -102,5 +110,23 @@ check("a profile that turns the module back on listens again", Listening() == #M
 settings.buyVendor = false
 for _, fn in ipairs(applyHooks) do fn() end
 check("a profile with none of them on stops listening", Listening() == 0)
+
+S.Set("shoppingList", true)
+check("Shopping List alone does not listen to merchants", Listening() == 0)
+S.Set("shoppingVendor", true)
+check("Vendor Items on Shopping List listens for vendor prices and matching materials",
+    Listening() == #MERCHANT)
+local before, redrawn, shown = scanned, redraws, viewEvents
+Fire("MERCHANT_SHOW")
+check("it scans a merchant when it opens, redraws the list and tells the merchant window",
+    scanned == before + 1 and redraws == redrawn + 1 and viewEvents == shown + 1)
+hidden = 0
+S.Set("shoppingVendor", false)
+check("turning it off stops its listener and hides the merchant window", Listening() == 0 and hidden == 1)
+S.Set("buyVendor", true)
+redrawn, shown = redraws, viewEvents
+Fire("MERCHANT_SHOW")
+check("with it off, a merchant never redraws the Shopping List or wakes its window",
+    redraws == redrawn and viewEvents == shown)
 
 print(("test-profession-merchant-events: %d checks passed"):format(checks))

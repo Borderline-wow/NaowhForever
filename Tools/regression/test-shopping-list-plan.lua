@@ -10,6 +10,7 @@ local Load = dofile("Tools/regression/load_files.lua")
 -- Items: ore smelts to bars, two ore a bar; a sword takes bars. Arcanite is a transmute.
 local ORE, BAR, SWORD, THORIUM, CRYSTAL, ARCANITE, FLUX = 1, 2, 3, 4, 5, 6, 7
 local account, prices, vendor, own = {}, {}, {}, true
+local profSettings = {}
 local recipes, cooldownBase, cooldownLeft, dayCooldown = {}, {}, {}, {}
 local ALCHEMY, MINING, TAILORING = 171, 186, 197
 local openProf, myLines = ALCHEMY, { ALCHEMY, MINING }
@@ -29,9 +30,10 @@ local env = {
         GetBaseProfessionInfo = function() return { professionID = openProf } end,
     },
     NaowhForever = { L = dofile("Tools/regression/locale_stub.lua").L, Upper = string.upper, Lower = string.lower,
-        Professions = {},
+        Professions = { Settings = { Get = function(key) return profSettings[key] end } },
         AccountSettings = function() return account end,
         AuctionPrice = function(item) return prices[item] end,
+        Print = function() end,
         ProfWindowAPI = {
             Owned = function() return {} end,
             IsVendorItem = function(item) return vendor[item] or false end,
@@ -65,10 +67,11 @@ local SMELT = { recipe = 100, made = 1, need = { [ORE] = 2 } }
 local function Craft(id, need, count) SL.List()[id] = { name = "c" .. id, count = count or 1, need = need } end
 -- itemID -> qty to buy, and itemID -> qty made first.
 local function Plan()
-    local materials, made = SL.Materials()
-    local buy = {}
+    local materials, made, _, vendorMaterials = SL.Materials()
+    local buy, vendorBuy = {}, {}
     for _, m in ipairs(materials) do buy[m.item] = m.qty end
-    return buy, made
+    for _, m in ipairs(vendorMaterials) do vendorBuy[m.item] = m.qty end
+    return buy, made, vendorBuy
 end
 local function Only(t, item, qty)
     for k, v in pairs(t) do if k ~= item or v ~= qty then return false end end
@@ -116,6 +119,58 @@ vendor[FLUX] = true; prices[BAR] = 1
 buy = Plan()
 check("vendor parts only: the bars are bought", Only(buy, BAR, 3))
 vendor[FLUX] = nil
+
+-- Vendor Items on Shopping List off (the default): vendor reagents stay off the list, as before.
+Reset(); Learned({}); vendor[FLUX] = true
+account.profVendorPrices = { [FLUX] = 40 }
+recipes[10] = { need = { [FLUX] = 1 } }
+check("off: a recipe with only vendor materials has nothing to add", not SL.HasNeeds(10))
+recipes[10] = { need = { [FLUX] = 1, [ORE] = 2 } }
+check("off: only the reagents vendors do not sell are added",
+    SL.Add({ recipeID = 10, name = "c10" }, 1, nil, true) and SL.List()[10].need[FLUX] == nil)
+local auctionBuy, _, vendorBuy = Plan()
+check("off: nothing goes to Buy from Vendor", Only(auctionBuy, ORE, 2) and Empty(vendorBuy))
+SL.Bought(ORE, 2)
+check("off: buying the last auction material clears the list", Empty(SL.List()))
+SL.AddItem(FLUX, 2)
+auctionBuy, _, vendorBuy = Plan()
+check("off: a manually added vendor item stays with the auction house",
+    Only(auctionBuy, FLUX, 2) and Empty(vendorBuy))
+SL.Clear()
+profSettings.shoppingVendor = true
+
+-- Vendor materials stay out of the AH run unless a known AH price is strictly cheaper.
+Reset(); Learned({}); vendor[FLUX] = true; prices[FLUX] = 100
+account.profVendorPrices = { [FLUX] = 40 }
+Craft(10, { [FLUX] = 3 })
+auctionBuy, _, vendorBuy = Plan()
+check("vendor cheaper: material is routed to the vendor", Empty(auctionBuy) and Only(vendorBuy, FLUX, 3))
+prices[FLUX] = 30
+auctionBuy, _, vendorBuy = Plan()
+check("AH cheaper: material is routed to the auction house", Only(auctionBuy, FLUX, 3) and Empty(vendorBuy))
+prices[FLUX] = 40
+auctionBuy, _, vendorBuy = Plan()
+check("equal prices: material stays with the vendor", Empty(auctionBuy) and Only(vendorBuy, FLUX, 3))
+account.profVendorPrices = nil
+auctionBuy, _, vendorBuy = Plan()
+check("unknown vendor price: material stays with the vendor", Empty(auctionBuy) and Only(vendorBuy, FLUX, 3))
+recipes[10] = { need = { [FLUX] = 1 } }
+check("a recipe with only vendor materials can be added", SL.HasNeeds(10))
+SL.Clear(); SL.AddItem(FLUX, 2)
+auctionBuy, _, vendorBuy = Plan()
+check("a manually added vendor item uses the same routing", Empty(auctionBuy) and Only(vendorBuy, FLUX, 2))
+
+Reset(); Learned({}); vendor[FLUX] = true; prices[ORE] = 10
+account.profVendorPrices = { [FLUX] = 5 }
+Craft(20, { [ORE] = 2, [FLUX] = 1 })
+SL.Bought(ORE, 2)
+auctionBuy, _, vendorBuy = Plan()
+check("buying the last AH material keeps vendor work on the list",
+    SL.List()[20] ~= nil and Empty(auctionBuy) and Only(vendorBuy, FLUX, 1))
+SL.Bought(FLUX, 1)
+check("buying the final vendor material clears the completed list", Empty(SL.List()) and Empty(SL.Have()))
+vendor[FLUX] = nil
+profSettings.shoppingVendor = nil
 
 -- A craft taken off takes its purchases along (the reviewer's case).
 Reset(); Learned({}); Craft(10, { [ORE] = 20 }); Craft(11, { [THORIUM] = 5 })

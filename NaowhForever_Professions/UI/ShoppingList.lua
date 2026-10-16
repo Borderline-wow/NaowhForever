@@ -539,12 +539,7 @@ end
 
 local function OnPurchased(e)
     run.bought = run.bought + 1
-    Shopping.Drop(e.item, e.buy)
-    if #(Shopping.Materials()) == 0 then
-        wipe(Shopping.List())
-        wipe(Shopping.Manual())
-        Shopping.Trim()
-    end
+    Shopping.Bought(e.item, e.buy)
     NextBuy()
 end
 
